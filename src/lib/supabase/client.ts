@@ -1,19 +1,14 @@
 import { createBrowserClient } from '@supabase/ssr';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
-
-// Singleton instance for client-side
-let supabaseInstance: ReturnType<typeof createBrowserClient> | null = null;
-
-export function getSupabase() {
-  if (!supabaseInstance) {
-    supabaseInstance = createClient();
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // Return a mock client during build time
+    console.warn('[Supabase] Missing environment variables, using mock client');
+    return null as any;
   }
-  return supabaseInstance;
+  
+  return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
-
