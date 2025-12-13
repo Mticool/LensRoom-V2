@@ -18,10 +18,14 @@ export function HeroSection() {
 
   return (
     <section ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Animated Grid Background */}
+      {/* Grid Background - темнее в светлой теме */}
       <motion.div 
         style={{ y, opacity }}
-        className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--border))_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" 
+        className="absolute inset-0 
+                   bg-[linear-gradient(to_right,rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.05)_1px,transparent_1px)]
+                   dark:bg-[linear-gradient(to_right,rgb(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--border))_1px,transparent_1px)]
+                   bg-[size:4rem_4rem] 
+                   [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" 
       />
 
       {/* Gradient Orbs - адаптивные под тему */}
