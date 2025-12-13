@@ -52,10 +52,9 @@ export class PayformClient {
       throw new Error(`Subscription ID not found for plan: ${planId}`);
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 
     const params = new URLSearchParams({
-      'do': 'subscription',
       'subscription_id': subscriptionId,
       'email': customerEmail,
       'customer_email': customerEmail,
@@ -65,7 +64,7 @@ export class PayformClient {
       'custom[plan_id]': planId || '',
       'custom[credits]': (credits || 0).toString(),
       'success_url': `${appUrl}/payment/success?type=subscription&plan=${planId}&credits=${credits}`,
-      'fail_url': `${appUrl}/pricing?error=failed`,
+      'fail_url': `${appUrl}/pricing`,
     });
 
     return `${this.baseUrl}?${params.toString()}`;
@@ -81,53 +80,38 @@ export class PayformClient {
     description 
   }: CreatePaymentParams): string {
     
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 
-    // Попробуем разные варианты параметров для Payform
+    // Payform параметры
     const params = new URLSearchParams({
-      // Действие
-      'do': 'pay',
+      // Мерчант
+      'merchant': this.merchantId,
       
-      // Сумма (пробуем разные названия)
+      // Сумма - пробуем разные варианты
       'sum': amount.toString(),
-      'amount': amount.toString(),
       'price': amount.toString(),
       
-      // Валюта
-      'currency': 'RUB',
-      
-      // Описание
+      // Описание товара
       'name': description,
-      'description': description,
       'order_desc': description,
-      'comment': description,
       
       // ID заказа
       'order_id': orderNumber,
-      'invoice_id': orderNumber,
       
       // Email
       'email': customerEmail,
       'customer_email': customerEmail,
       
       // Custom данные для webhook
-      'customer_extra': JSON.stringify({
-        user_id: userId,
-        type: 'package',
-        credits: credits,
-        order_id: orderNumber,
-      }),
       'custom[user_id]': userId,
       'custom[type]': 'package',
       'custom[credits]': (credits || 0).toString(),
       'custom[order_id]': orderNumber,
       
-      // URLs
+      // URLs (без двойного слэша)
       'success_url': `${appUrl}/payment/success?type=package&credits=${credits}`,
-      'fail_url': `${appUrl}/pricing?error=failed`,
-      'result_url': `${appUrl}/api/webhooks/payform`,
+      'fail_url': `${appUrl}/pricing`,
       'server_url': `${appUrl}/api/webhooks/payform`,
-      'callback_url': `${appUrl}/api/webhooks/payform`,
     });
 
     return `${this.baseUrl}?${params.toString()}`;
@@ -151,7 +135,7 @@ export class PayformClient {
 
     const calculatedSignature = this.generateSignature({
       order_id: (body.order_id as string) || custom?.order_id || '',
-      amount: body.amount?.toString() || '',
+      amount: body.amount?.toString() || body.sum?.toString() || '',
       status: (body.status as string) || '',
     });
 
