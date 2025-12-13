@@ -16,7 +16,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  ArrowLeft
+  ArrowLeft 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -30,11 +30,12 @@ interface Subscription {
   current_period_start: string;
   current_period_end: string;
   cancel_at_period_end: boolean;
+  created_at: string;
 }
 
 export default function SubscriptionPage() {
   const { user } = useAuth();
-  const { balance, fetchBalance } = useCreditsStore();
+  const { balance } = useCreditsStore();
   const router = useRouter();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,19 +47,16 @@ export default function SubscriptionPage() {
       return;
     }
     fetchSubscription();
-    fetchBalance();
-  }, [user, router, fetchBalance]);
+  }, [user, router]);
 
   const fetchSubscription = async () => {
-    if (!user) return;
-    
     setLoading(true);
     try {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user!.id)
         .eq('status', 'active')
         .single();
 
@@ -73,7 +71,7 @@ export default function SubscriptionPage() {
   };
 
   const handleCancelSubscription = async () => {
-    if (!window.confirm('Вы уверены что хотите отменить подписку? Доступ сохранится до конца периода.')) {
+    if (!window.confirm('Вы уверены что хотите отменить подписку?\n\nДоступ сохранится до конца оплаченного периода.')) {
       return;
     }
 
@@ -85,11 +83,13 @@ export default function SubscriptionPage() {
 
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка при отмене');
+      }
 
       toast.success('Подписка будет отменена в конце периода');
       await fetchSubscription();
-    } catch (error) {
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Ошибка при отмене подписки';
       toast.error(message);
     } finally {
@@ -106,12 +106,7 @@ export default function SubscriptionPage() {
   };
 
   const getPlanName = (planId: string) => {
-    const plans: Record<string, string> = {
-      pro: 'Pro',
-      business: 'Business',
-      starter: 'Starter',
-    };
-    return plans[planId] || planId;
+    return planId === 'pro' ? 'Pro' : 'Business';
   };
 
   if (loading) {
@@ -123,15 +118,15 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)]">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] pt-20">
       <div className="container mx-auto max-w-4xl px-6 py-12">
         {/* Back Button */}
         <Link 
-          href="/pricing" 
-          className="inline-flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] mb-6 transition-colors"
+          href="/"
+          className="inline-flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Назад к тарифам
+          <span>На главную</span>
         </Link>
 
         {/* Header */}
@@ -204,7 +199,7 @@ export default function SubscriptionPage() {
                   </div>
                 </div>
 
-                {/* Subscription Details */}
+                {/* Details */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 rounded-lg bg-[var(--color-bg-tertiary)]">
                     <div className="flex items-center gap-3">
@@ -231,7 +226,7 @@ export default function SubscriptionPage() {
                   </div>
                 </div>
 
-                {/* Warning if canceling */}
+                {/* Warning */}
                 {subscription.cancel_at_period_end && (
                   <div className="mt-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
                     <div className="flex items-start gap-3">
@@ -250,10 +245,10 @@ export default function SubscriptionPage() {
 
                 {/* Cancel Button */}
                 {!subscription.cancel_at_period_end && (
-                  <div className="mt-6 pt-6 border-t border-[var(--color-border-primary)]">
+                  <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
                     <Button
                       variant="secondary"
-                      className="w-full text-red-500 hover:bg-red-500/10"
+                      className="w-full text-red-500 hover:bg-red-500/10 border-red-500/30"
                       onClick={handleCancelSubscription}
                       disabled={canceling}
                     >
@@ -301,4 +296,3 @@ export default function SubscriptionPage() {
     </div>
   );
 }
-
