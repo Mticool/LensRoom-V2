@@ -163,7 +163,7 @@ export default function LibraryPage() {
 
                   {/* Hover overlay */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <span className="text-white font-semibold bg-[rgba(255,255,255,0.1)] px-4 py-2 rounded-lg backdrop-blur-sm">
+                    <span className="text-white font-semibold bg-black/60 px-4 py-2 rounded-lg">
                       Открыть
                     </span>
                   </div>

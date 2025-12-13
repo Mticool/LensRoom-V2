@@ -24,7 +24,7 @@ export function Loading({ size = 'md', text, fullScreen, className }: LoadingPro
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+      <div className="fixed inset-0 flex items-center justify-center bg-background/95 z-50">
         {content}
       </div>
     );

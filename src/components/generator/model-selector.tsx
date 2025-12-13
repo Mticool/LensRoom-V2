@@ -116,7 +116,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                   "w-[var(--radix-dropdown-menu-trigger-width)] max-h-[360px] overflow-y-auto",
                   "p-2 rounded-xl",
                   "bg-[rgba(15,15,20,0.98)] border border-[rgba(255,255,255,0.12)]",
-                  "shadow-2xl backdrop-blur-xl"
+                  "shadow-2xl"
                 )}
               >
                 {availableModels.map((model) => {

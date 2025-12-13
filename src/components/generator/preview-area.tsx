@@ -109,14 +109,14 @@ export function PreviewArea({
                 <Button 
                   size="icon" 
                   variant="secondary" 
-                  className="bg-[rgba(255,255,255,0.15)] backdrop-blur border-[rgba(255,255,255,0.20)] hover:bg-[rgba(255,255,255,0.25)]"
+                  className="bg-black/50 border-white/20 hover:bg-black/60"
                 >
                   <ZoomIn className="w-4 h-4 text-white" />
                 </Button>
                 <Button 
                   size="icon" 
                   variant="secondary" 
-                  className="bg-[rgba(255,255,255,0.15)] backdrop-blur border-[rgba(255,255,255,0.20)] hover:bg-[rgba(255,255,255,0.25)]"
+                  className="bg-black/50 border-white/20 hover:bg-black/60"
                   onClick={handleDownloadSingle}
                   disabled={isDownloading}
                 >
@@ -125,14 +125,14 @@ export function PreviewArea({
                 <Button 
                   size="icon" 
                   variant="secondary" 
-                  className="bg-[rgba(255,255,255,0.15)] backdrop-blur border-[rgba(255,255,255,0.20)] hover:bg-[rgba(255,255,255,0.25)]"
+                  className="bg-black/50 border-white/20 hover:bg-black/60"
                 >
                   <Share2 className="w-4 h-4 text-white" />
                 </Button>
                 <Button 
                   size="icon" 
                   variant="secondary" 
-                  className="bg-[rgba(255,255,255,0.15)] backdrop-blur border-[rgba(255,255,255,0.20)] hover:bg-[rgba(255,255,255,0.25)]"
+                  className="bg-black/50 border-white/20 hover:bg-black/60"
                 >
                   <Heart className="w-4 h-4 text-white" />
                 </Button>

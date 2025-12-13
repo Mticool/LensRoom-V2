@@ -63,7 +63,7 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/80 z-50"
             onClick={onClose}
           />
 

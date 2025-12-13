@@ -47,7 +47,7 @@ export function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background">
         <nav className="container mx-auto px-6">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
@@ -204,7 +204,7 @@ export function Header() {
             className="fixed inset-x-0 top-14 z-40 lg:hidden"
           >
             <div 
-              className="absolute inset-0 bg-background/80 backdrop-blur-sm h-screen"
+              className="absolute inset-0 bg-background h-screen"
               onClick={() => setMobileMenuOpen(false)}
             />
             <div className="relative bg-card border-b border-border shadow-lg">

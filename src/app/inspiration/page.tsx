@@ -150,7 +150,7 @@ export default function InspirationPage() {
                       </div>
 
                       {/* Copy indicator */}
-                      <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-white/10 backdrop-blur-sm">
+                      <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-black/60">
                         {copiedId === galleryItem.id ? (
                           <>
                             <Check className="w-4 h-4 text-[var(--color-success)]" />
