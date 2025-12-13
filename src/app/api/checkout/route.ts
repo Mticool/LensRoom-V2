@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     let paymentUrl: string;
-    const orderId = `LR-${Date.now()}-${user.id.slice(0, 8)}`;
+    const orderNumber = `LR-${Date.now()}-${user.id.slice(0, 8)}`;
 
     if (type === 'subscription') {
       // Подписка
@@ -36,17 +36,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid subscription plan' }, { status: 400 });
       }
 
-      paymentUrl = payformClient.createSubscriptionPaymentUrl({
-        orderId,
-        email: user.email!,
+      paymentUrl = payformClient.createSubscriptionPayment({
+        orderNumber,
+        amount: plan.price,
+        customerEmail: user.email!,
         userId: user.id,
-        planId: itemId as 'pro' | 'business',
+        type: 'subscription',
+        planId: itemId,
+        credits: plan.credits,
+        description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
       });
 
       // Создаём запись о платеже
       await supabase.from('payments').insert({
         user_id: user.id,
-        prodamus_order_id: orderId, // Используем то же поле для совместимости
+        prodamus_order_id: orderNumber,
         type: 'subscription',
         amount: plan.price,
         credits: plan.credits,
@@ -61,17 +65,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
       }
 
-      paymentUrl = payformClient.createPackagePaymentUrl({
-        orderId,
+      paymentUrl = payformClient.createPackagePayment({
+        orderNumber,
         amount: pkg.price,
-        email: user.email!,
+        customerEmail: user.email!,
         userId: user.id,
+        type: 'package',
         credits: pkg.credits,
+        description: `${pkg.credits} кредитов LensRoom`,
       });
 
       await supabase.from('payments').insert({
         user_id: user.id,
-        prodamus_order_id: orderId,
+        prodamus_order_id: orderNumber,
         type: 'package',
         amount: pkg.price,
         credits: pkg.credits,
@@ -84,11 +90,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Checkout] Created payment:', {
-      orderId,
+      orderNumber,
       userId: user.id,
       type,
       itemId,
-      provider: 'payform',
+      url: paymentUrl,
     });
 
     return NextResponse.json({ url: paymentUrl });

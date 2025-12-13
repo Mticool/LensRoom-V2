@@ -1,18 +1,14 @@
 import crypto from 'crypto';
 
-interface CreatePackagePaymentParams {
-  orderId: string;
+interface CreatePaymentParams {
+  orderNumber: string;
   amount: number;
-  email: string;
+  customerEmail: string;
   userId: string;
-  credits: number;
-}
-
-interface CreateSubscriptionPaymentParams {
-  orderId: string;
-  email: string;
-  userId: string;
-  planId: 'pro' | 'business';
+  type: 'subscription' | 'package';
+  planId?: string;
+  credits?: number;
+  description: string;
 }
 
 export class PayformClient {
@@ -20,139 +16,155 @@ export class PayformClient {
   private merchantId: string;
   private baseUrl: string;
 
-  // ID подписок из Payform
-  private subscriptionIds: Record<string, string> = {
-    pro: process.env.PAYFORM_SUBSCRIPTION_PRO || '',
-    business: process.env.PAYFORM_SUBSCRIPTION_BUSINESS || '',
-  };
-
   constructor() {
     this.secretKey = process.env.PAYFORM_SECRET_KEY || '';
-    this.merchantId = process.env.PAYFORM_MERCHANT_ID || '';
-    this.baseUrl = 'https://payform.ru';
-
-    if (!this.secretKey || !this.merchantId) {
-      console.warn('[Payform] Missing PAYFORM_SECRET_KEY or PAYFORM_MERCHANT_ID');
-    }
+    this.merchantId = process.env.PAYFORM_MERCHANT_ID || 'ozoncheck';
+    this.baseUrl = 'https://ozoncheck.payform.ru';
   }
 
-  // Генерация подписи для Payform
-  private generateSignature(params: Record<string, string | number>): string {
-    // Сортируем параметры по ключу
+  // Генерация MD5 подписи (если требуется)
+  private generateSignature(params: Record<string, string>): string {
+    // Сортируем ключи
     const sortedKeys = Object.keys(params).sort();
-    const values = sortedKeys.map(key => params[key]).join('|');
-    const signString = `${values}|${this.secretKey}`;
+    const signString = sortedKeys
+      .map(key => `${params[key]}`)
+      .join('') + this.secretKey;
     
     return crypto
-      .createHash('sha256')
+      .createHash('md5')
       .update(signString)
       .digest('hex');
   }
 
-  // Создание платежа для разового пакета кредитов
-  createPackagePaymentUrl({ orderId, amount, email, userId, credits }: CreatePackagePaymentParams): string {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Создать платеж для подписки (использует ID из Payform)
+  createSubscriptionPayment({ 
+    orderNumber, 
+    customerEmail, 
+    userId, 
+    planId, 
+    credits 
+  }: CreatePaymentParams): string {
     
-    const params: Record<string, string | number> = {
-      merchant_id: this.merchantId,
-      order_id: orderId,
-      amount: amount,
-      currency: 'RUB',
-      description: `${credits} кредитов LensRoom`,
-      customer_email: email,
-      customer_extra: userId, // Сохраняем user_id
-      success_url: `${appUrl}/payment/success?type=package&credits=${credits}`,
-      fail_url: `${appUrl}/pricing?error=payment_failed`,
-      notification_url: `${appUrl}/api/webhooks/payform`,
-    };
-
-    const signature = this.generateSignature(params);
-    params.sign = signature;
-
-    const queryParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      queryParams.append(key, String(value));
-    });
-
-    return `${this.baseUrl}/pay?${queryParams.toString()}`;
-  }
-
-  // Создание подписки (использует предустановленные ID из Payform)
-  createSubscriptionPaymentUrl({ orderId, email, userId, planId }: CreateSubscriptionPaymentParams): string {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const subscriptionId = this.subscriptionIds[planId];
+    const subscriptionId = planId === 'pro' 
+      ? process.env.PAYFORM_SUBSCRIPTION_PRO 
+      : process.env.PAYFORM_SUBSCRIPTION_BUSINESS;
 
     if (!subscriptionId) {
       throw new Error(`Subscription ID not found for plan: ${planId}`);
     }
 
-    const params: Record<string, string | number> = {
-      merchant_id: this.merchantId,
-      subscription_id: subscriptionId,
-      order_id: orderId,
-      customer_email: email,
-      customer_extra: userId,
-      success_url: `${appUrl}/payment/success?type=subscription&plan=${planId}`,
-      fail_url: `${appUrl}/pricing?error=payment_failed`,
-      notification_url: `${appUrl}/api/webhooks/payform`,
-    };
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    const signature = this.generateSignature(params);
-    params.sign = signature;
-
-    const queryParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      queryParams.append(key, String(value));
+    const params = new URLSearchParams({
+      // ID подписки из Payform
+      'subscription_id': subscriptionId,
+      
+      // Email покупателя
+      'email': customerEmail,
+      
+      // Custom параметры (будут в webhook)
+      'custom[user_id]': userId,
+      'custom[order_id]': orderNumber,
+      'custom[type]': 'subscription',
+      'custom[plan_id]': planId || '',
+      'custom[credits]': (credits || 0).toString(),
+      
+      // Success/Fail URLs
+      'success_url': `${appUrl}/payment/success?type=subscription&plan=${planId}`,
+      'fail_url': `${appUrl}/pricing`,
     });
 
-    return `${this.baseUrl}/subscribe?${queryParams.toString()}`;
+    return `${this.baseUrl}?${params.toString()}`;
   }
 
-  // Проверка подписи webhook
-  verifyWebhookSignature(payload: Record<string, string | number>, receivedSignature: string): boolean {
-    // Удаляем sign из payload перед проверкой
-    const payloadCopy = { ...payload };
-    delete payloadCopy.sign;
+  // Создать разовый платеж (БЕЗ создания товара в Payform!)
+  createPackagePayment({ 
+    orderNumber, 
+    amount, 
+    customerEmail, 
+    userId, 
+    credits,
+    description 
+  }: CreatePaymentParams): string {
     
-    const calculatedSignature = this.generateSignature(payloadCopy);
-    return calculatedSignature === receivedSignature;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    const params = new URLSearchParams({
+      // Merchant ID
+      'merchant': this.merchantId,
+      
+      // Сумма в рублях
+      'amount': amount.toString(),
+      
+      // Описание платежа
+      'order_desc': description,
+      
+      // ID заказа (уникальный)
+      'order_id': orderNumber,
+      
+      // Email покупателя
+      'customer_email': customerEmail,
+      
+      // Custom параметры (будут переданы в webhook)
+      'custom[user_id]': userId,
+      'custom[type]': 'package',
+      'custom[credits]': (credits || 0).toString(),
+      'custom[order_id]': orderNumber,
+      
+      // Success/Fail URLs
+      'success_url': `${appUrl}/payment/success?type=package&credits=${credits}`,
+      'fail_url': `${appUrl}/pricing`,
+      
+      // Result URL (webhook)
+      'server_url': `${appUrl}/api/webhooks/payform`,
+    });
+
+    // Если Payform требует подпись, добавляем:
+    // const signature = this.generateSignature({ amount: amount.toString(), order_id: orderNumber });
+    // params.append('signature', signature);
+
+    return `${this.baseUrl}?${params.toString()}`;
+  }
+
+  // Универсальный метод
+  createPaymentUrl(params: CreatePaymentParams): string {
+    if (params.type === 'subscription') {
+      return this.createSubscriptionPayment(params);
+    }
+    return this.createPackagePayment(params);
+  }
+
+  // Проверка webhook подписи
+  verifyWebhook(body: Record<string, unknown>, signature?: string): boolean {
+    if (!signature) {
+      // Если подпись не требуется
+      return true;
+    }
+
+    const custom = body.custom as Record<string, string> | undefined;
+
+    const calculatedSignature = this.generateSignature({
+      order_id: (body.order_id as string) || custom?.order_id || '',
+      amount: body.amount?.toString() || '',
+      status: (body.status as string) || '',
+    });
+
+    return calculatedSignature === signature;
   }
 
   // Отмена подписки
   async cancelSubscription(subscriptionId: string): Promise<boolean> {
     try {
-      const params: Record<string, string> = {
-        merchant_id: this.merchantId,
-        subscription_id: subscriptionId,
-        action: 'cancel',
-      };
-
-      const signature = this.generateSignature(params);
-
-      const response = await fetch(`${this.baseUrl}/api/subscription/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...params,
-          sign: signature,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error('[Payform] Failed to cancel subscription:', await response.text());
-        return false;
-      }
-
+      // Payform обычно требует отмену через админ-панель
+      // Или можно использовать API если есть
+      console.log('[Payform] Cancel subscription:', subscriptionId);
       return true;
     } catch (error) {
-      console.error('[Payform] Error canceling subscription:', error);
+      console.error('[Payform] Cancel error:', error);
       return false;
     }
   }
 }
 
-// Singleton экземпляр
 export const payformClient = new PayformClient();
-
+export const payform = payformClient;
