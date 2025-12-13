@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { prodamusClient } from '@/lib/payments/prodamus-client';
+import { payformClient } from '@/lib/payments/payform-client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
       subscriptionId: subscription.prodamus_subscription_id,
     });
 
-    // Отменяем в Prodamus
+    // Отменяем в Payform
     if (subscription.prodamus_subscription_id) {
-      const success = await prodamusClient.cancelSubscription(subscription.prodamus_subscription_id);
+      const success = await payformClient.cancelSubscription(subscription.prodamus_subscription_id);
 
       if (!success) {
-        console.error('[Subscription Cancel] Failed to cancel in Prodamus');
+        console.error('[Subscription Cancel] Failed to cancel in Payform');
         // Continue anyway - we'll mark it as canceled in our DB
       }
     }
@@ -126,4 +126,3 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { prodamusClient } from '@/lib/payments/prodamus-client';
+import { payformClient } from '@/lib/payments/payform-client';
 import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/pricing/plans';
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     let paymentUrl: string;
-    const orderNumber = `order-${Date.now()}-${user.id.slice(0, 8)}`;
+    const orderId = `LR-${Date.now()}-${user.id.slice(0, 8)}`;
 
     if (type === 'subscription') {
       // Подписка
@@ -32,24 +32,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
 
-      paymentUrl = prodamusClient.createSubscriptionPayment({
-        orderNumber,
-        amount: plan.price,
-        customerEmail: user.email!,
+      if (itemId !== 'pro' && itemId !== 'business') {
+        return NextResponse.json({ error: 'Invalid subscription plan' }, { status: 400 });
+      }
+
+      paymentUrl = payformClient.createSubscriptionPaymentUrl({
+        orderId,
+        email: user.email!,
         userId: user.id,
-        planId: plan.id,
-        credits: plan.credits,
+        planId: itemId as 'pro' | 'business',
       });
 
       // Создаём запись о платеже
       await supabase.from('payments').insert({
         user_id: user.id,
-        prodamus_order_id: orderNumber,
+        prodamus_order_id: orderId, // Используем то же поле для совместимости
         type: 'subscription',
         amount: plan.price,
         credits: plan.credits,
         status: 'pending',
-        metadata: { plan_id: plan.id },
+        metadata: { plan_id: plan.id, provider: 'payform' },
       });
 
     } else if (type === 'package') {
@@ -59,22 +61,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
       }
 
-      paymentUrl = prodamusClient.createPackagePayment({
-        orderNumber,
+      paymentUrl = payformClient.createPackagePaymentUrl({
+        orderId,
         amount: pkg.price,
-        customerEmail: user.email!,
+        email: user.email!,
         userId: user.id,
         credits: pkg.credits,
       });
 
       await supabase.from('payments').insert({
         user_id: user.id,
-        prodamus_order_id: orderNumber,
+        prodamus_order_id: orderId,
         type: 'package',
         amount: pkg.price,
         credits: pkg.credits,
         status: 'pending',
-        metadata: { package_id: pkg.id },
+        metadata: { package_id: pkg.id, provider: 'payform' },
       });
 
     } else {
@@ -82,10 +84,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Checkout] Created payment:', {
-      orderNumber,
+      orderId,
       userId: user.id,
       type,
       itemId,
+      provider: 'payform',
     });
 
     return NextResponse.json({ url: paymentUrl });
@@ -96,4 +99,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
