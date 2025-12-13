@@ -237,7 +237,7 @@ export default function VideoCreatePage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="default" className="font-semibold">
-                      ⭐ {selectedModelData?.creditCost || 0}
+                      ⭐ {selectedModelData?.creditCost ?? '—'}
                     </Badge>
                     <ChevronDown className={cn(
                       "w-5 h-5 text-[var(--color-text-secondary)] transition-transform",
@@ -301,7 +301,7 @@ export default function VideoCreatePage() {
                                 <Zap className="w-4 h-4 text-green-500" />
                               )}
                               <span className="text-sm font-semibold text-yellow-500">
-                                ⭐ {model.creditCost}
+                                ⭐ {model.creditCost ?? '—'}
                               </span>
                             </div>
                           </button>
@@ -472,7 +472,7 @@ export default function VideoCreatePage() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Создать видео {(selectedModelData?.creditCost || 0) * Math.ceil(duration / 5)} ⭐
+                  Создать видео {selectedModelData?.creditCost ? (selectedModelData.creditCost * Math.ceil(duration / 5)) + ' ⭐' : '—'}
                 </>
               )}
             </Button>

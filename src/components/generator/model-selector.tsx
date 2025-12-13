@@ -90,7 +90,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="flex items-center gap-1 px-2 py-1 rounded bg-yellow-600 text-white text-xs font-medium">
               <Star className="w-3 h-3 fill-current" />
-              {selectedModel.creditCost}
+              {selectedModel.creditCost ?? '—'}
             </span>
             <ChevronDown className={cn("w-4 h-4 text-zinc-400 transition-transform", isOpen && "rotate-180")} />
           </div>
@@ -164,7 +164,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span className="flex items-center gap-1 px-2 py-1 rounded bg-yellow-600 text-white text-xs font-medium">
                           <Star className="w-3 h-3 fill-current" />
-                          {model.creditCost}
+                          {model.creditCost ?? '—'}
                         </span>
                         {isSelected && <Check className="w-4 h-4 text-white" />}
                       </div>

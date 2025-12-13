@@ -155,7 +155,7 @@ export default function CreatePage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="primary" className="font-semibold">
-                      ⭐ {selectedModelData?.creditCost || 0}
+                      ⭐ {selectedModelData?.creditCost ?? '—'}
                     </Badge>
                     <ChevronDown className={cn(
                       "w-5 h-5 text-[var(--color-text-secondary)] transition-transform",
@@ -219,7 +219,7 @@ export default function CreatePage() {
                                 <Zap className="w-4 h-4 text-green-500" />
                               )}
                               <span className="text-sm font-semibold text-yellow-500">
-                                ⭐ {model.creditCost}
+                                ⭐ {model.creditCost ?? '—'}
                               </span>
                             </div>
                           </button>
@@ -409,7 +409,7 @@ export default function CreatePage() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Создать • {(selectedModelData?.creditCost || 0) * variants} ⭐
+                  Создать • {selectedModelData?.creditCost ? (selectedModelData.creditCost * variants) + ' ⭐' : '—'}
                 </>
               )}
             </Button>

@@ -29,23 +29,30 @@ export interface AIModel {
   provider: string;
   category: ContentType;
   
+  // Ranking (lower = better)
+  rank: number;
+  
   // API данные
   apiId: string;
   endpoint: string;
   
   // Информация для UI
-  logo: string;
+  logo?: string;
   description: string;
-  creditCost: number;
+  creditCost: number | null; // null = TBD, показываем "—" в UI
   speed: ModelSpeed;
   quality: ModelQuality;
-  bestFor: string[];
+  bestFor?: string[];
+  
+  // Flags
+  hidden?: boolean; // скрыть из публичного UI (internal API models)
+  featured?: boolean; // показывать в Featured секции
   
   // Capabilities
-  capabilities: AIModelCapabilities;
+  capabilities?: AIModelCapabilities;
   
   // Параметры
-  defaultParams: AIModelDefaultParams;
+  defaultParams?: AIModelDefaultParams;
 }
 
 export interface GenerationResult {
