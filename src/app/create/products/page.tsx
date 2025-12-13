@@ -229,7 +229,7 @@ export default function ProductCardsPage() {
             animate={{ opacity: 1 }}
             className="max-w-4xl mx-auto"
           >
-            <Card variant="premium" className="p-8">
+            <Card variant="glow" className="p-8">
               <h2 className="text-2xl font-bold text-white mb-6">
                 Загрузите фото товаров
               </h2>
@@ -315,7 +315,7 @@ export default function ProductCardsPage() {
             animate={{ opacity: 1 }}
             className="max-w-6xl mx-auto"
           >
-            <Card variant="premium" className="p-8">
+            <Card variant="glow" className="p-8">
               <h2 className="text-2xl font-bold text-white mb-6">
                 Выберите стиль фона
               </h2>
@@ -375,7 +375,7 @@ export default function ProductCardsPage() {
             animate={{ opacity: 1 }}
             className="max-w-4xl mx-auto"
           >
-            <Card variant="premium" className="p-8">
+            <Card variant="glow" className="p-8">
               <h2 className="text-2xl font-bold text-white mb-6">
                 Настройки обработки
               </h2>

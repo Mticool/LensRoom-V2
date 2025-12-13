@@ -142,7 +142,7 @@ export default function LibraryPage() {
               onClick={() => handleOpenPrompt(prompt)}
             >
               <Card
-                variant="premium"
+                variant="glow"
                 className="group overflow-hidden cursor-pointer hover:shadow-[0_0_30px_rgba(245,200,66,0.15),0_0_60px_rgba(168,85,247,0.1)] transition-all duration-300 p-0 h-full"
               >
                 {/* Preview Image */}
