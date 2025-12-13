@@ -51,7 +51,7 @@ export function HistoryBar({ items = [], onSelect }: HistoryBarProps) {
 
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             className="flex-shrink-0 hidden sm:flex"
             onClick={() => scroll("left")}
           >
@@ -93,7 +93,7 @@ export function HistoryBar({ items = [], onSelect }: HistoryBarProps) {
 
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             className="flex-shrink-0 hidden sm:flex"
             onClick={() => scroll("right")}
           >

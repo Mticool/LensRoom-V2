@@ -296,7 +296,7 @@ export default function ProductCardsPage() {
                   </div>
                   <Button
                     onClick={() => setStep(2)}
-                    variant="luxury"
+                    variant="primary"
                     size="lg"
                     className="w-full"
                   >
@@ -358,7 +358,7 @@ export default function ProductCardsPage() {
                 </Button>
                 <Button
                   onClick={() => setStep(3)}
-                  variant="luxury"
+                  variant="primary"
                   className="flex-1"
                 >
                   Далее: Настройки
@@ -452,7 +452,7 @@ export default function ProductCardsPage() {
                 </Button>
                 <Button
                   onClick={handleGenerate}
-                  variant="luxury"
+                  variant="primary"
                   className="flex-1"
                   disabled={isProcessing}
                 >

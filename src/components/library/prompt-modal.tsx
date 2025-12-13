@@ -145,7 +145,7 @@ export function PromptModal({ prompt, open, onOpenChange }: PromptModalProps) {
               </Button>
               <Button
                 onClick={handleUseInGenerator}
-                variant="luxury"
+                variant="primary"
                 className="flex-1"
               >
                 <Sparkles className="w-4 h-4 mr-2" />

@@ -84,19 +84,19 @@ export default function InspirationPage() {
           transition={{ duration: 0.3, delay: 0.1 }}
         >
           <Button
-            variant={tab === "trending" ? "default" : "secondary"}
+            variant={tab === "trending" ? "primary" : "secondary"}
             onClick={() => setTab("trending")}
           >
             🔥 Trending
           </Button>
           <Button
-            variant={tab === "recent" ? "default" : "secondary"}
+            variant={tab === "recent" ? "primary" : "secondary"}
             onClick={() => setTab("recent")}
           >
             🆕 Recent
           </Button>
           <Button
-            variant={tab === "top" ? "default" : "secondary"}
+            variant={tab === "top" ? "primary" : "secondary"}
             onClick={() => setTab("top")}
           >
             ⭐ Top

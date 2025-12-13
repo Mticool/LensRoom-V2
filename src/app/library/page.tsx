@@ -105,7 +105,7 @@ export default function LibraryPage() {
           {PROMPT_CATEGORIES.map((cat) => (
             <Button
               key={cat}
-              variant={selectedCategory === cat ? "default" : "secondary"}
+              variant={selectedCategory === cat ? "primary" : "secondary"}
               onClick={() => setSelectedCategory(cat)}
               className="whitespace-nowrap"
               size="sm"

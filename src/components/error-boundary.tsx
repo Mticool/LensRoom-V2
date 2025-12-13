@@ -67,7 +67,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 На главную
               </Button>
               <Button
-                variant="luxury"
+                variant="primary"
                 onClick={() => window.location.reload()}
                 className="flex-1"
               >
