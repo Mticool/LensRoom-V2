@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, User, CreditCard, History, Settings, Crown } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, User, CreditCard, History, Settings, Crown, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
+import { useTheme } from '@/lib/theme-provider';
 
 const navigation = [
   { name: 'Фото', href: '/create' },
@@ -28,6 +29,7 @@ export function Header() {
   const pathname = usePathname();
   const { user, loading: authLoading, signOut } = useAuth();
   const { balance, loading: creditsLoading, fetchBalance } = useCreditsStore();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -103,6 +105,19 @@ export function Header() {
 
             {/* Right side */}
             <div className="hidden lg:flex items-center gap-3">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <Moon className="w-5 h-5 text-muted-foreground" />
+                )}
+              </button>
+
               {/* Credits Badge */}
               <Link 
                 href="/pricing"
@@ -267,6 +282,24 @@ export function Header() {
                 })}
 
                 <div className="pt-4 mt-4 border-t border-[var(--color-border)] space-y-3">
+                  {/* Theme Toggle Mobile */}
+                  <button
+                    onClick={toggleTheme}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl w-full hover:bg-secondary transition-colors"
+                  >
+                    {theme === 'dark' ? (
+                      <>
+                        <Sun className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-foreground">Светлая тема</span>
+                      </>
+                    ) : (
+                      <>
+                        <Moon className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-foreground">Тёмная тема</span>
+                      </>
+                    )}
+                  </button>
+
                   <div className={cn(
                     "px-4 py-3 rounded-xl border",
                     balance < 20 && user
