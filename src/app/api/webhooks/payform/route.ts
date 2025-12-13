@@ -1,47 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { payformClient } from '@/lib/payments/payform-client';
+import { createClient } from '@supabase/supabase-js';
+import { payform } from '@/lib/payments/payform-client';
 
-interface PayformWebhookPayload {
-  // Статус платежа
-  status?: string; // 'success' | 'fail'
-  payment_status?: string;
-  
-  // Сумма
-  amount?: string;
-  
-  // ID заказа
-  order_id?: string;
-  
-  // Email
-  customer_email?: string;
-  email?: string;
-  
-  // Subscription ID (для подписок)
-  subscription_id?: string;
-  
-  // Custom данные
-  custom?: {
-    user_id?: string;
-    order_id?: string;
-    type?: string; // 'subscription' | 'package'
-    plan_id?: string;
-    credits?: string;
-  };
-  
-  // Подпись (если есть)
-  signature?: string;
-  sign?: string;
-}
+// Используем service role для webhook (без RLS ограничений)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse payload - может быть JSON или form-data
-    let payload: PayformWebhookPayload;
-    const contentType = request.headers.get('content-type') || '';
+    // Получить данные (JSON или FormData)
+    const contentType = request.headers.get('content-type');
+    let body: Record<string, unknown>;
 
-    if (contentType.includes('application/json')) {
-      payload = await request.json();
+    if (contentType?.includes('application/json')) {
+      body = await request.json();
     } else {
       const formData = await request.formData();
       const data: Record<string, string> = {};
@@ -58,161 +32,172 @@ export async function POST(request: NextRequest) {
         }
       });
       
-      payload = { ...data, custom } as PayformWebhookPayload;
+      body = { ...data, custom };
     }
 
-    console.log('[Payform Webhook] Received:', JSON.stringify(payload, null, 2));
+    console.log('📥 Payform webhook received:', JSON.stringify(body, null, 2));
 
-    // Verify signature if present
-    const signature = payload.signature || payload.sign;
-    if (!payformClient.verifyWebhook(payload as Record<string, unknown>, signature)) {
-      console.error('[Payform Webhook] Invalid signature');
+    // Проверка подписи (если требуется)
+    const signature = (body.signature as string) || request.headers.get('x-signature') || undefined;
+    if (!payform.verifyWebhook(body, signature)) {
+      console.error('❌ Invalid signature');
+      // В development пропускаем проверку
       if (process.env.NODE_ENV === 'production') {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
       }
+      console.warn('⚠️ Skipping signature check in development');
     }
 
-    // Check status
-    const status = payload.status || payload.payment_status;
-    if (status !== 'success' && status !== 'paid' && status !== 'completed') {
-      console.log('[Payform Webhook] Payment not successful:', status);
-      return NextResponse.json({ received: true, status: 'ignored' });
+    // Извлечь данные из custom полей
+    const custom = (body.custom as Record<string, string>) || {};
+    const userId = custom.user_id || (body.user_id as string);
+    const orderId = custom.order_id || (body.order_id as string);
+    const type = custom.type || (body.type as string);
+    const credits = parseInt(custom.credits || (body.credits as string) || '0', 10);
+    const planId = custom.plan_id || (body.plan_id as string);
+
+    // Проверка статуса платежа
+    const paymentStatus = (body.status as string) || (body.payment_status as string);
+    const isSuccess = ['success', 'paid', 'confirmed', 'completed'].includes(paymentStatus?.toLowerCase());
+
+    if (!isSuccess) {
+      console.log('⏸️ Payment not successful:', paymentStatus);
+      return NextResponse.json({ received: true, status: 'pending' });
     }
 
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: 'Server error' }, { status: 500 });
-    }
-
-    // Extract data from custom fields
-    const userId = payload.custom?.user_id;
-    const orderId = payload.custom?.order_id || payload.order_id;
-    const paymentType = payload.custom?.type;
-    const planId = payload.custom?.plan_id;
-    let credits = parseInt(payload.custom?.credits || '0', 10);
-
-    if (!userId) {
-      console.error('[Payform Webhook] No user_id in payload');
-      return NextResponse.json({ error: 'Missing user_id' }, { status: 400 });
-    }
-
-    // If no credits in custom, try to get from payment record
-    if (!credits && orderId) {
-      const { data: paymentRecord } = await supabase
-        .from('payments')
-        .select('credits')
-        .eq('prodamus_order_id', orderId)
-        .single();
-      
-      credits = paymentRecord?.credits || 0;
-    }
-
-    // Still no credits? Try to determine from amount
-    if (!credits && payload.amount) {
-      const amount = parseFloat(payload.amount);
-      if (amount >= 2490) credits = 3000;
-      else if (amount >= 1190) credits = 1200;
-      else if (amount >= 599) credits = 500;
-      else if (amount >= 299) credits = 200;
-    }
-
-    console.log('[Payform Webhook] Processing:', {
+    console.log('✅ Payment successful:', {
       userId,
       orderId,
+      type,
       credits,
-      paymentType,
       planId,
     });
 
-    // Add credits to user
-    const { data: currentCredits } = await supabase
-      .from('credits')
-      .select('amount')
-      .eq('user_id', userId)
-      .single();
-
-    const newBalance = (currentCredits?.amount || 0) + credits;
-
-    const { error: updateError } = await supabase
-      .from('credits')
-      .update({
-        amount: newBalance,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
-
-    if (updateError) {
-      console.error('[Payform Webhook] Error updating credits:', updateError);
-      return NextResponse.json({ error: 'Failed to update credits' }, { status: 500 });
+    if (!userId || !orderId || !credits) {
+      console.error('❌ Missing required fields:', { userId, orderId, credits });
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    // Handle subscription
-    if (paymentType === 'subscription' && (planId || payload.subscription_id)) {
-      const actualPlanId = planId || 
-        (payload.subscription_id === process.env.PAYFORM_SUBSCRIPTION_BUSINESS ? 'business' : 'pro');
-      
-      const creditsPerMonth = actualPlanId === 'business' ? 1500 : 500;
+    if (type === 'subscription') {
+      // ========== ПОДПИСКА ==========
+      console.log('💳 Processing subscription...');
 
-      await supabase
+      const { error: subError } = await supabase
         .from('subscriptions')
         .upsert({
           user_id: userId,
-          plan_id: actualPlanId,
-          prodamus_subscription_id: payload.subscription_id || `payform-${orderId}`,
+          plan_id: planId || 'pro',
+          prodamus_subscription_id: orderId, // Используем существующее поле
           status: 'active',
-          credits_per_month: creditsPerMonth,
+          credits_per_month: credits,
           current_period_start: new Date().toISOString(),
           current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          cancel_at_period_end: false,
           updated_at: new Date().toISOString(),
         }, {
-          onConflict: 'user_id',
+          onConflict: 'prodamus_subscription_id',
         });
 
-      // Update user plan
+      if (subError) {
+        console.error('❌ Subscription error:', subError);
+        return NextResponse.json({ error: subError.message }, { status: 500 });
+      }
+
+      // Обновить план пользователя
       await supabase
         .from('profiles')
-        .update({
-          plan: actualPlanId,
+        .update({ 
+          plan: planId || 'pro',
           updated_at: new Date().toISOString(),
         })
         .eq('id', userId);
-    }
 
-    // Record transaction
-    await supabase.from('credit_transactions').insert({
-      user_id: userId,
-      amount: credits,
-      type: paymentType === 'subscription' ? 'subscription' : 'purchase',
-      description: paymentType === 'subscription'
-        ? `Подписка ${planId}: +${credits} кредитов`
-        : `Покупка ${credits} кредитов`,
-      metadata: { order_id: orderId, provider: 'payform' },
-    });
+      // Начислить кредиты
+      const { data: currentCredits } = await supabase
+        .from('credits')
+        .select('amount')
+        .eq('user_id', userId)
+        .single();
 
-    // Update payment status
-    if (orderId) {
+      const newBalance = (currentCredits?.amount || 0) + credits;
+
       await supabase
-        .from('payments')
-        .update({ status: 'completed' })
-        .eq('prodamus_order_id', orderId);
+        .from('credits')
+        .update({ 
+          amount: newBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      // Записать транзакцию
+      await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: credits,
+        type: 'subscription',
+        description: `Подписка ${planId}: +${credits} кредитов`,
+        metadata: { order_id: orderId, provider: 'payform' },
+      });
+
+      console.log(`✅ Subscription activated. Credits added: ${credits}. New balance: ${newBalance}`);
+
+    } else if (type === 'package') {
+      // ========== РАЗОВЫЙ ПАКЕТ ==========
+      console.log('💰 Processing package...');
+
+      const { data: currentCredits } = await supabase
+        .from('credits')
+        .select('amount')
+        .eq('user_id', userId)
+        .single();
+
+      const newBalance = (currentCredits?.amount || 0) + credits;
+
+      await supabase
+        .from('credits')
+        .update({ 
+          amount: newBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      // Записать транзакцию
+      await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: credits,
+        type: 'purchase',
+        description: `Покупка ${credits} кредитов`,
+        metadata: { order_id: orderId, provider: 'payform' },
+      });
+
+      console.log(`✅ Package processed. Credits added: ${credits}. New balance: ${newBalance}`);
     }
 
-    console.log('[Payform Webhook] Success:', {
-      userId,
-      credits,
-      newBalance,
-    });
+    // Обновить статус платежа
+    await supabase
+      .from('payments')
+      .update({ 
+        status: 'completed',
+        metadata: {
+          ...(body as object),
+          completed_at: new Date().toISOString(),
+        }
+      })
+      .eq('prodamus_order_id', orderId);
+
+    console.log('✅ Webhook processed successfully');
 
     return NextResponse.json({ 
-      received: true, 
-      status: 'success',
+      success: true,
+      message: 'Payment processed',
       credits_added: credits,
     });
 
   } catch (error) {
-    console.error('[Payform Webhook] Error:', error);
+    console.error('❌ Webhook error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ 
+      error: message,
+    }, { status: 500 });
   }
 }
 
