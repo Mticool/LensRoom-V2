@@ -139,9 +139,10 @@ export function HeroSection() {
           transition={{ delay: 0.5, duration: 0.8 }}
           className="mt-20"
         >
-          <div className="relative rounded-2xl border border-border bg-card p-2 shadow-2xl">
-            <div className="aspect-video rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/20 to-primary/10 overflow-hidden">
-              {/* Animated gradient overlay */}
+          <div className="relative rounded-2xl border-2 border-border bg-card p-2 shadow-2xl">
+            <div className="aspect-video rounded-xl bg-gradient-to-br from-primary/10 via-purple-500/10 to-primary/5 
+                            dark:from-primary/20 dark:via-purple-500/20 dark:to-primary/10 
+                            overflow-hidden border border-border">
               <motion.div
                 animate={{
                   backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
@@ -151,7 +152,7 @@ export function HeroSection() {
                   repeat: Infinity,
                   ease: "linear",
                 }}
-                className="w-full h-full bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+                className="w-full h-full bg-gradient-to-r from-transparent via-primary/5 dark:via-primary/10 to-transparent"
                 style={{ backgroundSize: '200% 100%' }}
               />
             </div>
