@@ -528,4 +528,3 @@ export default function ProductCardsPage() {
     </div>
   );
 }
-

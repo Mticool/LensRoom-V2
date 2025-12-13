@@ -31,28 +31,48 @@ export function FeaturesSection() {
   return (
     <section className="py-24 bg-secondary/30">
       <div className="container mx-auto px-6 max-w-6xl">
-        <div className="text-center mb-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-16"
+        >
           <h2 className="text-4xl font-bold text-foreground mb-4">
             Всё для создания контента
           </h2>
           <p className="text-muted-foreground text-lg">
             Простой интерфейс, мощные возможности
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ 
+                delay: i * 0.1,
+                duration: 0.5,
+                ease: [0.21, 0.47, 0.32, 0.98]
+              }}
             >
-              <Card variant="hover" className="p-6 h-full">
-                <feature.icon className="w-10 h-10 text-primary mb-4" />
-                <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">
+              <Card 
+                variant="hover" 
+                className="p-6 h-full group cursor-pointer"
+              >
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                >
+                  <feature.icon className="w-10 h-10 text-primary mb-4" />
+                </motion.div>
+                <h3 className="font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
               </Card>

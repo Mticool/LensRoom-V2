@@ -3,73 +3,149 @@
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
 
 export function HeroSection() {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"],
+  });
+
+  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Grid Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--border))_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-20" />
+    <section ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Animated Grid Background */}
+      <motion.div 
+        style={{ y, opacity }}
+        className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--border))_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" 
+      />
+
+      {/* Gradient Orbs */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/30 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.3, 0.4, 0.3],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 2,
+          }}
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"
+        />
+      </div>
 
       <div className="container mx-auto px-6 relative z-10 max-w-6xl">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
           className="text-center"
         >
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border mb-8">
-            <Sparkles className="w-3 h-3 text-primary" />
-            <span className="text-sm text-muted-foreground">12 AI моделей</span>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border mb-8 backdrop-blur-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <span className="text-sm text-muted-foreground font-medium">12 AI моделей в одном месте</span>
+          </motion.div>
 
           {/* Headline */}
-          <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 text-foreground">
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 text-foreground"
+          >
             Создавайте контент
             <br />
             с помощью{' '}
-            <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+            <motion.span
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4, type: "spring" }}
+              className="inline-block bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient"
+            >
               AI
-            </span>
-          </h1>
+            </motion.span>
+          </motion.h1>
 
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12">
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed"
+          >
             От фотореалистичных изображений до профессиональных видео.
+            <br className="hidden sm:block" />
             Все топовые модели в одном месте.
-          </p>
+          </motion.p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="text-base h-12 px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <Button asChild size="lg" className="text-base h-12 px-8 group">
               <Link href="/create">
                 Начать бесплатно
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
             
-            <Button asChild  size="lg" className="text-base h-12 px-8">
+            <Button asChild variant="outline" size="lg" className="text-base h-12 px-8">
               <Link href="/pricing">
                 Смотреть тарифы
               </Link>
             </Button>
-          </div>
+          </motion.div>
         </motion.div>
 
-        {/* Preview Image */}
+        {/* Preview Image with animation */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.5, duration: 0.8 }}
           className="mt-20"
         >
           <div className="relative rounded-2xl border border-border bg-card p-2 shadow-2xl">
-            <div className="aspect-video rounded-lg bg-gradient-to-br from-primary/20 to-purple-600/20 flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-muted-foreground">Превью генератора</p>
-              </div>
+            <div className="aspect-video rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/20 to-primary/10 overflow-hidden">
+              {/* Animated gradient overlay */}
+              <motion.div
+                animate={{
+                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                }}
+                transition={{
+                  duration: 5,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+                className="w-full h-full bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+                style={{ backgroundSize: '200% 100%' }}
+              />
             </div>
           </div>
         </motion.div>
