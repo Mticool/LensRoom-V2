@@ -3,12 +3,12 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
+  "rounded-xl border border-border bg-card text-card-foreground",
   {
     variants: {
       variant: {
-        default: "",
-        hover: "transition-all hover:shadow-md hover:border-primary/20",
+        default: "shadow-sm",
+        hover: "transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 shadow-sm",
       },
     },
     defaultVariants: {
