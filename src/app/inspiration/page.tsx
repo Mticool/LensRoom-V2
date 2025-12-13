@@ -124,7 +124,7 @@ export default function InspirationPage() {
                 {/* Image */}
                 <div className="relative overflow-hidden">
                   <img
-                    src={galleryItem.url}
+                    src={galleryItem.imageUrl}
                     alt="Gallery item"
                     className="w-full group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
@@ -180,7 +180,7 @@ export default function InspirationPage() {
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-purple)] flex items-center justify-center">
                       <User className="w-3 h-3 text-white" />
                     </div>
-                    <span className="font-medium">{galleryItem.author.name}</span>
+                    <span className="font-medium">{galleryItem.author}</span>
                   </div>
                 </div>
               </Card>

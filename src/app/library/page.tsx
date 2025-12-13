@@ -148,7 +148,7 @@ export default function LibraryPage() {
                 {/* Preview Image */}
                 <div className="relative aspect-square overflow-hidden bg-[rgba(255,255,255,0.02)]">
                   <img
-                    src={prompt.preview}
+                    src={prompt.imageUrl}
                     alt={prompt.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
