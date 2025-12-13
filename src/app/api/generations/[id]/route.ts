@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 interface GenerationUpdate {
   status?: "pending" | "processing" | "completed" | "failed";
@@ -18,7 +18,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
+    }
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -49,14 +52,17 @@ export async function GET(
   }
 }
 
-// PATCH - Update generation (status, results, favorite, etc.)
+// PATCH - Update generation
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
+    }
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -64,8 +70,6 @@ export async function PATCH(
     }
 
     const body: GenerationUpdate = await request.json();
-
-    // Build update object
     const updateData: Record<string, unknown> = {};
 
     if (body.status) {
@@ -77,7 +81,6 @@ export async function PATCH(
 
     if (body.results) {
       updateData.results = body.results;
-      // Set thumbnail from first result if not provided
       if (!body.thumbnailUrl && body.results.length > 0) {
         updateData.thumbnail_url = body.results[0].thumbnail || body.results[0].url;
       }
@@ -133,7 +136,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
+    }
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -160,4 +166,3 @@ export async function DELETE(
     );
   }
 }
-

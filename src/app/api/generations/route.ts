@@ -1,34 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 // Types
 interface GenerationInput {
   type: "photo" | "video" | "product";
   modelId: string;
-  modelName: string;
   prompt: string;
-  negativePrompt?: string;
   aspectRatio?: string;
-  variants?: number;
-  cfgScale?: number;
-  steps?: number;
-  duration?: number;
-  fps?: number;
-  taskId?: string;
-}
-
-interface GenerationUpdate {
-  status?: "pending" | "processing" | "completed" | "failed";
-  results?: { url: string; thumbnail?: string }[];
-  thumbnailUrl?: string;
-  creditsUsed?: number;
-  completedAt?: string;
 }
 
 // GET - Fetch user's generations
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
+    }
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -36,8 +23,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type"); // photo, video, product
-    const status = searchParams.get("status"); // pending, completed, etc.
+    const type = searchParams.get("type");
+    const status = searchParams.get("status");
     const favorites = searchParams.get("favorites") === "true";
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
@@ -84,7 +71,10 @@ export async function GET(request: NextRequest) {
 // POST - Create a new generation record
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
+    }
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -93,7 +83,6 @@ export async function POST(request: NextRequest) {
 
     const body: GenerationInput = await request.json();
 
-    // Validate required fields
     if (!body.type || !body.modelId || !body.prompt) {
       return NextResponse.json(
         { error: "Missing required fields: type, modelId, prompt" },
@@ -106,7 +95,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         type: body.type,
-        model: body.modelId, // Using 'model' column
+        model: body.modelId,
         prompt: body.prompt,
         aspect_ratio: body.aspectRatio || "1:1",
         status: "pending",
@@ -128,4 +117,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
