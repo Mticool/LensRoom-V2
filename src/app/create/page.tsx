@@ -136,7 +136,7 @@ export default function CreatePage() {
                           {selectedModelData?.name || 'Выберите модель'}
                         </span>
                         {selectedModelData?.quality === 'ultra' && (
-                          <Badge variant="gold" className="text-[10px] px-1.5 py-0">HIGH</Badge>
+                          <Badge variant="warning" className="text-[10px] px-1.5 py-0">HIGH</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
@@ -154,7 +154,7 @@ export default function CreatePage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="purple" className="font-semibold">
+                    <Badge variant="primary" className="font-semibold">
                       ⭐ {selectedModelData?.creditCost || 0}
                     </Badge>
                     <ChevronDown className={cn(
@@ -198,7 +198,7 @@ export default function CreatePage() {
                                   {model.name}
                                 </span>
                                 {model.quality === 'ultra' && (
-                                  <Badge variant="gold" className="text-[10px] px-1.5 py-0">HIGH</Badge>
+                                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">HIGH</Badge>
                                 )}
                               </div>
                               <span className="text-xs text-[var(--color-text-tertiary)]">{model.provider}</span>

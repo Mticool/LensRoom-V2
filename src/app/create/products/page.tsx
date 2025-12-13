@@ -165,7 +165,7 @@ export default function ProductCardsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <Badge variant="gold" className="mb-4">
+          <Badge variant="warning" className="mb-4">
             <Package className="w-3 h-3 mr-1" />
             Продуктовые карточки
           </Badge>

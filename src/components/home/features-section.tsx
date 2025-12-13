@@ -1,19 +1,19 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { Image, Video, Package, Zap } from 'lucide-react';
+import { Image, Video, Package, Zap, Sparkles, Layers, Shield, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const features = [
   {
     icon: Image,
     title: 'AI Фото',
-    description: '6 моделей для фотореалистичных изображений',
+    description: 'Фотореалистичные изображения с помощью 6 топовых моделей',
   },
   {
     icon: Video,
     title: 'AI Видео',
-    description: 'Создавайте профессиональные видео из текста',
+    description: 'Создавайте видео из текста или изображений',
   },
   {
     icon: Package,
@@ -25,51 +25,61 @@ const features = [
     title: 'Быстро',
     description: 'Результат менее чем за 30 секунд',
   },
+  {
+    icon: Sparkles,
+    title: 'Качество',
+    description: 'Лучшие модели: Flux, SDXL, Midjourney',
+  },
+  {
+    icon: Layers,
+    title: 'Гибкость',
+    description: 'Настраивайте размер, стиль и параметры',
+  },
+  {
+    icon: Shield,
+    title: 'Приватность',
+    description: 'Ваши данные защищены и не передаются',
+  },
+  {
+    icon: Clock,
+    title: 'История',
+    description: 'Сохраняйте и находите все генерации',
+  },
 ];
 
 export function FeaturesSection() {
   return (
-    <section className="py-24 bg-secondary/30">
-      <div className="container mx-auto px-6 max-w-6xl">
+    <section className="py-24 bg-muted/30">
+      <div className="container mx-auto px-6">
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
-          <h2 className="text-4xl font-bold text-foreground mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
             Всё для создания контента
           </h2>
-          <p className="text-muted-foreground text-lg">
-            Простой интерфейс, мощные возможности
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Простой интерфейс, мощные возможности. 
+            Всё что нужно для работы с AI-генерацией.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {features.map((feature, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 40 }}
+              initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ 
-                delay: i * 0.1,
-                duration: 0.5,
-                ease: [0.21, 0.47, 0.32, 0.98]
-              }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.05 }}
             >
-              <Card 
-                variant="hover" 
-                className="p-6 h-full group cursor-pointer"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 400 }}
-                >
-                  <feature.icon className="w-10 h-10 text-primary mb-4" />
-                </motion.div>
-                <h3 className="font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+              <Card variant="hover" className="p-5 h-full">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                  <feature.icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-semibold text-foreground mb-1.5">
                   {feature.title}
                 </h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">

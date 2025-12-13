@@ -71,7 +71,7 @@ export default function PricingPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-16"
         >
-          <Badge variant="purple" className="mb-6 px-4 py-2">
+          <Badge variant="primary" className="mb-6 px-4 py-2">
             Тарифы
           </Badge>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--color-text-primary)] mb-6">

@@ -7,8 +7,8 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "shadow-sm",
-        hover: "transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 shadow-sm",
+        default: "",
+        hover: "transition-all duration-200 hover:border-primary/20 hover:shadow-md",
       },
     },
     defaultVariants: {

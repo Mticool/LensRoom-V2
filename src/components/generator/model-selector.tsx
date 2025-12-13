@@ -88,7 +88,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant="gold" className="gap-1 px-2 py-1 text-xs">
+            <Badge variant="warning" className="gap-1 px-2 py-1 text-xs">
               <Star className="w-3 h-3 fill-current" />
               {selectedModel.creditCost}
             </Badge>
@@ -168,7 +168,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge variant="gold" className="gap-1 px-2 py-1 text-xs">
+                        <Badge variant="warning" className="gap-1 px-2 py-1 text-xs">
                           <Star className="w-3 h-3 fill-current" />
                           {model.creditCost}
                         </Badge>

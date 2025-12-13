@@ -218,7 +218,7 @@ export default function VideoCreatePage() {
                           {selectedModelData?.name || 'Выберите модель'}
                         </span>
                         {selectedModelData?.quality === 'ultra' && (
-                          <Badge variant="gold" className="text-[10px] px-1.5 py-0">PRO</Badge>
+                          <Badge variant="warning" className="text-[10px] px-1.5 py-0">PRO</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
@@ -278,7 +278,7 @@ export default function VideoCreatePage() {
                                   {model.name}
                                 </span>
                                 {model.quality === 'ultra' && (
-                                  <Badge variant="gold" className="text-[10px] px-1.5 py-0">PRO</Badge>
+                                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">PRO</Badge>
                                 )}
                               </div>
                               <span className="text-xs text-[var(--color-text-tertiary)]">{model.provider}</span>
