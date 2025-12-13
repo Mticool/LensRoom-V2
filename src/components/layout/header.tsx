@@ -4,13 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, User, CreditCard, Crown, Moon, Sun, ChevronDown } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
-import { useTheme } from '@/lib/theme-provider';
 
 const navigation = [
   { name: 'Фото', href: '/create' },
@@ -28,7 +27,6 @@ export function Header() {
   const pathname = usePathname();
   const { user, loading: authLoading, signOut } = useAuth();
   const { balance, fetchBalance } = useCreditsStore();
-  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (user) {
@@ -47,13 +45,15 @@ export function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg-primary)]">
         <nav className="container mx-auto px-6">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 font-semibold text-lg text-foreground">
-              <Sparkles className="w-5 h-5 text-primary" />
-              LensRoom
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--color-purple-500)] to-[var(--color-blue-500)] flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-lg font-bold text-[var(--color-text-primary)]">LensRoom</span>
             </Link>
 
             {/* Desktop Nav */}
@@ -65,10 +65,10 @@ export function Header() {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      "px-3 py-2 text-sm transition-colors rounded-md",
+                      "px-4 py-2 text-sm font-medium transition-colors rounded-lg",
                       isActive
-                        ? "text-foreground bg-secondary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                        ? "text-[var(--color-text-primary)] bg-[var(--color-bg-tertiary)]"
+                        : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)]"
                     )}
                   >
                     {item.name}
@@ -78,32 +78,19 @@ export function Header() {
             </div>
 
             {/* Right side */}
-            <div className="hidden lg:flex items-center gap-2">
-              {/* Theme Toggle */}
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-md hover:bg-secondary transition-colors"
-                aria-label="Toggle theme"
-              >
-                {theme === 'dark' ? (
-                  <Sun className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <Moon className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-
+            <div className="hidden lg:flex items-center gap-3">
               {/* Auth */}
               {authLoading ? (
-                <div className="w-20 h-8 bg-secondary rounded-md animate-pulse" />
+                <div className="w-24 h-10 bg-[var(--color-bg-tertiary)] rounded-xl animate-pulse" />
               ) : user ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] transition-all"
                   >
-                    <span className="text-sm font-medium text-primary">{balance} ⭐</span>
+                    <span className="text-sm font-semibold text-[var(--color-gold)]">{balance} ⭐</span>
                     <ChevronDown className={cn(
-                      "w-3 h-3 text-muted-foreground transition-transform",
+                      "w-4 h-4 text-[var(--color-text-secondary)] transition-transform",
                       userMenuOpen && "rotate-180"
                     )} />
                   </button>
@@ -120,19 +107,19 @@ export function Header() {
                           initial={{ opacity: 0, y: -8 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -8 }}
-                          className="absolute right-0 mt-2 w-56 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden"
+                          className="absolute right-0 mt-2 w-56 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl shadow-xl z-50 overflow-hidden"
                         >
-                          <div className="px-3 py-2 border-b border-border">
-                            <p className="text-sm font-medium text-foreground truncate">
+                          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+                            <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
                               {user.email}
                             </p>
-                            <p className="text-xs text-primary">{balance} кредитов</p>
+                            <p className="text-xs text-[var(--color-gold)]">{balance} кредитов</p>
                           </div>
                           <div className="py-1">
                             <Link
                               href="/account/subscription"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
                             >
                               <Crown className="w-4 h-4" />
                               Подписка
@@ -140,16 +127,16 @@ export function Header() {
                             <Link
                               href="/pricing"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
                             >
                               <CreditCard className="w-4 h-4" />
                               Купить кредиты
                             </Link>
                           </div>
-                          <div className="border-t border-border py-1">
+                          <div className="border-t border-[var(--color-border)] py-1">
                             <button
                               onClick={handleSignOut}
-                              className="flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors w-full"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors w-full"
                             >
                               <LogOut className="w-4 h-4" />
                               Выйти
@@ -161,7 +148,7 @@ export function Header() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <Button size="sm" onClick={() => setLoginOpen(true)}>
+                <Button onClick={() => setLoginOpen(true)}>
                   Войти
                 </Button>
               )}
@@ -170,23 +157,13 @@ export function Header() {
             {/* Mobile */}
             <div className="flex lg:hidden items-center gap-2">
               <button
-                onClick={toggleTheme}
-                className="p-2 rounded-md hover:bg-secondary transition-colors"
-              >
-                {theme === 'dark' ? (
-                  <Sun className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <Moon className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-              <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-md hover:bg-secondary transition-colors"
+                className="p-2 rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors"
               >
                 {mobileMenuOpen ? (
-                  <X className="w-5 h-5 text-foreground" />
+                  <X className="w-6 h-6 text-[var(--color-text-primary)]" />
                 ) : (
-                  <Menu className="w-5 h-5 text-foreground" />
+                  <Menu className="w-6 h-6 text-[var(--color-text-primary)]" />
                 )}
               </button>
             </div>
@@ -201,13 +178,13 @@ export function Header() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-x-0 top-14 z-40 lg:hidden"
+            className="fixed inset-x-0 top-16 z-40 lg:hidden"
           >
             <div 
-              className="absolute inset-0 bg-background h-screen"
+              className="absolute inset-0 bg-[var(--color-bg-primary)] h-screen"
               onClick={() => setMobileMenuOpen(false)}
             />
-            <div className="relative bg-card border-b border-border shadow-lg">
+            <div className="relative bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)] shadow-xl">
               <div className="container mx-auto px-6 py-4 space-y-1">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href;
@@ -217,10 +194,10 @@ export function Header() {
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "block px-3 py-2 rounded-md text-sm transition-colors",
+                        "block px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-secondary text-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                          ? "bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]"
+                          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]"
                       )}
                     >
                       {item.name}
@@ -228,24 +205,24 @@ export function Header() {
                   );
                 })}
 
-                <div className="pt-4 mt-4 border-t border-border space-y-2">
+                <div className="pt-4 mt-4 border-t border-[var(--color-border)] space-y-2">
                   {user ? (
                     <>
-                      <div className="px-3 py-2 rounded-md bg-secondary">
-                        <p className="text-sm font-medium text-primary">{balance} ⭐</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      <div className="px-4 py-3 rounded-xl bg-[var(--color-bg-tertiary)]">
+                        <p className="text-sm font-semibold text-[var(--color-gold)]">{balance} ⭐</p>
+                        <p className="text-xs text-[var(--color-text-tertiary)]">{user.email}</p>
                       </div>
                       <Link
                         href="/account/subscription"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-secondary transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
                       >
                         <Crown className="w-4 h-4" />
                         Подписка
                       </Link>
                       <button
                         onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
-                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors w-full"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors w-full"
                       >
                         <LogOut className="w-4 h-4" />
                         Выйти
@@ -267,7 +244,7 @@ export function Header() {
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 
       {/* Spacer */}
-      <div className="h-14" />
+      <div className="h-16" />
     </>
   );
 }

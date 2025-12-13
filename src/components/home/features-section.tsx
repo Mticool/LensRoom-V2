@@ -49,7 +49,7 @@ const features = [
 
 export function FeaturesSection() {
   return (
-    <section className="py-24 bg-muted/30">
+    <section className="py-24 bg-[var(--color-bg-secondary)]/50">
       <div className="container mx-auto px-6">
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -57,10 +57,10 @@ export function FeaturesSection() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-[var(--color-text-primary)] mb-4">
             Всё для создания контента
           </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-[var(--color-text-secondary)] text-lg max-w-2xl mx-auto">
             Простой интерфейс, мощные возможности. 
             Всё что нужно для работы с AI-генерацией.
           </p>
@@ -75,14 +75,14 @@ export function FeaturesSection() {
               viewport={{ once: true }}
               transition={{ delay: i * 0.05 }}
             >
-              <Card variant="hover" className="p-5 h-full">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                  <feature.icon className="w-5 h-5 text-primary" />
+              <Card variant="hover" padding="md" className="h-full">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-purple-500)]/20 to-[var(--color-blue-500)]/20 flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-[var(--color-purple-400)]" />
                 </div>
-                <h3 className="font-semibold text-foreground mb-1.5">
+                <h3 className="font-semibold text-[var(--color-text-primary)] mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
                   {feature.description}
                 </p>
               </Card>

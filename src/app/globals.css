@@ -1,109 +1,64 @@
 @import "tailwindcss";
 
-/* ===== LINEAR DESIGN SYSTEM ===== */
+/* ===== LENSROOM DARK PREMIUM DESIGN ===== */
 
 :root {
   /* Background */
-  --background: 255 255 255;
-  --foreground: 8 8 11;
+  --color-bg-primary: #08080C;
+  --color-bg-secondary: #0F0F14;
+  --color-bg-tertiary: #16161D;
+  --color-bg-elevated: #1A1A24;
   
-  /* Cards */
-  --card: 255 255 255;
-  --card-foreground: 8 8 11;
+  /* Text */
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: rgba(255, 255, 255, 0.70);
+  --color-text-tertiary: rgba(255, 255, 255, 0.45);
   
-  /* Surfaces */
-  --muted: 245 245 245;
-  --muted-foreground: 100 100 105;
-  
-  /* Primary - Linear Purple */
-  --primary: 91 33 182;
-  --primary-foreground: 255 255 255;
-  
-  /* Secondary */
-  --secondary: 245 245 245;
-  --secondary-foreground: 8 8 11;
-  
-  /* Accent */
-  --accent: 245 245 245;
-  --accent-foreground: 8 8 11;
+  /* Brand Colors */
+  --color-purple-400: #A78BFA;
+  --color-purple-500: #8B5CF6;
+  --color-purple-600: #7C3AED;
+  --color-blue-400: #60A5FA;
+  --color-blue-500: #3B82F6;
+  --color-gold: #F5C842;
+  --color-gold-light: rgba(245, 200, 66, 0.15);
   
   /* Borders */
-  --border: 229 229 229;
-  --input: 229 229 229;
-  --ring: 91 33 182;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
   
-  /* Destructive */
-  --destructive: 220 38 38;
-  --destructive-foreground: 255 255 255;
+  /* Status */
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
   
-  /* Radius */
-  --radius: 0.5rem;
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(139, 92, 246, 0.3);
 }
 
-.dark {
-  /* Background */
-  --background: 8 8 11;
-  --foreground: 250 250 250;
-  
-  /* Cards */
-  --card: 18 18 22;
-  --card-foreground: 250 250 250;
-  
-  /* Surfaces */
-  --muted: 24 24 28;
-  --muted-foreground: 140 140 150;
-  
-  /* Primary - Linear Purple */
-  --primary: 124 58 237;
-  --primary-foreground: 255 255 255;
-  
-  /* Secondary */
-  --secondary: 24 24 28;
-  --secondary-foreground: 250 250 250;
-  
-  /* Accent */
-  --accent: 24 24 28;
-  --accent-foreground: 250 250 250;
-  
-  /* Borders */
-  --border: 38 38 42;
-  --input: 38 38 42;
-  --ring: 124 58 237;
-  
-  /* Destructive */
-  --destructive: 220 38 38;
-  --destructive-foreground: 255 255 255;
-}
-
+/* Tailwind Theme */
 @theme inline {
-  --color-background: rgb(var(--background));
-  --color-foreground: rgb(var(--foreground));
-  --color-card: rgb(var(--card));
-  --color-card-foreground: rgb(var(--card-foreground));
-  --color-muted: rgb(var(--muted));
-  --color-muted-foreground: rgb(var(--muted-foreground));
-  --color-primary: rgb(var(--primary));
-  --color-primary-foreground: rgb(var(--primary-foreground));
-  --color-secondary: rgb(var(--secondary));
-  --color-secondary-foreground: rgb(var(--secondary-foreground));
-  --color-accent: rgb(var(--accent));
-  --color-accent-foreground: rgb(var(--accent-foreground));
-  --color-border: rgb(var(--border));
-  --color-input: rgb(var(--input));
-  --color-ring: rgb(var(--ring));
-  --color-destructive: rgb(var(--destructive));
-  --color-destructive-foreground: rgb(var(--destructive-foreground));
-  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), "SF Mono", monospace;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 4px);
-  --radius-xl: calc(var(--radius) + 8px);
+  --color-background: var(--color-bg-primary);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-bg-secondary);
+  --color-card-foreground: var(--color-text-primary);
+  --color-muted: var(--color-bg-tertiary);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-primary: var(--color-purple-500);
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: var(--color-bg-tertiary);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-border: var(--color-border);
+  --color-ring: var(--color-purple-500);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Base styles */
+/* Base Styles */
 * {
-  border-color: rgb(var(--border));
+  border-color: var(--color-border);
 }
 
 html {
@@ -111,14 +66,14 @@ html {
 }
 
 body {
-  background-color: rgb(var(--background));
-  color: rgb(var(--foreground));
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar - Linear style */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -129,12 +84,33 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--border));
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--muted-foreground) / 0.5);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Selection */
+::selection {
+  background: rgba(139, 92, 246, 0.3);
+  color: #FFFFFF;
+}
+
+/* Focus */
+*:focus-visible {
+  outline: 2px solid var(--color-purple-500);
+  outline-offset: 2px;
+}
+
+/* Radix UI Portals - solid dropdowns */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+[data-radix-portal] {
+  z-index: 9999 !important;
 }
 
 /* Animations */
@@ -153,6 +129,11 @@ body {
   50% { background-position: 100% 50%; }
 }
 
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.5); }
+}
+
 .animate-fade-in {
   animation: fade-in 0.5s ease-out;
 }
@@ -166,28 +147,6 @@ body {
   animation: gradient 3s ease infinite;
 }
 
-/* Focus styles */
-*:focus-visible {
-  outline: 2px solid rgb(var(--ring));
-  outline-offset: 2px;
-}
-
-/* Selection */
-::selection {
-  background: rgb(var(--primary) / 0.2);
-  color: rgb(var(--foreground));
-}
-
-/* Radix UI Portals - ensure dropdowns are on top */
-[data-radix-popper-content-wrapper] {
-  z-index: 9999 !important;
-}
-
-[data-radix-portal] {
-  z-index: 9999 !important;
-}
-
-/* Dropdown menu solid background */
-[data-radix-menu-content] {
-  background-color: rgb(24 24 27) !important;
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
