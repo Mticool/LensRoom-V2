@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, User, CreditCard } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, User, CreditCard, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/providers/auth-provider';
+import { useProfile } from '@/hooks/use-profile';
 import { LoginDialog } from '@/components/auth/login-dialog';
 
 const navigation = [
@@ -25,7 +26,8 @@ export function Header() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { credits, plan, loading: profileLoading } = useProfile();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -43,6 +45,8 @@ export function Header() {
       console.error('Sign out error:', error);
     }
   };
+
+  const isLoading = authLoading || profileLoading;
 
   return (
     <>
@@ -93,14 +97,17 @@ export function Header() {
             {/* Right side */}
             <div className="hidden lg:flex items-center gap-3">
               {/* Credits Badge */}
-              <div className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+              <Link 
+                href="/pricing"
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-colors"
+              >
                 <span className="text-sm font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                  {user ? '847 ⭐' : '100 ⭐'}
+                  {isLoading ? '...' : `${credits} ⭐`}
                 </span>
-              </div>
+              </Link>
 
               {/* Auth */}
-              {loading ? (
+              {isLoading ? (
                 <div className="w-20 h-10 bg-[var(--color-bg-tertiary)] rounded-lg animate-pulse" />
               ) : user ? (
                 <div className="relative">
@@ -128,9 +135,14 @@ export function Header() {
                           <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
                             {user.email}
                           </p>
-                          <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
-                            Free план
-                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-[var(--color-text-tertiary)] capitalize">
+                              {plan} план
+                            </span>
+                            <span className="text-xs text-purple-400">
+                              {credits} кредитов
+                            </span>
+                          </div>
                         </div>
                         <div className="p-2">
                           <Link
@@ -142,12 +154,20 @@ export function Header() {
                             <span className="text-sm text-[var(--color-text-primary)]">Профиль</span>
                           </Link>
                           <Link
+                            href="/history"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                          >
+                            <History className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                            <span className="text-sm text-[var(--color-text-primary)]">История</span>
+                          </Link>
+                          <Link
                             href="/pricing"
                             onClick={() => setUserMenuOpen(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
                           >
                             <CreditCard className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                            <span className="text-sm text-[var(--color-text-primary)]">Тарифы</span>
+                            <span className="text-sm text-[var(--color-text-primary)]">Купить кредиты</span>
                           </Link>
                           <button
                             onClick={handleSignOut}
@@ -226,7 +246,7 @@ export function Header() {
                 <div className="pt-4 mt-4 border-t border-[var(--color-border)] space-y-3">
                   <div className="px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30">
                     <span className="text-sm font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                      {user ? '847 ⭐ Кредитов' : '100 ⭐ Кредитов'}
+                      {user ? `${credits} ⭐ Кредитов` : '100 ⭐ Бесплатно'}
                     </span>
                   </div>
                   
