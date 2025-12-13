@@ -166,56 +166,67 @@ export default function CreatePage() {
 
                 {/* Dropdown Menu */}
                 {modelDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute top-full left-0 right-0 mt-2 z-50 
-                               bg-[var(--color-bg-elevated)] border border-[var(--color-border)] 
-                               rounded-xl shadow-xl overflow-hidden"
-                  >
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {models.map((model) => (
-                        <button
-                          key={model.id}
-                          onClick={() => {
-                            setSelectedModel(model.id);
-                            setModelDropdownOpen(false);
-                          }}
-                          className={cn(
-                            "w-full flex items-center justify-between p-3 transition-colors",
-                            selectedModel === model.id 
-                              ? "bg-purple-500/10" 
-                              : "hover:bg-[var(--color-bg-tertiary)]"
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-secondary)] flex items-center justify-center">
-                              <Camera className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                            </div>
-                            <div className="text-left">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-[var(--color-text-primary)] text-sm">
-                                  {model.name}
-                                </span>
-                                {model.quality === 'ultra' && (
-                                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">HIGH</Badge>
-                                )}
-                              </div>
-                              <span className="text-xs text-[var(--color-text-tertiary)]">{model.provider}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {model.speed === 'fast' && (
-                              <Zap className="w-4 h-4 text-[var(--color-success)]" />
+                  <>
+                    {/* Backdrop */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setModelDropdownOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute top-full left-0 right-0 mt-2 z-50 
+                                 bg-zinc-900 border border-zinc-700 
+                                 rounded-xl shadow-2xl overflow-hidden"
+                      style={{ zIndex: 9999 }}
+                    >
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {models.map((model) => (
+                          <button
+                            key={model.id}
+                            onClick={() => {
+                              setSelectedModel(model.id);
+                              setModelDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between p-3 transition-colors",
+                              selectedModel === model.id 
+                                ? "bg-purple-600" 
+                                : "hover:bg-zinc-800"
                             )}
-                            <span className="text-sm font-semibold text-[var(--color-purple-400)]">
-                              ⭐ {model.creditCost}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center",
+                                selectedModel === model.id ? "bg-purple-500" : "bg-zinc-800"
+                              )}>
+                                <Camera className="w-4 h-4 text-white" />
+                              </div>
+                              <div className="text-left">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-white text-sm">
+                                    {model.name}
+                                  </span>
+                                  {model.quality === 'ultra' && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-600 text-white font-bold">HIGH</span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-zinc-400">{model.provider}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {model.speed === 'fast' && (
+                                <Zap className="w-4 h-4 text-green-500" />
+                              )}
+                              <span className="text-sm font-semibold text-yellow-500">
+                                ⭐ {model.creditCost}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </>
                 )}
               </div>
             </Card>
