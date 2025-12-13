@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, User, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/providers/auth-provider';
+import { LoginDialog } from '@/components/auth/login-dialog';
 
 const navigation = [
   { name: 'Фото', href: '/create' },
@@ -20,7 +22,10 @@ const navigation = [
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { user, loading, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,6 +34,15 @@ export function Header() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setUserMenuOpen(false);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
 
   return (
     <>
@@ -81,14 +95,77 @@ export function Header() {
               {/* Credits Badge */}
               <div className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30">
                 <span className="text-sm font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                  847 ⭐
+                  {user ? '847 ⭐' : '100 ⭐'}
                 </span>
               </div>
 
-              {/* Auth Button */}
-              <Button variant="primary" size="sm">
-                Войти
-              </Button>
+              {/* Auth */}
+              {loading ? (
+                <div className="w-20 h-10 bg-[var(--color-bg-tertiary)] rounded-lg animate-pulse" />
+              ) : user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {user.email?.[0].toUpperCase()}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* User Dropdown */}
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute right-0 mt-2 w-64 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden"
+                      >
+                        <div className="p-4 border-b border-[var(--color-border)]">
+                          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                            {user.email}
+                          </p>
+                          <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+                            Free план
+                          </p>
+                        </div>
+                        <div className="p-2">
+                          <Link
+                            href="/profile"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                          >
+                            <User className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                            <span className="text-sm text-[var(--color-text-primary)]">Профиль</span>
+                          </Link>
+                          <Link
+                            href="/pricing"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                          >
+                            <CreditCard className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                            <span className="text-sm text-[var(--color-text-primary)]">Тарифы</span>
+                          </Link>
+                          <button
+                            onClick={handleSignOut}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors w-full text-left"
+                          >
+                            <LogOut className="w-4 h-4 text-red-400" />
+                            <span className="text-sm text-red-400">Выйти</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <Button variant="primary" size="sm" onClick={() => setLoginOpen(true)}>
+                  Войти
+                </Button>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -149,19 +226,29 @@ export function Header() {
                 <div className="pt-4 mt-4 border-t border-[var(--color-border)] space-y-3">
                   <div className="px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30">
                     <span className="text-sm font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                      847 ⭐ Кредитов
+                      {user ? '847 ⭐ Кредитов' : '100 ⭐ Кредитов'}
                     </span>
                   </div>
                   
-                  <Button variant="primary" className="w-full">
-                    Войти
-                  </Button>
+                  {user ? (
+                    <Button variant="secondary" className="w-full" onClick={handleSignOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Выйти
+                    </Button>
+                  ) : (
+                    <Button variant="primary" className="w-full" onClick={() => { setMobileMenuOpen(false); setLoginOpen(true); }}>
+                      Войти
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Login Dialog */}
+      <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 
       {/* Spacer */}
       <div className="h-16" />
