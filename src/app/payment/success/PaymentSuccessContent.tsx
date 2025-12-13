@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { CheckCircle, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { useCreditsStore } from '@/stores/credits-store';
+import { CheckCircle, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
+import { useCreditsStore } from '@/stores/credits-store';
 
 export default function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const { fetchBalance, balance } = useCreditsStore();
   
-  const type = searchParams.get('type'); // 'subscription' | 'package'
+  const type = searchParams.get('type');
   const credits = searchParams.get('credits');
   const plan = searchParams.get('plan');
   
@@ -22,16 +22,16 @@ export default function PaymentSuccessContent() {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    // Set window size
+    // Update credits balance
+    fetchBalance();
+    
+    // Get window size for confetti
     setWindowSize({
       width: window.innerWidth,
       height: window.innerHeight,
     });
-
-    // Refresh credits balance
-    fetchBalance();
     
-    // Hide confetti after 5 seconds
+    // Stop confetti after 5 seconds
     const timer = setTimeout(() => setShowConfetti(false), 5000);
     return () => clearTimeout(timer);
   }, [fetchBalance]);
@@ -46,6 +46,7 @@ export default function PaymentSuccessContent() {
           height={windowSize.height}
           recycle={false}
           numberOfPieces={500}
+          gravity={0.3}
           colors={['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899']}
         />
       )}
@@ -61,10 +62,10 @@ export default function PaymentSuccessContent() {
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
               className="flex justify-center mb-8"
             >
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/50">
                 <CheckCircle className="w-12 h-12 text-white" />
               </div>
             </motion.div>
@@ -74,9 +75,9 @@ export default function PaymentSuccessContent() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-4xl font-bold text-[var(--color-text-primary)] mb-4"
+              className="text-4xl md:text-5xl font-bold text-[var(--color-text-primary)] mb-4"
             >
-              {isSubscription ? 'Подписка оформлена!' : 'Оплата прошла успешно!'}
+              {isSubscription ? 'Подписка оформлена! 🎉' : 'Оплата прошла успешно! ✨'}
             </motion.h1>
 
             {/* Description */}
@@ -88,26 +89,34 @@ export default function PaymentSuccessContent() {
             >
               {isSubscription ? (
                 <>
-                  Теперь вы получаете <span className="font-bold text-purple-500">{credits} кредитов</span> каждый месяц!
+                  Теперь вы получаете{' '}
+                  <span className="font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
+                    {credits} кредитов
+                  </span>{' '}
+                  каждый месяц!
                 </>
               ) : credits ? (
                 <>
-                  На ваш счёт зачислено <span className="font-bold text-purple-500">{credits} кредитов</span>
+                  На ваш счёт зачислено{' '}
+                  <span className="font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
+                    {credits} кредитов
+                  </span>
                 </>
               ) : (
-                'Кредиты добавлены на ваш аккаунт'
+                'Кредиты зачислены на ваш счёт'
               )}
             </motion.p>
 
             {/* Current Balance */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.45 }}
-              className="mb-8"
+              className="mb-8 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20"
             >
-              <p className="text-sm text-[var(--color-text-tertiary)]">
-                Текущий баланс: <span className="text-purple-400 font-semibold">{balance} ⭐</span>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-1">Текущий баланс</p>
+              <p className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
+                {balance} ⭐
               </p>
             </motion.div>
 
@@ -117,16 +126,15 @@ export default function PaymentSuccessContent() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 }}
+                className="p-6 rounded-2xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border-primary)]"
               >
-                <div className="p-6 rounded-2xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border-primary)]">
-                  <Sparkles className="w-8 h-8 text-purple-500 mb-3 mx-auto" />
-                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-                    Кредиты зачислены
-                  </h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    Можете сразу начать создавать контент
-                  </p>
-                </div>
+                <Sparkles className="w-8 h-8 text-purple-500 mb-3 mx-auto" />
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+                  Кредиты зачислены
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Можете сразу начать создавать контент
+                </p>
               </motion.div>
 
               {isSubscription && (
@@ -134,16 +142,15 @@ export default function PaymentSuccessContent() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 }}
+                  className="p-6 rounded-2xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border-primary)]"
                 >
-                  <div className="p-6 rounded-2xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border-primary)]">
-                    <CheckCircle className="w-8 h-8 text-green-500 mb-3 mx-auto" />
-                    <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-                      Автопродление
-                    </h3>
-                    <p className="text-sm text-[var(--color-text-secondary)]">
-                      Кредиты будут начисляться автоматически
-                    </p>
-                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-500 mb-3 mx-auto" />
+                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+                    Автопродление
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Кредиты будут начисляться автоматически
+                  </p>
                 </motion.div>
               )}
             </div>
@@ -155,7 +162,7 @@ export default function PaymentSuccessContent() {
               transition={{ delay: 0.7 }}
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <Button asChild variant="primary" size="lg">
+              <Button asChild variant="primary" size="lg" className="min-w-[200px]">
                 <Link href="/create">
                   Начать создавать
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -163,7 +170,7 @@ export default function PaymentSuccessContent() {
               </Button>
 
               {isSubscription && (
-                <Button asChild variant="secondary" size="lg">
+                <Button asChild variant="secondary" size="lg" className="min-w-[200px]">
                   <Link href="/account/subscription">
                     Управление подпиской
                   </Link>
