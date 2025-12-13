@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { payformClient } from '@/lib/payments/payform-client';
+import { payform } from '@/lib/payments/payform-client';
 import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/pricing/plans';
 
 export async function POST(request: NextRequest) {
   try {
     const { type, itemId } = await request.json();
-    // type: 'subscription' | 'package'
-    // itemId: plan id или package id
 
-    // Auth check
     const supabase = await createServerSupabaseClient();
     
     if (!supabase) {
@@ -26,46 +23,49 @@ export async function POST(request: NextRequest) {
     const orderNumber = `LR-${Date.now()}-${user.id.slice(0, 8)}`;
 
     if (type === 'subscription') {
-      // Подписка
+      // ========== ПОДПИСКА ==========
       const plan = SUBSCRIPTION_PLANS.find(p => p.id === itemId);
       if (!plan || !plan.recurring) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
 
-      if (itemId !== 'pro' && itemId !== 'business') {
-        return NextResponse.json({ error: 'Invalid subscription plan' }, { status: 400 });
-      }
-
-      paymentUrl = payformClient.createSubscriptionPayment({
+      paymentUrl = payform.createSubscriptionPayment({
         orderNumber,
         amount: plan.price,
         customerEmail: user.email!,
         userId: user.id,
         type: 'subscription',
-        planId: itemId,
+        planId: plan.id,
         credits: plan.credits,
         description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
       });
 
-      // Создаём запись о платеже
+      // Сохранить в БД
       await supabase.from('payments').insert({
         user_id: user.id,
-        prodamus_order_id: orderNumber,
+        prodamus_order_id: orderNumber, // Используем существующее поле
         type: 'subscription',
         amount: plan.price,
         credits: plan.credits,
         status: 'pending',
-        metadata: { plan_id: plan.id, provider: 'payform' },
+        metadata: { plan_id: plan.id, plan_name: plan.name, provider: 'payform' },
+      });
+
+      console.log('[Checkout] Subscription payment created:', {
+        orderNumber,
+        userId: user.id,
+        planId: plan.id,
+        price: plan.price,
       });
 
     } else if (type === 'package') {
-      // Разовый пакет
+      // ========== РАЗОВЫЙ ПАКЕТ ==========
       const pkg = CREDIT_PACKAGES.find(p => p.id === itemId);
       if (!pkg) {
         return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
       }
 
-      paymentUrl = payformClient.createPackagePayment({
+      paymentUrl = payform.createPackagePayment({
         orderNumber,
         amount: pkg.price,
         customerEmail: user.email!,
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         description: `${pkg.credits} кредитов LensRoom`,
       });
 
+      // Сохранить в БД
       await supabase.from('payments').insert({
         user_id: user.id,
         prodamus_order_id: orderNumber,
@@ -82,22 +83,30 @@ export async function POST(request: NextRequest) {
         amount: pkg.price,
         credits: pkg.credits,
         status: 'pending',
-        metadata: { package_id: pkg.id, provider: 'payform' },
+        metadata: { 
+          package_id: pkg.id, 
+          credits: pkg.credits,
+          popular: pkg.popular || false,
+          provider: 'payform',
+        },
+      });
+
+      console.log('[Checkout] Package payment created:', {
+        orderNumber,
+        userId: user.id,
+        packageId: pkg.id,
+        credits: pkg.credits,
+        price: pkg.price,
       });
 
     } else {
       return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     }
 
-    console.log('[Checkout] Created payment:', {
-      orderNumber,
-      userId: user.id,
-      type,
-      itemId,
+    return NextResponse.json({ 
       url: paymentUrl,
+      orderId: orderNumber,
     });
-
-    return NextResponse.json({ url: paymentUrl });
 
   } catch (error) {
     console.error('[Checkout] Error:', error);
