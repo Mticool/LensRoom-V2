@@ -65,10 +65,14 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border mb-8 backdrop-blur-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full 
+                       bg-primary/10 dark:bg-secondary border border-primary/20 dark:border-border 
+                       mb-8 backdrop-blur-sm"
           >
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="text-sm text-muted-foreground font-medium">12 AI моделей в одном месте</span>
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">
+              12 AI моделей в одном месте
+            </span>
           </motion.div>
 
           {/* Headline */}
