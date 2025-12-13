@@ -1,20 +1,9 @@
+'use client';
+
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import nextDynamic from 'next/dynamic';
-
-// Force dynamic rendering - disable prerendering
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
-
-// Dynamically import the content component with no SSR
-const PaymentSuccessContent = nextDynamic(
-  () => import('./PaymentSuccessContent'),
-  { 
-    ssr: false,
-    loading: () => <LoadingFallback />
-  }
-);
+import PaymentSuccessContent from './PaymentSuccessContent';
 
 function LoadingFallback() {
   return (
