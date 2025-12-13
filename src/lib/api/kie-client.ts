@@ -1,5 +1,5 @@
 // ===== KIE.AI API CLIENT =====
-// Documentation: https://api.kie.ai
+// Documentation: https://kie.ai/docs
 
 // ===== REQUEST TYPES =====
 
@@ -8,10 +8,10 @@ export interface CreateTaskRequest {
   callBackUrl?: string;
   input: {
     prompt: string;
-    image_input?: string[];
+    image_input?: string[]; // URLs, not base64
     aspect_ratio?: string;
-    resolution?: string;
-    output_format?: string;
+    resolution?: "1K" | "2K" | "4K";
+    output_format?: "png" | "jpg";
     // Video specific
     duration?: number;
     fps?: number;
@@ -28,24 +28,23 @@ export interface CreateTaskResponse {
   };
 }
 
-export interface QueryTaskResponse {
+// State values from KIE API
+export type KieTaskState = "waiting" | "queuing" | "generating" | "success" | "fail";
+
+export interface RecordInfoResponse {
   code: number;
-  message?: string;
-  msg?: string;
+  message: string;
   data: {
     taskId: string;
-    state: "pending" | "processing" | "success" | "fail";
     model: string;
-    param: string;
-    createTime: number;
-    updateTime: number;
-    completeTime?: number;
-    costTime?: number;
-    consumeCredits?: number;
-    remainedCredits?: number;
-    resultJson?: string;
+    state: KieTaskState;
+    param: string; // JSON string of original request
+    resultJson?: string; // JSON string with resultUrls
     failCode?: string;
     failMsg?: string;
+    completeTime?: number;
+    createTime: number;
+    updateTime: number;
   };
 }
 
@@ -62,9 +61,9 @@ export interface GenerateImageRequest {
   prompt: string;
   negativePrompt?: string;
   aspectRatio?: string;
-  resolution?: string;
-  outputFormat?: string;
-  imageInputs?: string[];
+  resolution?: "1K" | "2K" | "4K";
+  outputFormat?: "png" | "jpg";
+  imageInputs?: string[]; // URLs
 }
 
 export interface GenerateImageResponse {
@@ -186,6 +185,7 @@ class KieAIClient {
   }
 
   // ===== CREATE TASK =====
+  // POST /api/v1/jobs/createTask
 
   async createTask(request: CreateTaskRequest): Promise<CreateTaskResponse> {
     if (this._isMockMode) {
@@ -198,14 +198,15 @@ class KieAIClient {
     });
   }
 
-  // ===== QUERY TASK =====
+  // ===== QUERY TASK (recordInfo) =====
+  // GET /api/v1/jobs/recordInfo?taskId=xxx
 
-  async queryTask(taskId: string): Promise<QueryTaskResponse> {
+  async queryTask(taskId: string): Promise<RecordInfoResponse> {
     if (this._isMockMode) {
       return this.mockQueryTask(taskId);
     }
 
-    return this.request<QueryTaskResponse>(`/api/v1/jobs/queryTask?taskId=${taskId}`, {
+    return this.request<RecordInfoResponse>(`/api/v1/jobs/recordInfo?taskId=${taskId}`, {
       method: "GET",
     });
   }
@@ -259,17 +260,28 @@ class KieAIClient {
       }
 
       // Map KIE state to our status
-      const statusMap: Record<string, GenerationStatus> = {
-        pending: "queued",
-        processing: "processing",
+      // KIE states: waiting, queuing, generating, success, fail
+      const statusMap: Record<KieTaskState, GenerationStatus> = {
+        waiting: "queued",
+        queuing: "queued",
+        generating: "processing",
         success: "completed",
         fail: "failed",
+      };
+
+      // Calculate progress based on state
+      const progressMap: Record<KieTaskState, number> = {
+        waiting: 5,
+        queuing: 15,
+        generating: 50,
+        success: 100,
+        fail: 0,
       };
 
       return {
         id: taskId,
         status: statusMap[data.state] || "processing",
-        progress: data.state === "success" ? 100 : data.state === "processing" ? 50 : 0,
+        progress: progressMap[data.state] || 25,
         outputs,
         error: data.failMsg,
       };
@@ -325,17 +337,26 @@ class KieAIClient {
         }
       }
 
-      const statusMap: Record<string, GenerationStatus> = {
-        pending: "queued",
-        processing: "processing",
+      const statusMap: Record<KieTaskState, GenerationStatus> = {
+        waiting: "queued",
+        queuing: "queued",
+        generating: "processing",
         success: "completed",
         fail: "failed",
+      };
+
+      const progressMap: Record<KieTaskState, number> = {
+        waiting: 5,
+        queuing: 15,
+        generating: 50,
+        success: 100,
+        fail: 0,
       };
 
       return {
         id: taskId,
         status: statusMap[data.state] || "processing",
-        progress: data.state === "success" ? 100 : data.state === "processing" ? 50 : 0,
+        progress: progressMap[data.state] || 25,
         outputs,
         error: data.failMsg,
       };
@@ -349,8 +370,7 @@ class KieAIClient {
 
   async checkHealth(): Promise<boolean> {
     try {
-      // Simple ping to check if API is reachable
-      const response = await fetch(`${this.baseUrl}/api/v1/jobs/queryTask?taskId=test`, {
+      const response = await fetch(`${this.baseUrl}/api/v1/jobs/recordInfo?taskId=test`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -362,12 +382,6 @@ class KieAIClient {
     }
   }
 
-  async getAccountBalance(): Promise<{ credits: number }> {
-    // KIE API returns credits in task responses
-    // For now return a placeholder
-    return { credits: 1000 };
-  }
-
   // ===== MOCK METHODS =====
 
   private mockTaskProgress = new Map<string, { startTime: number; duration: number }>();
@@ -375,10 +389,9 @@ class KieAIClient {
   private mockCreateTask(request: CreateTaskRequest): Promise<CreateTaskResponse> {
     const taskId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Store mock progress info
     const isVideo = request.model.includes("sora") || request.model.includes("kling") || 
                     request.model.includes("luma") || request.model.includes("runway") ||
-                    request.model.includes("veo");
+                    request.model.includes("veo") || request.model.includes("seedance");
     
     this.mockTaskProgress.set(taskId, {
       startTime: Date.now(),
@@ -394,16 +407,17 @@ class KieAIClient {
     });
   }
 
-  private mockQueryTask(taskId: string): Promise<QueryTaskResponse> {
+  private mockQueryTask(taskId: string): Promise<RecordInfoResponse> {
     const progress = this.mockTaskProgress.get(taskId);
     
     if (!progress) {
       return Promise.resolve({
         code: 200,
+        message: "success",
         data: {
           taskId,
-          state: "fail",
           model: "unknown",
+          state: "fail" as KieTaskState,
           param: "{}",
           createTime: Date.now(),
           updateTime: Date.now(),
@@ -416,22 +430,19 @@ class KieAIClient {
     const isComplete = elapsed >= progress.duration;
 
     if (isComplete) {
-      // Clean up
       this.mockTaskProgress.delete(taskId);
 
       return Promise.resolve({
         code: 200,
+        message: "success",
         data: {
           taskId,
-          state: "success",
           model: "mock-model",
+          state: "success" as KieTaskState,
           param: "{}",
           createTime: progress.startTime,
           updateTime: Date.now(),
           completeTime: Date.now(),
-          costTime: Math.round(progress.duration / 1000),
-          consumeCredits: 10,
-          remainedCredits: 990,
           resultJson: JSON.stringify({
             resultUrls: [
               "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1024&h=1024&fit=crop",
@@ -442,15 +453,19 @@ class KieAIClient {
       });
     }
 
-    // Still processing
-    const progressPercent = Math.min(95, Math.round((elapsed / progress.duration) * 100));
+    // Determine state based on progress
+    const progressPercent = elapsed / progress.duration;
+    let state: KieTaskState = "waiting";
+    if (progressPercent > 0.1) state = "queuing";
+    if (progressPercent > 0.3) state = "generating";
 
     return Promise.resolve({
       code: 200,
+      message: "success",
       data: {
         taskId,
-        state: "processing",
         model: "mock-model",
+        state,
         param: "{}",
         createTime: progress.startTime,
         updateTime: Date.now(),
