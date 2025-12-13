@@ -6,18 +6,10 @@ export interface Generation {
   id: string;
   user_id: string;
   type: "photo" | "video" | "product";
-  model_id: string;
-  model_name: string;
+  model: string; // Model ID
   prompt: string;
-  negative_prompt?: string;
   aspect_ratio: string;
-  variants?: number;
-  cfg_scale?: number;
-  steps?: number;
-  duration?: number;
-  fps?: number;
   status: "pending" | "processing" | "completed" | "failed";
-  task_id?: string;
   results: { url: string; thumbnail?: string }[];
   thumbnail_url?: string;
   credits_used: number;
@@ -25,23 +17,14 @@ export interface Generation {
   is_public: boolean;
   tags: string[];
   created_at: string;
-  updated_at: string;
   completed_at?: string;
 }
 
 export interface CreateGenerationInput {
   type: "photo" | "video" | "product";
   modelId: string;
-  modelName: string;
   prompt: string;
-  negativePrompt?: string;
   aspectRatio?: string;
-  variants?: number;
-  cfgScale?: number;
-  steps?: number;
-  duration?: number;
-  fps?: number;
-  taskId?: string;
 }
 
 export interface UpdateGenerationInput {

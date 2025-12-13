@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useGeneratorStore } from '@/stores/generator-store';
 import { toast } from 'sonner';
-import { PHOTO_MODELS } from '@/lib/models';
 
 interface GeneratePhotoParams {
   prompt: string;
@@ -24,14 +23,8 @@ interface GenerationResult {
 async function createGenerationRecord(params: {
   type: 'photo' | 'video' | 'product';
   modelId: string;
-  modelName: string;
   prompt: string;
-  negativePrompt?: string;
   aspectRatio: string;
-  variants: number;
-  cfgScale?: number;
-  steps?: number;
-  taskId?: string;
 }): Promise<{ id: string } | null> {
   try {
     const response = await fetch('/api/generations', {
@@ -206,21 +199,12 @@ export function useGeneratePhoto() {
 
   return useMutation({
     mutationFn: async (params: GeneratePhotoParams) => {
-      // Get model info
-      const modelData = PHOTO_MODELS.find(m => m.id === params.model);
-      const modelName = modelData?.name || params.model;
-      
       // Create DB record first
       const dbRecord = await createGenerationRecord({
         type: 'photo',
         modelId: params.model,
-        modelName,
         prompt: params.prompt,
-        negativePrompt: params.negativePrompt,
         aspectRatio: params.aspectRatio,
-        variants: params.variants,
-        cfgScale: params.cfgScale,
-        steps: params.steps,
       });
       
       // Generate with progress callback

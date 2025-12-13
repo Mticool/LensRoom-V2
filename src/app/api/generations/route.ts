@@ -106,17 +106,9 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         type: body.type,
-        model_id: body.modelId,
-        model_name: body.modelName || body.modelId,
+        model: body.modelId, // Using 'model' column
         prompt: body.prompt,
-        negative_prompt: body.negativePrompt,
         aspect_ratio: body.aspectRatio || "1:1",
-        variants: body.variants || 1,
-        cfg_scale: body.cfgScale,
-        steps: body.steps,
-        duration: body.duration,
-        fps: body.fps,
-        task_id: body.taskId,
         status: "pending",
       })
       .select()
