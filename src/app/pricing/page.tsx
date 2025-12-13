@@ -15,38 +15,38 @@ import { LoginDialog } from '@/components/auth/login-dialog';
 
 export default function PricingPage() {
   const { user } = useAuth();
-  const [loadingPackage, setLoadingPackage] = useState<string | null>(null);
-  const [loginOpen, setLoginOpen] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
-  const handleBuyCredits = async (credits: number, price: number) => {
+  const handlePurchase = async (type: 'subscription' | 'package', itemId: string) => {
     if (!user) {
-      setLoginOpen(true);
-      toast.error('Войдите чтобы купить кредиты');
+      setAuthDialogOpen(true);
+      toast.error('Войдите чтобы оформить покупку');
       return;
     }
 
-    setLoadingPackage(`pack-${credits}`);
+    setLoading(itemId);
 
     try {
-      const response = await fetch('/api/payments/create', {
+      const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credits }),
+        body: JSON.stringify({ type, itemId }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Ошибка создания платежа');
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Ошибка при создании платежа');
       }
 
-      // Redirect to payment page
-      window.location.href = data.paymentUrl;
+      // Redirect to Prodamus
+      window.location.href = data.url;
+
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка';
+      const message = error instanceof Error ? error.message : 'Ошибка при создании платежа';
       toast.error(message);
-    } finally {
-      setLoadingPackage(null);
+      setLoading(null);
     }
   };
 
@@ -91,6 +91,7 @@ export default function PricingPage() {
             const Icon = planIcons[plan.id as keyof typeof planIcons] || Sparkles;
             const gradient = planGradients[plan.id as keyof typeof planGradients] || 'from-gray-500 to-gray-600';
             const isPopular = 'popular' in plan && plan.popular;
+            const isLoading = loading === plan.id;
             
             return (
               <motion.div
@@ -170,9 +171,17 @@ export default function PricingPage() {
                         variant={isPopular ? "primary" : "secondary"} 
                         size="lg" 
                         className={cn("w-full", isPopular && "shadow-lg shadow-purple-500/20")}
-                        onClick={() => toast.info('Подписки скоро будут доступны! Пока можете купить пакет кредитов.')}
+                        onClick={() => handlePurchase('subscription', plan.id)}
+                        disabled={isLoading}
                       >
-                        Скоро
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Загрузка...
+                          </>
+                        ) : (
+                          `Подписаться за ${formatPrice(plan.price)}/мес`
+                        )}
                       </Button>
                     )}
                   </div>
@@ -202,67 +211,71 @@ export default function PricingPage() {
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {CREDIT_PACKAGES.map((pkg, index) => (
-              <motion.div
-                key={pkg.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card
-                  variant={pkg.popular ? "glow" : "default"}
-                  padding="none"
-                  hover
-                  className={cn(
-                    "relative",
-                    pkg.popular && "border-2 border-purple-500 shadow-lg shadow-purple-500/20"
-                  )}
+            {CREDIT_PACKAGES.map((pkg, index) => {
+              const isLoading = loading === pkg.id;
+              
+              return (
+                <motion.div
+                  key={pkg.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
                 >
-                  <div className="p-6 text-center">
-                    {pkg.popular && (
-                      <div className="mb-3">
-                        <span className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold">
-                          ВЫГОДНО
-                        </span>
-                      </div>
+                  <Card
+                    variant={pkg.popular ? "glow" : "default"}
+                    padding="none"
+                    hover
+                    className={cn(
+                      "relative",
+                      pkg.popular && "border-2 border-purple-500 shadow-lg shadow-purple-500/20"
                     )}
-                    
-                    {'discount' in pkg && pkg.discount && (
-                      <div className="mb-2">
-                        <span className="text-xs text-green-400 font-medium">
-                          -{pkg.discount}% выгоднее
-                        </span>
-                      </div>
-                    )}
-                    
-                    <div className="text-4xl font-bold text-[var(--color-text-primary)] mb-2">
-                      {pkg.credits}
-                    </div>
-                    <div className="text-sm text-[var(--color-text-tertiary)] mb-4">кредитов</div>
-                    <div className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent mb-2">
-                      {formatPrice(pkg.price)}
-                    </div>
-                    <div className="text-xs text-[var(--color-text-tertiary)] mb-6">
-                      {(pkg.price / pkg.credits).toFixed(2)} ₽ за кредит
-                    </div>
-                    
-                    <Button 
-                      variant={pkg.popular ? "primary" : "secondary"} 
-                      className={cn("w-full", pkg.popular && "shadow-lg shadow-purple-500/20")}
-                      onClick={() => handleBuyCredits(pkg.credits, pkg.price)}
-                      disabled={loadingPackage === pkg.id}
-                    >
-                      {loadingPackage === pkg.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Купить'
+                  >
+                    <div className="p-6 text-center">
+                      {pkg.popular && (
+                        <div className="mb-3">
+                          <span className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold">
+                            ВЫГОДНО
+                          </span>
+                        </div>
                       )}
-                    </Button>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
+                      
+                      {'discount' in pkg && pkg.discount && (
+                        <div className="mb-2">
+                          <span className="text-xs text-green-400 font-medium">
+                            -{pkg.discount}% выгоднее
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="text-4xl font-bold text-[var(--color-text-primary)] mb-2">
+                        {pkg.credits}
+                      </div>
+                      <div className="text-sm text-[var(--color-text-tertiary)] mb-4">кредитов</div>
+                      <div className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent mb-2">
+                        {formatPrice(pkg.price)}
+                      </div>
+                      <div className="text-xs text-[var(--color-text-tertiary)] mb-6">
+                        {(pkg.price / pkg.credits).toFixed(2)} ₽ за кредит
+                      </div>
+                      
+                      <Button 
+                        variant={pkg.popular ? "primary" : "secondary"} 
+                        className={cn("w-full", pkg.popular && "shadow-lg shadow-purple-500/20")}
+                        onClick={() => handlePurchase('package', pkg.id)}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          'Купить'
+                        )}
+                      </Button>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 
@@ -288,12 +301,16 @@ export default function PricingPage() {
                 a: 'Принимаем карты Visa, Mastercard, МИР, а также СБП и электронные кошельки.',
               },
               {
+                q: 'Как работает подписка?',
+                a: 'Подписка автоматически продлевается каждый месяц. Кредиты начисляются в день продления. Отменить можно в любой момент.',
+              },
+              {
                 q: 'Есть ли возврат средств?',
                 a: 'Мы возвращаем деньги в течение 14 дней, если вы не использовали кредиты.',
               },
               {
                 q: 'Сколько времени действуют кредиты?',
-                a: 'Купленные кредиты не сгорают и действуют бессрочно.',
+                a: 'Купленные кредиты не сгорают и действуют бессрочно. Кредиты по подписке действуют до конца периода.',
               },
             ].map((faq, i) => (
               <Card key={i} variant="glow" padding="none">
@@ -307,8 +324,8 @@ export default function PricingPage() {
         </motion.div>
       </div>
 
-      {/* Login Dialog */}
-      <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+      {/* Auth Dialog */}
+      <LoginDialog isOpen={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
     </div>
   );
 }
