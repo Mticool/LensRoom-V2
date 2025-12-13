@@ -180,9 +180,14 @@ body {
 
 /* Radix UI Portals - ensure dropdowns are on top */
 [data-radix-popper-content-wrapper] {
-  z-index: 100 !important;
+  z-index: 9999 !important;
 }
 
 [data-radix-portal] {
-  z-index: 100;
+  z-index: 9999 !important;
+}
+
+/* Dropdown menu solid background */
+[data-radix-menu-content] {
+  background-color: rgb(24 24 27) !important;
 }
