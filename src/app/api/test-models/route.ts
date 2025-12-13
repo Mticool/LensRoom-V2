@@ -1,16 +1,37 @@
 import { NextResponse } from "next/server";
 
-// Models available on KIE.ai
+// Try different model ID formats from KIE.ai
 const MODELS_TO_TEST = [
-  // Photo models
+  // Known working
   { id: "nano-banana-pro", category: "photo" as const, name: "Nano Banana Pro" },
+  
+  // Photo models - try different naming conventions
   { id: "seedream-3.0", category: "photo" as const, name: "Seedream 3.0" },
-  { id: "flux-1.1-pro", category: "photo" as const, name: "FLUX 1.1 Pro" },
-  { id: "ideogram-v2", category: "photo" as const, name: "Ideogram V2" },
-  // Video models  
+  { id: "seedream-3", category: "photo" as const, name: "Seedream 3" },
+  { id: "seedream", category: "photo" as const, name: "Seedream" },
+  { id: "flux-pro", category: "photo" as const, name: "FLUX Pro" },
+  { id: "flux-1-pro", category: "photo" as const, name: "FLUX 1 Pro" },
+  { id: "flux", category: "photo" as const, name: "FLUX" },
+  { id: "ideogram", category: "photo" as const, name: "Ideogram" },
+  { id: "ideogram-2", category: "photo" as const, name: "Ideogram 2" },
+  { id: "midjourney", category: "photo" as const, name: "Midjourney" },
+  { id: "dall-e-3", category: "photo" as const, name: "DALL-E 3" },
+  { id: "stable-diffusion-xl", category: "photo" as const, name: "Stable Diffusion XL" },
+  { id: "sdxl", category: "photo" as const, name: "SDXL" },
+  
+  // Video models
+  { id: "kling", category: "video" as const, name: "Kling" },
+  { id: "kling-1.5", category: "video" as const, name: "Kling 1.5" },
   { id: "kling-1.6", category: "video" as const, name: "Kling 1.6" },
+  { id: "runway", category: "video" as const, name: "Runway" },
   { id: "runway-gen3", category: "video" as const, name: "Runway Gen-3" },
+  { id: "gen-3", category: "video" as const, name: "Gen-3" },
+  { id: "luma", category: "video" as const, name: "Luma" },
   { id: "luma-dream-machine", category: "video" as const, name: "Luma Dream Machine" },
+  { id: "sora", category: "video" as const, name: "Sora" },
+  { id: "pika", category: "video" as const, name: "Pika" },
+  { id: "haiper", category: "video" as const, name: "Haiper" },
+  { id: "minimax", category: "video" as const, name: "MiniMax" },
 ];
 
 interface TestResult {
@@ -26,6 +47,7 @@ interface TestResult {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const singleModel = searchParams.get("model");
+  const onlyWorking = searchParams.get("working") === "true";
   
   const apiKey = process.env.KIE_API_KEY;
   const baseUrl = process.env.NEXT_PUBLIC_KIE_API_URL || "https://api.kie.ai";
@@ -47,7 +69,6 @@ export async function GET(request: Request) {
   for (const model of modelsToTest) {
     const startTime = Date.now();
     try {
-      // Use correct endpoint: POST /api/v1/jobs/createTask
       const response = await fetch(`${baseUrl}/api/v1/jobs/createTask`, {
         method: "POST",
         headers: {
@@ -77,58 +98,53 @@ export async function GET(request: Request) {
           category: model.category,
           status: "success",
           taskId: data.data.taskId,
-          message: `✅ Task created: ${data.data.taskId}`,
+          message: `✅ Task created`,
           responseTime,
         });
       } else {
+        if (!onlyWorking) {
+          results.push({
+            model: model.id,
+            name: model.name,
+            category: model.category,
+            status: "error",
+            message: `❌ ${data.message || data.msg || `Code: ${data.code}`}`,
+            responseTime,
+          });
+        }
+      }
+    } catch (error) {
+      if (!onlyWorking) {
         results.push({
           model: model.id,
           name: model.name,
           category: model.category,
           status: "error",
-          message: `❌ ${data.message || data.msg || `Code: ${data.code}`}`,
-          responseTime,
+          message: `❌ ${error instanceof Error ? error.message : "Network error"}`,
+          responseTime: Date.now() - startTime,
         });
       }
-    } catch (error) {
-      results.push({
-        model: model.id,
-        name: model.name,
-        category: model.category,
-        status: "error",
-        message: `❌ ${error instanceof Error ? error.message : "Network error"}`,
-        responseTime: Date.now() - startTime,
-      });
     }
   }
 
-  // Summary
-  const summary = {
-    total: results.length,
-    success: results.filter(r => r.status === "success").length,
-    errors: results.filter(r => r.status === "error").length,
-    workingModels: results.filter(r => r.status === "success").map(r => r.id),
-    failedModels: results.filter(r => r.status === "error").map(r => ({
-      id: r.model,
-      reason: r.message,
-    })),
-  };
-
+  const workingModels = results.filter(r => r.status === "success");
+  
   return NextResponse.json({
     mockMode: false,
     apiUrl: baseUrl,
     apiKeyConfigured: true,
-    endpoints: {
-      createTask: "POST /api/v1/jobs/createTask",
-      recordInfo: "GET /api/v1/jobs/recordInfo?taskId=xxx",
+    summary: {
+      total: modelsToTest.length,
+      tested: results.length,
+      working: workingModels.length,
+      workingModels: workingModels.map(r => ({ id: r.model, name: r.name, category: r.category })),
     },
-    summary,
-    results,
+    results: onlyWorking ? workingModels : results,
     timestamp: new Date().toISOString(),
   });
 }
 
-// Test a specific task status
+// Check task status
 export async function POST(request: Request) {
   const apiKey = process.env.KIE_API_KEY;
   const baseUrl = process.env.NEXT_PUBLIC_KIE_API_URL || "https://api.kie.ai";
@@ -144,7 +160,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "taskId required" }, { status: 400 });
     }
 
-    // Use correct endpoint: GET /api/v1/jobs/recordInfo
     const response = await fetch(`${baseUrl}/api/v1/jobs/recordInfo?taskId=${taskId}`, {
       method: "GET",
       headers: {
