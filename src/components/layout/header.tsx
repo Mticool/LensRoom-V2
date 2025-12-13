@@ -8,7 +8,7 @@ import { Menu, X, Sparkles, LogOut, User, CreditCard, History } from 'lucide-rea
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/providers/auth-provider';
-import { useProfile } from '@/hooks/use-profile';
+import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 
 const navigation = [
@@ -27,7 +27,7 @@ export function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { credits, plan, loading: profileLoading } = useProfile();
+  const { balance, loading: creditsLoading, fetchBalance } = useCreditsStore();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -36,6 +36,13 @@ export function Header() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Fetch credits when user logs in
+  useEffect(() => {
+    if (user) {
+      fetchBalance();
+    }
+  }, [user, fetchBalance]);
 
   const handleSignOut = async () => {
     try {
@@ -46,7 +53,7 @@ export function Header() {
     }
   };
 
-  const isLoading = authLoading || profileLoading;
+  const isLoading = authLoading || creditsLoading;
 
   return (
     <>
@@ -99,15 +106,25 @@ export function Header() {
               {/* Credits Badge */}
               <Link 
                 href="/pricing"
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-colors"
+                className={cn(
+                  "px-4 py-2 rounded-lg border transition-colors",
+                  balance < 20 && user
+                    ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30 hover:border-yellow-500/50"
+                    : "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/30 hover:border-purple-500/50"
+                )}
               >
-                <span className="text-sm font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                  {isLoading ? '...' : `${credits} ⭐`}
+                <span className={cn(
+                  "text-sm font-bold bg-clip-text text-transparent",
+                  balance < 20 && user
+                    ? "bg-gradient-to-r from-yellow-500 to-orange-500"
+                    : "bg-gradient-to-r from-purple-500 to-blue-500"
+                )}>
+                  {isLoading ? '...' : user ? `${balance} ⭐` : '100 ⭐'}
                 </span>
               </Link>
 
               {/* Auth */}
-              {isLoading ? (
+              {authLoading ? (
                 <div className="w-20 h-10 bg-[var(--color-bg-tertiary)] rounded-lg animate-pulse" />
               ) : user ? (
                 <div className="relative">
@@ -136,11 +153,8 @@ export function Header() {
                             {user.email}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-[var(--color-text-tertiary)] capitalize">
-                              {plan} план
-                            </span>
-                            <span className="text-xs text-purple-400">
-                              {credits} кредитов
+                            <span className="text-xs text-purple-400 font-semibold">
+                              {balance} кредитов
                             </span>
                           </div>
                         </div>
@@ -244,9 +258,19 @@ export function Header() {
                 })}
 
                 <div className="pt-4 mt-4 border-t border-[var(--color-border)] space-y-3">
-                  <div className="px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30">
-                    <span className="text-sm font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                      {user ? `${credits} ⭐ Кредитов` : '100 ⭐ Бесплатно'}
+                  <div className={cn(
+                    "px-4 py-3 rounded-xl border",
+                    balance < 20 && user
+                      ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30"
+                      : "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/30"
+                  )}>
+                    <span className={cn(
+                      "text-sm font-bold bg-clip-text text-transparent",
+                      balance < 20 && user
+                        ? "bg-gradient-to-r from-yellow-500 to-orange-500"
+                        : "bg-gradient-to-r from-purple-500 to-blue-500"
+                    )}>
+                      {user ? `${balance} ⭐ Кредитов` : '100 ⭐ Бесплатно'}
                     </span>
                   </div>
                   
