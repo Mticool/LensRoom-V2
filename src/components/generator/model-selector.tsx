@@ -74,15 +74,8 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                   {qualityConfig[selectedModel.quality].label}
                 </span>
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-zinc-400">
-                  {selectedModel.provider}
-                </span>
-                <span className="text-zinc-600">•</span>
-                <span className={cn("text-xs flex items-center gap-1", speedConfig[selectedModel.speed].color)}>
-                  <SpeedIcon className="w-3 h-3" />
-                  {speedConfig[selectedModel.speed].label}
-                </span>
+              <div className="text-xs text-zinc-400 mt-0.5 line-clamp-1">
+                {selectedModel.description}
               </div>
             </div>
           </div>
@@ -147,16 +140,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                           </span>
                         </div>
                         
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-zinc-400">{model.provider}</span>
-                          <span className="text-zinc-600">•</span>
-                          <span className={cn("text-xs flex items-center gap-1", speedConfig[model.speed].color)}>
-                            <ModelSpeedIcon className="w-3 h-3" />
-                            {speedConfig[model.speed].label}
-                          </span>
-                        </div>
-
-                        <p className="text-xs text-zinc-400 mt-1 line-clamp-1">
+                        <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">
                           {model.description}
                         </p>
                       </div>

@@ -222,7 +222,7 @@ export default function VideoCreatePage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-                        <span>{selectedModelData?.provider}</span>
+                        <span className="line-clamp-1">{selectedModelData?.description}</span>
                         {selectedModelData?.speed === 'fast' && (
                           <>
                             <span>•</span>
@@ -293,7 +293,7 @@ export default function VideoCreatePage() {
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-600 text-white font-bold">PRO</span>
                                   )}
                                 </div>
-                                <span className="text-xs text-zinc-400">{model.provider}</span>
+                                <span className="text-xs text-zinc-400 line-clamp-1">{model.description}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
