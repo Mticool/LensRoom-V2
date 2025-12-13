@@ -17,15 +17,15 @@ interface ModelSelectorProps {
 }
 
 const speedConfig = {
-  fast: { icon: Zap, label: "Быстро", color: "text-[var(--color-success)]" },
-  medium: { icon: Clock, label: "Средне", color: "text-[var(--color-warning)]" },
-  slow: { icon: Clock, label: "Долго", color: "text-orange-400" },
+  fast: { icon: Zap, label: "Быстро", color: "text-green-500" },
+  medium: { icon: Clock, label: "Средне", color: "text-yellow-500" },
+  slow: { icon: Clock, label: "Долго", color: "text-orange-500" },
 };
 
 const qualityConfig = {
-  standard: { label: "STD", color: "bg-[rgba(148,163,184,0.15)] text-[#94A3B8] border border-[rgba(148,163,184,0.25)]" },
-  high: { label: "HIGH", color: "bg-[rgba(96,165,250,0.15)] text-[#60A5FA] border border-[rgba(96,165,250,0.25)]" },
-  ultra: { label: "ULTRA", color: "bg-[rgba(168,85,247,0.15)] text-[#A855F7] border border-[rgba(168,85,247,0.25)]" },
+  standard: { label: "STD", color: "bg-muted text-muted-foreground" },
+  high: { label: "HIGH", color: "bg-yellow-500/20 text-yellow-500" },
+  ultra: { label: "ULTRA", color: "bg-purple-500/20 text-purple-400" },
 };
 
 const categoryIcons = {
@@ -53,21 +53,21 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
       <DropdownMenu.Trigger asChild>
         <button
           className={cn(
-            "w-full flex items-center justify-between gap-3 p-3.5 rounded-xl border transition-all",
-            "bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.10)]",
-            "hover:border-[rgba(255,255,255,0.22)]",
-            "focus:outline-none",
-            isOpen && "border-[var(--color-gold)] shadow-[0_0_0_3px_rgba(245,200,66,0.15)]"
+            "w-full flex items-center justify-between gap-3 p-3 rounded-xl border transition-all",
+            "bg-card border-border",
+            "hover:border-primary/30",
+            "focus:outline-none focus:ring-2 focus:ring-primary/20",
+            isOpen && "border-primary ring-2 ring-primary/20"
           )}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[rgba(245,200,66,0.20)] to-[rgba(168,85,247,0.20)] flex items-center justify-center flex-shrink-0">
-              <CategoryIcon className="w-5 h-5 text-[var(--color-gold)]" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <CategoryIcon className="w-5 h-5 text-primary" />
             </div>
             
             <div className="text-left min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-white">
+                <span className="font-semibold text-foreground">
                   {selectedModel.name}
                 </span>
                 <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", qualityConfig[selectedModel.quality].color)}>
@@ -75,10 +75,10 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-[rgba(255,255,255,0.55)]">
+                <span className="text-xs text-muted-foreground">
                   {selectedModel.provider}
                 </span>
-                <span className="text-[rgba(255,255,255,0.25)]">•</span>
+                <span className="text-muted-foreground/50">•</span>
                 <span className={cn("text-xs flex items-center gap-1", speedConfig[selectedModel.speed].color)}>
                   <SpeedIcon className="w-3 h-3" />
                   {speedConfig[selectedModel.speed].label}
@@ -92,7 +92,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
               <Star className="w-3 h-3 fill-current" />
               {selectedModel.creditCost}
             </Badge>
-            <ChevronDown className={cn("w-4 h-4 text-[rgba(255,255,255,0.55)] transition-transform", isOpen && "rotate-180")} />
+            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
           </div>
         </button>
       </DropdownMenu.Trigger>
@@ -105,7 +105,6 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
               side="bottom"
               align="start"
               sideOffset={8}
-              className="z-50"
             >
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
@@ -115,9 +114,11 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                 className={cn(
                   "w-[var(--radix-dropdown-menu-trigger-width)] max-h-[360px] overflow-y-auto",
                   "p-2 rounded-xl",
-                  "bg-[rgba(15,15,20,0.98)] border border-[rgba(255,255,255,0.12)]",
-                  "shadow-2xl"
+                  "bg-card border border-border",
+                  "shadow-xl",
+                  "z-[100]"
                 )}
+                style={{ zIndex: 100 }}
               >
                 {availableModels.map((model) => {
                   const isSelected = model.id === selectedModel.id;
@@ -132,20 +133,20 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                         "flex items-center gap-3 p-3 rounded-lg cursor-pointer outline-none",
                         "transition-all",
                         isSelected
-                          ? "bg-[rgba(245,200,66,0.12)] border border-[rgba(245,200,66,0.25)]"
-                          : "hover:bg-[rgba(255,255,255,0.06)] border border-transparent"
+                          ? "bg-primary/10 border border-primary/20"
+                          : "hover:bg-muted border border-transparent"
                       )}
                     >
                       <div className={cn(
                         "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                        isSelected ? "bg-[rgba(245,200,66,0.20)]" : "bg-[rgba(255,255,255,0.06)]"
+                        isSelected ? "bg-primary/20" : "bg-muted"
                       )}>
-                        <ModelCategoryIcon className={cn("w-5 h-5", isSelected ? "text-[var(--color-gold)]" : "text-[rgba(255,255,255,0.55)]")} />
+                        <ModelCategoryIcon className={cn("w-5 h-5", isSelected ? "text-primary" : "text-muted-foreground")} />
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={cn("font-semibold", isSelected ? "text-[var(--color-gold)]" : "text-white")}>
+                          <span className={cn("font-semibold", isSelected ? "text-primary" : "text-foreground")}>
                             {model.name}
                           </span>
                           <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", qualityConfig[model.quality].color)}>
@@ -154,15 +155,15 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                         </div>
                         
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-[rgba(255,255,255,0.55)]">{model.provider}</span>
-                          <span className="text-[rgba(255,255,255,0.25)]">•</span>
+                          <span className="text-xs text-muted-foreground">{model.provider}</span>
+                          <span className="text-muted-foreground/50">•</span>
                           <span className={cn("text-xs flex items-center gap-1", speedConfig[model.speed].color)}>
                             <ModelSpeedIcon className="w-3 h-3" />
                             {speedConfig[model.speed].label}
                           </span>
                         </div>
 
-                        <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1 line-clamp-1">
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                           {model.description}
                         </p>
                       </div>
@@ -172,7 +173,7 @@ export function ModelSelector({ models, selected, onChange }: ModelSelectorProps
                           <Star className="w-3 h-3 fill-current" />
                           {model.creditCost}
                         </Badge>
-                        {isSelected && <Check className="w-4 h-4 text-[var(--color-gold)]" />}
+                        {isSelected && <Check className="w-4 h-4 text-primary" />}
                       </div>
                     </DropdownMenu.Item>
                   );

@@ -177,3 +177,12 @@ body {
   background: rgb(var(--primary) / 0.2);
   color: rgb(var(--foreground));
 }
+
+/* Radix UI Portals - ensure dropdowns are on top */
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important;
+}
+
+[data-radix-portal] {
+  z-index: 100;
+}
