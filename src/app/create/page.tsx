@@ -82,14 +82,14 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)]">
+    <div className="min-h-screen bg-[#08080C]">
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Panel - Controls */}
           <div className="space-y-5">
             {/* Content Type Selector */}
             <Card variant="hover">
-              <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 block">
+              <label className="text-xs font-medium text-[#A0A0AA] uppercase tracking-wider mb-3 block">
                 Тип контента
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -100,12 +100,12 @@ export default function CreatePage() {
                     className={cn(
                       "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
                       contentType === type.id
-                        ? "border-purple-500 bg-purple-500/10"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] bg-transparent"
+                        ? "border-purple-500 bg-purple-500/10 text-white"
+                        : "border-[#26262E] hover:border-[#3A3A45] bg-transparent text-[#A0A0AA]"
                     )}
                   >
-                    <type.icon className="w-6 h-6 text-[var(--color-text-primary)]" />
-                    <span className="text-sm font-medium text-[var(--color-text-primary)]">{type.label}</span>
+                    <type.icon className="w-6 h-6" />
+                    <span className="text-sm font-medium">{type.label}</span>
                   </button>
                 ))}
               </div>
@@ -113,7 +113,7 @@ export default function CreatePage() {
 
             {/* Model Selector - Dropdown */}
             <Card variant="hover">
-              <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 block">
+              <label className="text-xs font-medium text-[#A0A0AA] uppercase tracking-wider mb-3 block">
                 AI Модель
               </label>
               <div className="relative">
@@ -123,28 +123,28 @@ export default function CreatePage() {
                     "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all",
                     modelDropdownOpen
                       ? "border-purple-500 bg-purple-500/10"
-                      : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-secondary)]"
+                      : "border-[#26262E] hover:border-[#3A3A45] bg-[#0F0F14]"
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center">
-                      <Camera className="w-5 h-5 text-[var(--color-text-secondary)]" />
+                    <div className="w-10 h-10 rounded-lg bg-[#16161D] flex items-center justify-center">
+                      <Camera className="w-5 h-5 text-[#A0A0AA]" />
                     </div>
                     <div className="text-left">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[var(--color-text-primary)]">
+                        <span className="font-semibold text-white">
                           {selectedModelData?.name || 'Выберите модель'}
                         </span>
                         {selectedModelData?.quality === 'ultra' && (
                           <Badge variant="warning" className="text-[10px] px-1.5 py-0">HIGH</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+                      <div className="flex items-center gap-2 text-xs text-[#6B6B78]">
                         <span className="line-clamp-1">{selectedModelData?.description}</span>
                         {selectedModelData?.speed === 'fast' && (
                           <>
                             <span>•</span>
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 text-green-500">
                               <Zap className="w-3 h-3" />
                               Быстро
                             </span>
@@ -158,7 +158,7 @@ export default function CreatePage() {
                       ⭐ {selectedModelData?.creditCost ?? '—'}
                     </Badge>
                     <ChevronDown className={cn(
-                      "w-5 h-5 text-[var(--color-text-secondary)] transition-transform",
+                      "w-5 h-5 text-[#A0A0AA] transition-transform",
                       modelDropdownOpen && "rotate-180"
                     )} />
                   </div>
@@ -167,7 +167,6 @@ export default function CreatePage() {
                 {/* Dropdown Menu */}
                 {modelDropdownOpen && (
                   <>
-                    {/* Backdrop */}
                     <div 
                       className="fixed inset-0 z-40" 
                       onClick={() => setModelDropdownOpen(false)}
@@ -176,7 +175,7 @@ export default function CreatePage() {
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="absolute top-full left-0 right-0 mt-2 z-50 
-                                 bg-zinc-900 border border-zinc-700 
+                                 bg-[#0F0F14] border border-[#26262E] 
                                  rounded-xl shadow-2xl overflow-hidden"
                       style={{ zIndex: 9999 }}
                     >
@@ -191,34 +190,34 @@ export default function CreatePage() {
                             className={cn(
                               "w-full flex items-center justify-between p-3 transition-colors",
                               selectedModel === model.id 
-                                ? "bg-purple-600" 
-                                : "hover:bg-zinc-800"
+                                ? "bg-purple-600 text-white" 
+                                : "hover:bg-[#16161D] text-white"
                             )}
                           >
                             <div className="flex items-center gap-3">
                               <div className={cn(
                                 "w-8 h-8 rounded-lg flex items-center justify-center",
-                                selectedModel === model.id ? "bg-purple-500" : "bg-zinc-800"
+                                selectedModel === model.id ? "bg-purple-500" : "bg-[#16161D]"
                               )}>
                                 <Camera className="w-4 h-4 text-white" />
                               </div>
                               <div className="text-left">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-white text-sm">
+                                  <span className="font-medium text-sm">
                                     {model.name}
                                   </span>
                                   {model.quality === 'ultra' && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-600 text-white font-bold">HIGH</span>
                                   )}
                                 </div>
-                                <span className="text-xs text-zinc-400 line-clamp-1">{model.description}</span>
+                                <span className="text-xs text-[#6B6B78] line-clamp-1">{model.description}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               {model.speed === 'fast' && (
                                 <Zap className="w-4 h-4 text-green-500" />
                               )}
-                              <span className="text-sm font-semibold text-yellow-500">
+                              <span className="text-sm font-semibold text-yellow-400">
                                 ⭐ {model.creditCost ?? '—'}
                               </span>
                             </div>
@@ -234,10 +233,10 @@ export default function CreatePage() {
             {/* Prompt */}
             <Card variant="hover">
               <div className="flex items-center justify-between mb-3">
-                <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#A0A0AA] uppercase tracking-wider">
                   Промпт
                 </label>
-                <span className="text-xs text-[var(--color-text-tertiary)]">
+                <span className="text-xs text-[#6B6B78]">
                   ⌘ + Enter для генерации
                 </span>
               </div>
@@ -246,8 +245,8 @@ export default function CreatePage() {
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Опишите, что хотите создать..."
                 className="w-full h-32 px-4 py-3 rounded-xl
-                           bg-[var(--color-bg-secondary)] border-2 border-[var(--color-border)]
-                           text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]
+                           bg-[#0F0F14] border-2 border-[#26262E]
+                           text-white placeholder:text-[#6B6B78]
                            focus:outline-none focus:border-purple-500
                            resize-none transition-all"
               />
@@ -262,7 +261,7 @@ export default function CreatePage() {
                     Библиотека
                   </Button>
                 </div>
-                <span className="text-xs text-[var(--color-text-tertiary)]">
+                <span className="text-xs text-[#6B6B78]">
                   {prompt.length} / 2 000
                 </span>
               </div>
@@ -275,8 +274,8 @@ export default function CreatePage() {
                   key={tag}
                   onClick={() => addTag(tag)}
                   className="px-3 py-1.5 rounded-full text-xs font-medium
-                             bg-[var(--color-bg-secondary)] border border-[var(--color-border)]
-                             text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]
+                             bg-[#0F0F14] border border-[#26262E]
+                             text-[#A0A0AA] hover:text-white
                              hover:border-purple-500 hover:bg-purple-500/10 transition-all"
                 >
                   + {tag}
@@ -286,7 +285,7 @@ export default function CreatePage() {
 
             {/* Aspect Ratio */}
             <Card variant="hover">
-              <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 block">
+              <label className="text-xs font-medium text-[#A0A0AA] uppercase tracking-wider mb-3 block">
                 Соотношение сторон
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -297,12 +296,12 @@ export default function CreatePage() {
                     className={cn(
                       "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
                       aspectRatio === ratio.id
-                        ? "border-purple-500 bg-purple-500/10"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                        ? "border-purple-500 bg-purple-500/10 text-white"
+                        : "border-[#26262E] hover:border-[#3A3A45] text-[#A0A0AA]"
                     )}
                   >
                     <span className="text-xl">{ratio.icon}</span>
-                    <span className="text-xs font-medium text-[var(--color-text-primary)]">{ratio.label}</span>
+                    <span className="text-xs font-medium">{ratio.label}</span>
                   </button>
                 ))}
               </div>
@@ -311,10 +310,10 @@ export default function CreatePage() {
             {/* Number of Variants */}
             <Card variant="hover">
               <div className="flex items-center justify-between mb-3">
-                <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#A0A0AA] uppercase tracking-wider">
                   Количество вариантов
                 </label>
-                <span className="text-xs text-[var(--color-text-tertiary)]">{variants}</span>
+                <span className="text-xs text-[#6B6B78]">{variants}</span>
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((num) => (
@@ -324,8 +323,8 @@ export default function CreatePage() {
                     className={cn(
                       "p-3 rounded-xl border-2 text-center font-semibold transition-all",
                       variants === num
-                        ? "border-purple-500 bg-purple-500/10 text-[var(--color-text-primary)]"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] text-[var(--color-text-secondary)]"
+                        ? "border-purple-500 bg-purple-500/10 text-white"
+                        : "border-[#26262E] hover:border-[#3A3A45] text-[#A0A0AA]"
                     )}
                   >
                     {num}
@@ -335,21 +334,21 @@ export default function CreatePage() {
             </Card>
 
             {/* Advanced Settings */}
-            <Card variant="hover">
+            <Card variant="hover" padding="none">
               <details className="group">
                 <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
                   <div className="flex items-center gap-2">
-                    <Settings2 className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                    <span className="font-medium text-[var(--color-text-primary)] text-sm">Расширенные настройки</span>
+                    <Settings2 className="w-4 h-4 text-[#A0A0AA]" />
+                    <span className="font-medium text-white text-sm">Расширенные настройки</span>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-[var(--color-text-secondary)] transition-transform group-open:rotate-180" />
+                  <ChevronDown className="w-4 h-4 text-[#A0A0AA] transition-transform group-open:rotate-180" />
                 </summary>
-                <div className="px-4 pb-4 space-y-4 border-t border-[var(--color-border)] pt-4">
+                <div className="px-4 pb-4 space-y-4 border-t border-[#26262E] pt-4">
                   {/* CFG Scale */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs text-[var(--color-text-primary)]">CFG Scale</label>
-                      <span className="text-xs font-semibold text-[var(--color-purple-400)]">{cfgScale}</span>
+                      <label className="text-xs text-white">CFG Scale</label>
+                      <span className="text-xs font-semibold text-purple-400">{cfgScale}</span>
                     </div>
                     <Slider 
                       value={[cfgScale]} 
@@ -363,8 +362,8 @@ export default function CreatePage() {
                   {/* Steps */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs text-[var(--color-text-primary)]">Steps</label>
-                      <span className="text-xs font-semibold text-[var(--color-purple-400)]">{steps}</span>
+                      <label className="text-xs text-white">Steps</label>
+                      <span className="text-xs font-semibold text-purple-400">{steps}</span>
                     </div>
                     <Slider 
                       value={[steps]} 
@@ -377,14 +376,14 @@ export default function CreatePage() {
 
                   {/* Negative Prompt */}
                   <div>
-                    <label className="text-xs text-[var(--color-text-primary)] mb-2 block">Негативный промпт</label>
+                    <label className="text-xs text-white mb-2 block">Негативный промпт</label>
                     <textarea
                       value={negativePrompt}
                       onChange={(e) => setNegativePrompt(e.target.value)}
                       placeholder="Что исключить из генерации..."
                       className="w-full h-20 px-3 py-2 rounded-lg text-sm
-                                 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]
-                                 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]
+                                 bg-[#16161D] border border-[#26262E]
+                                 text-white placeholder:text-[#6B6B78]
                                  focus:outline-none focus:border-purple-500
                                  resize-none transition-all"
                     />
@@ -419,13 +418,13 @@ export default function CreatePage() {
           <div>
             <div className="sticky top-24">
               <Card variant="hover" className="overflow-hidden">
-                <div className="aspect-square lg:aspect-[4/3] flex items-center justify-center">
+                <div className="aspect-square lg:aspect-[4/3] flex items-center justify-center bg-[#0F0F14]">
                   {isGenerating ? (
                     <div className="text-center p-8">
                       <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 
                                       rounded-full animate-spin mx-auto mb-4" />
-                      <p className="text-[var(--color-text-primary)] font-medium">Генерация {progress}%</p>
-                      <p className="text-[var(--color-text-tertiary)] text-sm mt-1">Это займёт несколько секунд</p>
+                      <p className="text-white font-medium">Генерация {progress}%</p>
+                      <p className="text-[#6B6B78] text-sm mt-1">Это займёт несколько секунд</p>
                     </div>
                   ) : selectedResult ? (
                     <img 
@@ -435,14 +434,14 @@ export default function CreatePage() {
                     />
                   ) : (
                     <div className="text-center p-8">
-                      <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-[var(--color-border)] 
-                                      flex items-center justify-center mx-auto mb-4">
-                        <ImageIcon className="w-10 h-10 text-[var(--color-text-tertiary)]" />
+                      <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-[#26262E] 
+                                      flex items-center justify-center mx-auto mb-4 bg-[#16161D]">
+                        <ImageIcon className="w-10 h-10 text-[#6B6B78]" />
                       </div>
-                      <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
+                      <h3 className="text-xl font-semibold text-white mb-2">
                         Ваше изображение появится здесь
                       </h3>
-                      <p className="text-[var(--color-text-secondary)] text-sm">
+                      <p className="text-[#A0A0AA] text-sm">
                         Введите промпт слева и нажмите «Создать» для генерации
                       </p>
                     </div>
@@ -461,7 +460,7 @@ export default function CreatePage() {
                         "aspect-square rounded-lg overflow-hidden border-2 transition-all",
                         selectedResult?.id === result.id
                           ? "border-purple-500"
-                          : "border-transparent hover:border-[var(--color-border-strong)]"
+                          : "border-transparent hover:border-[#3A3A45]"
                       )}
                     >
                       <img src={result.thumbnail || result.url} alt="" className="w-full h-full object-cover" />

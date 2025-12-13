@@ -4,16 +4,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-purple-500)] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-r from-[var(--color-purple-600)] to-[var(--color-purple-500)] text-white hover:opacity-90 shadow-lg shadow-purple-500/25",
-        secondary: "bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] border border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-strong)]",
-        outline: "border border-[var(--color-border)] bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] hover:border-[var(--color-border-strong)]",
-        ghost: "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]",
-        destructive: "bg-[var(--color-error)] text-white hover:bg-[var(--color-error)]/90",
-        link: "text-[var(--color-purple-400)] underline-offset-4 hover:underline",
+        default: "bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:opacity-90 shadow-lg shadow-purple-500/25",
+        secondary: "bg-[#16161D] text-[#FAFAFA] border border-[#26262E] hover:bg-[#1C1C26] hover:border-[#3A3A45]",
+        outline: "border border-[#26262E] bg-transparent text-[#FAFAFA] hover:bg-[#16161D] hover:border-[#3A3A45]",
+        ghost: "text-[#A0A0AA] hover:text-[#FAFAFA] hover:bg-[#16161D]",
+        destructive: "bg-red-500 text-white hover:bg-red-600",
+        link: "text-purple-400 underline-offset-4 hover:underline",
       },
       size: {
         sm: "h-9 px-4 text-sm",

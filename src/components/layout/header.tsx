@@ -45,15 +45,15 @@ export function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg-primary)]">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[#26262E] bg-[#08080C]">
         <nav className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--color-purple-500)] to-[var(--color-blue-500)] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-[var(--color-text-primary)]">LensRoom</span>
+              <span className="text-lg font-bold text-white">LensRoom</span>
             </Link>
 
             {/* Desktop Nav */}
@@ -67,8 +67,8 @@ export function Header() {
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors rounded-lg",
                       isActive
-                        ? "text-[var(--color-text-primary)] bg-[var(--color-bg-tertiary)]"
-                        : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)]"
+                        ? "text-white bg-[#16161D]"
+                        : "text-[#A0A0AA] hover:text-white hover:bg-[#0F0F14]"
                     )}
                   >
                     {item.name}
@@ -81,16 +81,16 @@ export function Header() {
             <div className="hidden lg:flex items-center gap-3">
               {/* Auth */}
               {authLoading ? (
-                <div className="w-24 h-10 bg-[var(--color-bg-tertiary)] rounded-xl animate-pulse" />
+                <div className="w-24 h-10 bg-[#16161D] rounded-xl animate-pulse" />
               ) : user ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] transition-all"
+                    className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[#0F0F14] border border-[#26262E] hover:border-[#3A3A45] transition-all"
                   >
-                    <span className="text-sm font-semibold text-[var(--color-gold)]">{balance} ⭐</span>
+                    <span className="text-sm font-semibold text-yellow-400">{balance} ⭐</span>
                     <ChevronDown className={cn(
-                      "w-4 h-4 text-[var(--color-text-secondary)] transition-transform",
+                      "w-4 h-4 text-[#A0A0AA] transition-transform",
                       userMenuOpen && "rotate-180"
                     )} />
                   </button>
@@ -107,19 +107,19 @@ export function Header() {
                           initial={{ opacity: 0, y: -8 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -8 }}
-                          className="absolute right-0 mt-2 w-56 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl shadow-xl z-50 overflow-hidden"
+                          className="absolute right-0 mt-2 w-56 bg-[#1C1C26] border border-[#26262E] rounded-xl shadow-xl z-50 overflow-hidden"
                         >
-                          <div className="px-4 py-3 border-b border-[var(--color-border)]">
-                            <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                          <div className="px-4 py-3 border-b border-[#26262E]">
+                            <p className="text-sm font-medium text-white truncate">
                               {user.email}
                             </p>
-                            <p className="text-xs text-[var(--color-gold)]">{balance} кредитов</p>
+                            <p className="text-xs text-yellow-400">{balance} кредитов</p>
                           </div>
                           <div className="py-1">
                             <Link
                               href="/account/subscription"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#A0A0AA] hover:text-white hover:bg-[#16161D] transition-colors"
                             >
                               <Crown className="w-4 h-4" />
                               Подписка
@@ -127,16 +127,16 @@ export function Header() {
                             <Link
                               href="/pricing"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#A0A0AA] hover:text-white hover:bg-[#16161D] transition-colors"
                             >
                               <CreditCard className="w-4 h-4" />
                               Купить кредиты
                             </Link>
                           </div>
-                          <div className="border-t border-[var(--color-border)] py-1">
+                          <div className="border-t border-[#26262E] py-1">
                             <button
                               onClick={handleSignOut}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors w-full"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"
                             >
                               <LogOut className="w-4 h-4" />
                               Выйти
@@ -158,12 +158,12 @@ export function Header() {
             <div className="flex lg:hidden items-center gap-2">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors"
+                className="p-2 rounded-lg hover:bg-[#0F0F14] transition-colors"
               >
                 {mobileMenuOpen ? (
-                  <X className="w-6 h-6 text-[var(--color-text-primary)]" />
+                  <X className="w-6 h-6 text-white" />
                 ) : (
-                  <Menu className="w-6 h-6 text-[var(--color-text-primary)]" />
+                  <Menu className="w-6 h-6 text-white" />
                 )}
               </button>
             </div>
@@ -181,10 +181,10 @@ export function Header() {
             className="fixed inset-x-0 top-16 z-40 lg:hidden"
           >
             <div 
-              className="absolute inset-0 bg-[var(--color-bg-primary)] h-screen"
+              className="absolute inset-0 bg-[#08080C] h-screen"
               onClick={() => setMobileMenuOpen(false)}
             />
-            <div className="relative bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)] shadow-xl">
+            <div className="relative bg-[#0F0F14] border-b border-[#26262E] shadow-xl">
               <div className="container mx-auto px-6 py-4 space-y-1">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href;
@@ -196,8 +196,8 @@ export function Header() {
                       className={cn(
                         "block px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]"
-                          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]"
+                          ? "bg-[#16161D] text-white"
+                          : "text-[#A0A0AA] hover:text-white hover:bg-[#16161D]"
                       )}
                     >
                       {item.name}
@@ -205,24 +205,24 @@ export function Header() {
                   );
                 })}
 
-                <div className="pt-4 mt-4 border-t border-[var(--color-border)] space-y-2">
+                <div className="pt-4 mt-4 border-t border-[#26262E] space-y-2">
                   {user ? (
                     <>
-                      <div className="px-4 py-3 rounded-xl bg-[var(--color-bg-tertiary)]">
-                        <p className="text-sm font-semibold text-[var(--color-gold)]">{balance} ⭐</p>
-                        <p className="text-xs text-[var(--color-text-tertiary)]">{user.email}</p>
+                      <div className="px-4 py-3 rounded-xl bg-[#16161D]">
+                        <p className="text-sm font-semibold text-yellow-400">{balance} ⭐</p>
+                        <p className="text-xs text-[#6B6B78]">{user.email}</p>
                       </div>
                       <Link
                         href="/account/subscription"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#A0A0AA] hover:bg-[#16161D] transition-colors"
                       >
                         <Crown className="w-4 h-4" />
                         Подписка
                       </Link>
                       <button
                         onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors w-full"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"
                       >
                         <LogOut className="w-4 h-4" />
                         Выйти
