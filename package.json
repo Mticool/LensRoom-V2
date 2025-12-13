@@ -36,6 +36,7 @@
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
     "react": "19.2.1",
+    "react-confetti": "^6.4.0",
     "react-dom": "19.2.1",
     "react-hook-form": "^7.68.0",
     "sonner": "^2.0.7",

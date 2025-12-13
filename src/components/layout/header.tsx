@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, User, CreditCard, History } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, User, CreditCard, History, Settings, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/providers/auth-provider';
@@ -168,6 +168,14 @@ export function Header() {
                             <span className="text-sm text-[var(--color-text-primary)]">Профиль</span>
                           </Link>
                           <Link
+                            href="/account/subscription"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                          >
+                            <Crown className="w-4 h-4 text-purple-400" />
+                            <span className="text-sm text-[var(--color-text-primary)]">Подписка</span>
+                          </Link>
+                          <Link
                             href="/history"
                             onClick={() => setUserMenuOpen(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
@@ -183,9 +191,10 @@ export function Header() {
                             <CreditCard className="w-4 h-4 text-[var(--color-text-secondary)]" />
                             <span className="text-sm text-[var(--color-text-primary)]">Купить кредиты</span>
                           </Link>
+                          <div className="my-2 border-t border-[var(--color-border)]" />
                           <button
                             onClick={handleSignOut}
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors w-full text-left"
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors w-full text-left"
                           >
                             <LogOut className="w-4 h-4 text-red-400" />
                             <span className="text-sm text-red-400">Выйти</span>
@@ -275,10 +284,20 @@ export function Header() {
                   </div>
                   
                   {user ? (
-                    <Button variant="secondary" className="w-full" onClick={handleSignOut}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Выйти
-                    </Button>
+                    <>
+                      <Link
+                        href="/account/subscription"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+                      >
+                        <Crown className="w-5 h-5 text-purple-400" />
+                        <span className="text-[var(--color-text-primary)]">Управление подпиской</span>
+                      </Link>
+                      <Button variant="secondary" className="w-full" onClick={handleSignOut}>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Выйти
+                      </Button>
+                    </>
                   ) : (
                     <Button variant="primary" className="w-full" onClick={() => { setMobileMenuOpen(false); setLoginOpen(true); }}>
                       Войти
