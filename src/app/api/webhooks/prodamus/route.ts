@@ -1,193 +1,247 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prodamusClient } from '@/lib/payments/prodamus-client';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { prodamusClient } from '@/lib/payments/prodamus-client';
 
-interface ProdamusWebhookData {
+interface ProdamusWebhookPayload {
   order_id: string;
+  customer_extra: string; // user_id
+  customer_email: string;
+  payment_status: string;
   sum: string;
   currency: string;
-  customer_email: string;
-  customer_extra: string; // userId
-  payment_status: string;
-  sign: string;
-  products?: string;
+  products?: Array<{
+    name: string;
+    price: string;
+    quantity: string;
+    sku: string;
+  }>;
   subscription_id?: string;
-  // Custom fields
-  'custom_fields[plan_id]'?: string;
-  'custom_fields[credits_per_month]'?: string;
-}
-
-function parseCreditsFromProducts(products: string | undefined): number {
-  if (!products) return 0;
-  
-  try {
-    // Try to parse credits from product name like "500 кредитов LensRoom"
-    const match = products.match(/(\d+)\s*кредит/i);
-    if (match) {
-      return parseInt(match[1], 10);
-    }
-  } catch {
-    // Ignore parsing errors
-  }
-  
-  return 0;
+  custom_fields?: {
+    plan_id?: string;
+    credits_per_month?: string;
+  };
+  signature?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const data: Record<string, string> = {};
-    
-    formData.forEach((value, key) => {
-      data[key] = value.toString();
-    });
+    // Try to parse as JSON first, then as form data
+    let payload: ProdamusWebhookPayload;
+    const contentType = request.headers.get('content-type') || '';
 
-    console.log('[Prodamus Webhook] Received:', data);
+    if (contentType.includes('application/json')) {
+      payload = await request.json();
+    } else {
+      const formData = await request.formData();
+      const data: Record<string, string> = {};
+      formData.forEach((value, key) => {
+        data[key] = value.toString();
+      });
+      payload = data as unknown as ProdamusWebhookPayload;
+    }
 
-    // Get signature from data
-    const receivedSignature = data.sign || data.signature || '';
-    
-    // Remove signature from data before verification
-    const dataWithoutSign = { ...data };
-    delete dataWithoutSign.sign;
-    delete dataWithoutSign.signature;
+    console.log('[Prodamus Webhook] Received:', payload);
+
+    // Get signature
+    const signature = request.headers.get('x-prodamus-signature') || payload.signature || '';
+
+    // Remove signature from payload before verification
+    const payloadForVerification = { ...payload };
+    delete payloadForVerification.signature;
+
+    // Flatten payload for signature verification (convert complex objects to strings)
+    const flatPayload: Record<string, string | number> = {};
+    for (const [key, value] of Object.entries(payloadForVerification)) {
+      if (typeof value === 'string' || typeof value === 'number') {
+        flatPayload[key] = value;
+      } else if (value !== null && value !== undefined) {
+        flatPayload[key] = JSON.stringify(value);
+      }
+    }
 
     // Verify signature
-    const isValid = prodamusClient.verifyWebhookSignature(dataWithoutSign, receivedSignature);
-    
-    if (!isValid) {
+    if (!prodamusClient.verifyWebhookSignature(flatPayload, signature)) {
       console.error('[Prodamus Webhook] Invalid signature');
-      // For debugging, continue anyway in development
+      // In development, continue anyway for testing
       if (process.env.NODE_ENV === 'production') {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
       }
       console.warn('[Prodamus Webhook] Skipping signature check in development');
     }
 
-    // Parse webhook data
-    const webhookData = data as unknown as ProdamusWebhookData;
-    const paymentStatus = webhookData.payment_status?.toLowerCase();
+    const supabase = await createServerSupabaseClient();
     
-    // Check payment status
-    if (paymentStatus !== 'success' && paymentStatus !== 'paid') {
-      console.log('[Prodamus Webhook] Payment not successful:', paymentStatus);
-      return NextResponse.json({ status: 'ignored', reason: 'Payment not successful' });
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
 
-    const userId = webhookData.customer_extra;
-    const amount = parseFloat(webhookData.sum) || 0;
-    const subscriptionId = webhookData.subscription_id;
-    const planId = webhookData['custom_fields[plan_id]'];
-    
-    // Calculate credits
-    let credits = 0;
-    
-    if (planId && webhookData['custom_fields[credits_per_month]']) {
-      // Subscription payment
-      credits = parseInt(webhookData['custom_fields[credits_per_month]'], 10);
+    const {
+      order_id,
+      customer_extra, // user_id
+      payment_status,
+      products,
+      custom_fields,
+      subscription_id,
+    } = payload;
+
+    // Только обрабатываем успешные платежи
+    if (payment_status !== 'success' && payment_status !== 'paid') {
+      console.log('[Prodamus Webhook] Payment not successful:', payment_status);
+      return NextResponse.json({ received: true, status: 'ignored' });
+    }
+
+    const userId = customer_extra;
+    const isSubscription = !!subscription_id;
+
+    if (isSubscription) {
+      // ПОДПИСКА
+      const planId = custom_fields?.plan_id || 'pro';
+      const creditsPerMonth = parseInt(custom_fields?.credits_per_month || '500');
+
+      console.log('[Prodamus Webhook] Processing subscription:', {
+        userId,
+        planId,
+        creditsPerMonth,
+        subscriptionId: subscription_id,
+      });
+
+      // Создаём/обновляем подписку
+      const { error: subError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          plan_id: planId,
+          prodamus_subscription_id: subscription_id,
+          status: 'active',
+          credits_per_month: creditsPerMonth,
+          current_period_start: new Date().toISOString(),
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'prodamus_subscription_id',
+        });
+
+      if (subError) {
+        console.error('[Prodamus Webhook] Subscription creation error:', subError);
+      }
+
+      // Начисляем кредиты
+      const { data: currentCredits } = await supabase
+        .from('credits')
+        .select('amount')
+        .eq('user_id', userId)
+        .single();
+
+      const newAmount = (currentCredits?.amount || 0) + creditsPerMonth;
+
+      await supabase
+        .from('credits')
+        .update({
+          amount: newAmount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      // Обновляем план пользователя
+      await supabase
+        .from('profiles')
+        .update({
+          plan: planId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      // Записываем транзакцию
+      await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: creditsPerMonth,
+        type: 'subscription',
+        description: `Подписка ${planId}: +${creditsPerMonth} кредитов`,
+      });
+
+      console.log('[Prodamus Webhook] Subscription processed:', {
+        userId,
+        newBalance: newAmount,
+      });
+
     } else {
-      // Package payment - parse from products
-      credits = parseCreditsFromProducts(webhookData.products);
+      // РАЗОВЫЙ ПАКЕТ
+      let credits = 0;
       
-      // Fallback: calculate from amount
+      // Try to extract credits from product name
+      if (products && products.length > 0) {
+        const productName = products[0].name;
+        const match = productName.match(/(\d+)/);
+        if (match) {
+          credits = parseInt(match[1]);
+        }
+      }
+
+      // Fallback based on common packages
       if (credits === 0) {
-        // Approximate credits based on our pricing
+        const amount = parseFloat(payload.sum);
         if (amount >= 2490) credits = 3000;
         else if (amount >= 1190) credits = 1200;
         else if (amount >= 599) credits = 500;
         else if (amount >= 299) credits = 200;
       }
+
+      console.log('[Prodamus Webhook] Processing package:', {
+        userId,
+        credits,
+      });
+
+      const { data: currentCredits } = await supabase
+        .from('credits')
+        .select('amount')
+        .eq('user_id', userId)
+        .single();
+
+      const newAmount = (currentCredits?.amount || 0) + credits;
+
+      await supabase
+        .from('credits')
+        .update({
+          amount: newAmount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      // Записываем транзакцию
+      await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: credits,
+        type: 'purchase',
+        description: `Покупка ${credits} кредитов (${payload.sum}₽)`,
+      });
+
+      console.log('[Prodamus Webhook] Package processed:', {
+        userId,
+        credits,
+        newBalance: newAmount,
+      });
     }
 
-    console.log('[Prodamus Webhook] Parsed payment:', {
-      userId,
-      credits,
-      amount,
-      subscriptionId,
-      planId,
-    });
+    // Обновляем статус платежа
+    await supabase
+      .from('payments')
+      .update({ status: 'completed' })
+      .eq('prodamus_order_id', order_id);
 
-    // Add credits to user
-    if (userId && credits > 0) {
-      const supabase = await createServerSupabaseClient();
-      
-      if (supabase) {
-        // Get current credits
-        const { data: creditsData } = await supabase
-          .from('credits')
-          .select('amount')
-          .eq('user_id', userId)
-          .single();
+    return NextResponse.json({ received: true, status: 'success' });
 
-        const currentCredits = creditsData?.amount || 0;
-        const newCredits = currentCredits + credits;
-
-        // Update credits
-        const { error: updateError } = await supabase
-          .from('credits')
-          .update({ 
-            amount: newCredits,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', userId);
-
-        if (updateError) {
-          console.error('[Prodamus Webhook] Error updating credits:', updateError);
-          return NextResponse.json({ error: 'Failed to add credits' }, { status: 500 });
-        }
-
-        // Record transaction
-        const transactionType = subscriptionId ? 'subscription' : 'purchase';
-        const description = subscriptionId 
-          ? `Подписка ${planId}: ${credits} кредитов`
-          : `Покупка ${credits} кредитов (${amount}₽)`;
-
-        await supabase.from('credit_transactions').insert({
-          user_id: userId,
-          amount: credits,
-          type: transactionType,
-          description,
-          metadata: {
-            order_id: webhookData.order_id,
-            subscription_id: subscriptionId,
-            plan_id: planId,
-            payment_amount: amount,
-          },
-        });
-
-        // Update user subscription if it's a subscription payment
-        if (subscriptionId && planId) {
-          await supabase
-            .from('profiles')
-            .update({
-              plan: planId,
-              subscription_id: subscriptionId,
-              subscription_status: 'active',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', userId);
-        }
-
-        console.log('[Prodamus Webhook] Credits added:', {
-          userId,
-          credits,
-          newBalance: newCredits,
-          subscriptionId,
-        });
-      }
-    }
-
-    return NextResponse.json({ status: 'ok' });
   } catch (error) {
     console.error('[Prodamus Webhook] Error:', error);
-    return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-// Also handle GET for verification
+// GET for verification
 export async function GET() {
-  return NextResponse.json({ status: 'Prodamus webhook endpoint active' });
+  return NextResponse.json({ 
+    status: 'ok',
+    message: 'Prodamus webhook endpoint active',
+    timestamp: new Date().toISOString(),
+  });
 }
