@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Light Theme - Linear Style */
+    /* Light Theme - ВЫСОКИЙ КОНТРАСТ */
     --background: 255 255 255;
     --foreground: 9 9 11;
     --card: 255 255 255;
@@ -16,7 +16,7 @@
     --secondary: 244 244 245;
     --secondary-foreground: 9 9 11;
     --muted: 244 244 245;
-    --muted-foreground: 113 113 122;
+    --muted-foreground: 71 85 105;
     --accent: 244 244 245;
     --accent-foreground: 9 9 11;
     --destructive: 239 68 68;
@@ -37,7 +37,7 @@
   }
 
   .dark {
-    /* Dark Theme - Linear Style */
+    /* Dark Theme */
     --background: 9 9 11;
     --foreground: 250 250 250;
     --card: 24 24 27;
@@ -45,7 +45,7 @@
     --popover: 24 24 27;
     --popover-foreground: 250 250 250;
     --primary: 129 140 248;
-    --primary-foreground: 255 255 255;
+    --primary-foreground: 9 9 11;
     --secondary: 39 39 42;
     --secondary-foreground: 250 250 250;
     --muted: 39 39 42;
