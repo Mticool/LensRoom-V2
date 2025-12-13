@@ -1,35 +1,71 @@
-import type { AIModel } from "@/types/generator";
+// ===== KIE.AI API CLIENT =====
+// Documentation: https://api.kie.ai
 
 // ===== REQUEST TYPES =====
+
+export interface CreateTaskRequest {
+  model: string;
+  callBackUrl?: string;
+  input: {
+    prompt: string;
+    image_input?: string[];
+    aspect_ratio?: string;
+    resolution?: string;
+    output_format?: string;
+    // Video specific
+    duration?: number;
+    fps?: number;
+  };
+}
+
+// ===== RESPONSE TYPES =====
+
+export interface CreateTaskResponse {
+  code: number;
+  message: string;
+  data: {
+    taskId: string;
+  };
+}
+
+export interface QueryTaskResponse {
+  code: number;
+  message?: string;
+  msg?: string;
+  data: {
+    taskId: string;
+    state: "pending" | "processing" | "success" | "fail";
+    model: string;
+    param: string;
+    createTime: number;
+    updateTime: number;
+    completeTime?: number;
+    costTime?: number;
+    consumeCredits?: number;
+    remainedCredits?: number;
+    resultJson?: string;
+    failCode?: string;
+    failMsg?: string;
+  };
+}
+
+export interface ParsedResult {
+  resultUrls: string[];
+}
+
+// ===== GENERATION TYPES (for app use) =====
+
+export type GenerationStatus = "queued" | "processing" | "completed" | "failed";
 
 export interface GenerateImageRequest {
   model: string;
   prompt: string;
   negativePrompt?: string;
-  width: number;
-  height: number;
-  numOutputs?: number;
-  steps?: number;
-  cfgScale?: number;
-  seed?: number;
-  sampler?: string;
+  aspectRatio?: string;
+  resolution?: string;
+  outputFormat?: string;
+  imageInputs?: string[];
 }
-
-export interface GenerateVideoRequest {
-  model: string;
-  prompt?: string;
-  imageUrl?: string;
-  duration: number;
-  width: number;
-  height: number;
-  fps?: number;
-  cameraMovement?: string;
-  motionIntensity?: number;
-}
-
-// ===== RESPONSE TYPES =====
-
-export type GenerationStatus = "queued" | "processing" | "completed" | "failed";
 
 export interface GenerateImageResponse {
   id: string;
@@ -40,9 +76,18 @@ export interface GenerateImageResponse {
     url: string;
     width: number;
     height: number;
-    seed: number;
+    seed?: number;
   }[];
   error?: string;
+}
+
+export interface GenerateVideoRequest {
+  model: string;
+  prompt?: string;
+  imageUrl?: string;
+  duration?: number;
+  aspectRatio?: string;
+  fps?: number;
 }
 
 export interface GenerateVideoResponse {
@@ -52,7 +97,7 @@ export interface GenerateVideoResponse {
   estimatedTime?: number;
   outputs?: {
     url: string;
-    thumbnailUrl: string;
+    thumbnailUrl?: string;
     width: number;
     height: number;
     duration: number;
@@ -75,34 +120,28 @@ export class KieAPIError extends Error {
 
 // ===== CLIENT CLASS =====
 
-interface RetryOptions {
-  maxRetries?: number;
-  baseDelay?: number;
-  retryOnStatuses?: number[];
-}
-
 class KieAIClient {
   private baseUrl: string;
   private apiKey: string;
-  private isMockMode: boolean;
-  private defaultRetryOptions: Required<RetryOptions> = {
-    maxRetries: 3,
-    baseDelay: 1000,
-    retryOnStatuses: [408, 429, 500, 502, 503, 504],
-  };
-
-  // Track mock generation progress
-  private mockProgress: Map<string, { startTime: number; duration: number }> = new Map();
+  private _isMockMode: boolean;
 
   constructor() {
     this.baseUrl = process.env.NEXT_PUBLIC_KIE_API_URL || "https://api.kie.ai";
     this.apiKey = process.env.KIE_API_KEY || "";
-    this.isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true" || !this.apiKey;
+    this._isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true" || !this.apiKey;
 
-    if (this.isMockMode) {
+    if (this._isMockMode) {
       console.warn("[KIE API] Running in MOCK MODE - no real API calls will be made");
+    } else {
+      console.log("[KIE API] Initialized with real API mode");
     }
   }
+
+  isInMockMode(): boolean {
+    return this._isMockMode;
+  }
+
+  // ===== RAW API METHODS =====
 
   private async request<T>(
     endpoint: string,
@@ -110,397 +149,314 @@ class KieAIClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
-    console.log("[KIE API] Request:", { 
-      url, 
+    console.log("[KIE API] Request:", {
+      url,
       method: options.method || "GET",
       body: options.body ? JSON.parse(options.body as string) : undefined,
     });
 
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+        ...options.headers,
+      },
+    });
+
+    const data = await response.json();
+    console.log("[KIE API] Response:", data);
+
+    // KIE API returns code in body
+    if (data.code && data.code !== 200) {
+      throw new KieAPIError(
+        data.message || data.msg || `API Error: ${data.code}`,
+        data.code
+      );
+    }
+
+    if (!response.ok) {
+      throw new KieAPIError(
+        data.message || `HTTP ${response.status}`,
+        response.status
+      );
+    }
+
+    return data;
+  }
+
+  // ===== CREATE TASK =====
+
+  async createTask(request: CreateTaskRequest): Promise<CreateTaskResponse> {
+    if (this._isMockMode) {
+      return this.mockCreateTask(request);
+    }
+
+    return this.request<CreateTaskResponse>("/api/v1/jobs/createTask", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  // ===== QUERY TASK =====
+
+  async queryTask(taskId: string): Promise<QueryTaskResponse> {
+    if (this._isMockMode) {
+      return this.mockQueryTask(taskId);
+    }
+
+    return this.request<QueryTaskResponse>(`/api/v1/jobs/queryTask?taskId=${taskId}`, {
+      method: "GET",
+    });
+  }
+
+  // ===== HIGH-LEVEL METHODS =====
+
+  async generateImage(params: GenerateImageRequest): Promise<GenerateImageResponse> {
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-          ...options.headers,
+      const request: CreateTaskRequest = {
+        model: params.model,
+        input: {
+          prompt: params.prompt,
+          aspect_ratio: params.aspectRatio || "1:1",
+          resolution: params.resolution || "1K",
+          output_format: params.outputFormat || "png",
+          image_input: params.imageInputs,
         },
-      });
+      };
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Unknown error" }));
-        console.error("[KIE API] Error:", error);
-        throw new KieAPIError(
-          error.message || `HTTP ${response.status}`,
-          response.status,
-          error.code
-        );
-      }
+      const response = await this.createTask(request);
 
-      const data = await response.json();
-      console.log("[KIE API] Response:", data);
-      return data;
+      return {
+        id: response.data.taskId,
+        status: "queued",
+        estimatedTime: 30,
+      };
     } catch (error) {
-      console.error("[KIE API] Request failed:", error);
+      console.error("[KIE API] generateImage error:", error);
       throw error;
     }
   }
 
-  private async requestWithRetry<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    retryOptions: RetryOptions = {}
-  ): Promise<T> {
-    const { maxRetries, baseDelay, retryOnStatuses } = {
-      ...this.defaultRetryOptions,
-      ...retryOptions,
-    };
+  async getGenerationStatus(taskId: string): Promise<GenerateImageResponse> {
+    try {
+      const response = await this.queryTask(taskId);
+      const data = response.data;
 
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await this.request<T>(endpoint, options);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        const shouldRetry =
-          attempt < maxRetries &&
-          error instanceof KieAPIError &&
-          retryOnStatuses.includes(error.status);
-
-        if (!shouldRetry) {
-          throw lastError;
+      // Parse result if completed
+      let outputs: GenerateImageResponse["outputs"];
+      if (data.state === "success" && data.resultJson) {
+        try {
+          const result: ParsedResult = JSON.parse(data.resultJson);
+          outputs = result.resultUrls.map((url) => ({
+            url,
+            width: 1024,
+            height: 1024,
+          }));
+        } catch (e) {
+          console.error("[KIE API] Failed to parse resultJson:", e);
         }
-
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
-        console.warn(
-          `[KIE API] Request failed (attempt ${attempt + 1}/${maxRetries + 1}). Retrying in ${Math.round(delay)}ms...`
-        );
-
-        await this.sleep(delay);
       }
+
+      // Map KIE state to our status
+      const statusMap: Record<string, GenerationStatus> = {
+        pending: "queued",
+        processing: "processing",
+        success: "completed",
+        fail: "failed",
+      };
+
+      return {
+        id: taskId,
+        status: statusMap[data.state] || "processing",
+        progress: data.state === "success" ? 100 : data.state === "processing" ? 50 : 0,
+        outputs,
+        error: data.failMsg,
+      };
+    } catch (error) {
+      console.error("[KIE API] getGenerationStatus error:", error);
+      throw error;
     }
-
-    throw lastError || new Error("Max retries exceeded");
   }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  // ===== IMAGE GENERATION =====
-
-  async generateImage(params: GenerateImageRequest): Promise<GenerateImageResponse> {
-    if (this.isMockMode) {
-      return this.mockGenerateImage(params);
-    }
-
-    return this.requestWithRetry<GenerateImageResponse>("/v1/images/generations", {
-      method: "POST",
-      body: JSON.stringify({
-        model: params.model,
-        prompt: params.prompt,
-        negative_prompt: params.negativePrompt,
-        width: params.width,
-        height: params.height,
-        num_outputs: params.numOutputs || 1,
-        guidance_scale: params.cfgScale || 7.5,
-        num_inference_steps: params.steps || 30,
-        seed: params.seed,
-        scheduler: params.sampler,
-      }),
-    });
-  }
-
-  async getGenerationStatus(id: string): Promise<GenerateImageResponse> {
-    if (this.isMockMode) {
-      return this.mockGetImageStatus(id);
-    }
-
-    return this.requestWithRetry<GenerateImageResponse>(
-      `/v1/images/generations/${id}`,
-      {},
-      { maxRetries: 2, baseDelay: 500 }
-    );
-  }
-
-  // ===== VIDEO GENERATION =====
 
   async generateVideo(params: GenerateVideoRequest): Promise<GenerateVideoResponse> {
-    if (this.isMockMode) {
-      return this.mockGenerateVideo(params);
-    }
-
-    return this.requestWithRetry<GenerateVideoResponse>("/v1/videos/generations", {
-      method: "POST",
-      body: JSON.stringify({
+    try {
+      const request: CreateTaskRequest = {
         model: params.model,
-        prompt: params.prompt,
-        image_url: params.imageUrl,
-        duration: params.duration,
-        width: params.width,
-        height: params.height,
-        fps: params.fps || 30,
-        camera_movement: params.cameraMovement,
-        motion_intensity: params.motionIntensity,
-      }),
-    });
-  }
-
-  async getVideoGenerationStatus(id: string): Promise<GenerateVideoResponse> {
-    if (this.isMockMode) {
-      return this.mockGetVideoStatus(id);
-    }
-
-    return this.requestWithRetry<GenerateVideoResponse>(
-      `/v1/videos/generations/${id}`,
-      {},
-      { maxRetries: 2, baseDelay: 500 }
-    );
-  }
-
-  // ===== MOCK IMPLEMENTATIONS =====
-
-  private async mockGenerateImage(params: GenerateImageRequest): Promise<GenerateImageResponse> {
-    console.log("[MOCK] Generating image with params:", params);
-
-    // Simulate API latency
-    await this.sleep(800 + Math.random() * 400);
-
-    const id = `mock_img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Track progress for this generation (30 seconds for image)
-    this.mockProgress.set(id, { 
-      startTime: Date.now(), 
-      duration: 15000 + Math.random() * 10000 // 15-25 seconds
-    });
-
-    return {
-      id,
-      status: "processing",
-      progress: 0,
-      estimatedTime: 20,
-    };
-  }
-
-  private async mockGetImageStatus(id: string): Promise<GenerateImageResponse> {
-    const progressInfo = this.mockProgress.get(id);
-    
-    if (!progressInfo) {
-      // If no progress info, assume it's a new check - return completed
-      return {
-        id,
-        status: "completed",
-        progress: 100,
-        outputs: this.generateMockImageOutputs(id),
+        input: {
+          prompt: params.prompt || "",
+          image_input: params.imageUrl ? [params.imageUrl] : undefined,
+          aspect_ratio: params.aspectRatio || "16:9",
+          duration: params.duration,
+          fps: params.fps,
+        },
       };
-    }
 
-    const elapsed = Date.now() - progressInfo.startTime;
-    const progress = Math.min(100, Math.floor((elapsed / progressInfo.duration) * 100));
+      const response = await this.createTask(request);
 
-    // Simulate occasional processing updates
-    await this.sleep(100 + Math.random() * 200);
-
-    if (progress >= 100) {
-      this.mockProgress.delete(id);
       return {
-        id,
-        status: "completed",
-        progress: 100,
-        outputs: this.generateMockImageOutputs(id),
+        id: response.data.taskId,
+        status: "queued",
+        estimatedTime: 120,
       };
+    } catch (error) {
+      console.error("[KIE API] generateVideo error:", error);
+      throw error;
     }
-
-    return {
-      id,
-      status: "processing",
-      progress,
-      estimatedTime: Math.ceil((progressInfo.duration - elapsed) / 1000),
-    };
   }
 
-  private generateMockImageOutputs(id: string) {
-    // Use variety of placeholder images
-    const placeholders = [
-      `https://picsum.photos/seed/${id}/1024/1024`,
-      `https://source.unsplash.com/random/1024x1024?ai,art&sig=${id}`,
-    ];
-    
-    return [
-      {
-        url: placeholders[0],
-        width: 1024,
-        height: 1024,
-        seed: Math.floor(Math.random() * 999999999),
-      },
-    ];
-  }
+  async getVideoGenerationStatus(taskId: string): Promise<GenerateVideoResponse> {
+    try {
+      const response = await this.queryTask(taskId);
+      const data = response.data;
 
-  private async mockGenerateVideo(params: GenerateVideoRequest): Promise<GenerateVideoResponse> {
-    console.log("[MOCK] Generating video with params:", params);
+      let outputs: GenerateVideoResponse["outputs"];
+      if (data.state === "success" && data.resultJson) {
+        try {
+          const result: ParsedResult = JSON.parse(data.resultJson);
+          outputs = result.resultUrls.map((url) => ({
+            url,
+            width: 1280,
+            height: 720,
+            duration: 5,
+          }));
+        } catch (e) {
+          console.error("[KIE API] Failed to parse video resultJson:", e);
+        }
+      }
 
-    await this.sleep(1000 + Math.random() * 500);
+      const statusMap: Record<string, GenerationStatus> = {
+        pending: "queued",
+        processing: "processing",
+        success: "completed",
+        fail: "failed",
+      };
 
-    const id = `mock_vid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Track progress (video takes longer - based on duration)
-    const baseDuration = (params.duration || 5) * 8000; // ~8 seconds per second of video
-    this.mockProgress.set(id, { 
-      startTime: Date.now(), 
-      duration: baseDuration + Math.random() * 10000
-    });
-
-    return {
-      id,
-      status: "processing",
-      progress: 0,
-      estimatedTime: Math.ceil(baseDuration / 1000),
-    };
-  }
-
-  private async mockGetVideoStatus(id: string): Promise<GenerateVideoResponse> {
-    const progressInfo = this.mockProgress.get(id);
-    
-    if (!progressInfo) {
       return {
-        id,
-        status: "completed",
-        progress: 100,
-        outputs: this.generateMockVideoOutputs(id),
+        id: taskId,
+        status: statusMap[data.state] || "processing",
+        progress: data.state === "success" ? 100 : data.state === "processing" ? 50 : 0,
+        outputs,
+        error: data.failMsg,
       };
+    } catch (error) {
+      console.error("[KIE API] getVideoGenerationStatus error:", error);
+      throw error;
     }
-
-    const elapsed = Date.now() - progressInfo.startTime;
-    const progress = Math.min(100, Math.floor((elapsed / progressInfo.duration) * 100));
-
-    await this.sleep(100 + Math.random() * 200);
-
-    if (progress >= 100) {
-      this.mockProgress.delete(id);
-      return {
-        id,
-        status: "completed",
-        progress: 100,
-        outputs: this.generateMockVideoOutputs(id),
-      };
-    }
-
-    return {
-      id,
-      status: "processing",
-      progress,
-      estimatedTime: Math.ceil((progressInfo.duration - elapsed) / 1000),
-    };
   }
 
-  private generateMockVideoOutputs(id: string) {
-    // Sample videos for testing
-    const sampleVideos = [
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-    ];
-
-    return [
-      {
-        url: sampleVideos[Math.floor(Math.random() * sampleVideos.length)],
-        thumbnailUrl: `https://picsum.photos/seed/${id}/1280/720`,
-        width: 1280,
-        height: 720,
-        duration: 5,
-      },
-    ];
-  }
-
-  // ===== UTILITIES =====
+  // ===== UTILITY METHODS =====
 
   async checkHealth(): Promise<boolean> {
-    if (this.isMockMode) {
-      return true;
-    }
-
     try {
-      await this.request("/health");
-      return true;
+      // Simple ping to check if API is reachable
+      const response = await fetch(`${this.baseUrl}/api/v1/jobs/queryTask?taskId=test`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+      return response.status !== 500;
     } catch {
       return false;
     }
   }
 
   async getAccountBalance(): Promise<{ credits: number }> {
-    if (this.isMockMode) {
-      return { credits: 847 }; // Mock credits
-    }
-
-    return this.requestWithRetry("/v1/account/balance");
+    // KIE API returns credits in task responses
+    // For now return a placeholder
+    return { credits: 1000 };
   }
 
-  // Check if running in mock mode
-  isInMockMode(): boolean {
-    return this.isMockMode;
+  // ===== MOCK METHODS =====
+
+  private mockTaskProgress = new Map<string, { startTime: number; duration: number }>();
+
+  private mockCreateTask(request: CreateTaskRequest): Promise<CreateTaskResponse> {
+    const taskId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Store mock progress info
+    const isVideo = request.model.includes("sora") || request.model.includes("kling") || 
+                    request.model.includes("luma") || request.model.includes("runway") ||
+                    request.model.includes("veo");
+    
+    this.mockTaskProgress.set(taskId, {
+      startTime: Date.now(),
+      duration: isVideo ? 10000 : 5000,
+    });
+
+    console.log("[KIE API MOCK] Created task:", taskId, "for model:", request.model);
+
+    return Promise.resolve({
+      code: 200,
+      message: "success",
+      data: { taskId },
+    });
   }
 
-  // ===== STATIC UTILITIES =====
-
-  static async withRetry<T>(
-    fn: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 1000
-  ): Promise<T> {
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await fn();
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        if (attempt < maxRetries) {
-          const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
+  private mockQueryTask(taskId: string): Promise<QueryTaskResponse> {
+    const progress = this.mockTaskProgress.get(taskId);
+    
+    if (!progress) {
+      return Promise.resolve({
+        code: 200,
+        data: {
+          taskId,
+          state: "fail",
+          model: "unknown",
+          param: "{}",
+          createTime: Date.now(),
+          updateTime: Date.now(),
+          failMsg: "Task not found",
+        },
+      });
     }
 
-    throw lastError || new Error("Max retries exceeded");
+    const elapsed = Date.now() - progress.startTime;
+    const isComplete = elapsed >= progress.duration;
+
+    if (isComplete) {
+      // Clean up
+      this.mockTaskProgress.delete(taskId);
+
+      return Promise.resolve({
+        code: 200,
+        data: {
+          taskId,
+          state: "success",
+          model: "mock-model",
+          param: "{}",
+          createTime: progress.startTime,
+          updateTime: Date.now(),
+          completeTime: Date.now(),
+          costTime: Math.round(progress.duration / 1000),
+          consumeCredits: 10,
+          remainedCredits: 990,
+          resultJson: JSON.stringify({
+            resultUrls: [
+              "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1024&h=1024&fit=crop",
+              "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1024&h=1024&fit=crop",
+            ],
+          }),
+        },
+      });
+    }
+
+    // Still processing
+    const progressPercent = Math.min(95, Math.round((elapsed / progress.duration) * 100));
+
+    return Promise.resolve({
+      code: 200,
+      data: {
+        taskId,
+        state: "processing",
+        model: "mock-model",
+        param: "{}",
+        createTime: progress.startTime,
+        updateTime: Date.now(),
+      },
+    });
   }
 }
 
-// Singleton instance
 export const kieClient = new KieAIClient();
-
-// ===== HELPER FUNCTIONS =====
-
-export function aspectRatioToSize(
-  aspectRatio: string,
-  baseSize: number = 1024
-): { width: number; height: number } {
-  const [widthRatio, heightRatio] = aspectRatio.split(":").map(Number);
-  const maxRatio = Math.max(widthRatio, heightRatio);
-
-  return {
-    width: Math.round(baseSize * (widthRatio / maxRatio)),
-    height: Math.round(baseSize * (heightRatio / maxRatio)),
-  };
-}
-
-export function calculateCredits(
-  model: AIModel,
-  variants: number = 1,
-  isHD: boolean = false
-): number {
-  let cost = model.creditCost * variants;
-  if (isHD) cost *= 1.5;
-  return Math.ceil(cost);
-}
-
-// Video duration credit multiplier
-export function calculateVideoCredits(
-  baseCost: number,
-  duration: number
-): number {
-  // Cost scales with duration (5s = base, 10s = 2x, 20s = 4x)
-  const multiplier = duration / 5;
-  return Math.ceil(baseCost * multiplier);
-}
