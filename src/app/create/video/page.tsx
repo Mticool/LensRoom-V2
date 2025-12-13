@@ -445,7 +445,7 @@ export default function VideoCreatePage() {
 
             {/* Generate Button */}
             <Button
-              variant="primary"
+              variant="default"
               size="lg"
               className="w-full"
               disabled={!canGenerate}

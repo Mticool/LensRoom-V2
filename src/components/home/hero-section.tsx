@@ -47,7 +47,7 @@ export function HeroSection() {
               </Link>
             </Button>
             
-            <Button asChild variant="outline" size="lg" className="text-base h-12 px-8">
+            <Button asChild  size="lg" className="text-base h-12 px-8">
               <Link href="/pricing">
                 Смотреть тарифы
               </Link>

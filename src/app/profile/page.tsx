@@ -85,7 +85,7 @@ export default function ProfilePage() {
             className="lg:col-span-1 space-y-6"
           >
             {/* User Card */}
-            <Card variant="glow" padding="lg">
+            <Card variant="hover">
               <div className="flex flex-col items-center text-center">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mb-4">
                   <span className="text-white text-3xl font-bold">
@@ -106,7 +106,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* Credits Card */}
-            <Card variant="glow" padding="lg">
+            <Card variant="hover">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-[var(--color-text-primary)]">Кредиты</h3>
                 <CreditCard className="w-5 h-5 text-purple-400" />
@@ -114,13 +114,13 @@ export default function ProfilePage() {
               <div className="text-4xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent mb-4">
                 {credits} ⭐
               </div>
-              <Button asChild variant="primary" className="w-full">
+              <Button asChild variant="default" className="w-full">
                 <Link href="/pricing">Купить кредиты</Link>
               </Button>
             </Card>
 
             {/* Stats */}
-            <Card variant="glow" padding="lg">
+            <Card variant="hover">
               <h3 className="font-semibold text-[var(--color-text-primary)] mb-4">Статистика</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
@@ -145,7 +145,7 @@ export default function ProfilePage() {
             className="lg:col-span-2 space-y-6"
           >
             {/* Recent Generations */}
-            <Card variant="glow" padding="lg">
+            <Card variant="hover">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-[var(--color-text-primary)]">Последние генерации</h3>
                 <Link href="/history" className="text-sm text-purple-400 hover:text-purple-300">
@@ -200,7 +200,7 @@ export default function ProfilePage() {
                 <div className="text-center py-8">
                   <History className="w-12 h-12 text-[var(--color-text-tertiary)] mx-auto mb-4" />
                   <p className="text-[var(--color-text-secondary)]">Пока нет генераций</p>
-                  <Button asChild variant="primary" className="mt-4">
+                  <Button asChild variant="default" className="mt-4">
                     <Link href="/create">Создать первую</Link>
                   </Button>
                 </div>
@@ -208,7 +208,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* Credit History */}
-            <Card variant="glow" padding="lg">
+            <Card variant="hover">
               <h3 className="font-semibold text-[var(--color-text-primary)] mb-6">История кредитов</h3>
               
               {transactions.length > 0 ? (

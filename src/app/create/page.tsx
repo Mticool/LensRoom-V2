@@ -88,7 +88,7 @@ export default function CreatePage() {
           {/* Left Panel - Controls */}
           <div className="space-y-5">
             {/* Content Type Selector */}
-            <Card variant="glow" padding="md">
+            <Card variant="hover">
               <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 block">
                 Тип контента
               </label>
@@ -112,7 +112,7 @@ export default function CreatePage() {
             </Card>
 
             {/* Model Selector - Dropdown */}
-            <Card variant="glow" padding="md">
+            <Card variant="hover">
               <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 block">
                 AI Модель
               </label>
@@ -221,7 +221,7 @@ export default function CreatePage() {
             </Card>
 
             {/* Prompt */}
-            <Card variant="glow" padding="md">
+            <Card variant="hover">
               <div className="flex items-center justify-between mb-3">
                 <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
                   Промпт
@@ -274,7 +274,7 @@ export default function CreatePage() {
             </div>
 
             {/* Aspect Ratio */}
-            <Card variant="glow" padding="md">
+            <Card variant="hover">
               <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 block">
                 Соотношение сторон
               </label>
@@ -298,7 +298,7 @@ export default function CreatePage() {
             </Card>
 
             {/* Number of Variants */}
-            <Card variant="glow" padding="md">
+            <Card variant="hover">
               <div className="flex items-center justify-between mb-3">
                 <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
                   Количество вариантов
@@ -324,7 +324,7 @@ export default function CreatePage() {
             </Card>
 
             {/* Advanced Settings */}
-            <Card variant="glow" padding="none">
+            <Card variant="hover">
               <details className="group">
                 <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
                   <div className="flex items-center gap-2">
@@ -384,7 +384,7 @@ export default function CreatePage() {
 
             {/* Generate Button */}
             <Button
-              variant="primary"
+              variant="default"
               size="lg"
               className="w-full shadow-lg shadow-purple-500/20"
               disabled={!canGenerate}
@@ -407,7 +407,7 @@ export default function CreatePage() {
           {/* Right Panel - Preview */}
           <div>
             <div className="sticky top-24">
-              <Card variant="glow" padding="none" className="overflow-hidden">
+              <Card variant="hover" className="overflow-hidden">
                 <div className="aspect-square lg:aspect-[4/3] flex items-center justify-center">
                   {isGenerating ? (
                     <div className="text-center p-8">

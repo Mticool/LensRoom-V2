@@ -56,7 +56,7 @@ export default function PaymentSuccessContent() {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-2xl w-full"
       >
-        <Card variant="glow" className="text-center">
+        <Card variant="hover" className="text-center">
           <div className="p-12">
             {/* Success Icon */}
             <motion.div
@@ -162,7 +162,7 @@ export default function PaymentSuccessContent() {
               transition={{ delay: 0.7 }}
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <Button asChild variant="primary" size="lg" className="min-w-[200px]">
+              <Button asChild variant="default" size="lg" className="min-w-[200px]">
                 <Link href="/create">
                   Начать создавать
                   <ArrowRight className="w-5 h-5 ml-2" />

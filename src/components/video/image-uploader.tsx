@@ -84,7 +84,7 @@ export function ImageUploader({
   );
 
   return (
-    <Card variant="glass" className="p-6">
+    <Card  className="p-6">
       <h3 className="text-lg font-semibold text-white mb-4">
         Загрузить изображение
       </h3>
@@ -93,7 +93,7 @@ export function ImageUploader({
         <div className="relative group">
           <img src={currentImage} alt="Uploaded" className="w-full rounded-xl" />
           <Button
-            variant="outline"
+            
             size="sm"
             className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 backdrop-blur border-white/20 hover:bg-black/70"
             onClick={onRemove}

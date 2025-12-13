@@ -84,19 +84,19 @@ export default function InspirationPage() {
           transition={{ duration: 0.3, delay: 0.1 }}
         >
           <Button
-            variant={tab === "trending" ? "primary" : "secondary"}
+            variant={tab === "trending" ? "default" : "secondary"}
             onClick={() => setTab("trending")}
           >
             🔥 Trending
           </Button>
           <Button
-            variant={tab === "recent" ? "primary" : "secondary"}
+            variant={tab === "recent" ? "default" : "secondary"}
             onClick={() => setTab("recent")}
           >
             🆕 Recent
           </Button>
           <Button
-            variant={tab === "top" ? "primary" : "secondary"}
+            variant={tab === "top" ? "default" : "secondary"}
             onClick={() => setTab("top")}
           >
             ⭐ Top
@@ -117,7 +117,7 @@ export default function InspirationPage() {
               className="break-inside-avoid mb-6"
             >
               <Card
-                variant="glass"
+                
                 className="group cursor-pointer overflow-hidden hover:shadow-[0_0_30px_rgba(245,200,66,0.2)] transition-all duration-300 p-0"
                 onClick={() => handleCopyPrompt(galleryItem)}
               >

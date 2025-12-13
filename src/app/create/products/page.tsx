@@ -229,7 +229,7 @@ export default function ProductCardsPage() {
             animate={{ opacity: 1 }}
             className="max-w-4xl mx-auto"
           >
-            <Card variant="glow" className="p-8">
+            <Card variant="hover" className="p-8">
               <h2 className="text-2xl font-bold text-white mb-6">
                 Загрузите фото товаров
               </h2>
@@ -296,7 +296,7 @@ export default function ProductCardsPage() {
                   </div>
                   <Button
                     onClick={() => setStep(2)}
-                    variant="primary"
+                    variant="default"
                     size="lg"
                     className="w-full"
                   >
@@ -315,7 +315,7 @@ export default function ProductCardsPage() {
             animate={{ opacity: 1 }}
             className="max-w-6xl mx-auto"
           >
-            <Card variant="glow" className="p-8">
+            <Card variant="hover" className="p-8">
               <h2 className="text-2xl font-bold text-white mb-6">
                 Выберите стиль фона
               </h2>
@@ -353,12 +353,12 @@ export default function ProductCardsPage() {
               </div>
 
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(1)}>
+                <Button  onClick={() => setStep(1)}>
                   Назад
                 </Button>
                 <Button
                   onClick={() => setStep(3)}
-                  variant="primary"
+                  variant="default"
                   className="flex-1"
                 >
                   Далее: Настройки
@@ -375,7 +375,7 @@ export default function ProductCardsPage() {
             animate={{ opacity: 1 }}
             className="max-w-4xl mx-auto"
           >
-            <Card variant="glow" className="p-8">
+            <Card variant="hover" className="p-8">
               <h2 className="text-2xl font-bold text-white mb-6">
                 Настройки обработки
               </h2>
@@ -447,12 +447,12 @@ export default function ProductCardsPage() {
               </div>
 
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(2)}>
+                <Button  onClick={() => setStep(2)}>
                   Назад
                 </Button>
                 <Button
                   onClick={handleGenerate}
-                  variant="primary"
+                  variant="default"
                   className="flex-1"
                   disabled={isProcessing}
                 >
@@ -481,14 +481,14 @@ export default function ProductCardsPage() {
               <h2 className="text-2xl font-bold text-white">
                 Готово! {results.length} товаров обработано
               </h2>
-              <Button variant="outline" onClick={() => setStep(1)}>
+              <Button  onClick={() => setStep(1)}>
                 Создать ещё
               </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {results.map((result) => (
-                <Card key={result.id} variant="glass" className="p-6">
+                <Card key={result.id}  className="p-6">
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <div className="text-sm text-[rgba(255,255,255,0.55)] mb-2">
@@ -512,7 +512,7 @@ export default function ProductCardsPage() {
                     </div>
                   </div>
                   <Button
-                    variant="outline"
+                    
                     className="w-full"
                     onClick={() => handleDownload(result.processed, result.id)}
                   >

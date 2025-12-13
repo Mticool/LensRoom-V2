@@ -42,7 +42,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
       return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--color-bg)]">
-          <Card variant="glass" className="p-8 max-w-md text-center">
+          <Card  className="p-8 max-w-md text-center">
             <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
@@ -59,7 +59,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             )}
             <div className="flex gap-3">
               <Button
-                variant="outline"
+                
                 onClick={() => (window.location.href = "/")}
                 className="flex-1"
               >
@@ -67,7 +67,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 На главную
               </Button>
               <Button
-                variant="primary"
+                variant="default"
                 onClick={() => window.location.reload()}
                 className="flex-1"
               >

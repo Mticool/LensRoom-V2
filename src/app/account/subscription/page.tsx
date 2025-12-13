@@ -149,7 +149,7 @@ export default function SubscriptionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card variant="glow" className="mb-6">
+          <Card variant="hover" className="mb-6">
             <div className="p-6 flex items-center justify-between">
               <div>
                 <p className="text-sm text-[var(--color-text-secondary)] mb-1">Текущий баланс</p>
@@ -283,7 +283,7 @@ export default function SubscriptionPage() {
                 <p className="text-[var(--color-text-secondary)] mb-6">
                   Оформите подписку и получайте кредиты каждый месяц
                 </p>
-                <Button asChild variant="primary" size="lg">
+                <Button asChild variant="default" size="lg">
                   <Link href="/pricing">
                     Выбрать план
                   </Link>

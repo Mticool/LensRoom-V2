@@ -179,7 +179,7 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
 
               <Button
                 type="submit"
-                variant="primary"
+                variant="default"
                 className="w-full"
                 disabled={loading}
               >

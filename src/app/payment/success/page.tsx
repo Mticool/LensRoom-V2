@@ -8,7 +8,7 @@ import PaymentSuccessContent from './PaymentSuccessContent';
 function LoadingFallback() {
   return (
     <div className="max-w-2xl w-full">
-      <Card variant="glow" className="text-center">
+      <Card variant="hover" className="text-center">
         <div className="p-12">
           <div className="flex flex-col items-center justify-center">
             <Loader2 className="w-12 h-12 text-purple-500 animate-spin mb-4" />

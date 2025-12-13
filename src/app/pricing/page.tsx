@@ -101,8 +101,8 @@ export default function PricingPage() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Card 
-                  variant="glow" 
-                  padding="none"
+                  variant="hover" 
+                 
                   className={cn(
                     "relative h-full",
                     isPopular && "border-2 border-purple-500 shadow-xl shadow-purple-500/20"
@@ -168,7 +168,7 @@ export default function PricingPage() {
                       </Button>
                     ) : (
                       <Button 
-                        variant={isPopular ? "primary" : "secondary"} 
+                        variant={isPopular ? "default" : "secondary"} 
                         size="lg" 
                         className={cn("w-full", isPopular && "shadow-lg shadow-purple-500/20")}
                         onClick={() => handlePurchase('subscription', plan.id)}
@@ -223,9 +223,9 @@ export default function PricingPage() {
                   transition={{ delay: index * 0.1 }}
                 >
                   <Card
-                    variant={pkg.popular ? "glow" : "default"}
-                    padding="none"
-                    hover
+                    variant={pkg.popular ? "hover" : "default"}
+                   
+                   
                     className={cn(
                       "relative",
                       pkg.popular && "border-2 border-purple-500 shadow-lg shadow-purple-500/20"
@@ -260,7 +260,7 @@ export default function PricingPage() {
                       </div>
                       
                       <Button 
-                        variant={pkg.popular ? "primary" : "secondary"} 
+                        variant={pkg.popular ? "default" : "secondary"} 
                         className={cn("w-full", pkg.popular && "shadow-lg shadow-purple-500/20")}
                         onClick={() => handlePurchase('package', pkg.id)}
                         disabled={isLoading}
@@ -313,7 +313,7 @@ export default function PricingPage() {
                 a: 'Купленные кредиты не сгорают и действуют бессрочно. Кредиты по подписке действуют до конца периода.',
               },
             ].map((faq, i) => (
-              <Card key={i} variant="glow" padding="none">
+              <Card key={i} variant="hover">
                 <div className="p-6">
                   <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">{faq.q}</h3>
                   <p className="text-[var(--color-text-secondary)]">{faq.a}</p>

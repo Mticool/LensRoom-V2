@@ -93,7 +93,7 @@ export default function TestAPIPage() {
         </p>
 
         {/* Connection Tests */}
-        <Card variant="glass" className="p-6 mb-6">
+        <Card  className="p-6 mb-6">
           <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <Activity className="w-5 h-5 text-[var(--color-gold)]" />
             Connection Tests
@@ -102,7 +102,7 @@ export default function TestAPIPage() {
             <Button
               onClick={() => runTest("ping")}
               disabled={isLoading}
-              variant="outline"
+              
               className="h-auto py-4 flex-col gap-2"
             >
               <Zap className="w-5 h-5" />
@@ -111,7 +111,7 @@ export default function TestAPIPage() {
             <Button
               onClick={() => runTest("health")}
               disabled={isLoading}
-              variant="outline"
+              
               className="h-auto py-4 flex-col gap-2"
             >
               <Activity className="w-5 h-5" />
@@ -120,7 +120,7 @@ export default function TestAPIPage() {
             <Button
               onClick={() => runTest("balance")}
               disabled={isLoading}
-              variant="outline"
+              
               className="h-auto py-4 flex-col gap-2"
             >
               <Wallet className="w-5 h-5" />
@@ -130,7 +130,7 @@ export default function TestAPIPage() {
         </Card>
 
         {/* Generation Tests */}
-        <Card variant="glass" className="p-6 mb-6">
+        <Card  className="p-6 mb-6">
           <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <ImageIcon className="w-5 h-5 text-[var(--color-purple)]" />
             Generation Tests
@@ -139,7 +139,7 @@ export default function TestAPIPage() {
             <Button
               onClick={() => runTest("image")}
               disabled={isLoading}
-              variant="outline"
+              
               className="h-auto py-4 flex-col gap-2"
             >
               <ImageIcon className="w-5 h-5" />
@@ -148,7 +148,7 @@ export default function TestAPIPage() {
             <Button
               onClick={() => runTest("video")}
               disabled={isLoading}
-              variant="outline"
+              
               className="h-auto py-4 flex-col gap-2"
             >
               <Video className="w-5 h-5" />
@@ -193,7 +193,7 @@ export default function TestAPIPage() {
 
         {/* Loading */}
         {isLoading && (
-          <Card variant="glass" className="p-8 text-center mb-6">
+          <Card  className="p-8 text-center mb-6">
             <Loader2 className="w-8 h-8 text-[var(--color-gold)] animate-spin mx-auto mb-3" />
             <p className="text-[rgba(255,255,255,0.55)]">Running test...</p>
           </Card>
@@ -201,7 +201,7 @@ export default function TestAPIPage() {
 
         {/* Results */}
         {results && !isLoading && (
-          <Card variant="glass" className="p-6 mb-6">
+          <Card  className="p-6 mb-6">
             <div className="flex items-center gap-3 mb-4">
               {getStatusIcon(results.success)}
               <h2 className="text-xl font-semibold text-white">
@@ -287,7 +287,7 @@ export default function TestAPIPage() {
         )}
 
         {/* Instructions */}
-        <Card variant="glass" className="p-6">
+        <Card  className="p-6">
           <h3 className="text-lg font-semibold text-white mb-3">
             📋 Instructions
           </h3>
