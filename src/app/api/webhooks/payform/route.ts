@@ -96,17 +96,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Если всё ещё нет userId, ищем по email
+    // 3. Если всё ещё нет userId, ищем по email в auth.users
     if (!userId && body.customer_email) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', body.customer_email)
-        .single();
-
-      if (profile) {
-        userId = profile.id;
-        console.log('✅ Found user by email:', body.customer_email);
+      // Используем admin API для поиска пользователя
+      const { data: users } = await supabase.auth.admin.listUsers();
+      const user = users?.users?.find(u => u.email === body.customer_email);
+      
+      if (user) {
+        userId = user.id;
+        console.log('✅ Found user by email:', body.customer_email, '→', userId);
       }
     }
 
