@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -26,6 +26,7 @@ import {
   History,
   ImagePlus,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PHOTO_MODELS } from '@/lib/models';
@@ -55,7 +56,23 @@ const MODES = [
   { id: 'i2i', label: 'Фото → Фото', icon: Layers, description: 'Преобразовать существующее изображение' },
 ];
 
+function CreatePageLoading() {
+  return (
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+    </div>
+  );
+}
+
 export default function CreatePage() {
+  return (
+    <Suspense fallback={<CreatePageLoading />}>
+      <CreatePageContent />
+    </Suspense>
+  );
+}
+
+function CreatePageContent() {
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);

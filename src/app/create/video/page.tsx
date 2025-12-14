@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +33,7 @@ import {
   Film,
   ArrowRight,
   LayoutGrid,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VIDEO_MODELS } from '@/lib/models';
@@ -41,6 +42,22 @@ import { toast } from 'sonner';
 import { getEffectById } from '@/config/effectsGallery';
 
 type VideoModeId = 't2v' | 'i2v' | 'start_end' | 'storyboard';
+
+function VideoCreatePageLoading() {
+  return (
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+    </div>
+  );
+}
+
+export default function VideoCreatePage() {
+  return (
+    <Suspense fallback={<VideoCreatePageLoading />}>
+      <VideoCreatePageContent />
+    </Suspense>
+  );
+}
 
 interface StoryboardScene {
   id: string;
@@ -76,7 +93,7 @@ const QUICK_TAGS = [
   'динамичный',
 ];
 
-export default function VideoCreatePage() {
+function VideoCreatePageContent() {
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const startImageRef = useRef<HTMLInputElement>(null);
