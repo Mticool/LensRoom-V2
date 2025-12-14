@@ -1,159 +1,134 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { kieAPI } from '@/lib/kie-api';
-import { getModelById, PHOTO_MODELS } from '@/lib/models-config';
+import { NextRequest, NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { kieClient } from "@/lib/api/kie-client";
+import { PHOTO_MODELS } from "@/lib/models";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    const {
-      model,
-      prompt,
-      negativePrompt,
-      aspectRatio,
-      numImages = 1,
-      seed,
-      styleReference,
-      characterReference,
-      sourceImage,
-    } = body;
+    const { model, prompt, negativePrompt, aspectRatio, variants = 1 } = body;
 
     // Validate required fields
     if (!model || !prompt) {
       return NextResponse.json(
-        { error: 'Model and prompt are required' },
+        { error: "Model and prompt are required" },
         { status: 400 }
       );
     }
 
-    // Auth check
-    const supabase = await createServerSupabaseClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get model config
-    const modelConfig = getModelById(model);
-    if (!modelConfig) {
-      return NextResponse.json({ 
-        error: 'Invalid model',
-        availableModels: PHOTO_MODELS.map(m => m.id),
-      }, { status: 400 });
-    }
-
-    // Calculate credits needed
-    const creditsNeeded = modelConfig.credits * numImages;
-
-    // Check credits
-    const { data: creditsData, error: creditsError } = await supabase
-      .from('credits')
-      .select('amount')
-      .eq('user_id', user.id)
-      .single();
-
-    if (creditsError || !creditsData) {
-      return NextResponse.json({ error: 'Failed to fetch credits' }, { status: 500 });
-    }
-
-    if (creditsData.amount < creditsNeeded) {
-      return NextResponse.json({ 
-        error: 'Insufficient credits',
-        required: creditsNeeded,
-        current: creditsData.amount,
-        message: `Нужно ${creditsNeeded} кредитов, у вас ${creditsData.amount}`,
-      }, { status: 402 });
-    }
-
-    // Upload reference images if provided (base64 strings)
-    let uploadedStyleRef: string | undefined;
-    let uploadedCharRefs: string[] | undefined;
-    let uploadedSourceImage: string | undefined;
-
-    if (styleReference) {
-      const uploadResult = await kieAPI.uploadBase64(styleReference, 'style-ref.png');
-      if (uploadResult.success && uploadResult.url) {
-        uploadedStyleRef = uploadResult.url;
-      }
-    }
-
-    if (characterReference && characterReference.length > 0) {
-      const uploads = await Promise.all(
-        characterReference.map((ref: string, i: number) => 
-          kieAPI.uploadBase64(ref, `char-ref-${i}.png`)
-        )
+    // Find model info
+    const modelInfo = PHOTO_MODELS.find((m) => m.id === model);
+    if (!modelInfo) {
+      return NextResponse.json(
+        { error: "Invalid model", availableModels: PHOTO_MODELS.map(m => m.id) },
+        { status: 400 }
       );
-      uploadedCharRefs = uploads
-        .filter(u => u.success && u.url)
-        .map(u => u.url!);
     }
 
-    if (sourceImage) {
-      const uploadResult = await kieAPI.uploadBase64(sourceImage, 'source.png');
-      if (uploadResult.success && uploadResult.url) {
-        uploadedSourceImage = uploadResult.url;
+    // Calculate credit cost
+    const creditCost = (modelInfo.creditCost || 5) * variants;
+
+    // Check auth and credits
+    const supabase = await createServerSupabaseClient();
+    
+    if (supabase) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        return NextResponse.json(
+          { error: "Unauthorized. Please log in to generate images." },
+          { status: 401 }
+        );
       }
+
+      // Get user credits
+      const { data: creditsData, error: creditsError } = await supabase
+        .from('credits')
+        .select('amount')
+        .eq('user_id', user.id)
+        .single();
+
+      if (creditsError || !creditsData) {
+        return NextResponse.json(
+          { error: "Failed to fetch credits" },
+          { status: 500 }
+        );
+      }
+
+      // Check if enough credits
+      if (creditsData.amount < creditCost) {
+        return NextResponse.json(
+          { 
+            error: "Insufficient credits", 
+            required: creditCost, 
+            available: creditsData.amount,
+            message: `Нужно ${creditCost} ⭐, у вас ${creditsData.amount} ⭐`
+          },
+          { status: 402 } // Payment Required
+        );
+      }
+
+      // Deduct credits
+      const newBalance = creditsData.amount - creditCost;
+      const { error: deductError } = await supabase
+        .from('credits')
+        .update({ 
+          amount: newBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (deductError) {
+        return NextResponse.json(
+          { error: "Failed to deduct credits" },
+          { status: 500 }
+        );
+      }
+
+      // Save generation to history
+      await supabase.from('generations').insert({
+        user_id: user.id,
+        type: 'photo',
+        model: model,
+        prompt: prompt,
+        negative_prompt: negativePrompt,
+        settings: { aspectRatio, variants },
+        credits_used: creditCost,
+        status: 'processing',
+      });
     }
 
-    // Generate image
-    const result = await kieAPI.generateImage({
-      model,
-      prompt,
-      negativePrompt,
-      aspectRatio: aspectRatio || '1:1',
-      numImages,
-      seed,
-      styleReference: uploadedStyleRef,
-      characterReference: uploadedCharRefs,
-      sourceImage: uploadedSourceImage,
-    });
-
-    if (!result.success || !result.taskId) {
-      throw new Error(result.error || 'Generation failed');
-    }
-
-    // Deduct credits
-    const { error: deductError } = await supabase
-      .from('credits')
-      .update({ 
-        amount: creditsData.amount - creditsNeeded,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', user.id);
-
-    if (deductError) {
-      console.error('Failed to deduct credits:', deductError);
-      // Don't fail the request, credits will be reconciled later
-    }
-
-    // Store generation info for later saving (when completed)
-    // We'll save to DB when status API returns completed
-    const generationInfo = {
-      userId: user.id,
-      model,
-      prompt,
-      creditsUsed: creditsNeeded,
+    // Map aspect ratio to KIE format
+    const aspectRatioMap: Record<string, string> = {
+      "1:1": "1:1",
+      "16:9": "16:9",
+      "9:16": "9:16",
+      "4:3": "4:3",
+      "3:4": "3:4",
     };
 
-    // Store in global map for status API to use
-    if (!global.pendingGenerations) {
-      global.pendingGenerations = new Map();
-    }
-    global.pendingGenerations.set(result.taskId, generationInfo);
+    // Generate image
+    const response = await kieClient.generateImage({
+      model: modelInfo.apiId || model,
+      prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
+      aspectRatio: aspectRatioMap[aspectRatio] || "1:1",
+      resolution: "1K",
+      outputFormat: "png",
+    });
 
     return NextResponse.json({
       success: true,
-      taskId: result.taskId,
-      creditsUsed: creditsNeeded,
-      remainingCredits: creditsData.amount - creditsNeeded,
-      estimatedTime: result.estimatedTime,
+      jobId: response.id,
+      status: response.status,
+      estimatedTime: response.estimatedTime || 30,
+      creditCost: creditCost,
     });
-
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Photo generation error:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error) {
+    console.error("[API] Photo generation error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json(
+      { error: message },
+      { status: 500 }
+    );
   }
 }

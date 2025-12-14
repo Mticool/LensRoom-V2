@@ -10,13 +10,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
-import { useIsAdmin } from '@/lib/admin';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const navigation = [
   { name: 'Фото', href: '/create' },
-  { name: 'Видео', href: '/video' },
-  { name: 'Продукты', href: '/products' },
+  { name: 'Видео', href: '/create/video' },
+  { name: 'Продукты', href: '/create/products' },
   { name: 'Библиотека', href: '/library' },
+  { name: 'Вдохновение', href: '/inspiration' },
   { name: 'Тарифы', href: '/pricing' },
 ];
 
@@ -27,7 +28,6 @@ export function Header() {
   const pathname = usePathname();
   const { user, loading: authLoading, signOut } = useAuth();
   const { balance, fetchBalance } = useCreditsStore();
-  const { isAdmin, loading: adminLoading } = useIsAdmin();
 
   useEffect(() => {
     if (user) {
@@ -46,15 +46,15 @@ export function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[#26262E] bg-[#08080C]">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] glass">
         <nav className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 rounded-xl bg-[var(--gold)] flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-black" />
               </div>
-              <span className="text-lg font-bold text-white">LensRoom</span>
+              <span className="text-lg font-bold text-[var(--text)]">LensRoom</span>
             </Link>
 
             {/* Desktop Nav */}
@@ -68,46 +68,33 @@ export function Header() {
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors rounded-lg",
                       isActive
-                        ? "text-white bg-[#16161D]"
-                        : "text-[#A0A0AA] hover:text-white hover:bg-[#0F0F14]"
+                        ? "text-[var(--text)] bg-[var(--surface2)]"
+                        : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]"
                     )}
                   >
                     {item.name}
                   </Link>
                 );
               })}
-              
-              {/* Admin Link */}
-              {!adminLoading && isAdmin && (
-                <Link
-                  href="/admin"
-                  className={cn(
-                    "px-4 py-2 text-sm font-medium transition-colors rounded-lg flex items-center gap-1.5",
-                    pathname.startsWith('/admin')
-                      ? "text-[#c8ff00] bg-[#c8ff00]/10"
-                      : "text-[#c8ff00]/70 hover:text-[#c8ff00] hover:bg-[#c8ff00]/5"
-                  )}
-                >
-                  <span className="text-xs">⚙️</span>
-                  Admin
-                </Link>
-              )}
             </div>
 
             {/* Right side */}
-            <div className="hidden lg:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+              
               {/* Auth */}
               {authLoading ? (
-                <div className="w-24 h-10 bg-[#16161D] rounded-xl animate-pulse" />
+                <div className="w-24 h-10 bg-[var(--surface)] rounded-xl animate-pulse" />
               ) : user ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[#0F0F14] border border-[#26262E] hover:border-[#3A3A45] transition-all"
+                    className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
                   >
-                    <span className="text-sm font-semibold text-yellow-400">{balance} ⭐</span>
+                    <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
                     <ChevronDown className={cn(
-                      "w-4 h-4 text-[#A0A0AA] transition-transform",
+                      "w-4 h-4 text-[var(--muted)] transition-transform",
                       userMenuOpen && "rotate-180"
                     )} />
                   </button>
@@ -124,19 +111,19 @@ export function Header() {
                           initial={{ opacity: 0, y: -8 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -8 }}
-                          className="absolute right-0 mt-2 w-56 bg-[#1C1C26] border border-[#26262E] rounded-xl shadow-xl z-50 overflow-hidden"
+                          className="absolute right-0 mt-2 w-56 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden"
                         >
-                          <div className="px-4 py-3 border-b border-[#26262E]">
-                            <p className="text-sm font-medium text-white truncate">
+                          <div className="px-4 py-3 border-b border-[var(--border)]">
+                            <p className="text-sm font-medium text-[var(--text)] truncate">
                               {user.email}
                             </p>
-                            <p className="text-xs text-yellow-400">{balance} кредитов</p>
+                            <p className="text-xs text-[var(--gold)]">{balance} кредитов</p>
                           </div>
                           <div className="py-1">
                             <Link
                               href="/account/subscription"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#A0A0AA] hover:text-white hover:bg-[#16161D] transition-colors"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                             >
                               <Crown className="w-4 h-4" />
                               Подписка
@@ -144,13 +131,13 @@ export function Header() {
                             <Link
                               href="/pricing"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#A0A0AA] hover:text-white hover:bg-[#16161D] transition-colors"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                             >
                               <CreditCard className="w-4 h-4" />
                               Купить кредиты
                             </Link>
                           </div>
-                          <div className="border-t border-[#26262E] py-1">
+                          <div className="border-t border-[var(--border)] py-1">
                             <button
                               onClick={handleSignOut}
                               className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"
@@ -165,22 +152,25 @@ export function Header() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <Button onClick={() => setLoginOpen(true)}>
+                <Button variant="outline" onClick={() => setLoginOpen(true)}>
                   Войти
                 </Button>
               )}
             </div>
 
             {/* Mobile */}
-            <div className="flex lg:hidden items-center gap-2">
+            <div className="flex lg:hidden items-center gap-1">
+              {/* Theme Toggle - Mobile */}
+              <ThemeToggle />
+              
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg hover:bg-[#0F0F14] transition-colors"
+                className="p-2 rounded-lg hover:bg-[var(--surface)] transition-colors"
               >
                 {mobileMenuOpen ? (
-                  <X className="w-6 h-6 text-white" />
+                  <X className="w-6 h-6 text-[var(--text)]" />
                 ) : (
-                  <Menu className="w-6 h-6 text-white" />
+                  <Menu className="w-6 h-6 text-[var(--text)]" />
                 )}
               </button>
             </div>
@@ -198,10 +188,10 @@ export function Header() {
             className="fixed inset-x-0 top-16 z-40 lg:hidden"
           >
             <div 
-              className="absolute inset-0 bg-[#08080C] h-screen"
+              className="absolute inset-0 bg-[var(--bg)] h-screen"
               onClick={() => setMobileMenuOpen(false)}
             />
-            <div className="relative bg-[#0F0F14] border-b border-[#26262E] shadow-xl">
+            <div className="relative bg-[var(--surface)] border-b border-[var(--border)] shadow-xl">
               <div className="container mx-auto px-6 py-4 space-y-1">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href;
@@ -213,8 +203,8 @@ export function Header() {
                       className={cn(
                         "block px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-[#16161D] text-white"
-                          : "text-[#A0A0AA] hover:text-white hover:bg-[#16161D]"
+                          ? "bg-[var(--surface2)] text-[var(--text)]"
+                          : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
                       )}
                     >
                       {item.name}
@@ -222,31 +212,21 @@ export function Header() {
                   );
                 })}
 
-                <div className="pt-4 mt-4 border-t border-[#26262E] space-y-2">
+                <div className="pt-4 mt-4 border-t border-[var(--border)] space-y-2">
                   {user ? (
                     <>
-                      <div className="px-4 py-3 rounded-xl bg-[#16161D]">
-                        <p className="text-sm font-semibold text-yellow-400">{balance} ⭐</p>
-                        <p className="text-xs text-[#6B6B78]">{user.email}</p>
+                      <div className="px-4 py-3 rounded-xl bg-[var(--surface2)]">
+                        <p className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</p>
+                        <p className="text-xs text-[var(--muted)]">{user.email}</p>
                       </div>
                       <Link
                         href="/account/subscription"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#A0A0AA] hover:bg-[#16161D] transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--muted)] hover:bg-[var(--surface2)] transition-colors"
                       >
                         <Crown className="w-4 h-4" />
                         Подписка
                       </Link>
-                      {!adminLoading && isAdmin && (
-                        <Link
-                          href="/admin"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#c8ff00] hover:bg-[#c8ff00]/10 transition-colors"
-                        >
-                          <span>⚙️</span>
-                          Admin Panel
-                        </Link>
-                      )}
                       <button
                         onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"
@@ -256,7 +236,7 @@ export function Header() {
                       </button>
                     </>
                   ) : (
-                    <Button className="w-full" onClick={() => { setMobileMenuOpen(false); setLoginOpen(true); }}>
+                    <Button variant="outline" className="w-full" onClick={() => { setMobileMenuOpen(false); setLoginOpen(true); }}>
                       Войти
                     </Button>
                   )}

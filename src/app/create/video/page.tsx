@@ -1,331 +1,1040 @@
 'use client';
 
-import { useState } from 'react';
-import { VIDEO_MODELS, getModelById, hasFeature } from '@/lib/models-config';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { 
-  FirstLastFrame,
-  CameraControl,
-  AudioSync,
-  Storyboard,
-  AspectRatioSelector,
-} from '@/components/generator/features';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import { 
   Sparkles, 
   Video,
-  Zap,
-  Star,
-  Clock,
-  Info,
   ChevronDown,
   Wand2,
+  BookOpen,
+  Settings2,
+  Zap,
+  Star,
+  Check,
+  Download,
+  Share2,
+  RotateCcw,
+  Upload,
+  X,
+  Type,
+  ImageIcon,
+  History,
+  Volume2,
+  Clock,
+  Layers,
+  Plus,
+  Trash2,
+  GripVertical,
+  Film,
+  ArrowRight,
+  LayoutGrid,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { VIDEO_MODELS } from '@/lib/models';
+import { useVideoGeneratorStore } from '@/stores/video-generator-store';
+import { toast } from 'sonner';
+import { getEffectById } from '@/config/effectsGallery';
 
-const DURATION_OPTIONS = [
-  { value: 3, label: '3 сек' },
-  { value: 5, label: '5 сек' },
-  { value: 10, label: '10 сек' },
+type VideoModeId = 't2v' | 'i2v' | 'start_end' | 'storyboard';
+
+interface StoryboardScene {
+  id: string;
+  prompt: string;
+  image?: string;
+}
+
+const MODES = [
+  { id: 't2v' as VideoModeId, label: 'Текст → Видео', icon: Type, description: 'Создать из описания' },
+  { id: 'i2v' as VideoModeId, label: 'Фото → Видео', icon: ImageIcon, description: 'Анимировать фото' },
+  { id: 'start_end' as VideoModeId, label: 'Старт → Финиш', icon: ArrowRight, description: 'Переход между кадрами' },
+  { id: 'storyboard' as VideoModeId, label: 'Раскадровка', icon: LayoutGrid, description: 'Мультисцены' },
 ];
 
-const QUICK_STYLES = [
+const DURATION_OPTIONS = [
+  { value: 5, label: '5с' },
+  { value: 10, label: '10с' },
+  { value: 15, label: '15с' },
+];
+
+const ASPECT_RATIOS = [
+  { id: '16:9', label: '16:9', icon: '▭' },
+  { id: '9:16', label: '9:16', icon: '▯' },
+  { id: '1:1', label: '1:1', icon: '□' },
+];
+
+const QUICK_TAGS = [
   'кинематографичный',
   'плавное движение',
+  '4K качество',
   'эпичный',
-  'slow motion',
+  'атмосферный',
+  'динамичный',
 ];
 
 export default function VideoCreatePage() {
-  const [selectedModel, setSelectedModel] = useState(VIDEO_MODELS[0].id);
-  const [prompt, setPrompt] = useState('');
-  const [duration, setDuration] = useState(5);
-  const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const searchParams = useSearchParams();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const startImageRef = useRef<HTMLInputElement>(null);
+  const endImageRef = useRef<HTMLInputElement>(null);
+  const sceneImageRef = useRef<HTMLInputElement>(null);
+  
+  const [isDragging, setIsDragging] = useState(false);
+  const [currentMode, setCurrentMode] = useState<VideoModeId>('t2v');
+  const [presetApplied, setPresetApplied] = useState(false);
+  
+  // Start/End mode states
+  const [startImage, setStartImage] = useState<string | null>(null);
+  const [endImage, setEndImage] = useState<string | null>(null);
+  
+  // Storyboard mode states
+  const [scenes, setScenes] = useState<StoryboardScene[]>([
+    { id: '1', prompt: '' },
+    { id: '2', prompt: '' },
+  ]);
+  const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
 
-  // Generation params
-  const [firstFrame, setFirstFrame] = useState<File | null>(null);
-  const [lastFrame, setLastFrame] = useState<File | null>(null);
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [camera, setCamera] = useState({ movement: 'static', speed: 50 });
-  const [scenes, setScenes] = useState<Array<{ id: string; prompt: string; duration: number }>>([]);
+  const {
+    mode,
+    prompt,
+    selectedModel,
+    duration,
+    motionIntensity,
+    fps,
+    uploadedImage,
+    isGenerating,
+    progress,
+    result,
+    history,
+    setMode,
+    setPrompt,
+    setSelectedModel,
+    setDuration,
+    setMotionIntensity,
+    setFps,
+    setUploadedImage,
+    startGeneration,
+    updateProgress,
+    completeGeneration,
+  } = useVideoGeneratorStore();
 
-  const model = getModelById(selectedModel);
-  const totalCredits = model ? Math.ceil(model.credits * (duration / 5)) : 0;
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
+  
+  const selectedModelData = VIDEO_MODELS.find(m => m.id === selectedModel);
 
-  const handleGenerate = async () => {
-    console.log('Generating video:', { selectedModel, prompt, duration, aspectRatio });
+  // Handle preset from URL params
+  useEffect(() => {
+    if (presetApplied) return;
+    
+    const presetId = searchParams.get('preset');
+    const modelParam = searchParams.get('model');
+    const modeParam = searchParams.get('mode') as VideoModeId | null;
+    const durationParam = searchParams.get('duration');
+    
+    if (presetId) {
+      const preset = getEffectById(presetId);
+      if (preset) {
+        if (preset.templatePrompt) {
+          setPrompt(preset.templatePrompt);
+        }
+        if (preset.modelKey) {
+          setSelectedModel(preset.modelKey);
+        }
+        if (preset.mode === 'i2v') {
+          setCurrentMode('i2v');
+          setMode('image-to-video');
+        } else if (preset.mode === 'start_end') {
+          setCurrentMode('start_end');
+        } else if (preset.mode === 'storyboard') {
+          setCurrentMode('storyboard');
+        }
+        toast.success(`Пресет "${preset.title}" загружен`);
+        setPresetApplied(true);
+        return;
+      }
+    }
+    
+    if (modelParam) {
+      const model = VIDEO_MODELS.find(m => m.id === modelParam);
+      if (model) {
+        setSelectedModel(modelParam);
+      }
+    }
+    
+    if (modeParam && ['t2v', 'i2v', 'start_end', 'storyboard'].includes(modeParam)) {
+      setCurrentMode(modeParam);
+      if (modeParam === 'i2v') {
+        setMode('image-to-video');
+      }
+    }
+    
+    if (durationParam) {
+      const dur = parseInt(durationParam, 10);
+      if (!isNaN(dur)) {
+        setDuration(dur);
+      }
+    }
+    
+    setPresetApplied(true);
+  }, [searchParams, presetApplied, setPrompt, setSelectedModel, setDuration, setMode]);
+  
+  const modelSupportsI2v = selectedModelData?.supportsI2v ?? false;
+  const modelSupportsStartEnd = selectedModelData?.supportsStartEnd ?? false;
+  const modelSupportsStoryboard = selectedModelData?.supportsStoryboard ?? false;
+
+  const getAvailableModes = useCallback(() => {
+    const modes: VideoModeId[] = ['t2v'];
+    if (modelSupportsI2v) modes.push('i2v');
+    if (modelSupportsStartEnd) modes.push('start_end');
+    if (modelSupportsStoryboard) modes.push('storyboard');
+    return modes;
+  }, [modelSupportsI2v, modelSupportsStartEnd, modelSupportsStoryboard]);
+
+  const handleModeChange = useCallback((newMode: VideoModeId) => {
+    const availableModes = getAvailableModes();
+    if (!availableModes.includes(newMode)) {
+      toast.error(`${selectedModelData?.name} не поддерживает этот режим`);
+      return;
+    }
+    setCurrentMode(newMode);
+    if (newMode === 'i2v') {
+      setMode('image-to-video');
+    } else {
+      setMode('text-to-video');
+    }
+  }, [getAvailableModes, selectedModelData?.name, setMode]);
+
+  const handleModelChange = useCallback((modelId: string) => {
+    const model = VIDEO_MODELS.find(m => m.id === modelId);
+    setSelectedModel(modelId);
+    
+    const supportedModes: VideoModeId[] = ['t2v'];
+    if (model?.supportsI2v) supportedModes.push('i2v');
+    if (model?.supportsStartEnd) supportedModes.push('start_end');
+    if (model?.supportsStoryboard) supportedModes.push('storyboard');
+    
+    if (!supportedModes.includes(currentMode)) {
+      if (model?.supportsStoryboard) {
+        setCurrentMode('storyboard');
+        toast.info(`${model?.name} работает в режиме Раскадровка`);
+      } else {
+        setCurrentMode('t2v');
+        toast.info(`${model?.name} — переключено на Текст → Видео`);
+      }
+    }
+  }, [currentMode, setSelectedModel]);
+
+  const canGenerate = (() => {
+    if (isGenerating) return false;
+    
+    switch (currentMode) {
+      case 't2v':
+        return prompt.trim().length > 0;
+      case 'i2v':
+        return prompt.trim().length > 0 && !!uploadedImage;
+      case 'start_end':
+        return !!startImage && !!endImage;
+      case 'storyboard':
+        return scenes.filter(s => s.prompt.trim().length > 0).length >= 2;
+      default:
+        return false;
+    }
+  })();
+
+  const addTag = (tag: string) => {
+    const newPrompt = prompt ? `${prompt}, ${tag}` : tag;
+    setPrompt(newPrompt);
   };
 
-  const addStyle = (style: string) => {
-    setPrompt(prev => prev ? `${prev}, ${style}` : style);
+  const handleFileUpload = useCallback((file: File, target: 'main' | 'start' | 'end' | 'scene') => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Пожалуйста, загрузите изображение');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Файл слишком большой (макс. 10MB)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      switch (target) {
+        case 'main':
+          setUploadedImage(result);
+          break;
+        case 'start':
+          setStartImage(result);
+          break;
+        case 'end':
+          setEndImage(result);
+          break;
+        case 'scene':
+          if (editingSceneId) {
+            setScenes(prev => prev.map(s => 
+              s.id === editingSceneId ? { ...s, image: result } : s
+            ));
+            setEditingSceneId(null);
+          }
+          break;
+      }
+      toast.success('Изображение загружено');
+    };
+    reader.readAsDataURL(file);
+  }, [setUploadedImage, editingSceneId]);
+
+  const handleDrop = useCallback((e: React.DragEvent, target: 'main' | 'start' | 'end') => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file, target);
+  }, [handleFileUpload]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const addScene = () => {
+    if (scenes.length >= 6) {
+      toast.error('Максимум 6 сцен');
+      return;
+    }
+    setScenes(prev => [...prev, { id: Date.now().toString(), prompt: '' }]);
+  };
+
+  const removeScene = (id: string) => {
+    if (scenes.length <= 2) {
+      toast.error('Минимум 2 сцены');
+      return;
+    }
+    setScenes(prev => prev.filter(s => s.id !== id));
+  };
+
+  const updateScenePrompt = (id: string, prompt: string) => {
+    setScenes(prev => prev.map(s => s.id === id ? { ...s, prompt } : s));
+  };
+
+  const removeSceneImage = (id: string) => {
+    setScenes(prev => prev.map(s => s.id === id ? { ...s, image: undefined } : s));
+  };
+
+  const totalCredits = selectedModelData?.creditCost 
+    ? selectedModelData.creditCost * Math.ceil(duration / 5)
+    : null;
+
+  const handleGenerate = () => {
+    if (!canGenerate) return;
+
+    startGeneration('mock-job-id');
+    toast.success('Генерация видео началась!');
+
+    let p = 0;
+    const interval = setInterval(() => {
+      p += Math.random() * 10;
+      if (p >= 100) {
+        clearInterval(interval);
+        completeGeneration({
+          id: `video_${Date.now()}`,
+          url: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1618556450994-a6a128ef0d9d?w=400',
+          model: selectedModel,
+          duration,
+          resolution: '1080p',
+          prompt: currentMode === 'storyboard' 
+            ? scenes.map(s => s.prompt).join(' → ') 
+            : prompt,
+          createdAt: new Date(),
+        });
+        toast.success('Видео готово! 🎬');
+      } else {
+        updateProgress(Math.min(99, Math.round(p)));
+      }
+    }, 800);
+  };
+
+  const isModeAvailable = (modeId: VideoModeId) => {
+    switch (modeId) {
+      case 't2v': return true;
+      case 'i2v': return modelSupportsI2v;
+      case 'start_end': return modelSupportsStartEnd;
+      case 'storyboard': return modelSupportsStoryboard;
+      default: return false;
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pt-20 pb-12">
-      <div className="container mx-auto px-4 lg:px-6 max-w-7xl">
-        <div className="grid lg:grid-cols-12 gap-6">
-          
-          {/* Left: Model Selector */}
-          <div className="lg:col-span-3 space-y-4">
-            {/* Header */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#c8ff00]/10 border border-[#c8ff00]/30 flex items-center justify-center">
-                <Video className="w-5 h-5 text-[#c8ff00]" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">Видео</h1>
-                <p className="text-xs text-white/40">{VIDEO_MODELS.length} моделей</p>
-              </div>
-            </div>
-
-            {/* Models List */}
-            <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
-              {VIDEO_MODELS.map((m) => (
+    <div className="min-h-screen bg-[var(--bg)]">
+      <div className="flex">
+        {/* Left Sidebar - Models & History */}
+        <aside className="w-64 min-h-screen border-r border-[var(--border)] bg-[var(--surface)] flex-shrink-0 sticky top-0 overflow-y-auto">
+          <div className="p-4">
+            <h2 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3 px-2">
+              Видео модели
+            </h2>
+            <div className="space-y-1">
+              {VIDEO_MODELS.map((model) => (
                 <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setSelectedModel(m.id)}
+                  key={model.id}
+                  onClick={() => handleModelChange(model.id)}
                   className={cn(
-                    "w-full text-left p-4 rounded-xl transition-all",
-                    selectedModel === m.id
-                      ? "bg-[#c8ff00]/10 border-2 border-[#c8ff00]/50"
-                      : "bg-white/[0.02] border border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
+                    "w-full text-left p-3 rounded-xl transition-all group",
+                    selectedModel === model.id
+                      ? "bg-[var(--gold)]/20 border border-[var(--gold)]/50"
+                      : "hover:bg-[var(--surface2)] border border-transparent"
                   )}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className={cn(
-                      "font-semibold",
-                      selectedModel === m.id ? "text-[#c8ff00]" : "text-white"
-                    )}>
-                      {m.name}
-                    </h3>
-                    <span className="text-[#c8ff00] font-bold text-sm">{m.credits}</span>
-                  </div>
-                  
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {m.quality === 'ultra' && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded flex items-center gap-0.5">
-                        <Star className="w-2.5 h-2.5 fill-amber-400" />ULTRA
-                      </span>
-                    )}
-                    {m.speed === 'fast' && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded flex items-center gap-0.5">
-                        <Zap className="w-2.5 h-2.5" />FAST
-                      </span>
-                    )}
-                    {m.speed === 'slow' && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded flex items-center gap-0.5">
-                        <Clock className="w-2.5 h-2.5" />PRO
-                      </span>
-                    )}
-                  </div>
-                  
-                  <p className="text-xs text-white/40 line-clamp-2">
-                    {m.description}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: Generator */}
-          <div className="lg:col-span-9 space-y-5">
-            {/* Model Info */}
-            {model && (
-              <div className="p-4 rounded-xl bg-[#c8ff00]/5 border border-[#c8ff00]/20">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#c8ff00]/10 flex items-center justify-center shrink-0">
-                      <Info className="w-5 h-5 text-[#c8ff00]" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white mb-1">{model.name}</h3>
-                      <p className="text-sm text-white/50">{model.description}</p>
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {model.quality === 'ultra' && (
-                          <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full flex items-center gap-0.5 border border-amber-500/20">
-                            <Star className="w-2.5 h-2.5 fill-amber-400" />ULTRA
-                          </span>
-                        )}
-                        {model.speed === 'fast' && (
-                          <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center gap-0.5 border border-emerald-500/20">
-                            <Zap className="w-2.5 h-2.5" />FAST
-                          </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "font-medium text-sm truncate",
+                          selectedModel === model.id ? "text-[var(--text)]" : "text-[var(--text2)]"
+                        )}>
+                          {model.name}
+                        </span>
+                        {selectedModel === model.id && (
+                          <Check className="w-3.5 h-3.5 text-[var(--gold)] flex-shrink-0" />
                         )}
                       </div>
+                      <p className="text-[11px] text-[var(--muted)] line-clamp-1 mt-0.5">
+                        {model.description}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-lg font-bold text-[#c8ff00]">{model.credits}</div>
-                    <div className="text-xs text-white/30">кредитов</div>
+                  <div className="flex items-center gap-1 mt-2 flex-wrap">
+                    {model.quality === 'ultra' && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold">
+                        ULTRA
+                      </span>
+                    )}
+                    {model.speed === 'fast' && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center gap-0.5">
+                        <Zap className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                    {model.supportsI2v && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)] font-bold">
+                        i2v
+                      </span>
+                    )}
+                    {model.supportsAudio && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-400 font-bold flex items-center gap-0.5">
+                        <Volume2 className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                    {model.supportsStartEnd && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold flex items-center gap-0.5">
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                    {model.supportsStoryboard && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold flex items-center gap-0.5">
+                        <LayoutGrid className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                    <span className="text-[10px] text-[var(--muted)] flex items-center gap-0.5 ml-auto">
+                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                      {model.creditCost ?? '—'}
+                    </span>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* Main Prompt */}
-            <div>
-              <label className="text-sm font-medium text-white/70 mb-2 block">
-                Описание видео
-              </label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Опишите видео которое хотите создать..."
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl 
-                         text-white placeholder:text-white/30
-                         resize-none focus:outline-none focus:border-[#c8ff00]/50 transition-colors"
-                rows={4}
-              />
-              <div className="flex justify-between mt-2">
-                <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#c8ff00] transition-colors">
-                  <Wand2 className="w-3.5 h-3.5" />
-                  Улучшить AI
-                </button>
-                <span className="text-xs text-white/30">{prompt.length} символов</span>
-              </div>
-            </div>
-
-            {/* Quick Styles */}
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_STYLES.map((style) => (
-                <button
-                  key={style}
-                  type="button"
-                  onClick={() => addStyle(style)}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-white/10 
-                           text-white/40 hover:border-[#c8ff00]/50 hover:text-[#c8ff00] transition-all"
-                >
-                  + {style}
                 </button>
               ))}
             </div>
 
-            {/* Duration */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-white/70 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#c8ff00]" />
-                Длительность
-              </label>
-              <div className="flex gap-2">
-                {DURATION_OPTIONS.map((d) => (
-                  <button
-                    key={d.value}
-                    type="button"
-                    onClick={() => setDuration(d.value)}
-                    className={cn(
-                      "flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all",
-                      duration === d.value
-                        ? "border-[#c8ff00]/50 bg-[#c8ff00]/10 text-[#c8ff00]"
-                        : "border-white/10 text-white/50 hover:border-white/20"
-                    )}
+            {history && history.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between mb-3 px-2">
+                  <h2 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider flex items-center gap-1.5">
+                    <History className="w-3 h-3" />
+                    История
+                  </h2>
+                  <button 
+                    onClick={() => useVideoGeneratorStore.setState({ history: [] })}
+                    className="text-[10px] text-[var(--muted)] hover:text-red-400 transition-colors"
                   >
-                    {d.label}
+                    Очистить
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Aspect Ratio */}
-            {model?.aspectRatios && (
-              <AspectRatioSelector
-                ratios={model.aspectRatios}
-                selected={aspectRatio}
-                onChange={setAspectRatio}
-              />
-            )}
-
-            {/* Features Grid */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* First/Last Frame */}
-              {hasFeature(selectedModel, 'first-last-frame') && (
-                <FirstLastFrame
-                  onFirstFrameChange={setFirstFrame}
-                  onLastFrameChange={setLastFrame}
-                />
-              )}
-
-              {/* Audio Sync */}
-              {hasFeature(selectedModel, 'audio-sync') && (
-                <div className="md:col-span-2">
-                  <AudioSync onAudioChange={setAudioFile} />
                 </div>
-              )}
-            </div>
-
-            {/* Camera Control */}
-            {hasFeature(selectedModel, 'camera-control') && (
-              <CameraControl onCameraChange={setCamera} />
-            )}
-
-            {/* Storyboard */}
-            {hasFeature(selectedModel, 'storyboard') && (
-              <Storyboard onScenesChange={setScenes} />
-            )}
-
-            {/* Advanced Settings */}
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center justify-between w-full p-3 rounded-xl border border-white/10 
-                       hover:border-white/20 transition-colors text-white/70"
-            >
-              <span className="text-sm font-medium">Расширенные настройки</span>
-              <ChevronDown className={cn("w-4 h-4 transition-transform", showAdvanced && "rotate-180")} />
-            </button>
-
-            {showAdvanced && (
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 space-y-4">
-                <div>
-                  <label className="text-xs text-white/40 mb-2 flex justify-between">
-                    <span>Интенсивность движения</span>
-                    <span className="text-white font-medium">50%</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer
-                             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 
-                             [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full 
-                             [&::-webkit-slider-thumb]:bg-[#c8ff00]" 
-                    min="0" 
-                    max="100" 
-                    defaultValue={50}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-white/40 mb-2 flex justify-between">
-                    <span>FPS</span>
-                    <span className="text-white font-medium">30</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer
-                             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 
-                             [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full 
-                             [&::-webkit-slider-thumb]:bg-[#c8ff00]" 
-                    min="24" 
-                    max="60" 
-                    step="6"
-                    defaultValue={30}
-                  />
+                <div className="grid grid-cols-2 gap-1.5">
+                  {history.slice(0, 6).map((item: any) => (
+                    <button
+                      key={item.id}
+                      onClick={() => useVideoGeneratorStore.setState({ result: item })}
+                      className="group relative aspect-video rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
+                    >
+                      <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Video className="w-4 h-4 text-white" />
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
-
-            {/* Generate Button */}
-            <Button
-              size="lg"
-              onClick={handleGenerate}
-              disabled={!prompt.trim()}
-              className="w-full h-14 text-base font-semibold rounded-xl bg-[#c8ff00] text-black hover:bg-[#b8ef00] disabled:bg-[#c8ff00]/30 disabled:text-black/50"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Создать видео
-              <span className="ml-2 opacity-70">• {totalCredits} кредитов</span>
-            </Button>
           </div>
-        </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">
+          <div className="max-w-6xl mx-auto p-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              
+              {/* Generator Controls */}
+              <div className="space-y-4">
+                {/* Mode Selector */}
+                <div className="flex gap-1 p-1 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
+                  {MODES.map((m) => {
+                    const isAvailable = isModeAvailable(m.id);
+                    const isActive = currentMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => handleModeChange(m.id)}
+                        disabled={!isAvailable}
+                        className={cn(
+                          "flex-1 flex flex-col items-center gap-1 py-2 px-2 rounded-lg text-xs font-medium transition-all",
+                          isActive
+                            ? "bg-[var(--gold)] text-[#0a0a0f] shadow-lg shadow-[var(--gold-glow)]"
+                            : isAvailable
+                              ? "text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+                              : "text-[var(--muted)]/50 cursor-not-allowed"
+                        )}
+                      >
+                        <m.icon className="w-4 h-4" />
+                        <span className="whitespace-nowrap">{m.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected Model Info */}
+                {selectedModelData && (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--gold)]/20 flex items-center justify-center">
+                      <Video className="w-5 h-5 text-[var(--gold)]" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[var(--text)]">{selectedModelData.name}</span>
+                        {selectedModelData.quality === 'ultra' && (
+                          <Badge variant="warning" className="text-[9px] px-1.5 py-0">ULTRA</Badge>
+                        )}
+                        {selectedModelData.supportsAudio && (
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 flex items-center gap-0.5">
+                            <Volume2 className="w-2.5 h-2.5" />
+                            Звук
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-[var(--muted)]">{selectedModelData.description}</p>
+                    </div>
+                    <Badge variant="primary" className="font-bold">
+                      ⭐ {selectedModelData.creditCost ?? '—'}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* MODE: Text to Video */}
+                {currentMode === 't2v' && (
+                  <>
+                    <Card variant="hover" padding="md">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-medium text-[var(--text2)] uppercase tracking-wider">
+                          Промпт
+                        </label>
+                        <span className="text-[10px] text-[var(--muted)]">{prompt.length} / 2000</span>
+                      </div>
+                      <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="Опишите видео, которое хотите создать..."
+                        className="w-full h-28 px-3 py-2.5 rounded-lg text-sm
+                                   bg-[var(--surface2)] border border-[var(--border)]
+                                   text-[var(--text)] placeholder:text-[var(--muted)]
+                                   focus:outline-none focus:border-[var(--gold)]
+                                   resize-none transition-all"
+                      />
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button variant="secondary" size="sm" className="text-xs h-7">
+                          <Wand2 className="w-3 h-3 mr-1" />
+                          Улучшить
+                        </Button>
+                        <Button variant="secondary" size="sm" className="text-xs h-7">
+                          <BookOpen className="w-3 h-3 mr-1" />
+                          Шаблоны
+                        </Button>
+                      </div>
+                    </Card>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {QUICK_TAGS.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => addTag(tag)}
+                          className="px-2.5 py-1 rounded-full text-[11px] font-medium
+                                     bg-[var(--surface)] border border-[var(--border)]
+                                     text-[var(--text2)] hover:text-[var(--text)]
+                                     hover:border-[var(--gold)] hover:bg-[var(--gold)]/10 transition-all"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* MODE: Image to Video */}
+                {currentMode === 'i2v' && (
+                  <>
+                    <Card variant="hover" padding="sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider">
+                          Исходное фото <span className="text-red-400">*</span>
+                        </label>
+                        {uploadedImage && (
+                          <button
+                            onClick={() => { setUploadedImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                            className="text-[10px] text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            Удалить
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <div className="w-28 flex-shrink-0">
+                          {uploadedImage ? (
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-[var(--surface2)] border border-[var(--border)]">
+                              <img src={uploadedImage} alt="Reference" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => fileInputRef.current?.click()}
+                              onDrop={(e) => handleDrop(e, 'main')}
+                              onDragOver={handleDragOver}
+                              onDragLeave={handleDragLeave}
+                              className={cn(
+                                "aspect-video rounded-lg border-2 border-dashed cursor-pointer transition-all",
+                                "flex flex-col items-center justify-center",
+                                isDragging
+                                  ? "border-[var(--gold)] bg-[var(--gold)]/10"
+                                  : "border-[var(--border)] hover:border-[var(--gold)]/50 bg-[var(--surface2)]"
+                              )}
+                            >
+                              <Upload className="w-5 h-5 text-[var(--muted)]" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 flex flex-col justify-center">
+                          <p className="text-[11px] text-[var(--text2)]">
+                            {uploadedImage ? 'Изображение будет анимировано' : 'Перетащите или выберите фото'}
+                          </p>
+                          {!uploadedImage && <p className="text-[9px] text-[var(--muted)] mt-0.5">PNG, JPG до 10MB</p>}
+                        </div>
+                      </div>
+                      
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'main')}
+                        className="hidden"
+                      />
+                    </Card>
+
+                    <Card variant="hover" padding="md">
+                      <label className="text-xs font-medium text-[var(--text2)] uppercase tracking-wider mb-2 block">
+                        Описание движения
+                      </label>
+                      <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="Опишите как должно двигаться изображение..."
+                        className="w-full h-20 px-3 py-2.5 rounded-lg text-sm
+                                   bg-[var(--surface2)] border border-[var(--border)]
+                                   text-[var(--text)] placeholder:text-[var(--muted)]
+                                   focus:outline-none focus:border-[var(--gold)]
+                                   resize-none transition-all"
+                      />
+                    </Card>
+                  </>
+                )}
+
+                {/* MODE: Start to End */}
+                {currentMode === 'start_end' && (
+                  <Card variant="hover" padding="md">
+                    <label className="text-xs font-medium text-[var(--text2)] uppercase tracking-wider mb-3 block">
+                      Старт → Финиш
+                    </label>
+                    <p className="text-[11px] text-[var(--muted)] mb-4">
+                      AI создаст плавный переход между двумя кадрами
+                    </p>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <p className="text-[10px] text-[var(--muted)] mb-1.5 text-center">Начальный кадр</p>
+                        {startImage ? (
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-[var(--surface2)] border border-[var(--border)] group">
+                            <img src={startImage} alt="Start" className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => setStartImage(null)}
+                              className="absolute top-1 right-1 p-1 rounded bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-3 h-3 text-white" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => startImageRef.current?.click()}
+                            onDrop={(e) => handleDrop(e, 'start')}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            className="aspect-video rounded-lg border-2 border-dashed border-[var(--border)] hover:border-emerald-500/50 
+                                       bg-[var(--surface2)] cursor-pointer transition-all flex flex-col items-center justify-center gap-1"
+                          >
+                            <Upload className="w-5 h-5 text-emerald-400/50" />
+                            <span className="text-[9px] text-[var(--muted)]">Старт</span>
+                          </div>
+                        )}
+                        <input
+                          ref={startImageRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'start')}
+                          className="hidden"
+                        />
+                      </div>
+
+                      <div className="flex-shrink-0 flex items-center justify-center">
+                        <ArrowRight className="w-6 h-6 text-[var(--muted)]" />
+                      </div>
+
+                      <div className="flex-1">
+                        <p className="text-[10px] text-[var(--muted)] mb-1.5 text-center">Конечный кадр</p>
+                        {endImage ? (
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-[var(--surface2)] border border-[var(--border)] group">
+                            <img src={endImage} alt="End" className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => setEndImage(null)}
+                              className="absolute top-1 right-1 p-1 rounded bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-3 h-3 text-white" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => endImageRef.current?.click()}
+                            onDrop={(e) => handleDrop(e, 'end')}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            className="aspect-video rounded-lg border-2 border-dashed border-[var(--border)] hover:border-rose-500/50 
+                                       bg-[var(--surface2)] cursor-pointer transition-all flex flex-col items-center justify-center gap-1"
+                          >
+                            <Upload className="w-5 h-5 text-rose-400/50" />
+                            <span className="text-[9px] text-[var(--muted)]">Финиш</span>
+                          </div>
+                        )}
+                        <input
+                          ref={endImageRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'end')}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* MODE: Storyboard */}
+                {currentMode === 'storyboard' && (
+                  <Card variant="hover" padding="md">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-xs font-medium text-[var(--text2)] uppercase tracking-wider flex items-center gap-2">
+                        <LayoutGrid className="w-4 h-4 text-orange-400" />
+                        Раскадровка ({scenes.length}/6)
+                      </label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={addScene}
+                        disabled={scenes.length >= 6}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Сцена
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-[var(--muted)] mb-4">
+                      Опишите каждую сцену. Можно добавить изображение как референс.
+                    </p>
+                    
+                    <div className="space-y-3">
+                      {scenes.map((scene, idx) => (
+                        <div key={scene.id} className="flex gap-2 group">
+                          <div className="flex flex-col items-center gap-1 pt-1">
+                            <div className="w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold flex items-center justify-center">
+                              {idx + 1}
+                            </div>
+                            <GripVertical className="w-3 h-3 text-[var(--muted)] opacity-0 group-hover:opacity-100 cursor-grab" />
+                          </div>
+                          
+                          <div className="flex-1 flex gap-2">
+                            <div className="w-16 flex-shrink-0">
+                              {scene.image ? (
+                                <div className="relative aspect-video rounded-md overflow-hidden bg-[var(--surface2)] border border-[var(--border)] group/img">
+                                  <img src={scene.image} alt="" className="w-full h-full object-cover" />
+                                  <button
+                                    onClick={() => removeSceneImage(scene.id)}
+                                    className="absolute top-0.5 right-0.5 p-0.5 rounded bg-black/60 opacity-0 group-hover/img:opacity-100 transition-opacity"
+                                  >
+                                    <X className="w-2.5 h-2.5 text-white" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingSceneId(scene.id);
+                                    sceneImageRef.current?.click();
+                                  }}
+                                  className="aspect-video rounded-md border border-dashed border-[var(--border)] hover:border-orange-500/50
+                                             bg-[var(--surface2)] w-full flex items-center justify-center transition-all"
+                                >
+                                  <ImageIcon className="w-3.5 h-3.5 text-[var(--muted)]" />
+                                </button>
+                              )}
+                            </div>
+                            
+                            <textarea
+                              value={scene.prompt}
+                              onChange={(e) => updateScenePrompt(scene.id, e.target.value)}
+                              placeholder={`Сцена ${idx + 1}: опишите что происходит...`}
+                              className="flex-1 h-14 px-2.5 py-2 rounded-lg text-xs
+                                         bg-[var(--surface2)] border border-[var(--border)]
+                                         text-[var(--text)] placeholder:text-[var(--muted)]
+                                         focus:outline-none focus:border-orange-500/50
+                                         resize-none transition-all"
+                            />
+                          </div>
+                          
+                          <button
+                            onClick={() => removeScene(scene.id)}
+                            disabled={scenes.length <= 2}
+                            className={cn(
+                              "p-1.5 rounded transition-all self-start mt-1",
+                              scenes.length > 2
+                                ? "text-[var(--muted)] hover:text-red-400 hover:bg-red-500/10"
+                                : "text-[var(--border)] cursor-not-allowed"
+                            )}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <input
+                      ref={sceneImageRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'scene')}
+                      className="hidden"
+                    />
+                  </Card>
+                )}
+
+                {/* Settings Row */}
+                {(currentMode === 't2v' || currentMode === 'i2v') && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Card variant="hover" padding="sm">
+                      <label className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">
+                        Длительность
+                      </label>
+                      <div className="grid grid-cols-3 gap-1">
+                        {DURATION_OPTIONS.map((d) => (
+                          <button
+                            key={d.value}
+                            onClick={() => setDuration(d.value)}
+                            className={cn(
+                              "p-1.5 rounded-md border text-center text-sm font-medium transition-all",
+                              duration === d.value
+                                ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--text)]"
+                                : "border-[var(--border)] hover:border-[var(--gold)]/50 text-[var(--text2)]"
+                            )}
+                          >
+                            {d.label}
+                          </button>
+                        ))}
+                      </div>
+                    </Card>
+
+                    <Card variant="hover" padding="sm">
+                      <label className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">
+                        Соотношение
+                      </label>
+                      <div className="grid grid-cols-3 gap-1">
+                        {ASPECT_RATIOS.map((ratio) => (
+                          <button
+                            key={ratio.id}
+                            onClick={() => setAspectRatio(ratio.id as '16:9' | '9:16' | '1:1')}
+                            className={cn(
+                              "flex flex-col items-center gap-0.5 p-1.5 rounded-md border transition-all",
+                              aspectRatio === ratio.id
+                                ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--text)]"
+                                : "border-[var(--border)] hover:border-[var(--gold)]/50 text-[var(--text2)]"
+                            )}
+                          >
+                            <span className="text-sm">{ratio.icon}</span>
+                            <span className="text-[9px] font-medium">{ratio.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Advanced Settings */}
+                <Card variant="hover" padding="none">
+                  <details className="group">
+                    <summary className="flex items-center justify-between p-3 cursor-pointer list-none">
+                      <div className="flex items-center gap-2">
+                        <Settings2 className="w-3.5 h-3.5 text-[var(--muted)]" />
+                        <span className="font-medium text-[var(--text2)] text-xs">Расширенные настройки</span>
+                      </div>
+                      <ChevronDown className="w-3.5 h-3.5 text-[var(--muted)] transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="px-3 pb-3 space-y-3 border-t border-[var(--border)] pt-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] text-[var(--text2)]">Интенсивность движения</label>
+                          <span className="text-[10px] font-semibold text-[var(--gold)]">{motionIntensity}%</span>
+                        </div>
+                        <Slider 
+                          value={[motionIntensity]} 
+                          onValueChange={([v]) => setMotionIntensity(v)} 
+                          min={0} 
+                          max={100} 
+                          step={5} 
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] text-[var(--text2)]">FPS</label>
+                          <span className="text-[10px] font-semibold text-[var(--gold)]">{fps}</span>
+                        </div>
+                        <Slider 
+                          value={[fps]} 
+                          onValueChange={([v]) => setFps(v)} 
+                          min={24} 
+                          max={60} 
+                          step={6} 
+                        />
+                      </div>
+                    </div>
+                  </details>
+                </Card>
+
+                {/* Generate Button */}
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="w-full"
+                  disabled={!canGenerate}
+                  onClick={handleGenerate}
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin mr-2" />
+                      Генерация {progress}%
+                    </>
+                  ) : (
+                    <>
+                      <Video className="w-4 h-4 mr-2" />
+                      {currentMode === 'storyboard' ? 'Собрать видео' : currentMode === 'start_end' ? 'Создать переход' : currentMode === 'i2v' ? 'Анимировать' : 'Создать'}
+                      {totalCredits ? ` • ${totalCredits} ⭐` : ''}
+                    </>
+                  )}
+                </Button>
+
+                {currentMode === 'i2v' && !uploadedImage && (
+                  <p className="text-xs text-center text-amber-400/80">Загрузите изображение для анимации</p>
+                )}
+                {currentMode === 'start_end' && (!startImage || !endImage) && (
+                  <p className="text-xs text-center text-amber-400/80">Загрузите начальный и конечный кадры</p>
+                )}
+                {currentMode === 'storyboard' && scenes.filter(s => s.prompt.trim()).length < 2 && (
+                  <p className="text-xs text-center text-amber-400/80">Заполните минимум 2 сцены</p>
+                )}
+              </div>
+
+              {/* Preview Panel */}
+              <div className="xl:sticky xl:top-6 xl:self-start">
+                <Card variant="hover" className="overflow-hidden" padding="none">
+                  <div className="aspect-video flex items-center justify-center bg-[var(--surface2)]">
+                    {isGenerating ? (
+                      <div className="text-center p-8">
+                        <div className="w-14 h-14 border-4 border-[var(--gold)]/30 border-t-[var(--gold)] 
+                                        rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-[var(--text)] font-medium text-sm">Генерация {progress}%</p>
+                        <p className="text-[var(--muted)] text-xs mt-1">Это займёт несколько минут</p>
+                      </div>
+                    ) : result ? (
+                      <video 
+                        src={result.url}
+                        controls
+                        className="w-full h-full object-contain"
+                        poster={result.thumbnailUrl}
+                      />
+                    ) : (
+                      <div className="text-center p-8">
+                        <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-[var(--border)] 
+                                        flex items-center justify-center mx-auto mb-4 bg-[var(--surface)]">
+                          <Video className="w-8 h-8 text-[var(--muted)]" />
+                        </div>
+                        <h3 className="text-base font-semibold text-[var(--text)] mb-1">
+                          Превью
+                        </h3>
+                        <p className="text-[var(--muted)] text-xs">
+                          Результат генерации появится здесь
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {result && (
+                    <div className="flex items-center justify-between p-3 border-t border-[var(--border)]">
+                      <div className="flex items-center gap-1.5">
+                        <Button variant="secondary" size="sm" className="h-7 px-2.5 text-xs">
+                          <Download className="w-3 h-3 mr-1" />
+                          Скачать
+                        </Button>
+                        <Button variant="secondary" size="sm" className="h-7 px-2.5 text-xs">
+                          <Share2 className="w-3 h-3 mr-1" />
+                          Поделиться
+                        </Button>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs">
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        Ещё
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

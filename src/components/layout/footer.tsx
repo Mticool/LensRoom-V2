@@ -23,31 +23,31 @@ const footerLinks = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+    <footer className="border-t border-[var(--border)] bg-[var(--surface)]">
       <div className="container mx-auto px-6 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-purple-500)] to-[var(--color-blue-500)] flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-lg bg-[var(--gold)] flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-black" />
               </div>
-              <span className="font-bold text-[var(--color-text-primary)]">LensRoom</span>
+              <span className="font-bold text-[var(--text)]">LensRoom</span>
             </Link>
-            <p className="text-sm text-[var(--color-text-secondary)]">
+            <p className="text-sm text-[var(--text2)]">
               AI платформа для создания контента
             </p>
           </div>
 
           {/* Product */}
           <div>
-            <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Продукты</h4>
+            <h4 className="text-sm font-semibold text-[var(--text)] mb-4">Продукты</h4>
             <ul className="space-y-2">
               {footerLinks.product.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+                    className="text-sm text-[var(--text2)] hover:text-[var(--text)] transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -58,13 +58,13 @@ export function Footer() {
 
           {/* Resources */}
           <div>
-            <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Ресурсы</h4>
+            <h4 className="text-sm font-semibold text-[var(--text)] mb-4">Ресурсы</h4>
             <ul className="space-y-2">
               {footerLinks.resources.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+                    className="text-sm text-[var(--text2)] hover:text-[var(--text)] transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -75,13 +75,13 @@ export function Footer() {
 
           {/* Company */}
           <div>
-            <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Компания</h4>
+            <h4 className="text-sm font-semibold text-[var(--text)] mb-4">Компания</h4>
             <ul className="space-y-2">
               {footerLinks.company.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+                    className="text-sm text-[var(--text2)] hover:text-[var(--text)] transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -92,20 +92,20 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="mt-12 pt-6 border-t border-[var(--color-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-[var(--color-text-tertiary)]">
+        <div className="mt-12 pt-6 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-[var(--muted)]">
             © {new Date().getFullYear()} LensRoom
           </p>
           <div className="flex items-center gap-6">
             <Link
               href="/terms"
-              className="text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
+              className="text-sm text-[var(--muted)] hover:text-[var(--text2)] transition-colors"
             >
               Условия
             </Link>
             <Link
               href="/privacy"
-              className="text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
+              className="text-sm text-[var(--muted)] hover:text-[var(--text2)] transition-colors"
             >
               Приватность
             </Link>

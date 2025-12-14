@@ -167,7 +167,7 @@ export default function TestAPIPage() {
                   </code>
                 </div>
                 <Badge
-                  variant={lastJobType === "video" ? "primary" : "warning"}
+                  variant={lastJobType === "video" ? "purple" : "gold"}
                   className="text-xs"
                 >
                   {lastJobType}

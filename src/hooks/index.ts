@@ -10,4 +10,4 @@ export {
   useGenerationHistory,
 } from "./use-generations";
 export type { Generation, CreateGenerationInput, UpdateGenerationInput } from "./use-generations";
-export { useProductGeneration } from "./use-product-generation";
+

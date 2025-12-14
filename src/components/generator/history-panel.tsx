@@ -68,10 +68,10 @@ export function HistoryPanel({
   // Loading state
   if (isLoading) {
     return (
-      <Card className="overflow-hidden bg-[#0F0F14] border-[#26262E]">
+      <Card className="overflow-hidden">
         <div className="p-4 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-purple-500 mr-2" />
-          <span className="text-[#A0A0AA]">Загрузка истории...</span>
+          <Loader2 className="w-5 h-5 animate-spin text-[var(--gold)] mr-2" />
+          <span className="text-[var(--muted)]">Загрузка истории...</span>
         </div>
       </Card>
     );
@@ -80,7 +80,7 @@ export function HistoryPanel({
   // Error state
   if (error) {
     return (
-      <Card className="overflow-hidden bg-[#0F0F14] border-[#26262E]">
+      <Card className="overflow-hidden">
         <div className="p-4 text-center">
           <p className="text-red-400 mb-2">Ошибка загрузки истории</p>
           <Button variant="secondary" size="sm" onClick={() => refetch()}>
@@ -95,34 +95,34 @@ export function HistoryPanel({
   // Empty state
   if (generations.length === 0) {
     return (
-      <Card className="overflow-hidden bg-[#0F0F14] border-[#26262E]">
+      <Card className="overflow-hidden">
         <div className="p-6 text-center">
-          <div className="w-12 h-12 rounded-xl bg-[#16161D] flex items-center justify-center mx-auto mb-3">
+          <div className="w-12 h-12 rounded-xl bg-[var(--surface2)] flex items-center justify-center mx-auto mb-3">
             {type === 'video' ? (
-              <Video className="w-6 h-6 text-[#6B6B78]" />
+              <Video className="w-6 h-6 text-[var(--muted)]" />
             ) : (
-              <ImageIcon className="w-6 h-6 text-[#6B6B78]" />
+              <ImageIcon className="w-6 h-6 text-[var(--muted)]" />
             )}
           </div>
-          <p className="text-[#A0A0AA] text-sm">История пуста</p>
-          <p className="text-[#6B6B78] text-xs mt-1">Ваши генерации появятся здесь</p>
+          <p className="text-[var(--text2)] text-sm">История пуста</p>
+          <p className="text-[var(--muted)] text-xs mt-1">Ваши генерации появятся здесь</p>
         </div>
       </Card>
     );
   }
 
   return (
-    <Card className="overflow-hidden bg-[#0F0F14] border-[#26262E]">
+    <Card className="overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-[#16161D] transition-colors"
+        className="w-full flex items-center justify-between p-4 hover:bg-[var(--surface2)] transition-colors"
       >
-        <span className="font-medium text-white">История ({generations.length})</span>
+        <span className="font-medium text-[var(--text)]">История ({generations.length})</span>
         {isExpanded ? (
-          <ChevronUp className="w-4 h-4 text-[#A0A0AA]" />
+          <ChevronUp className="w-4 h-4 text-[var(--muted)]" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-[#A0A0AA]" />
+          <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
         )}
       </button>
 
@@ -170,8 +170,8 @@ export function HistoryPanel({
                     'relative aspect-square rounded-lg overflow-hidden cursor-pointer group',
                     'border-2 transition-colors',
                     selectedId === item.id
-                      ? 'border-purple-500'
-                      : 'border-transparent hover:border-purple-500/50'
+                      ? 'border-[var(--gold)]'
+                      : 'border-transparent hover:border-[var(--gold)]/50'
                   )}
                   onClick={() => handleSelect(item)}
                 >

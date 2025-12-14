@@ -2,13 +2,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, Github, Loader2 } from 'lucide-react';
+import { X, Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
-import { REGISTRATION_BONUS } from '@/lib/pricing-config';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -35,31 +33,9 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
         toast.success('Вы успешно вошли!');
         onClose();
       } else if (mode === 'register') {
-        // Регистрация напрямую через клиента
-        const supabase = createClient();
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        if (data.user) {
-          // Создаём кредиты
-          const { error: creditsError } = await supabase
-            .from('credits')
-            .insert({
-              user_id: data.user.id,
-              amount: REGISTRATION_BONUS,
-            });
-
-          if (creditsError) {
-            console.error('Credits error:', creditsError);
-          }
-
-          toast.success('Регистрация успешна! Проверьте почту.');
-          setMode('login');
-        }
+        await signUp(email, password);
+        toast.success('Проверьте почту для подтверждения!');
+        setMode('login');
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Произошла ошибка';
@@ -97,27 +73,27 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-                       w-full max-w-md p-6 bg-[var(--color-bg-elevated)] rounded-2xl
-                       border border-[var(--color-border)] shadow-2xl"
+                       w-full max-w-md p-6 bg-[var(--surface)] rounded-2xl
+                       border border-[var(--border)] shadow-2xl"
           >
             {/* Close button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-[var(--surface2)] transition-colors"
             >
-              <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
+              <X className="w-5 h-5 text-[var(--muted)]" />
             </button>
 
             {/* Header */}
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-[var(--color-text-primary)] mb-2">
+              <h2 className="text-2xl font-bold text-[var(--text)] mb-2">
                 {mode === 'login' && 'Вход в аккаунт'}
                 {mode === 'register' && 'Создать аккаунт'}
                 {mode === 'forgot' && 'Восстановить пароль'}
               </h2>
-              <p className="text-[var(--color-text-secondary)]">
+              <p className="text-[var(--text2)]">
                 {mode === 'login' && 'Войдите чтобы сохранять историю генераций'}
-                {mode === 'register' && `🎁 Получите ${REGISTRATION_BONUS} бесплатных кредитов`}
+                {mode === 'register' && 'Получите 100 бесплатных кредитов'}
                 {mode === 'forgot' && 'Введите email для сброса пароля'}
               </p>
             </div>
@@ -141,10 +117,10 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-[var(--color-border)]" />
+                    <div className="w-full border-t border-[var(--border)]" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-[var(--color-bg-elevated)] px-2 text-[var(--color-text-tertiary)]">
+                    <span className="bg-[var(--surface)] px-2 text-[var(--muted)]">
                       или
                     </span>
                   </div>
@@ -155,11 +131,11 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
+                <label className="block text-sm font-medium text-[var(--text2)] mb-1.5">
                   Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-tertiary)]" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)]" />
                   <Input
                     type="email"
                     value={email}
@@ -173,11 +149,11 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
 
               {mode !== 'forgot' && (
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
+                  <label className="block text-sm font-medium text-[var(--text2)] mb-1.5">
                     Пароль
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-tertiary)]" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)]" />
                     <Input
                       type="password"
                       value={password}
@@ -195,7 +171,7 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
                 <button
                   type="button"
                   onClick={() => setMode('forgot')}
-                  className="text-sm text-purple-400 hover:text-purple-300"
+                  className="text-sm text-[var(--gold)] hover:text-[var(--gold-hover)]"
                 >
                   Забыли пароль?
                 </button>
@@ -222,21 +198,21 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
             {/* Footer */}
             <div className="mt-6 text-center text-sm">
               {mode === 'login' ? (
-                <p className="text-[var(--color-text-secondary)]">
+                <p className="text-[var(--text2)]">
                   Нет аккаунта?{' '}
                   <button
                     onClick={() => setMode('register')}
-                    className="text-purple-400 hover:text-purple-300 font-medium"
+                    className="text-[var(--gold)] hover:text-[var(--gold-hover)] font-medium"
                   >
                     Создать
                   </button>
                 </p>
               ) : (
-                <p className="text-[var(--color-text-secondary)]">
+                <p className="text-[var(--text2)]">
                   Уже есть аккаунт?{' '}
                   <button
                     onClick={() => setMode('login')}
-                    className="text-purple-400 hover:text-purple-300 font-medium"
+                    className="text-[var(--gold)] hover:text-[var(--gold-hover)] font-medium"
                   >
                     Войти
                   </button>

@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
-type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
@@ -16,36 +16,54 @@ const ThemeContext = createContext<ThemeContextType>({
   setTheme: () => {},
 });
 
+const STORAGE_KEY = 'theme';
+
+function getInitialTheme(): Theme {
+  // This runs only on client
+  if (typeof window === 'undefined') return 'dark';
+  
+  // Check localStorage first
+  const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
+  if (saved === 'light' || saved === 'dark') {
+    return saved;
+  }
+  
+  // Default to dark (ignore prefers-color-scheme)
+  return 'dark';
+}
+
+function applyTheme(theme: Theme) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
+  // Initialize theme on mount
   useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem('theme') as Theme | null;
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    const initialTheme = saved || (prefersDark ? 'dark' : 'dark');
+    const initialTheme = getInitialTheme();
     setThemeState(initialTheme);
-    document.documentElement.classList.remove('dark', 'light');
-    document.documentElement.classList.add(initialTheme);
+    applyTheme(initialTheme);
+    setMounted(true);
   }, []);
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.classList.remove('dark', 'light');
-    document.documentElement.classList.add(newTheme);
-  };
+    localStorage.setItem(STORAGE_KEY, newTheme);
+    applyTheme(newTheme);
+  }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-  };
+  }, [theme, setTheme]);
 
+  // Prevent flash by returning children with default theme context before mount
   if (!mounted) {
     return (
-      <ThemeContext.Provider value={{ theme: 'dark', toggleTheme, setTheme }}>
+      <ThemeContext.Provider value={{ theme: 'dark', toggleTheme: () => {}, setTheme: () => {} }}>
         {children}
       </ThemeContext.Provider>
     );
@@ -65,5 +83,3 @@ export const useTheme = () => {
   }
   return context;
 };
-
-

@@ -29,7 +29,7 @@ export const useCreditsStore = create<CreditsState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('credits')
-        .select('amount')
+        .select('balance')
         .eq('user_id', user.id)
         .single();
 
@@ -38,18 +38,18 @@ export const useCreditsStore = create<CreditsState>((set, get) => ({
           // No credits record found, create one
           const { data: newCredits, error: insertError } = await supabase
             .from('credits')
-            .insert({ user_id: user.id, amount: 100 })
-            .select('amount')
+            .insert({ user_id: user.id, balance: 100 })
+            .select('balance')
             .single();
 
           if (insertError) throw insertError;
-          set({ balance: newCredits?.amount || 100, loading: false });
+          set({ balance: newCredits?.balance || 100, loading: false });
           return;
         }
         throw error;
       }
 
-      set({ balance: data?.amount || 0, loading: false });
+      set({ balance: data?.balance || 0, loading: false });
     } catch (error) {
       console.error('Error fetching credits:', error);
       set({ error: 'Failed to fetch credits', loading: false });
@@ -73,3 +73,5 @@ export const useCreditsStore = create<CreditsState>((set, get) => ({
     set({ balance });
   },
 }));
+
+

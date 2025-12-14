@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { payform } from '@/lib/payments/payform-client';
-import { SUBSCRIPTIONS, CREDIT_PACKS } from '@/lib/pricing-config';
+import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/pricing/plans';
 
 export async function POST(request: NextRequest) {
   try {
     const { type, itemId } = await request.json();
-
-    console.log('[Checkout] Request:', { type, itemId });
 
     const supabase = await createServerSupabaseClient();
     
@@ -26,13 +24,10 @@ export async function POST(request: NextRequest) {
 
     if (type === 'subscription') {
       // ========== ПОДПИСКА ==========
-      const plan = SUBSCRIPTIONS.find(p => p.id === itemId);
-      if (!plan) {
-        console.error('[Checkout] Plan not found:', itemId);
+      const plan = SUBSCRIPTION_PLANS.find(p => p.id === itemId);
+      if (!plan || !plan.recurring) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
-
-      console.log('[Checkout] Creating subscription:', { plan: plan.name, price: plan.price, credits: plan.credits });
 
       paymentUrl = payform.createSubscriptionPayment({
         orderNumber,
@@ -42,13 +37,13 @@ export async function POST(request: NextRequest) {
         type: 'subscription',
         planId: plan.id,
         credits: plan.credits,
-        description: `Подписка ${plan.name} - ${plan.credits} ⭐/мес`,
+        description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
       });
 
       // Сохранить в БД
       await supabase.from('payments').insert({
         user_id: user.id,
-        prodamus_order_id: orderNumber,
+        prodamus_order_id: orderNumber, // Используем существующее поле
         type: 'subscription',
         amount: plan.price,
         credits: plan.credits,
@@ -58,31 +53,26 @@ export async function POST(request: NextRequest) {
 
       console.log('[Checkout] Subscription payment created:', {
         orderNumber,
+        userId: user.id,
         planId: plan.id,
         price: plan.price,
-        credits: plan.credits,
-        url: paymentUrl.substring(0, 100) + '...',
       });
 
     } else if (type === 'package') {
       // ========== РАЗОВЫЙ ПАКЕТ ==========
-      const pack = CREDIT_PACKS.find(p => p.id === itemId);
-      if (!pack) {
-        console.error('[Checkout] Package not found:', itemId);
+      const pkg = CREDIT_PACKAGES.find(p => p.id === itemId);
+      if (!pkg) {
         return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
       }
 
-      console.log('[Checkout] Creating package:', { pack: pack.name, price: pack.price, credits: pack.credits });
-
       paymentUrl = payform.createPackagePayment({
         orderNumber,
-        amount: pack.price,
+        amount: pkg.price,
         customerEmail: user.email!,
         userId: user.id,
         type: 'package',
-        planId: pack.id, // Передаём ID пакета
-        credits: pack.credits,
-        description: `${pack.credits} ⭐ LensRoom`,
+        credits: pkg.credits,
+        description: `${pkg.credits} кредитов LensRoom`,
       });
 
       // Сохранить в БД
@@ -90,23 +80,23 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         prodamus_order_id: orderNumber,
         type: 'package',
-        amount: pack.price,
-        credits: pack.credits,
+        amount: pkg.price,
+        credits: pkg.credits,
         status: 'pending',
         metadata: { 
-          package_id: pack.id, 
-          package_name: pack.name,
-          credits: pack.credits,
+          package_id: pkg.id, 
+          credits: pkg.credits,
+          popular: pkg.popular || false,
           provider: 'payform',
         },
       });
 
       console.log('[Checkout] Package payment created:', {
         orderNumber,
-        packId: pack.id,
-        price: pack.price,
-        credits: pack.credits,
-        url: paymentUrl.substring(0, 100) + '...',
+        userId: user.id,
+        packageId: pkg.id,
+        credits: pkg.credits,
+        price: pkg.price,
       });
 
     } else {

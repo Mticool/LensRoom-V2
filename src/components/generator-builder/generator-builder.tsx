@@ -307,21 +307,21 @@ export function GeneratorBuilder() {
             {/* Aspect Ratio */}
             {currentMode.outputControls.aspectRatio && (
               <div>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-2">Соотношение сторон</p>
-                <div className="grid grid-cols-4 gap-2">
+                <p className="text-[10px] text-[var(--color-text-secondary)] mb-1.5">Соотношение сторон</p>
+                <div className="grid grid-cols-4 gap-1.5">
                   {ASPECT_RATIOS.slice(0, 4).map((ratio) => (
                     <button
                       key={ratio.id}
                       onClick={() => setAspectRatio(ratio.id)}
                       className={cn(
-                        "flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-all",
+                        "flex flex-col items-center gap-0.5 p-1.5 rounded-md border transition-all",
                         aspectRatio === ratio.id
                           ? "border-[var(--color-purple-500)] bg-[var(--color-purple-500)]/10"
                           : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
                       )}
                     >
-                      <span className="text-lg">{ratio.icon}</span>
-                      <span className="text-xs text-[var(--color-text-primary)]">{ratio.label}</span>
+                      <span className="text-sm">{ratio.icon}</span>
+                      <span className="text-[10px] text-[var(--color-text-primary)]">{ratio.label}</span>
                     </button>
                   ))}
                 </div>
@@ -331,14 +331,14 @@ export function GeneratorBuilder() {
             {/* Variants */}
             {currentMode.outputControls.variants && (
               <div>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-2">Количество вариантов</p>
-                <div className="grid grid-cols-4 gap-2">
+                <p className="text-[10px] text-[var(--color-text-secondary)] mb-1.5">Количество вариантов</p>
+                <div className="grid grid-cols-4 gap-1.5">
                   {VARIANT_OPTIONS.map((v) => (
                     <button
                       key={v}
                       onClick={() => setVariants(v)}
                       className={cn(
-                        "p-2.5 rounded-lg border-2 text-center font-semibold transition-all",
+                        "p-1.5 rounded-md border text-center text-sm font-medium transition-all",
                         variants === v
                           ? "border-[var(--color-purple-500)] bg-[var(--color-purple-500)]/10 text-[var(--color-text-primary)]"
                           : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
@@ -354,14 +354,14 @@ export function GeneratorBuilder() {
             {/* Duration (Video) */}
             {currentMode.outputControls.duration && (
               <div>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-2">Длительность</p>
-                <div className="grid grid-cols-4 gap-2">
+                <p className="text-[10px] text-[var(--color-text-secondary)] mb-1.5">Длительность</p>
+                <div className="grid grid-cols-4 gap-1.5">
                   {DURATION_OPTIONS.map((d) => (
                     <button
                       key={d.seconds}
                       onClick={() => setDuration(d.seconds)}
                       className={cn(
-                        "p-2.5 rounded-lg border-2 text-center font-semibold transition-all",
+                        "p-1.5 rounded-md border text-center text-sm font-medium transition-all",
                         duration === d.seconds
                           ? "border-[var(--color-purple-500)] bg-[var(--color-purple-500)]/10 text-[var(--color-text-primary)]"
                           : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
@@ -377,14 +377,14 @@ export function GeneratorBuilder() {
             {/* FPS (Video) */}
             {currentMode.outputControls.fps && (
               <div>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-2">FPS</p>
-                <div className="grid grid-cols-3 gap-2">
+                <p className="text-[10px] text-[var(--color-text-secondary)] mb-1.5">FPS</p>
+                <div className="grid grid-cols-3 gap-1.5">
                   {FPS_OPTIONS.map((f) => (
                     <button
                       key={f}
                       onClick={() => setFps(f)}
                       className={cn(
-                        "p-2.5 rounded-lg border-2 text-center font-semibold transition-all",
+                        "p-1.5 rounded-md border text-center text-sm font-medium transition-all",
                         fps === f
                           ? "border-[var(--color-purple-500)] bg-[var(--color-purple-500)]/10 text-[var(--color-text-primary)]"
                           : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
@@ -617,7 +617,7 @@ interface RefUploaderProps {
   required: boolean;
   value: File | string | null;
   onChange: (ref: File | string | null) => void;
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLInputElement>;
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -651,7 +651,7 @@ function RefUploader({ label, required, value, onChange, inputRef, onUpload }: R
         </button>
       )}
       <input
-        ref={inputRef}
+        ref={inputRef as React.RefObject<HTMLInputElement>}
         type="file"
         accept="image/*"
         onChange={onUpload}

@@ -16,6 +16,11 @@ const defaultState: GeneratorState = {
   prompt: "",
   negativePrompt: "",
   
+  // Mode and reference
+  mode: "t2i" as "t2i" | "i2i",
+  referenceImage: undefined as string | undefined,
+  referenceStrength: 0.75,
+  
   // Generation settings
   aspectRatio: "1:1",
   variants: 1,
@@ -96,6 +101,19 @@ export const useGeneratorStore = create<GeneratorStore>()(
       setSteps: (steps: number) => {
         // Clamp between 10 and 50
         set({ steps: Math.min(50, Math.max(10, steps)) });
+      },
+
+      setMode: (mode: "t2i" | "i2i") => {
+        set({ mode });
+      },
+
+      setReferenceImage: (referenceImage?: string) => {
+        set({ referenceImage });
+      },
+
+      setReferenceStrength: (referenceStrength: number) => {
+        // Clamp between 0 and 1
+        set({ referenceStrength: Math.min(1, Math.max(0, referenceStrength)) });
       },
 
       setSelectedResult: (selectedResult?: GenerationResult) => {

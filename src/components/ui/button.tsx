@@ -4,16 +4,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]/50 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:opacity-90 shadow-lg shadow-purple-500/25",
-        secondary: "bg-[#16161D] text-[#FAFAFA] border border-[#26262E] hover:bg-[#1C1C26] hover:border-[#3A3A45]",
-        outline: "border border-[#26262E] bg-transparent text-[#FAFAFA] hover:bg-[#16161D] hover:border-[#3A3A45]",
-        ghost: "text-[#A0A0AA] hover:text-[#FAFAFA] hover:bg-[#16161D]",
-        destructive: "bg-red-500 text-white hover:bg-red-600",
-        link: "text-purple-400 underline-offset-4 hover:underline",
+        // Primary CTA - Gold (micro-dose)
+        default: "bg-[var(--gold)] text-[#0A0A0B] hover:bg-[var(--gold-hover)] shadow-lg shadow-[var(--gold)]/20",
+        // Secondary - surface with border
+        secondary: "bg-[var(--surface2)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--surface)] hover:border-[var(--gold)]/50",
+        // Outline - transparent with border
+        outline: "border border-[var(--border)] bg-transparent text-[var(--text)] hover:bg-[var(--surface2)] hover:border-[var(--gold)]/50",
+        // Ghost - minimal
+        ghost: "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]",
+        // Destructive - red
+        destructive: "bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20",
+        // Link style
+        link: "text-[var(--gold)] underline-offset-4 hover:underline",
       },
       size: {
         sm: "h-9 px-4 text-sm",
