@@ -38,11 +38,6 @@ interface ComingSoonInterest {
 
 const COMING_SOON_FEATURES: ComingSoonFeature[] = [
   {
-    id: "infographics",
-    title: "Инфографика",
-    icon: <BarChart3 className="w-3.5 h-3.5" />,
-  },
-  {
     id: "video-ads",
     title: "Видео-реклама",
     icon: <Video className="w-3.5 h-3.5" />,
