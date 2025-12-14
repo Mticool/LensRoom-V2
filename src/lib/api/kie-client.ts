@@ -9,11 +9,13 @@ export interface CreateTaskRequest {
   input: {
     prompt: string;
     image_input?: string[]; // URLs, not base64
+    image_url?: string; // Single image URL for i2v
     aspect_ratio?: string;
     resolution?: "1K" | "2K" | "4K";
     output_format?: "png" | "jpg";
+    quality?: string;
     // Video specific
-    duration?: number;
+    duration?: number | string; // KIE expects string for some models
     fps?: number;
   };
 }
@@ -293,13 +295,19 @@ class KieAIClient {
 
   async generateVideo(params: GenerateVideoRequest): Promise<GenerateVideoResponse> {
     try {
+      // KIE API requires image_url for video models like Kling
+      if (!params.imageUrl) {
+        throw new KieAPIError("Image URL is required for video generation", 400);
+      }
+
       const request: CreateTaskRequest = {
         model: params.model,
         input: {
           prompt: params.prompt || "",
-          image_input: params.imageUrl ? [params.imageUrl] : undefined,
+          image_input: [params.imageUrl], // Required for i2v models
           aspect_ratio: params.aspectRatio || "16:9",
-          duration: params.duration,
+          // KIE API expects duration as string
+          duration: params.duration ? String(params.duration) : "5",
           fps: params.fps,
         },
       };

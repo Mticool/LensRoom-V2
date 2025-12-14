@@ -44,7 +44,7 @@ const defaultState: GeneratorState = {
 // Default models by content type
 const defaultModels: Record<ContentType, string> = {
   photo: "nano-banana-pro",
-  video: "sora-2",
+  video: "kling-2.1",
   product: "product-nano-banana",
 };
 
