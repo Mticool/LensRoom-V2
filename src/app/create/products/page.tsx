@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,82 +11,28 @@ import {
   Download,
   Check,
   X,
+  Star,
+  Image as ImageIcon,
+  Layers,
+  Loader2,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { downloadImage } from "@/lib/download";
+import {
+  PRODUCT_IMAGE_MODES,
+  PACK_SLIDES_DEFAULT,
+  getModeById,
+  getSingleCost,
+  getPackCost,
+  getPackSavings,
+  type ProductImageMode,
+} from "@/config/productImageModes";
 
-// Background styles
-const BACKGROUND_STYLES = [
-  {
-    id: "white",
-    name: "Белый фон",
-    preview: "#FFFFFF",
-    description: "Классический белый студийный фон",
-  },
-  {
-    id: "kitchen",
-    name: "Кухня",
-    preview:
-      "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=200&h=200&fit=crop",
-    description: "Современная кухня с мраморной столешницей",
-  },
-  {
-    id: "living",
-    name: "Гостиная",
-    preview:
-      "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=200&h=200&fit=crop",
-    description: "Уютная гостиная с естественным светом",
-  },
-  {
-    id: "outdoor",
-    name: "Улица",
-    preview:
-      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&h=200&fit=crop",
-    description: "Природа и открытое пространство",
-  },
-  {
-    id: "wooden",
-    name: "Дерево",
-    preview:
-      "https://images.unsplash.com/photo-1604147495798-57beb5d6af73?w=200&h=200&fit=crop",
-    description: "Деревянная текстура",
-  },
-  {
-    id: "studio",
-    name: "Студия",
-    preview:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=200&fit=crop",
-    description: "Профессиональная студия",
-  },
-  {
-    id: "dark",
-    name: "Тёмный",
-    preview: "#1a1a1a",
-    description: "Тёмный элегантный фон",
-  },
-  {
-    id: "colorful",
-    name: "Цветной",
-    preview: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    description: "Градиентный цветной фон",
-  },
-  {
-    id: "marble",
-    name: "Мрамор",
-    preview:
-      "https://images.unsplash.com/photo-1615874959474-d609969a20ed?w=200&h=200&fit=crop",
-    description: "Мраморная поверхность",
-  },
-  {
-    id: "luxury",
-    name: "Люкс",
-    preview:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200&h=200&fit=crop",
-    description: "Роскошный интерьер",
-  },
-];
+// ===== TYPES =====
+
+type GenerationType = "single" | "pack";
 
 interface ProcessedResult {
   id: number;
@@ -94,27 +40,44 @@ interface ProcessedResult {
   processed: string;
 }
 
+// ===== BACKGROUND STYLES =====
+
+const BACKGROUND_STYLES = [
+  { id: "white", name: "Белый фон", preview: "#FFFFFF" },
+  { id: "studio", name: "Студийный", preview: "#F5F5F5" },
+  { id: "dark", name: "Тёмный", preview: "#1a1a1a" },
+  { id: "gradient", name: "Градиент", preview: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+];
+
+// ===== PAGE COMPONENT =====
+
 export default function ProductCardsPage() {
-  const [step, setStep] = useState(1);
+  // State
+  const [selectedModeId, setSelectedModeId] = useState<string>("standard");
+  const [generationType, setGenerationType] = useState<GenerationType>("pack");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [selectedStyle, setSelectedStyle] = useState("white");
-  const [options, setOptions] = useState({
-    removeBackground: true,
-    enhanceLighting: true,
-    addShadows: true,
-    addReflection: false,
-  });
-  const [variants, setVariants] = useState(1);
+  const [selectedBackground, setSelectedBackground] = useState("white");
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<ProcessedResult[]>([]);
+  const [step, setStep] = useState(1);
 
-  const handleImageUpload = (files: FileList) => {
-    const newImages = Array.from(files).map((file) =>
-      URL.createObjectURL(file)
-    );
-    setUploadedImages([...uploadedImages, ...newImages]);
-    toast.success(`${files.length} изображений загружено!`);
-  };
+  // Computed
+  const selectedMode = getModeById(selectedModeId) ?? PRODUCT_IMAGE_MODES[0];
+  const totalCost = generationType === "single" 
+    ? getSingleCost(selectedModeId)
+    : getPackCost(selectedModeId);
+  const packSavings = getPackSavings(selectedModeId);
+
+  // Handlers
+  const handleImageUpload = useCallback((files: FileList) => {
+    const maxImages = generationType === "pack" ? PACK_SLIDES_DEFAULT : 1;
+    const newImages = Array.from(files)
+      .slice(0, maxImages - uploadedImages.length)
+      .map((file) => URL.createObjectURL(file));
+    
+    setUploadedImages((prev) => [...prev, ...newImages].slice(0, maxImages));
+    toast.success(`${newImages.length} изображений загружено`);
+  }, [generationType, uploadedImages.length]);
 
   const handleGenerate = async () => {
     if (uploadedImages.length === 0) {
@@ -123,157 +86,237 @@ export default function ProductCardsPage() {
     }
 
     setIsProcessing(true);
-    toast.loading("Обработка товаров...", { id: "processing" });
+    toast.loading("Генерация изображений...", { id: "processing" });
 
-    // Mock processing
+    // TODO: Real generation via KIE API
     setTimeout(() => {
       setResults(
         uploadedImages.map((img, i) => ({
           id: i,
           original: img,
-          processed: img, // В реальности тут будет результат от API
+          processed: img,
         }))
       );
       setIsProcessing(false);
-      setStep(4);
+      setStep(3);
       toast.success("Готово! 🎉", { id: "processing" });
     }, 3000);
   };
 
   const handleDownload = async (url: string, id: number) => {
     try {
-      await downloadImage(url, `product-card-${id}.png`);
-      toast.success("Изображение скачано! 📥");
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Ошибка скачивания";
-      toast.error(message);
+      await downloadImage(url, `product-${selectedMode.id}-${id}.png`);
+      toast.success("Изображение скачано!");
+    } catch {
+      toast.error("Ошибка скачивания");
     }
   };
 
+  const resetToStart = () => {
+    setStep(1);
+    setUploadedImages([]);
+    setResults([]);
+  };
+
   return (
-    <div className="min-h-screen pt-24 pb-20 bg-[var(--color-bg)]">
-      <motion.div
-        className="container mx-auto px-4 lg:px-8 py-8 max-w-7xl"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+    <div className="min-h-screen pt-24 pb-20 bg-[var(--bg)]">
+      <div className="container mx-auto px-4 lg:px-8 py-8 max-w-5xl">
+        
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-10 text-center"
         >
-          <Badge variant="warning" className="mb-4">
+          <Badge variant="primary" className="mb-4">
             <Package className="w-3 h-3 mr-1" />
             Продуктовые карточки
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">
-            Карточки для <span className="gradient-text">маркетплейсов</span>
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 text-[var(--text)]">
+            Фото для <span className="text-[var(--gold)]">маркетплейсов</span>
           </h1>
-          <p className="text-xl text-[rgba(255,255,255,0.70)]">
-            WB, Ozon, Яндекс.Маркет — профессиональные фото за минуты
+          <p className="text-[var(--text2)] max-w-xl mx-auto">
+            WB, Ozon, Яндекс.Маркет — профессиональные карточки товаров
           </p>
         </motion.div>
 
-        {/* Steps */}
-        <div className="flex items-center justify-center mb-12 gap-4">
-          {[
-            { num: 1, label: "Загрузка" },
-            { num: 2, label: "Фон" },
-            { num: 3, label: "Настройки" },
-            { num: 4, label: "Результат" },
-          ].map((s, i) => (
-            <div key={s.num} className="flex items-center">
-              <div
-                className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all",
-                  step >= s.num
-                    ? "bg-gradient-to-r from-[var(--color-gold)] to-[#F5C842] text-black"
-                    : "bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.40)]"
-                )}
-              >
-                {step > s.num ? <Check className="w-5 h-5" /> : s.num}
-              </div>
-              <div className="ml-2 hidden sm:block">
+        <AnimatePresence mode="wait">
+          {/* Step 1: Configuration */}
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-8"
+            >
+              {/* Mode Selector */}
+              <section>
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">
+                  Режим фото
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {PRODUCT_IMAGE_MODES.map((mode) => (
+                    <ModeCard
+                      key={mode.id}
+                      mode={mode}
+                      selected={selectedModeId === mode.id}
+                      onClick={() => setSelectedModeId(mode.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* Generation Type Toggle */}
+              <section>
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">
+                  Тип генерации
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <GenerationTypeCard
+                    type="single"
+                    label="Одна картинка"
+                    description="Одно изображение товара"
+                    icon={<ImageIcon className="w-5 h-5" />}
+                    cost={getSingleCost(selectedModeId)}
+                    selected={generationType === "single"}
+                    onClick={() => {
+                      setGenerationType("single");
+                      setUploadedImages((prev) => prev.slice(0, 1));
+                    }}
+                  />
+                  <GenerationTypeCard
+                    type="pack"
+                    label={`Набор для карточки (${PACK_SLIDES_DEFAULT} слайдов)`}
+                    description="Полный набор для маркетплейса"
+                    icon={<Layers className="w-5 h-5" />}
+                    cost={getPackCost(selectedModeId)}
+                    savings={packSavings}
+                    selected={generationType === "pack"}
+                    onClick={() => setGenerationType("pack")}
+                  />
+                </div>
+              </section>
+
+              {/* Cost Summary */}
+              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-[var(--muted)] mb-1">
+                      {generationType === "single" ? "Стоимость" : `Стоимость набора (${PACK_SLIDES_DEFAULT})`}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Star className="w-5 h-5 text-[var(--gold)] fill-[var(--gold)]" />
+                      <span className="text-2xl font-bold text-[var(--text)]">{totalCost}</span>
+                    </div>
+                  </div>
+                  <Button 
+                    size="lg" 
+                    onClick={() => setStep(2)}
+                    className="px-8"
+                  >
+                    Далее
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Step 2: Upload & Generate */}
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              {/* Selected Mode Summary */}
+              <Card className="p-4 bg-[var(--surface)] border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--gold)]/20 flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-[var(--gold)]" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-[var(--text)]">{selectedMode.name}</div>
+                      <div className="text-sm text-[var(--muted)]">
+                        {generationType === "single" ? "1 изображение" : `${PACK_SLIDES_DEFAULT} слайдов`}
+                      </div>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
+                    Изменить
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Background Selection */}
+              <section>
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">
+                  Фон
+                </h2>
+                <div className="grid grid-cols-4 gap-3">
+                  {BACKGROUND_STYLES.map((bg) => (
+                    <button
+                      key={bg.id}
+                      onClick={() => setSelectedBackground(bg.id)}
+                      className={cn(
+                        "p-3 rounded-xl border-2 transition-all",
+                        selectedBackground === bg.id
+                          ? "border-[var(--gold)] bg-[var(--gold)]/10"
+                          : "border-[var(--border)] hover:border-[var(--gold)]/50"
+                      )}
+                    >
+                      <div
+                        className="w-full aspect-square rounded-lg mb-2"
+                        style={{ background: bg.preview }}
+                      />
+                      <div className="text-xs font-medium text-[var(--text)]">{bg.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Upload Zone */}
+              <section>
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">
+                  Загрузите фото товара
+                </h2>
                 <div
                   className={cn(
-                    "text-sm font-medium",
-                    step >= s.num
-                      ? "text-white"
-                      : "text-[rgba(255,255,255,0.40)]"
+                    "border-2 border-dashed rounded-2xl p-8 text-center transition-colors",
+                    uploadedImages.length > 0
+                      ? "border-[var(--gold)]/50 bg-[var(--gold)]/5"
+                      : "border-[var(--border)] hover:border-[var(--gold)]/50"
                   )}
                 >
-                  {s.label}
+                  <input
+                    type="file"
+                    multiple={generationType === "pack"}
+                    accept="image/*"
+                    onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
+                    className="hidden"
+                    id="product-upload"
+                  />
+                  <label htmlFor="product-upload" className="cursor-pointer block">
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--surface2)] flex items-center justify-center mx-auto mb-4">
+                      <Upload className="w-8 h-8 text-[var(--muted)]" />
+                    </div>
+                    <div className="font-medium text-[var(--text)] mb-1">
+                      {uploadedImages.length > 0
+                        ? `Загружено: ${uploadedImages.length} / ${generationType === "pack" ? PACK_SLIDES_DEFAULT : 1}`
+                        : "Нажмите для выбора"}
+                    </div>
+                    <div className="text-sm text-[var(--muted)]">
+                      PNG, JPG до 10MB
+                    </div>
+                  </label>
                 </div>
-              </div>
-              {i < 3 && (
-                <div
-                  className={cn(
-                    "w-12 h-0.5 mx-4",
-                    step > s.num
-                      ? "bg-[var(--color-gold)]"
-                      : "bg-[rgba(255,255,255,0.10)]"
-                  )}
-                />
-              )}
-            </div>
-          ))}
-        </div>
 
-        {/* Step 1: Upload */}
-        {step === 1 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="max-w-4xl mx-auto"
-          >
-            <Card variant="hover" className="p-8">
-              <h2 className="text-2xl font-bold text-white mb-6">
-                Загрузите фото товаров
-              </h2>
-
-              {/* Upload zone */}
-              <div className="border-2 border-dashed border-[rgba(255,255,255,0.16)] rounded-2xl p-12 text-center mb-6 hover:border-[var(--color-gold)]/50 transition-colors">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) =>
-                    e.target.files && handleImageUpload(e.target.files)
-                  }
-                  className="hidden"
-                  id="product-upload"
-                />
-                <label htmlFor="product-upload" className="cursor-pointer">
-                  <div className="w-20 h-20 rounded-2xl bg-[var(--color-gold)]/10 flex items-center justify-center mx-auto mb-4">
-                    <Upload className="w-10 h-10 text-[var(--color-gold)]" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">
-                    Перетащите изображения или нажмите для выбора
-                  </h3>
-                  <p className="text-[rgba(255,255,255,0.55)]">
-                    Поддерживаются PNG, JPG. До 50 товаров одновременно.
-                  </p>
-                </label>
-              </div>
-
-              {/* Preview grid */}
-              {uploadedImages.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">
-                      Загружено: {uploadedImages.length}
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setUploadedImages([])}
-                    >
-                      Очистить все
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-4 gap-4 mb-6">
+                {/* Preview Grid */}
+                {uploadedImages.length > 0 && (
+                  <div className="mt-4 grid grid-cols-6 gap-2">
                     {uploadedImages.map((img, i) => (
                       <div key={i} className="relative group">
                         <img
@@ -282,249 +325,216 @@ export default function ProductCardsPage() {
                           className="w-full aspect-square object-cover rounded-lg"
                         />
                         <button
-                          onClick={() =>
-                            setUploadedImages(
-                              uploadedImages.filter((_, idx) => idx !== i)
-                            )
-                          }
-                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setUploadedImages(uploadedImages.filter((_, idx) => idx !== i))}
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <X className="w-4 h-4 text-white" />
+                          <X className="w-3 h-3 text-white" />
                         </button>
                       </div>
                     ))}
                   </div>
-                  <Button
-                    onClick={() => setStep(2)}
-                    variant="default"
-                    size="lg"
-                    className="w-full"
-                  >
-                    Далее: Выбрать фон
-                  </Button>
-                </div>
-              )}
-            </Card>
-          </motion.div>
-        )}
+                )}
+              </section>
 
-        {/* Step 2: Background */}
-        {step === 2 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="max-w-6xl mx-auto"
-          >
-            <Card variant="hover" className="p-8">
-              <h2 className="text-2xl font-bold text-white mb-6">
-                Выберите стиль фона
-              </h2>
-
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-                {BACKGROUND_STYLES.map((style) => (
-                  <button
-                    key={style.id}
-                    onClick={() => setSelectedStyle(style.id)}
-                    className={cn(
-                      "p-4 rounded-xl border-2 transition-all text-left",
-                      selectedStyle === style.id
-                        ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10"
-                        : "border-[rgba(255,255,255,0.10)] hover:border-[var(--color-gold)]/50"
-                    )}
-                  >
-                    <div
-                      className="w-full aspect-square rounded-lg mb-3"
-                      style={{
-                        background: style.preview.startsWith("http")
-                          ? `url(${style.preview})`
-                          : style.preview,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    />
-                    <div className="text-sm font-semibold text-white">
-                      {style.name}
-                    </div>
-                    <div className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
-                      {style.description}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-3">
-                <Button  onClick={() => setStep(1)}>
-                  Назад
-                </Button>
-                <Button
-                  onClick={() => setStep(3)}
-                  variant="default"
-                  className="flex-1"
-                >
-                  Далее: Настройки
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Step 3: Options */}
-        {step === 3 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="max-w-4xl mx-auto"
-          >
-            <Card variant="hover" className="p-8">
-              <h2 className="text-2xl font-bold text-white mb-6">
-                Настройки обработки
-              </h2>
-
-              {/* Options */}
-              <div className="space-y-4 mb-8">
-                {Object.entries({
-                  removeBackground: "Удалить фон",
-                  enhanceLighting: "Улучшить освещение",
-                  addShadows: "Добавить тени",
-                  addReflection: "Добавить отражение",
-                }).map(([key, label]) => (
-                  <label
-                    key={key}
-                    className="flex items-center justify-between p-4 rounded-xl bg-[rgba(255,255,255,0.04)] cursor-pointer hover:bg-[rgba(255,255,255,0.06)] transition-colors border border-[rgba(255,255,255,0.10)]"
-                  >
-                    <span className="text-white font-medium">{label}</span>
-                    <div
-                      className={cn(
-                        "w-12 h-6 rounded-full transition-colors relative cursor-pointer",
-                        options[key as keyof typeof options]
-                          ? "bg-[var(--color-gold)]"
-                          : "bg-[rgba(255,255,255,0.16)]"
-                      )}
-                      onClick={() =>
-                        setOptions({
-                          ...options,
-                          [key]: !options[key as keyof typeof options],
-                        })
-                      }
-                    >
-                      <div
-                        className={cn(
-                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-transform",
-                          options[key as keyof typeof options]
-                            ? "translate-x-7"
-                            : "translate-x-1"
-                        )}
-                      />
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              {/* Variants */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Варианты на товар
-                </h3>
-                <div className="grid grid-cols-4 gap-3">
-                  {[1, 4, 8, 16].map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setVariants(v)}
-                      className={cn(
-                        "p-4 rounded-xl border-2 transition-all",
-                        variants === v
-                          ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10"
-                          : "border-[rgba(255,255,255,0.10)] hover:border-[var(--color-gold)]/50"
-                      )}
-                    >
-                      <div className="text-2xl font-bold text-white">{v}</div>
-                      <div className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
-                        {v * uploadedImages.length * 3} ⭐
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button  onClick={() => setStep(2)}>
+              {/* Generate Button */}
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={() => setStep(1)}>
                   Назад
                 </Button>
                 <Button
                   onClick={handleGenerate}
-                  variant="default"
+                  disabled={uploadedImages.length === 0 || isProcessing}
                   className="flex-1"
-                  disabled={isProcessing}
+                  size="lg"
                 >
                   {isProcessing ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                      Обработка...
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Генерация...
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5 mr-2" />
-                      Создать карточки • {variants * uploadedImages.length * 3}{" "}
-                      ⭐
+                      Сгенерировать • 
+                      <Star className="w-4 h-4 ml-1 mr-0.5 fill-current" />
+                      {totalCost}
                     </>
                   )}
                 </Button>
               </div>
-            </Card>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
 
-        {/* Step 4: Results */}
-        {step === 4 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">
-                Готово! {results.length} товаров обработано
-              </h2>
-              <Button  onClick={() => setStep(1)}>
-                Создать ещё
-              </Button>
-            </div>
+          {/* Step 3: Results */}
+          {step === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-[var(--text)]">
+                    Готово! 🎉
+                  </h2>
+                  <p className="text-[var(--muted)]">
+                    {results.length} изображений обработано
+                  </p>
+                </div>
+                <Button onClick={resetToStart}>
+                  Создать ещё
+                </Button>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {results.map((result) => (
-                <Card key={result.id}  className="p-6">
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <div className="text-sm text-[rgba(255,255,255,0.55)] mb-2">
-                        До
-                      </div>
-                      <img
-                        src={result.original}
-                        alt="Before"
-                        className="w-full rounded-lg aspect-square object-cover"
-                      />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {results.map((result) => (
+                  <Card key={result.id} className="overflow-hidden bg-[var(--surface)] border-[var(--border)]">
+                    <img
+                      src={result.processed}
+                      alt={`Result ${result.id + 1}`}
+                      className="w-full aspect-square object-cover"
+                    />
+                    <div className="p-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleDownload(result.processed, result.id)}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Скачать
+                      </Button>
                     </div>
-                    <div>
-                      <div className="text-sm text-[rgba(255,255,255,0.55)] mb-2">
-                        После
-                      </div>
-                      <img
-                        src={result.processed}
-                        alt="After"
-                        className="w-full rounded-lg aspect-square object-cover"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    
-                    className="w-full"
-                    onClick={() => handleDownload(result.processed, result.id)}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Скачать
-                  </Button>
-                </Card>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </motion.div>
+                  </Card>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
+  );
+}
+
+// ===== SUB-COMPONENTS =====
+
+interface ModeCardProps {
+  mode: ProductImageMode;
+  selected: boolean;
+  onClick: () => void;
+}
+
+function ModeCard({ mode, selected, onClick }: ModeCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "p-5 rounded-2xl border-2 text-left transition-all relative",
+        selected
+          ? "border-[var(--gold)] bg-[var(--gold)]/10"
+          : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gold)]/50"
+      )}
+    >
+      {/* Selection indicator */}
+      {selected && (
+        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[var(--gold)] flex items-center justify-center">
+          <Check className="w-4 h-4 text-[#0a0a0f]" />
+        </div>
+      )}
+
+      {/* Badge */}
+      {mode.badge && (
+        <Badge variant="primary" className="mb-3 text-xs">
+          {mode.badge}
+        </Badge>
+      )}
+
+      {/* Title */}
+      <h3 className="font-semibold text-[var(--text)] mb-1 pr-8">
+        {mode.name}
+      </h3>
+
+      {/* Description */}
+      <p className="text-sm text-[var(--muted)] mb-3 line-clamp-2">
+        {mode.description}
+      </p>
+
+      {/* Price */}
+      <div className="flex items-center gap-1 text-sm">
+        <span className="text-[var(--muted)]">от</span>
+        <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
+        <span className="font-semibold text-[var(--text)]">{mode.costPerImageStars}</span>
+        <span className="text-[var(--muted)]">за изображение</span>
+      </div>
+    </button>
+  );
+}
+
+interface GenerationTypeCardProps {
+  type: GenerationType;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  cost: number;
+  savings?: number;
+  selected: boolean;
+  onClick: () => void;
+}
+
+function GenerationTypeCard({
+  label,
+  description,
+  icon,
+  cost,
+  savings,
+  selected,
+  onClick,
+}: GenerationTypeCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "p-5 rounded-2xl border-2 text-left transition-all relative",
+        selected
+          ? "border-[var(--gold)] bg-[var(--gold)]/10"
+          : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gold)]/50"
+      )}
+    >
+      {/* Selection indicator */}
+      {selected && (
+        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[var(--gold)] flex items-center justify-center">
+          <Check className="w-4 h-4 text-[#0a0a0f]" />
+        </div>
+      )}
+
+      {/* Icon */}
+      <div className="w-10 h-10 rounded-xl bg-[var(--surface2)] flex items-center justify-center mb-3 text-[var(--muted)]">
+        {icon}
+      </div>
+
+      {/* Label */}
+      <h3 className="font-semibold text-[var(--text)] mb-1">
+        {label}
+      </h3>
+
+      {/* Description */}
+      <p className="text-sm text-[var(--muted)] mb-3">
+        {description}
+      </p>
+
+      {/* Cost */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
+          <span className="font-semibold text-[var(--text)]">{cost}</span>
+        </div>
+        {savings && savings > 0 && (
+          <Badge variant="success" className="text-xs">
+            Экономия {savings}⭐
+          </Badge>
+        )}
+      </div>
+    </button>
   );
 }
