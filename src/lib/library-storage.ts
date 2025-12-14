@@ -110,3 +110,4 @@ export function getLibraryItemsByType(type: LibraryItem["type"]): LibraryItem[] 
 export function getProductImages(): LibraryItem[] {
   return getLibraryItemsByType("product");
 }
+

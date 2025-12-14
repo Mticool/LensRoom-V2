@@ -86,3 +86,4 @@ export function getBotStartLink(startParam?: string): string {
   const base = `https://t.me/${botUsername}`;
   return startParam ? `${base}?start=${startParam}` : base;
 }
+

@@ -312,3 +312,4 @@ export function getSafeAreaInPixels(
     left: (profile.safeArea.left / 100) * canvasWidth,
   };
 }
+

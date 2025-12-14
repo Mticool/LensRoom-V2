@@ -96,3 +96,4 @@ export function TelegramLoginButtonCustom({
     </button>
   );
 }
+

@@ -324,3 +324,4 @@ function ComingSoonModal({ feature, onClose }: { feature: ComingSoonFeature; onC
     </div>
   );
 }
+

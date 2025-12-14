@@ -408,3 +408,4 @@ export function getOrderedPresetsForMasonry(presets: EffectPreset[]): EffectPres
 export const EFFECTS_GALLERY = EFFECT_PRESETS;
 export const EFFECT_CATEGORIES = ['Visual Effects', 'Portrait', 'Product', 'Cinematic', 'Trending'] as const;
 export type EffectCategory = typeof EFFECT_CATEGORIES[number];
+

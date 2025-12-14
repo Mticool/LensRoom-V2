@@ -805,3 +805,4 @@ function StickyCostBar({
     </div>
   );
 }
+

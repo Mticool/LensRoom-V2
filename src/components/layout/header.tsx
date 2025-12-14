@@ -9,6 +9,7 @@ import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, Me
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
+import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -29,18 +30,28 @@ export function Header() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { user, loading: authLoading, signOut } = useTelegramAuth();
+  const telegramAuth = useTelegramAuth();
+  const supabaseAuth = useAuth();
+  const telegramUser = telegramAuth.user;
+  const supabaseUser = supabaseAuth.user;
+  const authLoading = telegramAuth.loading || supabaseAuth.loading;
   const { balance, fetchBalance } = useCreditsStore();
 
   useEffect(() => {
-    if (user) {
+    // Credits are currently tied to Supabase auth session
+    if (supabaseUser) {
       fetchBalance();
     }
-  }, [user, fetchBalance]);
+  }, [supabaseUser, fetchBalance]);
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      if (telegramUser) {
+        await telegramAuth.signOut();
+      }
+      if (supabaseUser) {
+        await supabaseAuth.signOut();
+      }
       setUserMenuOpen(false);
       toast.success('Вы вышли из аккаунта');
     } catch (error) {
@@ -55,7 +66,11 @@ export function Header() {
     setUserMenuOpen(false);
   };
 
-  const displayName = user?.firstName || user?.username || 'Пользователь';
+  const displayName =
+    telegramUser?.firstName ||
+    telegramUser?.username ||
+    supabaseUser?.email ||
+    'Пользователь';
 
   return (
     <>
@@ -99,16 +114,16 @@ export function Header() {
               {/* Auth */}
               {authLoading ? (
                 <div className="w-24 h-10 bg-[var(--surface)] rounded-xl animate-pulse" />
-              ) : user ? (
+              ) : (telegramUser || supabaseUser) ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
                   >
                     {/* Avatar */}
-                    {user.photoUrl ? (
+                    {telegramUser?.photoUrl ? (
                       <Image
-                        src={user.photoUrl}
+                        src={telegramUser.photoUrl}
                         alt={displayName}
                         width={28}
                         height={28}
@@ -119,7 +134,9 @@ export function Header() {
                         {displayName[0].toUpperCase()}
                       </div>
                     )}
-                    <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
+                    <span className="text-sm font-semibold text-[var(--gold)]">
+                      {supabaseUser ? `${balance} ⭐` : 'Telegram'}
+                    </span>
                     <ChevronDown className={cn(
                       "w-4 h-4 text-[var(--muted)] transition-transform",
                       userMenuOpen && "rotate-180"
@@ -143,9 +160,9 @@ export function Header() {
                           {/* User Info */}
                           <div className="px-4 py-3 border-b border-[var(--border)]">
                             <div className="flex items-center gap-3">
-                              {user.photoUrl ? (
+                              {telegramUser?.photoUrl ? (
                                 <Image
-                                  src={user.photoUrl}
+                                  src={telegramUser.photoUrl}
                                   alt={displayName}
                                   width={40}
                                   height={40}
@@ -160,14 +177,22 @@ export function Header() {
                                 <p className="text-sm font-medium text-[var(--text)] truncate">
                                   {displayName}
                                 </p>
-                                {user.username && (
-                                  <p className="text-xs text-[var(--muted)]">@{user.username}</p>
-                                )}
+                                {telegramUser?.username ? (
+                                  <p className="text-xs text-[var(--muted)]">@{telegramUser.username}</p>
+                                ) : supabaseUser?.email ? (
+                                  <p className="text-xs text-[var(--muted)]">{supabaseUser.email}</p>
+                                ) : null}
                               </div>
                             </div>
                             <div className="mt-2 flex items-center gap-1">
-                              <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
-                              <span className="text-xs text-[var(--muted)]">кредитов</span>
+                              {supabaseUser ? (
+                                <>
+                                  <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
+                                  <span className="text-xs text-[var(--muted)]">кредитов</span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-[var(--muted)]">Вход через Telegram</span>
+                              )}
                             </div>
                           </div>
 
@@ -190,11 +215,11 @@ export function Header() {
                               Купить кредиты
                             </Link>
                             
-                            {/* Connect Bot (if not connected) */}
-                            {!user.canNotify && (
+                            {/* Connect Bot (only relevant for Telegram users) */}
+                            {telegramUser && !telegramUser.canNotify && (
                               <button
                                 onClick={handleConnectBot}
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#0088cc] hover:bg-[#0088cc]/10 transition-colors w-full"
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors w-full"
                               >
                                 <MessageCircle className="w-4 h-4" />
                                 Подключить уведомления
@@ -202,7 +227,7 @@ export function Header() {
                             )}
 
                             {/* Admin Link */}
-                            {user.isAdmin && (
+                            {telegramUser?.isAdmin && (
                               <Link
                                 href="/account/waitlist"
                                 onClick={() => setUserMenuOpen(false)}
@@ -291,13 +316,13 @@ export function Header() {
                 })}
 
                 <div className="pt-4 mt-4 border-t border-[var(--border)] space-y-2">
-                  {user ? (
+                  {(telegramUser || supabaseUser) ? (
                     <>
                       <div className="px-4 py-3 rounded-xl bg-[var(--surface2)]">
                         <div className="flex items-center gap-3">
-                          {user.photoUrl ? (
+                          {telegramUser?.photoUrl ? (
                             <Image
-                              src={user.photoUrl}
+                              src={telegramUser.photoUrl}
                               alt={displayName}
                               width={32}
                               height={32}
@@ -309,7 +334,9 @@ export function Header() {
                             </div>
                           )}
                           <div>
-                            <p className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</p>
+                            <p className="text-sm font-semibold text-[var(--gold)]">
+                              {supabaseUser ? `${balance} ⭐` : 'Telegram'}
+                            </p>
                             <p className="text-xs text-[var(--muted)]">{displayName}</p>
                           </div>
                         </div>
@@ -322,16 +349,16 @@ export function Header() {
                         <Crown className="w-4 h-4" />
                         Подписка
                       </Link>
-                      {!user.canNotify && (
+                      {telegramUser && !telegramUser.canNotify && (
                         <button
                           onClick={() => { handleConnectBot(); setMobileMenuOpen(false); }}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#0088cc] hover:bg-[#0088cc]/10 transition-colors w-full"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors w-full"
                         >
                           <MessageCircle className="w-4 h-4" />
                           Подключить уведомления
                         </button>
                       )}
-                      {user.isAdmin && (
+                      {telegramUser?.isAdmin && (
                         <Link
                           href="/account/waitlist"
                           onClick={() => setMobileMenuOpen(false)}

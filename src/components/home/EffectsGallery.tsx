@@ -176,3 +176,4 @@ export function EffectsGallery() {
 }
 
 export default EffectsGallery;
+

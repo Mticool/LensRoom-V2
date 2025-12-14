@@ -135,3 +135,4 @@ export async function clearSessionCookie() {
 export function getSessionCookieName() {
   return COOKIE_NAME;
 }
+

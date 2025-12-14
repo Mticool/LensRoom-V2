@@ -34,3 +34,4 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
 }
 
 export default ThemeToggle;
+

@@ -267,3 +267,4 @@ export function getCornerRadiusOptions(): { value: number; label: string }[] {
     { value: 24, label: "24px — Капсула" },
   ];
 }
+

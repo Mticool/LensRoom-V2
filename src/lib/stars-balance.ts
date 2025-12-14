@@ -67,3 +67,4 @@ export function hasEnoughStars(amount: number): boolean {
 export function formatStars(amount: number): string {
   return `⭐${Math.floor(amount)}`;
 }
+
