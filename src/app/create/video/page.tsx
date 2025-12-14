@@ -529,7 +529,7 @@ export default function VideoCreatePage() {
                           <Badge variant="warning" className="text-[9px] px-1.5 py-0">ULTRA</Badge>
                         )}
                         {selectedModelData.supportsAudio && (
-                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 flex items-center gap-0.5">
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 flex items-center gap-0.5">
                             <Volume2 className="w-2.5 h-2.5" />
                             Звук
                           </Badge>
