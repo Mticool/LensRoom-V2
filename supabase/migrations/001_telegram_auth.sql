@@ -2,11 +2,14 @@
 -- LensRoom Telegram Auth + Waitlist Schema
 -- =====================================================
 
--- 1. PROFILES TABLE
--- Stores user information from Telegram Login Widget
+-- Ensure required extension for gen_random_uuid (safe if already enabled)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1. PROFILES TABLE (may already exist in Supabase projects)
+-- If it exists, we ALTER it to add Telegram fields.
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  telegram_id BIGINT UNIQUE NOT NULL,
+  telegram_id BIGINT,
   telegram_username TEXT,
   first_name TEXT,
   last_name TEXT,
@@ -16,7 +19,30 @@ CREATE TABLE IF NOT EXISTS profiles (
   last_login_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for faster lookups
+-- Add missing columns if profiles already existed
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telegram_id BIGINT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telegram_username TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS first_name TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_name TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Ensure uniqueness for ON CONFLICT (allows multiple NULLs)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'profiles_telegram_id_key'
+  ) THEN
+    ALTER TABLE profiles
+      ADD CONSTRAINT profiles_telegram_id_key UNIQUE (telegram_id);
+  END IF;
+END$$;
+
+-- Index for faster lookups (safe now that column exists)
 CREATE INDEX IF NOT EXISTS idx_profiles_telegram_id ON profiles(telegram_id);
 
 -- 2. TELEGRAM BOT LINKS TABLE
