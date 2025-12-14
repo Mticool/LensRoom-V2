@@ -93,6 +93,11 @@ export interface GeneratorState {
   prompt: string;
   negativePrompt: string;
   
+  // Mode and reference
+  mode: "t2i" | "i2i";
+  referenceImage?: string;
+  referenceStrength: number;
+  
   // Generation settings
   aspectRatio: AspectRatio;
   variants: number;
@@ -119,6 +124,9 @@ export interface GeneratorActions {
   setSelectedModel: (model: string) => void;
   setPrompt: (prompt: string) => void;
   setNegativePrompt: (negativePrompt: string) => void;
+  setMode: (mode: "t2i" | "i2i") => void;
+  setReferenceImage: (referenceImage?: string) => void;
+  setReferenceStrength: (referenceStrength: number) => void;
   setAspectRatio: (aspectRatio: AspectRatio) => void;
   setVariants: (variants: number) => void;
   setSeed: (seed?: number) => void;
