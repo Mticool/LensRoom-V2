@@ -535,31 +535,29 @@ function InputsCard({
       )}
 
       {/* Prompt */}
-      {mode !== 'storyboard' && (
-        <div>
-          <label className="text-sm font-medium text-white/70 mb-2 block">
-            Описание видео
-            {mode === 't2v' && <span className="text-[var(--gold)] ml-1">*</span>}
-          </label>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={
-              mode === 't2v' 
-                ? 'Опишите сцену, действия, атмосферу...' 
-                : 'Опишите желаемое движение (опционально)...'
-            }
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl 
-                     text-white placeholder:text-white/30 resize-none 
-                     focus:outline-none focus:border-[var(--gold)]/50 focus:ring-1 focus:ring-[var(--gold)]/20
-                     transition-all"
-            rows={3}
-          />
-          <div className="flex justify-end mt-1">
-            <span className="text-xs text-white/30">{prompt.length} / 1000</span>
-          </div>
+      <div>
+        <label className="text-sm font-medium text-white/70 mb-2 block">
+          Описание видео
+          {mode === 't2v' && <span className="text-[var(--gold)] ml-1">*</span>}
+        </label>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder={
+            mode === 't2v' 
+              ? 'Опишите сцену, действия, атмосферу...' 
+              : 'Опишите желаемое движение (опционально)...'
+          }
+          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl 
+                   text-white placeholder:text-white/30 resize-none 
+                   focus:outline-none focus:border-[var(--gold)]/50 focus:ring-1 focus:ring-[var(--gold)]/20
+                   transition-all"
+          rows={3}
+        />
+        <div className="flex justify-end mt-1">
+          <span className="text-xs text-white/30">{prompt.length} / 1000</span>
         </div>
-      )}
+      </div>
     </Card>
   );
 }
