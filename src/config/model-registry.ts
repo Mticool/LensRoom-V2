@@ -93,7 +93,7 @@ const VIDEO_MODES: Record<string, ModeSpec> = {
     refLabels: {},
     requiredRefs: { a: false, b: false },
     showPrompt: true,
-    outputControls: { aspectRatio: true, duration: true },
+    outputControls: { aspectRatio: true, variants: false, duration: true },
     advancedControls: { seed: true },
     comingSoon: true,
   },
