@@ -13,19 +13,19 @@ import {
   X,
   Bell,
   ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 // ===== TYPES =====
 
-interface HubTile {
+interface ComingSoonFeature {
   id: string;
   title: string;
-  description: string;
   icon: React.ReactNode;
-  available: boolean;
-  href?: string;
 }
 
 interface ComingSoonInterest {
@@ -36,42 +36,26 @@ interface ComingSoonInterest {
 
 // ===== CONSTANTS =====
 
-const HUB_TILES: HubTile[] = [
-  {
-    id: "product-card",
-    title: "Карточка товара",
-    description: "Создайте профессиональные фото для WB и Ozon",
-    icon: <Package className="w-6 h-6" />,
-    available: true,
-    href: "#product-card-wizard",
-  },
+const COMING_SOON_FEATURES: ComingSoonFeature[] = [
   {
     id: "infographics",
     title: "Инфографика",
-    description: "Добавьте плашки, бейджи и текст на фото",
-    icon: <BarChart3 className="w-6 h-6" />,
-    available: false,
+    icon: <BarChart3 className="w-3.5 h-3.5" />,
   },
   {
     id: "video-ads",
     title: "Видео-реклама",
-    description: "Создайте короткие рекламные ролики",
-    icon: <Video className="w-6 h-6" />,
-    available: false,
+    icon: <Video className="w-3.5 h-3.5" />,
   },
   {
     id: "lifestyle",
-    title: "Lifestyle-сцены",
-    description: "Товар в интерьере, на кухне, в руках",
-    icon: <Camera className="w-6 h-6" />,
-    available: false,
+    title: "Lifestyle",
+    icon: <Camera className="w-3.5 h-3.5" />,
   },
   {
     id: "ab-test",
-    title: "A/B тест обложек",
-    description: "Сравните варианты и выберите лучший",
-    icon: <FlaskConical className="w-6 h-6" />,
-    available: false,
+    title: "A/B обложки",
+    icon: <FlaskConical className="w-3.5 h-3.5" />,
   },
 ];
 
@@ -89,7 +73,6 @@ function saveInterest(featureId: string, email?: string): void {
     email: email || undefined,
   };
   
-  // Don't duplicate
   const filtered = existing.filter(i => i.featureId !== featureId);
   filtered.push(newInterest);
   
@@ -111,167 +94,142 @@ function hasInterest(featureId: string): boolean {
   return getInterests().some(i => i.featureId === featureId);
 }
 
-// ===== COMPONENTS =====
+// ===== MAIN COMPONENT =====
 
 export function MarketplaceHub() {
-  const [modalTile, setModalTile] = useState<HubTile | null>(null);
+  const [modalFeature, setModalFeature] = useState<ComingSoonFeature | null>(null);
+  const [showInfographicsAccordion, setShowInfographicsAccordion] = useState(false);
 
-  const handleTileClick = (tile: HubTile) => {
-    if (tile.available && tile.href) {
-      // Scroll to wizard
-      const element = document.querySelector(tile.href);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    } else {
-      // Open coming soon modal
-      setModalTile(tile);
+  const handleScrollToWizard = () => {
+    const element = document.querySelector("#product-card-wizard");
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Hub Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {HUB_TILES.map((tile) => (
-          <TileCard
-            key={tile.id}
-            tile={tile}
-            onClick={() => handleTileClick(tile)}
-          />
-        ))}
+    <div className="space-y-4">
+      {/* Primary Card: Карточка товара */}
+      <button
+        onClick={handleScrollToWizard}
+        className="w-full p-5 rounded-2xl border bg-[var(--surface)] border-[var(--border)] hover:border-[var(--gold)]/50 hover:shadow-lg hover:shadow-[var(--gold)]/5 transition-all text-left group"
+      >
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center shrink-0">
+            <Package className="w-6 h-6 text-[var(--gold)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-[var(--text)]">Карточка товара</h3>
+              <Badge variant="primary" className="text-[10px]">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Доступно
+              </Badge>
+            </div>
+            <p className="text-sm text-[var(--muted)]">
+              6 готовых слайдов + тексты: название, выгоды, описание и ключи.
+            </p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-[var(--muted)] group-hover:text-[var(--gold)] transition-colors shrink-0 mt-1" />
+        </div>
+      </button>
+
+      {/* Coming Soon Strip */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-[var(--muted)] shrink-0">Скоро:</span>
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {COMING_SOON_FEATURES.map((feature) => {
+            const registered = hasInterest(feature.id);
+            return (
+              <button
+                key={feature.id}
+                onClick={() => setModalFeature(feature)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs whitespace-nowrap transition-all shrink-0",
+                  "bg-[var(--surface)] border-[var(--border)] text-[var(--text2)]",
+                  "hover:border-[var(--gold)]/50 hover:text-[var(--text)]",
+                  registered && "border-green-500/30"
+                )}
+              >
+                {feature.icon}
+                <span>{feature.title}</span>
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-[8px] px-1 py-0 ml-1",
+                    registered 
+                      ? "border-green-500/50 text-green-400" 
+                      : "border-[var(--gold)]/30 text-[var(--gold)]"
+                  )}
+                >
+                  {registered ? "✓" : "Скоро"}
+                </Badge>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Disabled Infographics Prompt Block */}
-      <InfographicsPromptBlock />
+      {/* Infographics Accordion (collapsed by default) */}
+      <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+        <button
+          onClick={() => setShowInfographicsAccordion(!showInfographicsAccordion)}
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-[var(--surface2)] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-[var(--muted)]" />
+            <span className="text-sm text-[var(--text)]">Инфографика: свой промт</span>
+            <Badge variant="outline" className="text-[10px] border-[var(--gold)]/30 text-[var(--gold)]">
+              Скоро
+            </Badge>
+          </div>
+          {showInfographicsAccordion ? (
+            <ChevronUp className="w-4 h-4 text-[var(--muted)]" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
+          )}
+        </button>
+        
+        {showInfographicsAccordion && (
+          <div className="p-4 pt-0 border-t border-[var(--border)] opacity-60">
+            <p className="text-xs text-[var(--muted)] mb-3">
+              Опишите стиль, плашки и акценты. Мы применим к шаблону.
+            </p>
+            <div className="flex gap-3">
+              <textarea
+                disabled
+                placeholder="Пример: Добавь красную плашку -30% в верхнем правом углу, белый текст 'ХИТ ПРОДАЖ' снизу..."
+                className="flex-1 h-16 px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] text-xs resize-none cursor-not-allowed"
+              />
+              <div className="flex items-center justify-center w-10">
+                <Lock className="w-5 h-5 text-[var(--muted)]" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Coming Soon Modal */}
-      {modalTile && (
+      {modalFeature && (
         <ComingSoonModal
-          tile={modalTile}
-          onClose={() => setModalTile(null)}
+          feature={modalFeature}
+          onClose={() => setModalFeature(null)}
         />
       )}
     </div>
   );
 }
 
-// ===== TILE CARD =====
-
-function TileCard({ tile, onClick }: { tile: HubTile; onClick: () => void }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const registered = !tile.available && hasInterest(tile.id);
-
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={cn(
-        "relative p-5 rounded-2xl border text-left transition-all duration-200",
-        "bg-[var(--surface)] border-[var(--border)]",
-        "hover:border-[var(--gold)]/50 hover:shadow-lg hover:shadow-[var(--gold)]/5",
-        tile.available 
-          ? "cursor-pointer" 
-          : "cursor-pointer opacity-90"
-      )}
-    >
-      {/* Coming Soon Badge */}
-      {!tile.available && (
-        <Badge 
-          variant="outline" 
-          className={cn(
-            "absolute top-3 right-3 text-[10px] px-2 py-0.5",
-            registered 
-              ? "border-green-500/50 text-green-400" 
-              : "border-[var(--gold)]/30 text-[var(--gold)]"
-          )}
-        >
-          {registered ? "Уведомим" : "Скоро"}
-        </Badge>
-      )}
-
-      {/* Icon */}
-      <div className={cn(
-        "w-12 h-12 rounded-xl flex items-center justify-center mb-3",
-        tile.available 
-          ? "bg-[var(--gold)]/10 text-[var(--gold)]" 
-          : "bg-[var(--surface2)] text-[var(--muted)]"
-      )}>
-        {tile.icon}
-      </div>
-
-      {/* Title */}
-      <h3 className="font-semibold text-[var(--text)] text-sm mb-1">
-        {tile.title}
-      </h3>
-
-      {/* Description */}
-      <p className="text-xs text-[var(--muted)] line-clamp-2">
-        {tile.description}
-      </p>
-
-      {/* Hover hint for available */}
-      {tile.available && isHovered && (
-        <div className="absolute bottom-3 right-3 flex items-center gap-1 text-[10px] text-[var(--gold)]">
-          <ChevronDown className="w-3 h-3" />
-          Открыть
-        </div>
-      )}
-    </button>
-  );
-}
-
-// ===== INFOGRAPHICS PROMPT BLOCK =====
-
-function InfographicsPromptBlock() {
-  return (
-    <div className="relative p-5 rounded-2xl border bg-[var(--surface)] border-[var(--border)] opacity-60">
-      {/* Badge */}
-      <Badge 
-        variant="outline" 
-        className="absolute top-4 right-4 text-[10px] border-[var(--gold)]/30 text-[var(--gold)]"
-      >
-        Скоро
-      </Badge>
-
-      <div className="flex gap-4">
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-[var(--text)] text-sm mb-1">
-            Инфографика: свой промт
-          </h4>
-          <p className="text-xs text-[var(--muted)] mb-3">
-            Опишите стиль, плашки и акценты. Мы применим к шаблону.
-          </p>
-          
-          <textarea
-            disabled
-            placeholder="Пример: Добавь красную плашку -30% в верхнем правом углу, белый текст 'ХИТО ПРОДАЖ' снизу, минималистичный стиль..."
-            className="w-full h-20 px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] text-xs resize-none cursor-not-allowed"
-          />
-        </div>
-
-        {/* Lock icon */}
-        <div className="flex items-center justify-center w-12">
-          <Lock className="w-6 h-6 text-[var(--muted)]" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ===== COMING SOON MODAL =====
 
-function ComingSoonModal({ tile, onClose }: { tile: HubTile; onClose: () => void }) {
+function ComingSoonModal({ feature, onClose }: { feature: ComingSoonFeature; onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = () => {
     setIsSubmitting(true);
     
-    // Save to localStorage
-    saveInterest(tile.id, email.trim() || undefined);
+    saveInterest(feature.id, email.trim() || undefined);
     
     setTimeout(() => {
       setIsSubmitting(false);
@@ -287,11 +245,11 @@ function ComingSoonModal({ tile, onClose }: { tile: HubTile; onClose: () => void
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center text-[var(--gold)]">
-              {tile.icon}
+              {feature.icon}
             </div>
             <div>
               <h3 className="font-semibold text-[var(--text)]">Скоро</h3>
-              <p className="text-xs text-[var(--muted)]">{tile.title}</p>
+              <p className="text-xs text-[var(--muted)]">{feature.title}</p>
             </div>
           </div>
           <button
