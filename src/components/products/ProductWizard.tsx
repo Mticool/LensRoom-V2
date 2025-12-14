@@ -291,7 +291,9 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
             {LIFESTYLE_SCENES.map((scene) => (
               <button
                 key={scene.id}
-                onClick={() => onChange({ sceneId: scene.id })}
+                onClick={() => onChange({ 
+                  sceneId: state.sceneId === scene.id ? null : scene.id 
+                })}
                 className={cn(
                   "p-3 rounded-xl border-2 text-center transition-all",
                   state.sceneId === scene.id
@@ -305,8 +307,8 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
             ))}
           </div>
           {selectedScene && (
-            <div className="mt-2 text-xs text-[var(--muted)] italic">
-              +"{selectedScene.promptAddon.slice(0, 40)}..."
+            <div className="mt-2 text-xs text-[var(--muted)]">
+              {selectedScene.descriptionRu}
             </div>
           )}
         </Section>

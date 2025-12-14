@@ -13,6 +13,8 @@ export interface LifestyleScene {
   labelEn: string;
   /** Emoji for UI */
   emoji: string;
+  /** Short description in Russian for UI */
+  descriptionRu: string;
   /** Short phrase to append to generation prompt */
   promptAddon: string;
   /** Full prompt template (use {product} as placeholder) */
@@ -35,6 +37,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "Кухня",
     labelEn: "Kitchen",
     emoji: "🍳",
+    descriptionRu: "На кухонной столешнице, дневной свет из окна",
     promptAddon: "on a modern kitchen countertop, natural daylight from window",
     promptTemplate: "{product} placed on a clean marble kitchen countertop, morning sunlight streaming through window, fresh herbs and ingredients in soft focus background, lifestyle photography, warm tones",
     colorMood: "warm",
@@ -46,6 +49,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "Ванная",
     labelEn: "Bathroom",
     emoji: "🛁",
+    descriptionRu: "В спа-атмосфере ванной, мягкий рассеянный свет",
     promptAddon: "in a spa-like bathroom setting, soft diffused light",
     promptTemplate: "{product} in a luxurious spa bathroom, white marble surfaces, soft towels, eucalyptus plants, diffused natural light, clean aesthetic, premium lifestyle photography",
     colorMood: "cool",
@@ -57,6 +61,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "Рабочий стол",
     labelEn: "Desk",
     emoji: "💼",
+    descriptionRu: "На минималистичном рабочем столе, деловая обстановка",
     promptAddon: "on a minimal workspace desk, professional setting",
     promptTemplate: "{product} on a clean minimal workspace, wooden desk, laptop and notebook in background, professional atmosphere, warm desk lamp lighting, productivity aesthetic",
     colorMood: "neutral",
@@ -68,6 +73,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "В руке",
     labelEn: "In Hand",
     emoji: "🤲",
+    descriptionRu: "В руке, демонстрация размера и использования",
     promptAddon: "held in a person's hand, showing scale and usage",
     promptTemplate: "close-up of {product} held in a well-manicured hand, blurred lifestyle background, demonstrating size and ergonomics, natural skin tones, professional product photography",
     colorMood: "neutral",
@@ -79,6 +85,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "Спортзал",
     labelEn: "Gym",
     emoji: "🏋️",
+    descriptionRu: "В современном спортзале, динамичная энергия",
     promptAddon: "in a modern gym environment, dynamic energy",
     promptTemplate: "{product} in a modern fitness studio, gym equipment softly blurred in background, energetic atmosphere, dramatic side lighting, athletic lifestyle photography",
     colorMood: "vibrant",
@@ -90,6 +97,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "Интерьер",
     labelEn: "Interior",
     emoji: "🛋️",
+    descriptionRu: "В стильном современном интерьере, дизайнерская эстетика",
     promptAddon: "in a stylish modern interior, designer aesthetic",
     promptTemplate: "{product} in a beautifully designed modern interior, Scandinavian style, plants and designer furniture in background, natural window light, cozy atmosphere, interior magazine photography",
     colorMood: "muted",
@@ -101,6 +109,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "На природе",
     labelEn: "Outdoor",
     emoji: "🌿",
+    descriptionRu: "На природе, свежая и натуральная атмосфера",
     promptAddon: "outdoors in nature, fresh and organic feel",
     promptTemplate: "{product} in an outdoor natural setting, green foliage, golden hour sunlight, fresh organic atmosphere, lifestyle photography with nature backdrop",
     colorMood: "warm",
@@ -112,6 +121,7 @@ export const LIFESTYLE_SCENES: LifestyleScene[] = [
     labelRu: "Раскладка",
     labelEn: "Flat Lay",
     emoji: "📐",
+    descriptionRu: "Вид сверху, стильная композиция с аксессуарами",
     promptAddon: "flat lay composition from above, styled arrangement",
     promptTemplate: "flat lay photography of {product} from above, carefully styled arrangement with complementary objects, clean background, perfect symmetry, Instagram aesthetic, professional product photography",
     colorMood: "neutral",
@@ -144,6 +154,11 @@ export function buildPromptWithScene(sceneId: string, productDescription: string
 export function getPromptAddon(sceneId: string): string {
   const scene = getSceneById(sceneId);
   return scene?.promptAddon ?? "";
+}
+
+export function getSceneDescriptionRu(sceneId: string): string {
+  const scene = getSceneById(sceneId);
+  return scene?.descriptionRu ?? "";
 }
 
 export function getColorMoodLabel(mood: ColorMood): string {
