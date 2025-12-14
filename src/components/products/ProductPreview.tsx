@@ -14,10 +14,18 @@ import {
   ChevronRight,
   ZoomIn,
   Package,
+  Save,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { type MarketplaceProfile, type SafeArea } from "@/config/marketplaceProfiles";
+import { type MarketplaceProfile } from "@/config/marketplaceProfiles";
+import {
+  exportProductZip,
+  copyProductTexts,
+  saveProductToLibrary,
+  type ProductExportData,
+} from "@/lib/productExport";
 
 // ===== TYPES =====
 
@@ -35,11 +43,18 @@ interface ProductPreviewProps {
   activeIndex: number;
   onActiveChange: (index: number) => void;
   onRegenerate: (index: number) => void;
-  onDownloadAll: () => void;
   isGenerating: boolean;
   modeName: string;
   marketplace: string;
   marketplaceProfile?: MarketplaceProfile;
+  // Export data
+  productTitle: string;
+  productBenefits: string[];
+  modeId: string;
+  templateStyle: string;
+  nicheId?: string | null;
+  sceneId?: string | null;
+  brandTemplateId?: string | null;
 }
 
 // ===== COMPONENT =====
@@ -49,20 +64,95 @@ export function ProductPreview({
   activeIndex,
   onActiveChange,
   onRegenerate,
-  onDownloadAll,
   isGenerating,
   modeName,
   marketplace,
   marketplaceProfile,
+  productTitle,
+  productBenefits,
+  modeId,
+  templateStyle,
+  nicheId,
+  sceneId,
+  brandTemplateId,
 }: ProductPreviewProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isCopyingTexts, setIsCopyingTexts] = useState(false);
+  const [isSavingToLibrary, setIsSavingToLibrary] = useState(false);
+  
   const activeSlide = slides[activeIndex];
-  const completedCount = slides.filter(s => s.status === "completed").length;
+  const completedSlides = slides.filter(s => s.status === "completed");
+  const completedCount = completedSlides.length;
 
   // Get safe area for overlay visualization
   const safeArea = marketplaceProfile?.safeArea;
 
-  const handleCopyText = async (text: string, index: number) => {
+  // Build export data
+  const getExportData = (): ProductExportData => ({
+    slides: slides
+      .filter(s => s.status === "completed" && s.imageUrl)
+      .map(s => ({
+        id: s.id,
+        imageUrl: s.imageUrl,
+        text: s.text,
+      })),
+    productTitle,
+    productBenefits,
+    marketplace,
+    modeId,
+    templateStyle,
+    nicheId,
+    sceneId,
+    brandTemplateId,
+  });
+
+  // Export handlers
+  const handleDownloadZip = async () => {
+    if (completedCount === 0) return;
+    
+    setIsExporting(true);
+    try {
+      await exportProductZip(getExportData());
+      toast.success("ZIP архив скачан");
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error("Ошибка экспорта");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleCopyTexts = async () => {
+    setIsCopyingTexts(true);
+    try {
+      const success = await copyProductTexts(getExportData());
+      if (success) {
+        toast.success("Тексты скопированы");
+      } else {
+        toast.error("Не удалось скопировать");
+      }
+    } finally {
+      setIsCopyingTexts(false);
+    }
+  };
+
+  const handleSaveToLibrary = async () => {
+    if (completedCount === 0) return;
+    
+    setIsSavingToLibrary(true);
+    try {
+      await saveProductToLibrary(getExportData());
+      toast.success("Сохранено в библиотеку");
+    } catch (error) {
+      console.error("Save failed:", error);
+      toast.error("Ошибка сохранения");
+    } finally {
+      setIsSavingToLibrary(false);
+    }
+  };
+
+  const handleCopySlideText = async (text: string, index: number) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedIndex(index);
@@ -92,7 +182,7 @@ export function ProductPreview({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
           <h3 className="font-semibold text-[var(--text)]">Предпросмотр</h3>
           <p className="text-sm text-[var(--muted)]">
@@ -101,7 +191,7 @@ export function ProductPreview({
         </div>
         
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -110,17 +200,52 @@ export function ProductPreview({
             className="text-xs"
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Перегенерировать
+            <span className="hidden sm:inline">Перегенерировать</span>
           </Button>
+          
           <Button
             variant="outline"
             size="sm"
-            onClick={onDownloadAll}
-            disabled={completedCount === 0}
+            onClick={handleCopyTexts}
+            disabled={isCopyingTexts}
             className="text-xs"
           >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            Скачать ZIP
+            {isCopyingTexts ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <FileText className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            <span className="hidden sm:inline">Копировать тексты</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadZip}
+            disabled={completedCount === 0 || isExporting}
+            className="text-xs"
+          >
+            {isExporting ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            <span className="hidden sm:inline">Скачать ZIP</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveToLibrary}
+            disabled={completedCount === 0 || isSavingToLibrary}
+            className="text-xs"
+          >
+            {isSavingToLibrary ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            <span className="hidden sm:inline">В библиотеку</span>
           </Button>
         </div>
       </div>
@@ -138,22 +263,18 @@ export function ProductPreview({
           {/* Safe Area Overlay (visible when empty) */}
           {safeArea && activeSlide?.status === "empty" && (
             <>
-              {/* Top safe area */}
               <div
                 className="absolute left-0 right-0 top-0 bg-red-500/10 border-b border-dashed border-red-500/30"
                 style={{ height: `${safeArea.top}%` }}
               />
-              {/* Bottom safe area */}
               <div
                 className="absolute left-0 right-0 bottom-0 bg-red-500/10 border-t border-dashed border-red-500/30"
                 style={{ height: `${safeArea.bottom}%` }}
               />
-              {/* Left safe area */}
               <div
                 className="absolute top-0 bottom-0 left-0 bg-red-500/10 border-r border-dashed border-red-500/30"
                 style={{ width: `${safeArea.left}%` }}
               />
-              {/* Right safe area */}
               <div
                 className="absolute top-0 bottom-0 right-0 bg-red-500/10 border-l border-dashed border-red-500/30"
                 style={{ width: `${safeArea.right}%` }}
@@ -231,11 +352,14 @@ export function ProductPreview({
             </Badge>
           </div>
 
-          {/* Slide number */}
-          <div className="absolute top-3 right-3">
+          {/* Slide number + filename */}
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
             <Badge variant="default" className="text-xs bg-[var(--surface)]/90 backdrop-blur">
               {activeIndex + 1} / {slides.length}
             </Badge>
+            <span className="text-[10px] text-[var(--muted)] bg-[var(--surface)]/90 backdrop-blur px-1.5 py-0.5 rounded">
+              {getSlideFilenameDisplay(activeIndex)}
+            </span>
           </div>
 
           {/* Typography hint */}
@@ -264,40 +388,47 @@ export function ProductPreview({
             key={slide.id}
             onClick={() => onActiveChange(index)}
             className={cn(
-              "w-16 h-16 rounded-lg border-2 shrink-0 overflow-hidden transition-all relative",
+              "shrink-0 rounded-lg border-2 overflow-hidden transition-all relative flex flex-col",
               activeIndex === index
                 ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/20"
                 : "border-[var(--border)] hover:border-[var(--gold)]/50"
             )}
           >
-            {slide.status === "completed" && slide.imageUrl ? (
-              <img
-                src={slide.imageUrl}
-                alt={`Thumb ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-[var(--surface2)] flex items-center justify-center">
-                {slide.status === "generating" ? (
-                  <Loader2 className="w-4 h-4 text-[var(--gold)] animate-spin" />
-                ) : slide.status === "pending" ? (
-                  <span className="text-xs text-[var(--muted)]">{index + 1}</span>
-                ) : (
-                  <ImageIcon className="w-4 h-4 text-[var(--muted)]" />
-                )}
-              </div>
-            )}
+            <div className="w-16 h-16">
+              {slide.status === "completed" && slide.imageUrl ? (
+                <img
+                  src={slide.imageUrl}
+                  alt={`Thumb ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-[var(--surface2)] flex items-center justify-center">
+                  {slide.status === "generating" ? (
+                    <Loader2 className="w-4 h-4 text-[var(--gold)] animate-spin" />
+                  ) : slide.status === "pending" ? (
+                    <span className="text-xs text-[var(--muted)]">{index + 1}</span>
+                  ) : (
+                    <ImageIcon className="w-4 h-4 text-[var(--muted)]" />
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Filename label */}
+            <div className="text-[8px] text-[var(--muted)] bg-[var(--surface2)] py-0.5 text-center truncate px-1">
+              {getSlideFilenameShort(index)}
+            </div>
             
             {/* Status indicator */}
             {slide.status === "completed" && (
-              <div className="absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full bg-green-500 border border-[var(--surface)]" />
+              <div className="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-green-500 border border-[var(--surface)]" />
             )}
           </button>
         ))}
       </div>
 
       {/* Text outputs */}
-      {slides.some(s => s.text) && (
+      {completedSlides.some(s => s.text) && (
         <div className="mt-4 space-y-2">
           <h4 className="text-sm font-medium text-[var(--text)]">Тексты для карточки</h4>
           {slides.map((slide, index) => slide.text && (
@@ -306,9 +437,12 @@ export function ProductPreview({
               className="p-3 rounded-lg bg-[var(--surface2)] border border-[var(--border)]"
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm text-[var(--text)] flex-1">{slide.text}</p>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] text-[var(--muted)] uppercase">{getSlideFilenameShort(index)}</span>
+                  <p className="text-sm text-[var(--text)] mt-0.5">{slide.text}</p>
+                </div>
                 <button
-                  onClick={() => handleCopyText(slide.text!, index)}
+                  onClick={() => handleCopySlideText(slide.text!, index)}
                   className="p-1.5 rounded-md hover:bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)] transition-colors shrink-0"
                 >
                   {copiedIndex === index ? (
@@ -327,6 +461,23 @@ export function ProductPreview({
 }
 
 // ===== HELPERS =====
+
+const SLIDE_NAMES: Record<number, { full: string; short: string }> = {
+  0: { full: "01_cover.jpg", short: "cover" },
+  1: { full: "02_benefits.jpg", short: "benefits" },
+  2: { full: "03_specs.jpg", short: "specs" },
+  3: { full: "04_howto.jpg", short: "howto" },
+  4: { full: "05_bundle.jpg", short: "bundle" },
+  5: { full: "06_delivery.jpg", short: "delivery" },
+};
+
+function getSlideFilenameDisplay(index: number): string {
+  return SLIDE_NAMES[index]?.full ?? `${String(index + 1).padStart(2, "0")}_slide.jpg`;
+}
+
+function getSlideFilenameShort(index: number): string {
+  return SLIDE_NAMES[index]?.short ?? `slide_${index + 1}`;
+}
 
 export function createEmptySlides(count: number): Slide[] {
   return Array.from({ length: count }, (_, i) => ({

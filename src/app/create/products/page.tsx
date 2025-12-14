@@ -28,9 +28,8 @@ import {
   deductStars,
   hasEnoughStars,
 } from "@/lib/stars-balance";
-import { addManyToLibrary } from "@/lib/library-storage";
 import { getMarketplaceProfile } from "@/config/marketplaceProfiles";
-import { getSceneById, getPromptAddon } from "@/config/lifestyleScenes";
+import { getPromptAddon } from "@/config/lifestyleScenes";
 import { getNicheById } from "@/config/productNiches";
 
 // ===== INITIAL STATE =====
@@ -87,7 +86,6 @@ export default function ProductCardsPage() {
   
   const selectedMode = getModeById(wizardState.modeId) ?? PRODUCT_IMAGE_MODES[0];
   const selectedNiche = wizardState.nicheId ? getNicheById(wizardState.nicheId) : null;
-  const selectedScene = wizardState.sceneId ? getSceneById(wizardState.sceneId) : null;
   
   const slidesCount = wizardState.generationType === "single" ? 1 : PACK_SLIDES_DEFAULT;
   const totalCost = wizardState.generationType === "single"
@@ -160,6 +158,8 @@ export default function ProductCardsPage() {
     setSlides(createPendingSlides(slidesCount));
 
     // Simulate generation progress
+    const generatedSlides: Slide[] = [];
+    
     for (let i = 0; i < slidesCount; i++) {
       await new Promise(resolve => setTimeout(resolve, 800));
       setSlides(prev => prev.map((s, idx) => 
@@ -168,44 +168,27 @@ export default function ProductCardsPage() {
       
       // Simulate completion
       await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      const completedSlide: Slide = {
+        id: `slide_${Date.now()}_${i}`,
+        status: "completed",
+        imageUrl: wizardState.productPhotos[i % wizardState.productPhotos.length] || wizardState.productPhotos[0],
+        text: wizardState.productBenefits[i] || undefined,
+      };
+      
+      generatedSlides.push(completedSlide);
+      
       setSlides(prev => prev.map((s, idx) => 
-        idx === i ? { 
-          ...s, 
-          status: "completed",
-          imageUrl: wizardState.productPhotos[idx % wizardState.productPhotos.length] || wizardState.productPhotos[0],
-          text: wizardState.productBenefits[idx] || undefined,
-        } : s
+        idx === i ? completedSlide : s
       ));
     }
 
     setIsGenerating(false);
-
-    // Save to library
-    const libraryItems = slides.map(s => ({
-      type: "product" as const,
-      modeId: wizardState.modeId,
-      modelKey: selectedMode.modelKey,
-      imageUrl: s.imageUrl,
-      metadata: {
-        generationType: wizardState.generationType,
-        marketplace: wizardState.marketplace,
-        templateStyle: wizardState.templateStyle,
-        productTitle: wizardState.productTitle,
-        nicheId: wizardState.nicheId,
-        sceneId: wizardState.sceneId,
-      },
-    }));
-    addManyToLibrary(libraryItems);
-
-    toast.success(`Готово! ${slidesCount} изображений сохранено 🎉`);
+    toast.success(`Готово! ${slidesCount} изображений создано 🎉`);
   };
 
   const handleRegenerate = async (index: number) => {
     toast.info(`Перегенерация слайда ${index + 1}...`);
-  };
-
-  const handleDownloadAll = () => {
-    toast.info("Подготовка ZIP архива...");
   };
 
   const handleBuyStars = () => {
@@ -270,11 +253,18 @@ export default function ProductCardsPage() {
                 activeIndex={activeSlideIndex}
                 onActiveChange={setActiveSlideIndex}
                 onRegenerate={handleRegenerate}
-                onDownloadAll={handleDownloadAll}
                 isGenerating={isGenerating}
                 modeName={selectedMode.name}
                 marketplace={wizardState.marketplace}
                 marketplaceProfile={marketplaceProfile}
+                // Export data props
+                productTitle={wizardState.productTitle}
+                productBenefits={wizardState.productBenefits}
+                modeId={wizardState.modeId}
+                templateStyle={wizardState.templateStyle}
+                nicheId={wizardState.nicheId}
+                sceneId={wizardState.sceneId}
+                brandTemplateId={wizardState.brandTemplateId}
               />
             </div>
           </motion.div>
