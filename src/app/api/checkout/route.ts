@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (type === 'subscription') {
       // ========== ПОДПИСКА ==========
       const plan = SUBSCRIPTION_PLANS.find(p => p.id === itemId);
-      if (!plan || !plan.recurring) {
+      if (!plan || !plan.period) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
 
