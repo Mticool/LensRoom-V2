@@ -15,6 +15,7 @@ import {
   type ProductWizardState,
   type Slide,
 } from "@/components/products";
+import { MarketplaceHub } from "@/components/marketplaces";
 import {
   PACK_SLIDES_DEFAULT,
   getModeById,
@@ -204,11 +205,11 @@ export default function ProductCardsPage() {
             <div className="flex items-center gap-3">
               <Badge variant="primary">
                 <Package className="w-3 h-3 mr-1" />
-                Продуктовые карточки
+                Маркетплейсы
               </Badge>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-semibold text-[var(--text)]">
-                  Фото для маркетплейсов
+                  Инструменты для WB и Ozon
                 </h1>
               </div>
             </div>
@@ -225,49 +226,71 @@ export default function ProductCardsPage() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 lg:px-8 max-w-7xl py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Settings (40%) */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-5 xl:col-span-4"
-          >
-            <div className="lg:sticky lg:top-36">
-              <ProductWizard
-                state={wizardState}
-                onChange={handleWizardChange}
-                marketplaceProfile={marketplaceProfile}
-              />
-            </div>
-          </motion.div>
+        {/* Marketplace Hub */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <MarketplaceHub />
+        </motion.div>
 
-          {/* Right Column: Preview (60%) */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-7 xl:col-span-8"
-          >
-            <div className="lg:sticky lg:top-36 lg:h-[calc(100vh-200px)]">
-              <ProductPreview
-                slides={slides}
-                activeIndex={activeSlideIndex}
-                onActiveChange={setActiveSlideIndex}
-                onRegenerate={handleRegenerate}
-                isGenerating={isGenerating}
-                modeName={selectedMode.name}
-                marketplace={wizardState.marketplace}
-                marketplaceProfile={marketplaceProfile}
-                // Export data props
-                productTitle={wizardState.productTitle}
-                productBenefits={wizardState.productBenefits}
-                modeId={wizardState.modeId}
-                templateStyle={wizardState.templateStyle}
-                nicheId={wizardState.nicheId}
-                sceneId={wizardState.sceneId}
-                brandTemplateId={wizardState.brandTemplateId}
-              />
+        {/* Product Card Wizard Section */}
+        <div id="product-card-wizard" className="scroll-mt-24">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center">
+              <Package className="w-5 h-5 text-[var(--gold)]" />
             </div>
-          </motion.div>
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--text)]">Карточка товара</h2>
+              <p className="text-sm text-[var(--muted)]">Создайте профессиональные фото для маркетплейсов</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Settings (40%) */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="lg:col-span-5 xl:col-span-4"
+            >
+              <div className="lg:sticky lg:top-36">
+                <ProductWizard
+                  state={wizardState}
+                  onChange={handleWizardChange}
+                  marketplaceProfile={marketplaceProfile}
+                />
+              </div>
+            </motion.div>
+
+            {/* Right Column: Preview (60%) */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="lg:col-span-7 xl:col-span-8"
+            >
+              <div className="lg:sticky lg:top-36 lg:h-[calc(100vh-200px)]">
+                <ProductPreview
+                  slides={slides}
+                  activeIndex={activeSlideIndex}
+                  onActiveChange={setActiveSlideIndex}
+                  onRegenerate={handleRegenerate}
+                  isGenerating={isGenerating}
+                  modeName={selectedMode.name}
+                  marketplace={wizardState.marketplace}
+                  marketplaceProfile={marketplaceProfile}
+                  // Export data props
+                  productTitle={wizardState.productTitle}
+                  productBenefits={wizardState.productBenefits}
+                  modeId={wizardState.modeId}
+                  templateStyle={wizardState.templateStyle}
+                  nicheId={wizardState.nicheId}
+                  sceneId={wizardState.sceneId}
+                  brandTemplateId={wizardState.brandTemplateId}
+                />
+              </div>
+            </motion.div>
+          </div>
         </div>
       </div>
 
