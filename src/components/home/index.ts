@@ -1,3 +1,2 @@
-export { HeroSection } from './hero-section';
-export { FeaturesSection } from './features-section';
-
+export { GalleryItem } from './gallery-item';
+export { GallerySection } from './gallery-section';

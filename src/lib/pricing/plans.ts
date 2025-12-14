@@ -1,105 +1,15 @@
-export interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  credits: number;
-  features: string[];
-  popular?: boolean;
-  recurring?: boolean;
-}
+// Re-export from pricing-config for backwards compatibility
+export { 
+  SUBSCRIPTIONS as SUBSCRIPTION_PLANS,
+  CREDIT_PACKS as CREDIT_PACKAGES,
+  REGISTRATION_BONUS,
+  REFERRAL_BONUS,
+  getPricePerStar,
+  getMargin,
+  getSavings,
+} from '@/lib/pricing-config';
 
-export interface CreditPackage {
-  id: string;
-  credits: number;
-  price: number;
-  discount?: number;
-  popular?: boolean;
-}
-
-export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  {
-    id: 'starter',
-    name: 'Стартовый',
-    price: 0,
-    credits: 100,
-    features: [
-      '100 кредитов единоразово',
-      'Базовые модели',
-      'Стандартная скорость',
-      'Базовая поддержка',
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 990,
-    credits: 500,
-    popular: true,
-    recurring: true,
-    features: [
-      '500 кредитов/месяц',
-      'Все AI модели',
-      'Приоритетная генерация',
-      'HD качество',
-      'Приоритетная поддержка',
-    ],
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: 2990,
-    credits: 2000,
-    recurring: true,
-    features: [
-      '2000 кредитов/месяц',
-      'Все AI модели',
-      'Максимальная скорость',
-      '4K качество',
-      'API доступ',
-      'Персональный менеджер',
-    ],
-  },
-];
-
-export const CREDIT_PACKAGES: CreditPackage[] = [
-  {
-    id: 'pack_200',
-    credits: 200,
-    price: 299,
-  },
-  {
-    id: 'pack_500',
-    credits: 500,
-    price: 599,
-    discount: 20,
-  },
-  {
-    id: 'pack_1200',
-    credits: 1200,
-    price: 1190,
-    discount: 34,
-    popular: true,
-  },
-  {
-    id: 'pack_3000',
-    credits: 3000,
-    price: 2490,
-    discount: 44,
-  },
-];
-
-export function getCreditPrice(packageId: string): number {
-  const pkg = CREDIT_PACKAGES.find((p) => p.id === packageId);
-  return pkg ? pkg.price / pkg.credits : 0;
-}
-
-export function getBestDeal(): CreditPackage {
-  return CREDIT_PACKAGES.reduce((best, current) => {
-    const bestPrice = best.price / best.credits;
-    const currentPrice = current.price / current.credits;
-    return currentPrice < bestPrice ? current : best;
-  });
-}
+export type { Subscription as SubscriptionPlan, CreditPack as CreditPackage } from '@/lib/pricing-config';
 
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat('ru-RU', {
@@ -110,3 +20,17 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+export function getCreditPrice(packageId: string): number {
+  const { CREDIT_PACKS } = require('@/lib/pricing-config');
+  const pkg = CREDIT_PACKS.find((p: { id: string; price: number; credits: number }) => p.id === packageId);
+  return pkg ? pkg.price / pkg.credits : 0;
+}
+
+export function getBestDeal() {
+  const { CREDIT_PACKS } = require('@/lib/pricing-config');
+  return CREDIT_PACKS.reduce((best: { price: number; credits: number }, current: { price: number; credits: number }) => {
+    const bestPrice = best.price / best.credits;
+    const currentPrice = current.price / current.credits;
+    return currentPrice < bestPrice ? current : best;
+  });
+}

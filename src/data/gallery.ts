@@ -72,3 +72,4 @@ export const MOCK_GALLERY: GalleryItem[] = [
   },
 ];
 
+

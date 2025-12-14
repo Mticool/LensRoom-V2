@@ -55,3 +55,4 @@ export async function downloadMultipleImages(
   toast.success(`Скачано ${results.length} изображений`);
 }
 
+

@@ -13,10 +13,6 @@ interface GenerationInput {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
-    }
-    
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -72,10 +68,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
-    }
-    
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

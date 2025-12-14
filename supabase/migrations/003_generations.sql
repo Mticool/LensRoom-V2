@@ -163,3 +163,4 @@ GRANT ALL ON public.generations TO authenticated;
 GRANT SELECT ON public.generation_history TO authenticated;
 GRANT EXECUTE ON FUNCTION get_user_generation_stats(UUID) TO authenticated;
 
+

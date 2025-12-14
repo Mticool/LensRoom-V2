@@ -1,331 +1,311 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { SUBSCRIPTIONS, CREDIT_PACKS, REGISTRATION_BONUS, REFERRAL_BONUS } from '@/lib/pricing-config';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Check, Sparkles, Crown, Zap, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Check, Sparkles, Gift, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/providers/auth-provider';
-import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES, formatPrice } from '@/lib/pricing/plans';
-import { toast } from 'sonner';
-import { LoginDialog } from '@/components/auth/login-dialog';
+import { ComparisonTable } from '@/components/pricing/comparison-table';
+import Link from 'next/link';
 
 export default function PricingPage() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState<string | null>(null);
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
-
-  const handlePurchase = async (type: 'subscription' | 'package', itemId: string) => {
-    if (!user) {
-      setAuthDialogOpen(true);
-      toast.error('Войдите чтобы оформить покупку');
-      return;
-    }
-
-    setLoading(itemId);
-
-    try {
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, itemId }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Ошибка при создании платежа');
-      }
-
-      // Redirect to Prodamus
-      window.location.href = data.url;
-
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка при создании платежа';
-      toast.error(message);
-      setLoading(null);
-    }
-  };
-
-  const planIcons = {
-    starter: Sparkles,
-    pro: Crown,
-    business: Zap,
-  };
-
-  const planGradients = {
-    starter: 'from-green-500 to-emerald-500',
-    pro: 'from-purple-500 to-blue-500',
-    business: 'from-orange-500 to-red-500',
-  };
+  const [billingType, setBillingType] = useState<'subscription' | 'onetime'>('subscription');
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)]">
-      <div className="container mx-auto px-4 py-16 lg:py-24">
+    <div className="min-h-screen bg-[#08080C] pt-20 pb-12">
+      <div className="container mx-auto px-6 max-w-7xl">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
-        >
-          <Badge variant="primary" className="mb-6 px-4 py-2">
-            Тарифы
-          </Badge>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--color-text-primary)] mb-6">
-            Простые и{' '}
-            <span className="bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-              понятные тарифы
-            </span>
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            Простые и честные цены
           </h1>
-          <p className="text-lg md:text-xl text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-            Платите только за то, что используете. Без скрытых платежей.
+          <p className="text-xl text-white/60 mb-8">
+            Выберите тариф под ваши задачи
           </p>
-        </motion.div>
 
-        {/* Subscription Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-24 max-w-6xl mx-auto">
-          {SUBSCRIPTION_PLANS.map((plan, index) => {
-            const Icon = planIcons[plan.id as keyof typeof planIcons] || Sparkles;
-            const gradient = planGradients[plan.id as keyof typeof planGradients] || 'from-gray-500 to-gray-600';
-            const isPopular = 'popular' in plan && plan.popular;
-            const isLoading = loading === plan.id;
-            
-            return (
+          {/* Toggle */}
+          <div className="inline-flex items-center gap-2 p-1 bg-white/5 rounded-lg">
+            <button
+              onClick={() => setBillingType('subscription')}
+              className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                billingType === 'subscription'
+                  ? 'bg-[#c8ff00] text-black'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Подписки
+            </button>
+            <button
+              onClick={() => setBillingType('onetime')}
+              className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                billingType === 'onetime'
+                  ? 'bg-[#c8ff00] text-black'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Разовые пакеты
+            </button>
+          </div>
+        </div>
+
+        {/* Subscriptions */}
+        {billingType === 'subscription' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid md:grid-cols-3 gap-8 mb-12"
+          >
+            {SUBSCRIPTIONS.map((sub, index) => (
               <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, y: 30 }}
+                key={sub.id}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
                 <Card 
-                  variant="hover" 
-                 
-                  className={cn(
-                    "relative h-full",
-                    isPopular && "border-2 border-purple-500 shadow-xl shadow-purple-500/20"
-                  )}
+                  className={`relative overflow-hidden bg-white/[0.02] ${
+                    sub.popular 
+                      ? 'border-2 border-[#c8ff00] shadow-xl shadow-[#c8ff00]/10 scale-105' 
+                      : 'border border-white/10'
+                  }`}
                 >
-                  {isPopular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                      <div className="px-6 py-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold text-sm shadow-lg">
-                        ПОПУЛЯРНЫЙ
-                      </div>
+                  {sub.badge && (
+                    <div className="bg-gradient-to-r from-[#c8ff00] to-yellow-400 text-black text-center py-2 text-sm font-bold">
+                      {sub.badge}
                     </div>
                   )}
 
-                  <div className={cn("p-8", isPopular && "pt-10")}>
-                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-6 shadow-lg`}>
-                      <Icon className="w-7 h-7 text-white" />
-                    </div>
-
-                    <h3 className="text-2xl font-bold text-[var(--color-text-primary)] mb-2">{plan.name}</h3>
+                  <div className="p-8">
+                    <h3 className="text-2xl font-bold text-white mb-2">
+                      {sub.name}
+                    </h3>
                     
-                    <div className="mb-6">
-                      {plan.price === 0 ? (
-                        <span className="text-4xl font-bold text-[var(--color-text-primary)]">FREE</span>
-                      ) : (
-                        <>
-                          <span className={cn(
-                            "text-4xl font-bold",
-                            isPopular 
-                              ? "bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent"
-                              : "text-[var(--color-text-primary)]"
-                          )}>
-                            {formatPrice(plan.price)}
-                          </span>
-                          <span className="text-[var(--color-text-secondary)] ml-2">/мес</span>
-                        </>
-                      )}
+                    <div className="mb-4">
+                      <span className="text-5xl font-bold text-white">
+                        {sub.price.toLocaleString()}₽
+                      </span>
+                      <span className="text-white/40">/мес</span>
                     </div>
 
-                    <p className="text-[var(--color-text-secondary)] mb-6">
-                      {plan.credits} кредитов {plan.recurring ? 'каждый месяц' : 'на старт'}
+                    <div className="flex items-center gap-2 mb-6">
+                      <Sparkles className="w-5 h-5 text-[#c8ff00]" />
+                      <span className="text-lg font-semibold text-white">
+                        {sub.credits} ⭐ каждый месяц
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-white/50 mb-6">
+                      {sub.description}
                     </p>
 
-                    <ul className="space-y-4 mb-8">
-                      {plan.features.map((feature, i) => (
-                        <li key={i} className="flex items-start gap-3">
-                          <div className={cn(
-                            "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5",
-                            isPopular ? "bg-purple-500/20" : "bg-[var(--color-bg-tertiary)]"
-                          )}>
-                            <Check className={cn(
-                              "w-4 h-4",
-                              isPopular ? "text-purple-500" : "text-[var(--color-text-secondary)]"
-                            )} />
-                          </div>
-                          <span className="text-[var(--color-text-primary)]">{feature}</span>
+                    <Button 
+                      className={`w-full mb-6 rounded-full ${
+                        sub.popular 
+                          ? 'bg-[#c8ff00] text-black hover:bg-[#b8ef00]' 
+                          : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                      size="lg"
+                      asChild
+                    >
+                      <Link href={`/checkout?plan=${sub.id}`}>
+                        Выбрать {sub.name}
+                      </Link>
+                    </Button>
+
+                    <ul className="space-y-3">
+                      {sub.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-2 text-sm">
+                          <Check className="w-5 h-5 text-[#c8ff00] flex-shrink-0 mt-0.5" />
+                          <span className="text-white/80">{feature}</span>
                         </li>
                       ))}
                     </ul>
-
-                    {plan.price === 0 ? (
-                      <Button asChild variant="secondary" size="lg" className="w-full">
-                        <Link href="/create">Начать бесплатно</Link>
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant={isPopular ? "default" : "secondary"} 
-                        size="lg" 
-                        className={cn("w-full", isPopular && "shadow-lg shadow-purple-500/20")}
-                        onClick={() => handlePurchase('subscription', plan.id)}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Загрузка...
-                          </>
-                        ) : (
-                          `Подписаться за ${formatPrice(plan.price)}/мес`
-                        )}
-                      </Button>
-                    )}
                   </div>
                 </Card>
               </motion.div>
-            );
-          })}
-        </div>
+            ))}
+          </motion.div>
+        )}
 
-        {/* Credit Packages */}
-        <div className="max-w-5xl mx-auto">
+        {/* One-time Packs */}
+        {billingType === 'onetime' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
+            animate={{ opacity: 1, y: 0 }}
+            className="grid md:grid-cols-3 gap-8 mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-[var(--color-text-primary)] mb-4">
-              Пакеты{' '}
-              <span className="bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                кредитов
-              </span>
-            </h2>
-            <p className="text-lg text-[var(--color-text-secondary)]">
-              Покупайте кредиты пакетами и экономьте до 44%
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {CREDIT_PACKAGES.map((pkg, index) => {
-              const isLoading = loading === pkg.id;
-              
-              return (
-                <motion.div
-                  key={pkg.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
+            {CREDIT_PACKS.map((pack, index) => (
+              <motion.div
+                key={pack.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card 
+                  className={`relative overflow-hidden bg-white/[0.02] ${
+                    pack.popular 
+                      ? 'border-2 border-[#c8ff00] shadow-xl shadow-[#c8ff00]/10' 
+                      : 'border border-white/10'
+                  }`}
                 >
-                  <Card
-                    variant={pkg.popular ? "hover" : "default"}
-                   
-                   
-                    className={cn(
-                      "relative",
-                      pkg.popular && "border-2 border-purple-500 shadow-lg shadow-purple-500/20"
-                    )}
-                  >
-                    <div className="p-6 text-center">
-                      {pkg.popular && (
-                        <div className="mb-3">
-                          <span className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold">
-                            ВЫГОДНО
-                          </span>
-                        </div>
-                      )}
-                      
-                      {'discount' in pkg && pkg.discount && (
-                        <div className="mb-2">
-                          <span className="text-xs text-green-400 font-medium">
-                            -{pkg.discount}% выгоднее
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="text-4xl font-bold text-[var(--color-text-primary)] mb-2">
-                        {pkg.credits}
-                      </div>
-                      <div className="text-sm text-[var(--color-text-tertiary)] mb-4">кредитов</div>
-                      <div className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent mb-2">
-                        {formatPrice(pkg.price)}
-                      </div>
-                      <div className="text-xs text-[var(--color-text-tertiary)] mb-6">
-                        {(pkg.price / pkg.credits).toFixed(2)} ₽ за кредит
-                      </div>
-                      
-                      <Button 
-                        variant={pkg.popular ? "default" : "secondary"} 
-                        className={cn("w-full", pkg.popular && "shadow-lg shadow-purple-500/20")}
-                        onClick={() => handlePurchase('package', pkg.id)}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          'Купить'
-                        )}
-                      </Button>
+                  {pack.savings && (
+                    <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                      {pack.savings}
                     </div>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
+                  )}
+
+                  <div className="p-8">
+                    <h3 className="text-2xl font-bold text-white mb-2">
+                      {pack.name}
+                    </h3>
+                    
+                    <div className="mb-4">
+                      <span className="text-5xl font-bold text-white">
+                        {pack.price.toLocaleString()}₽
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-6">
+                      <Sparkles className="w-5 h-5 text-[#c8ff00]" />
+                      <span className="text-lg font-semibold text-white">
+                        {pack.credits} ⭐
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-white/50 mb-6">
+                      {pack.description}
+                    </p>
+
+                    <Button 
+                      className={`w-full rounded-full ${
+                        pack.popular 
+                          ? 'bg-[#c8ff00] text-black hover:bg-[#b8ef00]' 
+                          : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                      size="lg"
+                      asChild
+                    >
+                      <Link href={`/checkout?pack=${pack.id}`}>
+                        Купить {pack.name}
+                      </Link>
+                    </Button>
+
+                    <div className="mt-6 pt-6 border-t border-white/10">
+                      <p className="text-xs text-white/40 text-center">
+                        ~{Math.floor(pack.credits / 7)} фото или ~{Math.floor(pack.credits / 15)} видео
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Bonuses */}
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
+          <Card className="p-6 bg-gradient-to-br from-[#c8ff00]/5 to-yellow-500/5 border-[#c8ff00]/20">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#c8ff00]/10 flex items-center justify-center flex-shrink-0">
+                <Gift className="w-6 h-6 text-[#c8ff00]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Бонус при регистрации
+                </h3>
+                <p className="text-white/50 mb-3">
+                  Получите {REGISTRATION_BONUS} ⭐ бесплатно сразу после регистрации. 
+                  Попробуйте все модели без вложений!
+                </p>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#c8ff00]/10 rounded-full">
+                  <Sparkles className="w-4 h-4 text-[#c8ff00]" />
+                  <span className="text-sm font-medium text-[#c8ff00]">
+                    +{REGISTRATION_BONUS} ⭐
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-gradient-to-br from-green-500/5 to-blue-500/5 border-green-500/20">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                <Users className="w-6 h-6 text-green-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Реферальная программа
+                </h3>
+                <p className="text-white/50 mb-3">
+                  Пригласите друга — вы оба получите по {REFERRAL_BONUS} ⭐. 
+                  Делитесь AI-магией с друзьями!
+                </p>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 rounded-full">
+                  <Sparkles className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium text-green-500">
+                    +{REFERRAL_BONUS} ⭐ каждому
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
 
-        {/* FAQ Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="max-w-3xl mx-auto mt-24"
-        >
-          <h2 className="text-3xl md:text-4xl font-bold text-[var(--color-text-primary)] text-center mb-12">
+        {/* Comparison Table */}
+        <div className="mb-16">
+          <h2 className="text-3xl font-bold text-center text-white mb-8">
+            Сравнение тарифов
+          </h2>
+          <ComparisonTable />
+        </div>
+
+        {/* FAQ */}
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold text-center text-white mb-8">
             Частые вопросы
           </h2>
-
+          
           <div className="space-y-4">
-            {[
-              {
-                q: 'Что такое кредиты?',
-                a: 'Кредиты — это единая валюта для всех моделей. Разные модели стоят разное количество кредитов в зависимости от сложности.',
-              },
-              {
-                q: 'Какие способы оплаты?',
-                a: 'Принимаем карты Visa, Mastercard, МИР, а также СБП и электронные кошельки.',
-              },
-              {
-                q: 'Как работает подписка?',
-                a: 'Подписка автоматически продлевается каждый месяц. Кредиты начисляются в день продления. Отменить можно в любой момент.',
-              },
-              {
-                q: 'Есть ли возврат средств?',
-                a: 'Мы возвращаем деньги в течение 14 дней, если вы не использовали кредиты.',
-              },
-              {
-                q: 'Сколько времени действуют кредиты?',
-                a: 'Купленные кредиты не сгорают и действуют бессрочно. Кредиты по подписке действуют до конца периода.',
-              },
-            ].map((faq, i) => (
-              <Card key={i} variant="hover">
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">{faq.q}</h3>
-                  <p className="text-[var(--color-text-secondary)]">{faq.a}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </motion.div>
-      </div>
+            <Card className="p-6 bg-white/[0.02] border-white/10">
+              <h3 className="font-bold text-white mb-2">
+                Что такое ⭐ (звёзды)?
+              </h3>
+              <p className="text-sm text-white/50">
+                Это внутренняя валюта платформы. Каждая модель стоит определённое количество звёзд. 
+                Например, фото Seedream = 7⭐, видео Sora 2 (5s) = 15⭐.
+              </p>
+            </Card>
 
-      {/* Auth Dialog */}
-      <LoginDialog isOpen={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
+            <Card className="p-6 bg-white/[0.02] border-white/10">
+              <h3 className="font-bold text-white mb-2">
+                Сгорают ли неиспользованные звёзды?
+              </h3>
+              <p className="text-sm text-white/50">
+                Нет! Ваши звёзды никогда не сгорают. Накапливайте и используйте когда угодно.
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-white/[0.02] border-white/10">
+              <h3 className="font-bold text-white mb-2">
+                Можно ли отменить подписку?
+              </h3>
+              <p className="text-sm text-white/50">
+                Да, в любой момент. Звёзды останутся с вами даже после отмены подписки.
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-white/[0.02] border-white/10">
+              <h3 className="font-bold text-white mb-2">
+                Есть ли коммерческая лицензия?
+              </h3>
+              <p className="text-sm text-white/50">
+                Да! Все генерации можно использовать в коммерческих целях без дополнительной оплаты.
+              </p>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

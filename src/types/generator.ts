@@ -23,6 +23,13 @@ export interface AIModelDefaultParams {
   sampler?: string;
 }
 
+export interface ModelVariant {
+  id: string;
+  label: string;
+  creditCost: number;
+  description?: string;
+}
+
 export interface AIModel {
   id: string;
   name: string;
@@ -47,6 +54,10 @@ export interface AIModel {
   // Flags
   hidden?: boolean; // скрыть из публичного UI (internal API models)
   featured?: boolean; // показывать в Featured секции
+  hasAudio?: boolean; // для видео с аудио
+  
+  // Variants (different resolutions/durations/quality presets)
+  variants?: ModelVariant[];
   
   // Capabilities
   capabilities?: AIModelCapabilities;

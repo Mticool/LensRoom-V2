@@ -1,518 +1,329 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { VIDEO_MODELS, getModelById, hasFeature } from '@/lib/models-config';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Slider } from '@/components/ui/slider';
+import { 
+  FirstLastFrame,
+  CameraControl,
+  AudioSync,
+  Storyboard,
+  AspectRatioSelector,
+} from '@/components/generator/features';
 import { 
   Sparkles, 
   Video,
+  Zap,
+  Star,
+  Clock,
+  Info,
   ChevronDown,
   Wand2,
-  BookOpen,
-  Settings2,
-  Zap,
-  Camera,
-  Upload,
-  X,
-  Image as ImageIcon
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { VIDEO_MODELS } from '@/lib/models';
-import { useVideoGeneratorStore } from '@/stores/video-generator-store';
-import { toast } from 'sonner';
 
-const MODE_OPTIONS = [
-  { id: 'text-to-video', label: 'Текст → Видео', icon: Wand2 },
-  { id: 'image-to-video', label: 'Фото → Видео', icon: ImageIcon },
+const DURATION_OPTIONS = [
+  { value: 3, label: '3 сек' },
+  { value: 5, label: '5 сек' },
+  { value: 10, label: '10 сек' },
 ];
 
-const DURATION_OPTIONS = [3, 5, 10, 15];
-
-const CAMERA_MOVEMENTS = [
-  { id: 'static', label: 'Статика' },
-  { id: 'pan-left', label: 'Влево' },
-  { id: 'pan-right', label: 'Вправо' },
-  { id: 'zoom-in', label: 'Zoom In' },
-  { id: 'zoom-out', label: 'Zoom Out' },
-  { id: 'orbit', label: 'Орбита' },
-];
-
-const QUICK_TAGS = [
+const QUICK_STYLES = [
   'кинематографичный',
   'плавное движение',
-  '4K качество',
-  'профессиональное',
   'эпичный',
-  'атмосферный',
+  'slow motion',
 ];
 
 export default function VideoCreatePage() {
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const {
-    mode,
-    prompt,
-    selectedModel,
-    duration,
-    cameraMovement,
-    motionIntensity,
-    fps,
-    uploadedImage,
-    isGenerating,
-    progress,
-    result,
-    setMode,
-    setPrompt,
-    setSelectedModel,
-    setDuration,
-    setCameraMovement,
-    setMotionIntensity,
-    setFps,
-    setUploadedImage,
-    startGeneration,
-    updateProgress,
-    completeGeneration,
-  } = useVideoGeneratorStore();
+  const [selectedModel, setSelectedModel] = useState(VIDEO_MODELS[0].id);
+  const [prompt, setPrompt] = useState('');
+  const [duration, setDuration] = useState(5);
+  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const selectedModelData = VIDEO_MODELS.find(m => m.id === selectedModel);
-  const canGenerate = prompt.trim().length > 0 && !isGenerating && (mode === 'text-to-video' || uploadedImage);
+  // Generation params
+  const [firstFrame, setFirstFrame] = useState<File | null>(null);
+  const [lastFrame, setLastFrame] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [camera, setCamera] = useState({ movement: 'static', speed: 50 });
+  const [scenes, setScenes] = useState<Array<{ id: string; prompt: string; duration: number }>>([]);
 
-  const addTag = (tag: string) => {
-    const newPrompt = prompt ? `${prompt}, ${tag}` : tag;
-    setPrompt(newPrompt);
+  const model = getModelById(selectedModel);
+  const totalCredits = model ? Math.ceil(model.credits * (duration / 5)) : 0;
+
+  const handleGenerate = async () => {
+    console.log('Generating video:', { selectedModel, prompt, duration, aspectRatio });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Файл слишком большой (макс. 10MB)');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setUploadedImage(e.target?.result as string);
-        toast.success('Изображение загружено');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleGenerate = () => {
-    if (!canGenerate) return;
-
-    startGeneration('mock-job-id');
-    toast.success('Генерация видео началась!');
-
-    let p = 0;
-    const interval = setInterval(() => {
-      p += Math.random() * 10;
-      if (p >= 100) {
-        clearInterval(interval);
-        completeGeneration({
-          id: `video_${Date.now()}`,
-          url: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1618556450994-a6a128ef0d9d?w=400',
-          model: selectedModel,
-          duration,
-          resolution: '1080p',
-          prompt,
-          createdAt: new Date(),
-        });
-        toast.success('Видео готово! 🎬');
-      } else {
-        updateProgress(Math.min(99, Math.round(p)));
-      }
-    }, 800);
+  const addStyle = (style: string) => {
+    setPrompt(prev => prev ? `${prev}, ${style}` : style);
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)]">
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Panel - Controls */}
-          <div className="space-y-5">
-            {/* Mode Selector */}
-            <div>
-              <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2 block">
-                Режим генерации
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {MODE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setMode(opt.id as 'text-to-video' | 'image-to-video')}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
-                      mode === opt.id
-                        ? "border-white bg-white/10"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] bg-transparent"
-                    )}
-                  >
-                    <opt.icon className="w-6 h-6 text-[var(--color-text-primary)]" />
-                    <span className="text-sm font-medium text-[var(--color-text-primary)]">{opt.label}</span>
-                  </button>
-                ))}
+    <div className="min-h-screen bg-[#0a0a0a] pt-20 pb-12">
+      <div className="container mx-auto px-4 lg:px-6 max-w-7xl">
+        <div className="grid lg:grid-cols-12 gap-6">
+          
+          {/* Left: Model Selector */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#c8ff00]/10 border border-[#c8ff00]/30 flex items-center justify-center">
+                <Video className="w-5 h-5 text-[#c8ff00]" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white">Видео</h1>
+                <p className="text-xs text-white/40">{VIDEO_MODELS.length} моделей</p>
               </div>
             </div>
 
-            {/* Image Upload (for image-to-video) */}
-            {mode === 'image-to-video' && (
-              <div>
-                <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2 block">
-                  Исходное изображение
-                </label>
-                {uploadedImage ? (
-                  <div className="relative aspect-video rounded-xl overflow-hidden border border-[var(--color-border)]">
-                    <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => setUploadedImage(null)}
-                      className="absolute top-2 right-2 p-2 rounded-lg bg-black/60 hover:bg-black/80 transition-colors"
-                    >
-                      <X className="w-4 h-4 text-white" />
-                    </button>
+            {/* Models List */}
+            <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+              {VIDEO_MODELS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setSelectedModel(m.id)}
+                  className={cn(
+                    "w-full text-left p-4 rounded-xl transition-all",
+                    selectedModel === m.id
+                      ? "bg-[#c8ff00]/10 border-2 border-[#c8ff00]/50"
+                      : "bg-white/[0.02] border border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
+                  )}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className={cn(
+                      "font-semibold",
+                      selectedModel === m.id ? "text-[#c8ff00]" : "text-white"
+                    )}>
+                      {m.name}
+                    </h3>
+                    <span className="text-[#c8ff00] font-bold text-sm">{m.credits}</span>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full aspect-video rounded-xl border-2 border-dashed border-[var(--color-border)] 
-                               hover:border-white/30 transition-colors
-                               flex flex-col items-center justify-center gap-2 bg-[var(--color-bg-secondary)]"
-                  >
-                    <Upload className="w-8 h-8 text-[var(--color-text-tertiary)]" />
-                    <span className="text-sm text-[var(--color-text-secondary)]">Загрузить изображение</span>
-                    <span className="text-xs text-[var(--color-text-tertiary)]">PNG, JPG до 10MB</span>
-                  </button>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
+                  
+                  {/* Badges */}
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {m.quality === 'ultra' && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded flex items-center gap-0.5">
+                        <Star className="w-2.5 h-2.5 fill-amber-400" />ULTRA
+                      </span>
+                    )}
+                    {m.speed === 'fast' && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded flex items-center gap-0.5">
+                        <Zap className="w-2.5 h-2.5" />FAST
+                      </span>
+                    )}
+                    {m.speed === 'slow' && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded flex items-center gap-0.5">
+                        <Clock className="w-2.5 h-2.5" />PRO
+                      </span>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs text-white/40 line-clamp-2">
+                    {m.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: Generator */}
+          <div className="lg:col-span-9 space-y-5">
+            {/* Model Info */}
+            {model && (
+              <div className="p-4 rounded-xl bg-[#c8ff00]/5 border border-[#c8ff00]/20">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#c8ff00]/10 flex items-center justify-center shrink-0">
+                      <Info className="w-5 h-5 text-[#c8ff00]" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white mb-1">{model.name}</h3>
+                      <p className="text-sm text-white/50">{model.description}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {model.quality === 'ultra' && (
+                          <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full flex items-center gap-0.5 border border-amber-500/20">
+                            <Star className="w-2.5 h-2.5 fill-amber-400" />ULTRA
+                          </span>
+                        )}
+                        {model.speed === 'fast' && (
+                          <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center gap-0.5 border border-emerald-500/20">
+                            <Zap className="w-2.5 h-2.5" />FAST
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-lg font-bold text-[#c8ff00]">{model.credits}</div>
+                    <div className="text-xs text-white/30">кредитов</div>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Model Selector - Dropdown */}
+            {/* Main Prompt */}
             <div>
-              <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2 block">
-                AI Модель
+              <label className="text-sm font-medium text-white/70 mb-2 block">
+                Описание видео
               </label>
-              <div className="relative">
-                <button
-                  onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                  className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-[var(--color-border)] 
-                             hover:border-[var(--color-border-strong)] bg-[var(--color-bg-secondary)] transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center">
-                      <Video className="w-5 h-5 text-[var(--color-text-secondary)]" />
-                    </div>
-                    <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[var(--color-text-primary)]">
-                          {selectedModelData?.name || 'Выберите модель'}
-                        </span>
-                        {selectedModelData?.quality === 'ultra' && (
-                          <Badge variant="warning" className="text-[10px] px-1.5 py-0">PRO</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-                        <span className="line-clamp-1">{selectedModelData?.description}</span>
-                        {selectedModelData?.speed === 'fast' && (
-                          <>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                              <Zap className="w-3 h-3" />
-                              Быстро
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default" className="font-semibold">
-                      ⭐ {selectedModelData?.creditCost ?? '—'}
-                    </Badge>
-                    <ChevronDown className={cn(
-                      "w-5 h-5 text-[var(--color-text-secondary)] transition-transform",
-                      modelDropdownOpen && "rotate-180"
-                    )} />
-                  </div>
-                </button>
-
-                {/* Dropdown Menu */}
-                {modelDropdownOpen && (
-                  <>
-                    {/* Backdrop */}
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setModelDropdownOpen(false)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="absolute top-full left-0 right-0 mt-2 z-50 
-                                 bg-zinc-900 border border-zinc-700 
-                                 rounded-xl shadow-2xl overflow-hidden"
-                      style={{ zIndex: 9999 }}
-                    >
-                      <div className="max-h-[300px] overflow-y-auto">
-                        {VIDEO_MODELS.map((model) => (
-                          <button
-                            key={model.id}
-                            onClick={() => {
-                              setSelectedModel(model.id);
-                              setModelDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full flex items-center justify-between p-3 transition-colors",
-                              selectedModel === model.id 
-                                ? "bg-purple-600" 
-                                : "hover:bg-zinc-800"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center",
-                                selectedModel === model.id ? "bg-purple-500" : "bg-zinc-800"
-                              )}>
-                                <Video className="w-4 h-4 text-white" />
-                              </div>
-                              <div className="text-left">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-white text-sm">
-                                    {model.name}
-                                  </span>
-                                  {model.quality === 'ultra' && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-600 text-white font-bold">PRO</span>
-                                  )}
-                                </div>
-                                <span className="text-xs text-zinc-400 line-clamp-1">{model.description}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {model.speed === 'fast' && (
-                                <Zap className="w-4 h-4 text-green-500" />
-                              )}
-                              <span className="text-sm font-semibold text-yellow-500">
-                                ⭐ {model.creditCost ?? '—'}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Prompt */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
-                  Промпт
-                </label>
-                <span className="text-xs text-[var(--color-text-tertiary)]">
-                  ⌘ + Enter для генерации
-                </span>
-              </div>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Опишите видео, которое хотите создать..."
-                className="w-full h-32 px-4 py-3 rounded-xl
-                           bg-[var(--color-bg-secondary)] border-2 border-[var(--color-border)]
-                           text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]
-                           focus:outline-none focus:border-white/30
-                           resize-none transition-all"
+                placeholder="Опишите видео которое хотите создать..."
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl 
+                         text-white placeholder:text-white/30
+                         resize-none focus:outline-none focus:border-[#c8ff00]/50 transition-colors"
+                rows={4}
               />
-              <div className="flex items-center justify-between mt-2">
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" className="text-xs">
-                    <Wand2 className="w-3.5 h-3.5 mr-1.5" />
-                    Улучшить AI
-                  </Button>
-                  <Button variant="secondary" size="sm" className="text-xs">
-                    <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-                    Библиотека
-                  </Button>
-                </div>
-                <span className="text-xs text-[var(--color-text-tertiary)]">
-                  {prompt.length} / 2 000
-                </span>
+              <div className="flex justify-between mt-2">
+                <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#c8ff00] transition-colors">
+                  <Wand2 className="w-3.5 h-3.5" />
+                  Улучшить AI
+                </button>
+                <span className="text-xs text-white/30">{prompt.length} символов</span>
               </div>
             </div>
 
-            {/* Quick Tags */}
-            <div className="flex flex-wrap gap-2">
-              {QUICK_TAGS.map((tag) => (
+            {/* Quick Styles */}
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_STYLES.map((style) => (
                 <button
-                  key={tag}
-                  onClick={() => addTag(tag)}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium
-                             bg-[var(--color-bg-secondary)] border border-[var(--color-border)]
-                             text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]
-                             hover:border-[var(--color-border-strong)] transition-all"
+                  key={style}
+                  type="button"
+                  onClick={() => addStyle(style)}
+                  className="px-2.5 py-1 text-xs rounded-lg border border-white/10 
+                           text-white/40 hover:border-[#c8ff00]/50 hover:text-[#c8ff00] transition-all"
                 >
-                  + {tag}
+                  + {style}
                 </button>
               ))}
             </div>
 
             {/* Duration */}
-            <div>
-              <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2 block">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-white/70 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[#c8ff00]" />
                 Длительность
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="flex gap-2">
                 {DURATION_OPTIONS.map((d) => (
                   <button
-                    key={d}
-                    onClick={() => setDuration(d)}
+                    key={d.value}
+                    type="button"
+                    onClick={() => setDuration(d.value)}
                     className={cn(
-                      "p-3 rounded-xl border-2 text-center transition-all",
-                      duration === d
-                        ? "border-white bg-white/10"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                      "flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all",
+                      duration === d.value
+                        ? "border-[#c8ff00]/50 bg-[#c8ff00]/10 text-[#c8ff00]"
+                        : "border-white/10 text-white/50 hover:border-white/20"
                     )}
                   >
-                    <span className="font-semibold text-[var(--color-text-primary)]">{d}с</span>
+                    {d.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Camera Movement */}
-            <div>
-              <label className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2 block">
-                Движение камеры
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {CAMERA_MOVEMENTS.map((cam) => (
-                  <button
-                    key={cam.id}
-                    onClick={() => setCameraMovement(cam.id)}
-                    className={cn(
-                      "p-3 rounded-xl border-2 text-center transition-all",
-                      cameraMovement === cam.id
-                        ? "border-white bg-white/10"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
-                    )}
-                  >
-                    <span className="text-xs font-medium text-[var(--color-text-primary)]">{cam.label}</span>
-                  </button>
-                ))}
-              </div>
+            {/* Aspect Ratio */}
+            {model?.aspectRatios && (
+              <AspectRatioSelector
+                ratios={model.aspectRatios}
+                selected={aspectRatio}
+                onChange={setAspectRatio}
+              />
+            )}
+
+            {/* Features Grid */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* First/Last Frame */}
+              {hasFeature(selectedModel, 'first-last-frame') && (
+                <FirstLastFrame
+                  onFirstFrameChange={setFirstFrame}
+                  onLastFrameChange={setLastFrame}
+                />
+              )}
+
+              {/* Audio Sync */}
+              {hasFeature(selectedModel, 'audio-sync') && (
+                <div className="md:col-span-2">
+                  <AudioSync onAudioChange={setAudioFile} />
+                </div>
+              )}
             </div>
+
+            {/* Camera Control */}
+            {hasFeature(selectedModel, 'camera-control') && (
+              <CameraControl onCameraChange={setCamera} />
+            )}
+
+            {/* Storyboard */}
+            {hasFeature(selectedModel, 'storyboard') && (
+              <Storyboard onScenesChange={setScenes} />
+            )}
 
             {/* Advanced Settings */}
-            <details className="group">
-              <summary className="flex items-center justify-between p-4 rounded-xl border border-[var(--color-border)] 
-                                  bg-[var(--color-bg-secondary)] cursor-pointer list-none
-                                  hover:border-[var(--color-border-strong)] transition-all">
-                <div className="flex items-center gap-2">
-                  <Settings2 className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                  <span className="font-medium text-[var(--color-text-primary)] text-sm">Расширенные настройки</span>
-                </div>
-                <ChevronDown className="w-4 h-4 text-[var(--color-text-secondary)] transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="mt-3 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] space-y-4">
-                {/* Motion Intensity */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center justify-between w-full p-3 rounded-xl border border-white/10 
+                       hover:border-white/20 transition-colors text-white/70"
+            >
+              <span className="text-sm font-medium">Расширенные настройки</span>
+              <ChevronDown className={cn("w-4 h-4 transition-transform", showAdvanced && "rotate-180")} />
+            </button>
+
+            {showAdvanced && (
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 space-y-4">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs text-[var(--color-text-primary)]">Интенсивность движения</label>
-                    <span className="text-xs font-semibold text-[var(--color-text-secondary)]">{motionIntensity}%</span>
-                  </div>
-                  <Slider 
-                    value={[motionIntensity]} 
-                    onValueChange={([v]) => setMotionIntensity(v)} 
-                    min={0} 
-                    max={100} 
-                    step={5} 
+                  <label className="text-xs text-white/40 mb-2 flex justify-between">
+                    <span>Интенсивность движения</span>
+                    <span className="text-white font-medium">50%</span>
+                  </label>
+                  <input 
+                    type="range" 
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer
+                             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 
+                             [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full 
+                             [&::-webkit-slider-thumb]:bg-[#c8ff00]" 
+                    min="0" 
+                    max="100" 
+                    defaultValue={50}
                   />
                 </div>
-
-                {/* FPS */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs text-[var(--color-text-primary)]">FPS</label>
-                    <span className="text-xs font-semibold text-[var(--color-text-secondary)]">{fps}</span>
-                  </div>
-                  <Slider 
-                    value={[fps]} 
-                    onValueChange={([v]) => setFps(v)} 
-                    min={24} 
-                    max={60} 
-                    step={6} 
+                  <label className="text-xs text-white/40 mb-2 flex justify-between">
+                    <span>FPS</span>
+                    <span className="text-white font-medium">30</span>
+                  </label>
+                  <input 
+                    type="range" 
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer
+                             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 
+                             [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full 
+                             [&::-webkit-slider-thumb]:bg-[#c8ff00]" 
+                    min="24" 
+                    max="60" 
+                    step="6"
+                    defaultValue={30}
                   />
                 </div>
               </div>
-            </details>
+            )}
 
             {/* Generate Button */}
             <Button
-              variant="default"
               size="lg"
-              className="w-full"
-              disabled={!canGenerate}
               onClick={handleGenerate}
+              disabled={!prompt.trim()}
+              className="w-full h-14 text-base font-semibold rounded-xl bg-[#c8ff00] text-black hover:bg-[#b8ef00] disabled:bg-[#c8ff00]/30 disabled:text-black/50"
             >
-              {isGenerating ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                  Генерация {progress}%
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Создать видео {selectedModelData?.creditCost ? (selectedModelData.creditCost * Math.ceil(duration / 5)) + ' ⭐' : '—'}
-                </>
-              )}
+              <Sparkles className="w-5 h-5 mr-2" />
+              Создать видео
+              <span className="ml-2 opacity-70">• {totalCredits} кредитов</span>
             </Button>
-          </div>
-
-          {/* Right Panel - Preview */}
-          <div>
-            <div className="sticky top-24">
-              <div className="aspect-video rounded-2xl border-2 border-dashed border-[var(--color-border)] 
-                              bg-[var(--color-bg-secondary)] flex items-center justify-center overflow-hidden">
-                {isGenerating ? (
-                  <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-[var(--color-purple-500)]/30 border-t-[var(--color-purple-500)] 
-                                    rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-[var(--color-text-secondary)]">Создаём видео {progress}%</p>
-                    <p className="text-xs text-[var(--color-text-tertiary)] mt-2">Это может занять несколько минут</p>
-                  </div>
-                ) : result ? (
-                  <video 
-                    src={result.url}
-                    controls
-                    className="w-full h-full object-contain"
-                    poster={result.thumbnailUrl}
-                  />
-                ) : (
-                  <div className="text-center p-8">
-                    <div className="w-20 h-20 rounded-2xl border-2 border-[var(--color-border)] 
-                                    flex items-center justify-center mx-auto mb-4">
-                      <Video className="w-10 h-10 text-[var(--color-text-tertiary)]" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
-                      Ваше видео появится здесь
-                    </h3>
-                    <p className="text-[var(--color-text-secondary)] text-sm">
-                      Опишите видео и нажмите «Создать» для генерации
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>

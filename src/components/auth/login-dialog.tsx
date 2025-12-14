@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
+import { REGISTRATION_BONUS } from '@/lib/pricing-config';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -33,9 +35,31 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
         toast.success('Вы успешно вошли!');
         onClose();
       } else if (mode === 'register') {
-        await signUp(email, password);
-        toast.success('Проверьте почту для подтверждения!');
-        setMode('login');
+        // Регистрация напрямую через клиента
+        const supabase = createClient();
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          // Создаём кредиты
+          const { error: creditsError } = await supabase
+            .from('credits')
+            .insert({
+              user_id: data.user.id,
+              amount: REGISTRATION_BONUS,
+            });
+
+          if (creditsError) {
+            console.error('Credits error:', creditsError);
+          }
+
+          toast.success('Регистрация успешна! Проверьте почту.');
+          setMode('login');
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Произошла ошибка';
@@ -93,7 +117,7 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
               </h2>
               <p className="text-[var(--color-text-secondary)]">
                 {mode === 'login' && 'Войдите чтобы сохранять историю генераций'}
-                {mode === 'register' && 'Получите 100 бесплатных кредитов'}
+                {mode === 'register' && `🎁 Получите ${REGISTRATION_BONUS} бесплатных кредитов`}
                 {mode === 'forgot' && 'Введите email для сброса пароля'}
               </p>
             </div>

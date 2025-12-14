@@ -10,13 +10,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
+import { useIsAdmin } from '@/lib/admin';
 
 const navigation = [
   { name: 'Фото', href: '/create' },
-  { name: 'Видео', href: '/create/video' },
-  { name: 'Продукты', href: '/create/products' },
+  { name: 'Видео', href: '/video' },
+  { name: 'Продукты', href: '/products' },
   { name: 'Библиотека', href: '/library' },
-  { name: 'Вдохновение', href: '/inspiration' },
   { name: 'Тарифы', href: '/pricing' },
 ];
 
@@ -27,6 +27,7 @@ export function Header() {
   const pathname = usePathname();
   const { user, loading: authLoading, signOut } = useAuth();
   const { balance, fetchBalance } = useCreditsStore();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
 
   useEffect(() => {
     if (user) {
@@ -75,6 +76,22 @@ export function Header() {
                   </Link>
                 );
               })}
+              
+              {/* Admin Link */}
+              {!adminLoading && isAdmin && (
+                <Link
+                  href="/admin"
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium transition-colors rounded-lg flex items-center gap-1.5",
+                    pathname.startsWith('/admin')
+                      ? "text-[#c8ff00] bg-[#c8ff00]/10"
+                      : "text-[#c8ff00]/70 hover:text-[#c8ff00] hover:bg-[#c8ff00]/5"
+                  )}
+                >
+                  <span className="text-xs">⚙️</span>
+                  Admin
+                </Link>
+              )}
             </div>
 
             {/* Right side */}
@@ -220,6 +237,16 @@ export function Header() {
                         <Crown className="w-4 h-4" />
                         Подписка
                       </Link>
+                      {!adminLoading && isAdmin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#c8ff00] hover:bg-[#c8ff00]/10 transition-colors"
+                        >
+                          <span>⚙️</span>
+                          Admin Panel
+                        </Link>
+                      )}
                       <button
                         onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"

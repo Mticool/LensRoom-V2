@@ -617,7 +617,7 @@ interface RefUploaderProps {
   required: boolean;
   value: File | string | null;
   onChange: (ref: File | string | null) => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -651,7 +651,7 @@ function RefUploader({ label, required, value, onChange, inputRef, onUpload }: R
         </button>
       )}
       <input
-        ref={inputRef as React.RefObject<HTMLInputElement>}
+        ref={inputRef}
         type="file"
         accept="image/*"
         onChange={onUpload}
@@ -693,4 +693,5 @@ function SliderControl({ label, value, onChange, min, max, step, suffix = "" }: 
 
 // Add React import for useState
 import React from "react";
+
 
