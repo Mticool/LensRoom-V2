@@ -46,7 +46,7 @@ export const SUBSCRIPTIONS: Subscription[] = [
       'История генераций 30 дней',
       'Без watermark',
     ],
-    payformId: process.env.PAYFORM_SUBSCRIPTION_STAR,
+    payformId: process.env.PAYFORM_SUBSCRIPTION_STAR || '2650381',
   },
   {
     id: 'pro',
@@ -66,7 +66,7 @@ export const SUBSCRIPTIONS: Subscription[] = [
       'История 90 дней',
       'Priority support',
     ],
-    payformId: process.env.PAYFORM_SUBSCRIPTION_PRO || '2650381',
+    payformId: process.env.PAYFORM_SUBSCRIPTION_PRO || '2650383',
   },
   {
     id: 'business',
@@ -87,7 +87,7 @@ export const SUBSCRIPTIONS: Subscription[] = [
       'Dedicated support',
       'Custom integrations',
     ],
-    payformId: process.env.PAYFORM_SUBSCRIPTION_BUSINESS || '2650383',
+    payformId: process.env.PAYFORM_SUBSCRIPTION_BUSINESS || '2651806',
   },
 ];
 

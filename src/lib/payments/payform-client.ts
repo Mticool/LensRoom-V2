@@ -43,9 +43,14 @@ export class PayformClient {
     credits 
   }: CreatePaymentParams): string {
     
-    const subscriptionId = planId === 'pro' 
-      ? process.env.PAYFORM_SUBSCRIPTION_PRO 
-      : process.env.PAYFORM_SUBSCRIPTION_BUSINESS;
+    // Маппинг planId -> PAYFORM_SUBSCRIPTION_ID
+    const subscriptionIds: Record<string, string | undefined> = {
+      'star': process.env.PAYFORM_SUBSCRIPTION_STAR || '2650381',
+      'pro': process.env.PAYFORM_SUBSCRIPTION_PRO || '2650383',
+      'business': process.env.PAYFORM_SUBSCRIPTION_BUSINESS || '2651806',
+    };
+
+    const subscriptionId = planId ? subscriptionIds[planId] : undefined;
 
     if (!subscriptionId) {
       throw new Error(`Subscription ID not found for plan: ${planId}`);
