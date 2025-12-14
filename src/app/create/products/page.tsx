@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Package, Star, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
@@ -29,6 +29,9 @@ import {
   hasEnoughStars,
 } from "@/lib/stars-balance";
 import { addManyToLibrary } from "@/lib/library-storage";
+import { getMarketplaceProfile } from "@/config/marketplaceProfiles";
+import { getSceneById, getPromptAddon } from "@/config/lifestyleScenes";
+import { getNicheById } from "@/config/productNiches";
 
 // ===== INITIAL STATE =====
 
@@ -41,6 +44,9 @@ const initialWizardState: ProductWizardState = {
   removeBackground: true,
   productTitle: "",
   productBenefits: [""],
+  nicheId: null,
+  sceneId: null,
+  brandTemplateId: null,
 };
 
 // ===== PAGE COMPONENT =====
@@ -74,7 +80,15 @@ export default function ProductCardsPage() {
   }, [wizardState.generationType]);
 
   // Computed values
+  const marketplaceProfile = useMemo(
+    () => getMarketplaceProfile(wizardState.marketplace),
+    [wizardState.marketplace]
+  );
+  
   const selectedMode = getModeById(wizardState.modeId) ?? PRODUCT_IMAGE_MODES[0];
+  const selectedNiche = wizardState.nicheId ? getNicheById(wizardState.nicheId) : null;
+  const selectedScene = wizardState.sceneId ? getSceneById(wizardState.sceneId) : null;
+  
   const slidesCount = wizardState.generationType === "single" ? 1 : PACK_SLIDES_DEFAULT;
   const totalCost = wizardState.generationType === "single"
     ? getSingleCost(wizardState.modeId)
@@ -99,6 +113,12 @@ export default function ProductCardsPage() {
       return;
     }
 
+    // Build prompt with scene addon if lifestyle mode
+    let promptAddon = "";
+    if (wizardState.modeId === "lifestyle" && wizardState.sceneId) {
+      promptAddon = getPromptAddon(wizardState.sceneId);
+    }
+
     // Build payload
     const payload = {
       modeId: wizardState.modeId,
@@ -108,11 +128,19 @@ export default function ProductCardsPage() {
       slidesCount,
       requiredStars: totalCost,
       marketplace: wizardState.marketplace,
+      marketplaceCanvas: marketplaceProfile?.canvasPresets.find(
+        c => c.id === marketplaceProfile.defaultCanvasId
+      ),
       templateStyle: wizardState.templateStyle,
       productPhotos: wizardState.productPhotos,
       removeBackground: wizardState.removeBackground,
       productTitle: wizardState.productTitle,
       productBenefits: wizardState.productBenefits.filter(b => b.trim()),
+      nicheId: wizardState.nicheId,
+      nicheTone: selectedNiche?.tone,
+      sceneId: wizardState.sceneId,
+      scenePromptAddon: promptAddon,
+      brandTemplateId: wizardState.brandTemplateId,
     };
 
     console.log("[ProductCards] Generation payload:", payload);
@@ -163,6 +191,8 @@ export default function ProductCardsPage() {
         marketplace: wizardState.marketplace,
         templateStyle: wizardState.templateStyle,
         productTitle: wizardState.productTitle,
+        nicheId: wizardState.nicheId,
+        sceneId: wizardState.sceneId,
       },
     }));
     addManyToLibrary(libraryItems);
@@ -171,12 +201,10 @@ export default function ProductCardsPage() {
   };
 
   const handleRegenerate = async (index: number) => {
-    // For now, just show toast
     toast.info(`Перегенерация слайда ${index + 1}...`);
   };
 
   const handleDownloadAll = () => {
-    // For now, just show toast
     toast.info("Подготовка ZIP архива...");
   };
 
@@ -225,6 +253,7 @@ export default function ProductCardsPage() {
               <ProductWizard
                 state={wizardState}
                 onChange={handleWizardChange}
+                marketplaceProfile={marketplaceProfile}
               />
             </div>
           </motion.div>
@@ -245,6 +274,7 @@ export default function ProductCardsPage() {
                 isGenerating={isGenerating}
                 modeName={selectedMode.name}
                 marketplace={wizardState.marketplace}
+                marketplaceProfile={marketplaceProfile}
               />
             </div>
           </motion.div>

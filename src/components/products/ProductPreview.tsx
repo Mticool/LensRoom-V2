@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { PACK_SLIDES_DEFAULT } from "@/config/productImageModes";
+import { type MarketplaceProfile, type SafeArea } from "@/config/marketplaceProfiles";
 
 // ===== TYPES =====
 
@@ -40,6 +39,7 @@ interface ProductPreviewProps {
   isGenerating: boolean;
   modeName: string;
   marketplace: string;
+  marketplaceProfile?: MarketplaceProfile;
 }
 
 // ===== COMPONENT =====
@@ -53,10 +53,14 @@ export function ProductPreview({
   isGenerating,
   modeName,
   marketplace,
+  marketplaceProfile,
 }: ProductPreviewProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const activeSlide = slides[activeIndex];
   const completedCount = slides.filter(s => s.status === "completed").length;
+
+  // Get safe area for overlay visualization
+  const safeArea = marketplaceProfile?.safeArea;
 
   const handleCopyText = async (text: string, index: number) => {
     try {
@@ -75,6 +79,14 @@ export function ProductPreview({
 
   const goToNext = () => {
     onActiveChange(activeIndex < slides.length - 1 ? activeIndex + 1 : 0);
+  };
+
+  // Get canvas aspect ratio
+  const getAspectRatio = () => {
+    if (!marketplaceProfile) return "1 / 1";
+    const canvas = marketplaceProfile.canvasPresets.find(c => c.id === marketplaceProfile.defaultCanvasId);
+    if (!canvas) return "1 / 1";
+    return `${canvas.width} / ${canvas.height}`;
   };
 
   return (
@@ -114,8 +126,41 @@ export function ProductPreview({
       </div>
 
       {/* Main Preview */}
-      <div className="flex-1 min-h-0 relative">
-        <Card className="h-full bg-[var(--surface)] border-[var(--border)] overflow-hidden relative">
+      <div className="flex-1 min-h-0 relative flex items-center justify-center">
+        <div
+          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-lg"
+          style={{
+            aspectRatio: getAspectRatio(),
+            maxHeight: "100%",
+            maxWidth: "100%",
+          }}
+        >
+          {/* Safe Area Overlay (visible when empty) */}
+          {safeArea && activeSlide?.status === "empty" && (
+            <>
+              {/* Top safe area */}
+              <div
+                className="absolute left-0 right-0 top-0 bg-red-500/10 border-b border-dashed border-red-500/30"
+                style={{ height: `${safeArea.top}%` }}
+              />
+              {/* Bottom safe area */}
+              <div
+                className="absolute left-0 right-0 bottom-0 bg-red-500/10 border-t border-dashed border-red-500/30"
+                style={{ height: `${safeArea.bottom}%` }}
+              />
+              {/* Left safe area */}
+              <div
+                className="absolute top-0 bottom-0 left-0 bg-red-500/10 border-r border-dashed border-red-500/30"
+                style={{ width: `${safeArea.left}%` }}
+              />
+              {/* Right safe area */}
+              <div
+                className="absolute top-0 bottom-0 right-0 bg-red-500/10 border-l border-dashed border-red-500/30"
+                style={{ width: `${safeArea.right}%` }}
+              />
+            </>
+          )}
+
           {/* Preview Content */}
           <div className="absolute inset-0 flex items-center justify-center">
             {activeSlide?.status === "completed" && activeSlide.imageUrl ? (
@@ -137,13 +182,15 @@ export function ProductPreview({
                 <span className="text-sm text-[var(--muted)]">В очереди</span>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-col items-center gap-3 text-center px-8">
                 <div className="w-20 h-20 rounded-2xl bg-[var(--surface2)] border border-dashed border-[var(--border)] flex items-center justify-center">
                   <Package className="w-10 h-10 text-[var(--muted)]" />
                 </div>
-                <div className="text-center">
+                <div>
                   <div className="text-sm text-[var(--text)] font-medium">Готово к генерации</div>
-                  <div className="text-xs text-[var(--muted)]">Нажмите кнопку внизу</div>
+                  <div className="text-xs text-[var(--muted)] mt-1">
+                    {safeArea && "Красные зоны — безопасные отступы"}
+                  </div>
                 </div>
               </div>
             )}
@@ -172,7 +219,14 @@ export function ProductPreview({
             <Badge variant="default" className="text-xs bg-[var(--surface)]/90 backdrop-blur">
               {modeName}
             </Badge>
-            <Badge variant="outline" className="text-xs bg-[var(--surface)]/90 backdrop-blur">
+            <Badge 
+              variant="outline" 
+              className="text-xs bg-[var(--surface)]/90 backdrop-blur"
+              style={{
+                borderColor: marketplaceProfile?.brandColor,
+                color: marketplaceProfile?.brandColor,
+              }}
+            >
               {marketplace.toUpperCase()}
             </Badge>
           </div>
@@ -184,13 +238,23 @@ export function ProductPreview({
             </Badge>
           </div>
 
+          {/* Typography hint */}
+          {marketplaceProfile && activeSlide?.status === "empty" && (
+            <div className="absolute bottom-3 left-3 right-3">
+              <div className="text-[10px] text-[var(--muted)] bg-[var(--surface)]/90 backdrop-blur px-2 py-1 rounded">
+                Рекомендуемый заголовок: {marketplaceProfile.typography.titleSize}px, 
+                макс. {marketplaceProfile.typography.maxTitleChars} символов
+              </div>
+            </div>
+          )}
+
           {/* Zoom button */}
           {activeSlide?.status === "completed" && (
             <button className="absolute bottom-3 right-3 w-8 h-8 rounded-lg bg-[var(--surface)]/90 backdrop-blur border border-[var(--border)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--text)] transition-colors">
               <ZoomIn className="w-4 h-4" />
             </button>
           )}
-        </Card>
+        </div>
       </div>
 
       {/* Thumbnails Row */}
