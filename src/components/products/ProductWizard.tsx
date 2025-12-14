@@ -16,8 +16,9 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
-  Palette,
   Settings2,
+  Lightbulb,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -32,17 +33,15 @@ import {
 import {
   PRODUCT_NICHES,
   getNicheById,
-  getBenefitPlaceholders,
   getToneLabel,
+  getToneDescription,
   type ProductNiche,
 } from "@/config/productNiches";
 import {
   LIFESTYLE_SCENES,
   getSceneById,
-  type LifestyleScene,
 } from "@/config/lifestyleScenes";
 import {
-  getMarketplaceProfile,
   type MarketplaceProfile,
 } from "@/config/marketplaceProfiles";
 import {
@@ -100,6 +99,7 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [brandTemplates, setBrandTemplates] = useState<BrandTemplate[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   const selectedMode = PRODUCT_IMAGE_MODES.find(m => m.id === state.modeId) ?? PRODUCT_IMAGE_MODES[0];
   const selectedNiche = state.nicheId ? getNicheById(state.nicheId) : null;
@@ -148,10 +148,51 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
     onChange({ productBenefits: state.productBenefits.filter((_, i) => i !== index) });
   };
 
-  // Get benefit placeholders based on niche
+  // Add suggested benefit to empty slot or append
+  const addSuggestedBenefit = (benefit: string) => {
+    // Find first empty slot
+    const emptyIndex = state.productBenefits.findIndex(b => !b.trim());
+    
+    if (emptyIndex !== -1) {
+      // Fill empty slot
+      const updated = [...state.productBenefits];
+      updated[emptyIndex] = benefit;
+      onChange({ productBenefits: updated });
+      toast.success("Преимущество добавлено");
+    } else if (state.productBenefits.length < MAX_BENEFITS) {
+      // Append new
+      onChange({ productBenefits: [...state.productBenefits, benefit] });
+      toast.success("Преимущество добавлено");
+    } else {
+      toast.error("Все слоты заполнены");
+    }
+  };
+
+  // Fill all benefits with suggestions
+  const fillAllSuggestions = () => {
+    if (!selectedNiche) return;
+    
+    const suggestions = selectedNiche.suggestedBenefits.slice(0, MAX_BENEFITS);
+    const filled = state.productBenefits.map((existing, i) => 
+      existing.trim() ? existing : (suggestions[i] ?? "")
+    );
+    
+    // Add remaining suggestions if there's room
+    const remaining = MAX_BENEFITS - filled.length;
+    if (remaining > 0) {
+      const toAdd = suggestions.slice(filled.length, filled.length + remaining);
+      filled.push(...toAdd);
+    }
+    
+    onChange({ productBenefits: filled.slice(0, MAX_BENEFITS) });
+    toast.success("Преимущества заполнены");
+    setShowSuggestions(false);
+  };
+
+  // Get benefit placeholder based on niche
   const getBenefitPlaceholder = (index: number): string => {
-    if (selectedNiche && selectedNiche.benefitTemplates[index]) {
-      return selectedNiche.benefitTemplates[index].placeholder;
+    if (selectedNiche && selectedNiche.suggestedBenefits[index]) {
+      return selectedNiche.suggestedBenefits[index];
     }
     return `Преимущество ${index + 1}`;
   };
@@ -196,10 +237,12 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
           {PRODUCT_NICHES.map((niche) => (
             <button
               key={niche.id}
-              onClick={() => onChange({ 
-                nicheId: state.nicheId === niche.id ? null : niche.id,
-                templateStyle: niche.defaultTemplateStyle,
-              })}
+              onClick={() => {
+                onChange({ 
+                  nicheId: state.nicheId === niche.id ? null : niche.id,
+                });
+                setShowSuggestions(state.nicheId !== niche.id);
+              }}
               className={cn(
                 "p-2 rounded-xl border-2 text-center transition-all",
                 state.nicheId === niche.id
@@ -208,15 +251,18 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
               )}
             >
               <div className="text-lg mb-0.5">{niche.emoji}</div>
-              <div className="text-[10px] text-[var(--text)] font-medium truncate">{niche.nameRu}</div>
+              <div className="text-[10px] text-[var(--text)] font-medium truncate">{niche.labelRu}</div>
             </button>
           ))}
         </div>
         {selectedNiche && (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="text-[10px]">
-              Тон: {getToneLabel(selectedNiche.tone)}
+              Тон: {getToneLabel(selectedNiche.defaultTone)}
             </Badge>
+            <span className="text-[10px] text-[var(--muted)]">
+              {getToneDescription(selectedNiche.defaultTone)}
+            </span>
           </div>
         )}
       </Section>
@@ -377,21 +423,90 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
             className="w-full px-4 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] text-sm"
           />
 
+          {/* Benefits */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-[var(--muted)]">
-                Преимущества ({state.productBenefits.length}/{MAX_BENEFITS})
+                Преимущества ({state.productBenefits.filter(b => b.trim()).length}/{MAX_BENEFITS})
               </span>
-              {state.productBenefits.length < MAX_BENEFITS && (
-                <button
-                  onClick={addBenefit}
-                  className="text-xs text-[var(--gold)] hover:text-[var(--gold-hover)] flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  Добавить
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedNiche && (
+                  <button
+                    onClick={() => setShowSuggestions(!showSuggestions)}
+                    className={cn(
+                      "text-xs flex items-center gap-1 transition-colors",
+                      showSuggestions 
+                        ? "text-[var(--gold)]" 
+                        : "text-[var(--muted)] hover:text-[var(--gold)]"
+                    )}
+                  >
+                    <Lightbulb className="w-3 h-3" />
+                    Подсказки
+                  </button>
+                )}
+                {state.productBenefits.length < MAX_BENEFITS && (
+                  <button
+                    onClick={addBenefit}
+                    className="text-xs text-[var(--gold)] hover:text-[var(--gold-hover)] flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Добавить
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Suggested Benefits Chips */}
+            {showSuggestions && selectedNiche && (
+              <div className="p-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--muted)]">Рекомендуемые для "{selectedNiche.labelRu}"</span>
+                  <button
+                    onClick={fillAllSuggestions}
+                    className="text-xs text-[var(--gold)] hover:text-[var(--gold-hover)] flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Заполнить все
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedNiche.suggestedBenefits.map((benefit, i) => {
+                    const isUsed = state.productBenefits.some(b => b === benefit);
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => !isUsed && addSuggestedBenefit(benefit)}
+                        disabled={isUsed}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs transition-all",
+                          isUsed
+                            ? "bg-[var(--gold)]/20 text-[var(--gold)] cursor-default"
+                            : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:border-[var(--gold)] hover:bg-[var(--gold)]/10"
+                        )}
+                      >
+                        {isUsed && <Check className="w-3 h-3 inline mr-1" />}
+                        {benefit.length > 35 ? benefit.slice(0, 35) + "..." : benefit}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                {/* Avoid Claims Warning */}
+                {selectedNiche.avoidClaims.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                    <div className="flex items-center gap-1 text-[10px] text-amber-500 mb-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Избегайте формулировок:
+                    </div>
+                    <div className="text-[10px] text-[var(--muted)] line-clamp-2">
+                      {selectedNiche.avoidClaims.slice(0, 3).join(", ")}...
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Benefit Inputs */}
             {state.productBenefits.map((benefit, i) => (
               <div key={i} className="flex gap-2">
                 <input

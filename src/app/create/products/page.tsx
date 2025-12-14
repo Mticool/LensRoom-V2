@@ -135,7 +135,7 @@ export default function ProductCardsPage() {
       productTitle: wizardState.productTitle,
       productBenefits: wizardState.productBenefits.filter(b => b.trim()),
       nicheId: wizardState.nicheId,
-      nicheTone: selectedNiche?.tone,
+      nicheTone: selectedNiche?.defaultTone,
       sceneId: wizardState.sceneId,
       scenePromptAddon: promptAddon,
       brandTemplateId: wizardState.brandTemplateId,
