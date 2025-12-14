@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '@/providers/auth-provider';
+import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { toast } from 'sonner';
 
 const navigation = [
   { name: 'Фото', href: '/create' },
@@ -27,7 +29,7 @@ export function Header() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useTelegramAuth();
   const { balance, fetchBalance } = useCreditsStore();
 
   useEffect(() => {
@@ -40,10 +42,20 @@ export function Header() {
     try {
       await signOut();
       setUserMenuOpen(false);
+      toast.success('Вы вышли из аккаунта');
     } catch (error) {
       console.error('Sign out error:', error);
+      toast.error('Ошибка выхода');
     }
   };
+
+  const handleConnectBot = () => {
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoomBot';
+    window.open(`https://t.me/${botUsername}?start=notify`, '_blank');
+    setUserMenuOpen(false);
+  };
+
+  const displayName = user?.firstName || user?.username || 'Пользователь';
 
   return (
     <>
@@ -91,8 +103,22 @@ export function Header() {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
                   >
+                    {/* Avatar */}
+                    {user.photoUrl ? (
+                      <Image
+                        src={user.photoUrl}
+                        alt={displayName}
+                        width={28}
+                        height={28}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] text-sm font-bold">
+                        {displayName[0].toUpperCase()}
+                      </div>
+                    )}
                     <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
                     <ChevronDown className={cn(
                       "w-4 h-4 text-[var(--muted)] transition-transform",
@@ -112,14 +138,40 @@ export function Header() {
                           initial={{ opacity: 0, y: -8 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -8 }}
-                          className="absolute right-0 mt-2 w-56 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden"
+                          className="absolute right-0 mt-2 w-64 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden"
                         >
+                          {/* User Info */}
                           <div className="px-4 py-3 border-b border-[var(--border)]">
-                            <p className="text-sm font-medium text-[var(--text)] truncate">
-                              {user.email}
-                            </p>
-                            <p className="text-xs text-[var(--gold)]">{balance} кредитов</p>
+                            <div className="flex items-center gap-3">
+                              {user.photoUrl ? (
+                                <Image
+                                  src={user.photoUrl}
+                                  alt={displayName}
+                                  width={40}
+                                  height={40}
+                                  className="rounded-full"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] font-bold">
+                                  {displayName[0].toUpperCase()}
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[var(--text)] truncate">
+                                  {displayName}
+                                </p>
+                                {user.username && (
+                                  <p className="text-xs text-[var(--muted)]">@{user.username}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="mt-2 flex items-center gap-1">
+                              <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
+                              <span className="text-xs text-[var(--muted)]">кредитов</span>
+                            </div>
                           </div>
+
+                          {/* Menu Items */}
                           <div className="py-1">
                             <Link
                               href="/account/subscription"
@@ -137,7 +189,32 @@ export function Header() {
                               <CreditCard className="w-4 h-4" />
                               Купить кредиты
                             </Link>
+                            
+                            {/* Connect Bot (if not connected) */}
+                            {!user.canNotify && (
+                              <button
+                                onClick={handleConnectBot}
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#0088cc] hover:bg-[#0088cc]/10 transition-colors w-full"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                Подключить уведомления
+                              </button>
+                            )}
+
+                            {/* Admin Link */}
+                            {user.isAdmin && (
+                              <Link
+                                href="/account/waitlist"
+                                onClick={() => setUserMenuOpen(false)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+                              >
+                                <Settings className="w-4 h-4" />
+                                Админ: Waitlist
+                              </Link>
+                            )}
                           </div>
+
+                          {/* Logout */}
                           <div className="border-t border-[var(--border)] py-1">
                             <button
                               onClick={handleSignOut}
@@ -217,8 +294,25 @@ export function Header() {
                   {user ? (
                     <>
                       <div className="px-4 py-3 rounded-xl bg-[var(--surface2)]">
-                        <p className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</p>
-                        <p className="text-xs text-[var(--muted)]">{user.email}</p>
+                        <div className="flex items-center gap-3">
+                          {user.photoUrl ? (
+                            <Image
+                              src={user.photoUrl}
+                              alt={displayName}
+                              width={32}
+                              height={32}
+                              className="rounded-full"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] font-bold text-sm">
+                              {displayName[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</p>
+                            <p className="text-xs text-[var(--muted)]">{displayName}</p>
+                          </div>
+                        </div>
                       </div>
                       <Link
                         href="/account/subscription"
@@ -228,6 +322,25 @@ export function Header() {
                         <Crown className="w-4 h-4" />
                         Подписка
                       </Link>
+                      {!user.canNotify && (
+                        <button
+                          onClick={() => { handleConnectBot(); setMobileMenuOpen(false); }}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#0088cc] hover:bg-[#0088cc]/10 transition-colors w-full"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          Подключить уведомления
+                        </button>
+                      )}
+                      {user.isAdmin && (
+                        <Link
+                          href="/account/waitlist"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+                        >
+                          <Settings className="w-4 h-4" />
+                          Админ: Waitlist
+                        </Link>
+                      )}
                       <button
                         onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"

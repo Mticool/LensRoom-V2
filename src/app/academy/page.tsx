@@ -10,18 +10,12 @@ import {
   Sparkles,
   CheckCircle2,
   X,
+  MessageCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-// ===== STORAGE =====
-const ACADEMY_STORAGE_KEY = "lensroom_academy_waitlist";
-
-function saveToWaitlist(email: string) {
-  if (typeof window === "undefined") return;
-  const existing = JSON.parse(localStorage.getItem(ACADEMY_STORAGE_KEY) || "[]");
-  existing.push({ email, createdAt: new Date().toISOString() });
-  localStorage.setItem(ACADEMY_STORAGE_KEY, JSON.stringify(existing));
-}
+import { useTelegramAuth } from '@/providers/telegram-auth-provider';
+import { toast } from 'sonner';
 
 // ===== DATA =====
 const FOR_WHO = [
@@ -56,15 +50,46 @@ const FORMAT_LINES = [
 
 // ===== MODAL =====
 function AcademyModal({ onClose }: { onClose: () => void }) {
-  const [email, setEmail] = useState("");
+  const { user } = useTelegramAuth();
+  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showBotPrompt, setShowBotPrompt] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    saveToWaitlist(email.trim());
-    setSubmitted(true);
-    setTimeout(() => onClose(), 2000);
+  const handleSubscribe = async () => {
+    if (!user) {
+      toast.error('Войдите в аккаунт, чтобы подписаться');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/waitlist/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'academy', source: 'academy_page' }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSubmitted(true);
+        if (!data.canNotify) {
+          setShowBotPrompt(true);
+        }
+      } else {
+        toast.error(data.error || 'Ошибка подписки');
+      }
+    } catch (error) {
+      toast.error('Ошибка сети');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConnectBot = () => {
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoomBot';
+    window.open(`https://t.me/${botUsername}?start=notify`, '_blank');
+    toast.info('После запуска бота вы будете получать уведомления');
   };
 
   return (
@@ -86,36 +111,72 @@ function AcademyModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {submitted ? (
-          <div className="py-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-8 h-8 text-green-500" />
+          showBotPrompt ? (
+            <div className="py-4">
+              <div className="flex items-center gap-2 text-green-400 mb-4">
+                <CheckCircle2 className="w-5 h-5" />
+                <span className="font-medium">Подписка оформлена!</span>
+              </div>
+              <p className="text-sm text-[var(--muted)] mb-4">
+                Чтобы получить уведомление в Telegram, подключите нашего бота:
+              </p>
+              <Button
+                onClick={handleConnectBot}
+                className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white mb-3"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Подключить бота
+                <ExternalLink className="w-4 h-4 ml-2" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="w-full"
+              >
+                Пропустить
+              </Button>
             </div>
-            <p className="text-[var(--text)] font-medium">Готово!</p>
-            <p className="text-sm text-[var(--muted)] mt-1">Мы напишем, когда откроем набор.</p>
-          </div>
+          ) : (
+            <div className="py-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+              </div>
+              <p className="text-[var(--text)] font-medium">Готово!</p>
+              <p className="text-sm text-[var(--muted)] mt-1">Мы напишем вам в Telegram, когда откроем набор.</p>
+            </div>
+          )
         ) : (
-          <form onSubmit={handleSubmit}>
-            <p className="text-sm text-[var(--muted)] mb-4">
-              Оставьте email — напишем, когда откроем набор. Первые получат лучшие условия.
-            </p>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              className="w-full px-4 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] mb-4"
-            />
-            <Button
-              type="submit"
-              className="w-full bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] font-semibold"
-            >
-              Записаться в лист ожидания
-            </Button>
+          <div>
+            {user ? (
+              <>
+                <p className="text-sm text-[var(--muted)] mb-4">
+                  Нажмите кнопку, чтобы записаться в лист ожидания. Первые получат лучшие условия.
+                </p>
+                <Button
+                  onClick={handleSubscribe}
+                  disabled={loading}
+                  className="w-full bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] font-semibold"
+                >
+                  {loading ? 'Загрузка...' : 'Записаться в лист ожидания'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--muted)] mb-4">
+                  Войдите через Telegram, чтобы записаться в лист ожидания и получить уведомление о старте.
+                </p>
+                <Button
+                  onClick={onClose}
+                  className="w-full bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] font-semibold"
+                >
+                  Войти через Telegram
+                </Button>
+              </>
+            )}
             <p className="text-[10px] text-[var(--muted)] text-center mt-3">
               Без спама. Только анонс старта и условия.
             </p>
-          </form>
+          </div>
         )}
       </div>
     </div>

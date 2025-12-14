@@ -12,9 +12,15 @@ import {
   Bell,
   ChevronRight,
   Sparkles,
+  MessageCircle,
+  ExternalLink,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTelegramAuth } from "@/providers/telegram-auth-provider";
+import type { WaitlistType } from "@/types/telegram";
 
 // ===== TYPES =====
 
@@ -22,6 +28,7 @@ interface ComingSoonFeature {
   id: string;
   title: string;
   icon: React.ReactNode;
+  waitlistType: WaitlistType;
 }
 
 interface ComingSoonInterest {
@@ -37,16 +44,19 @@ const COMING_SOON_FEATURES: ComingSoonFeature[] = [
     id: "video-ads",
     title: "Видео-реклама",
     icon: <Video className="w-3.5 h-3.5" />,
+    waitlistType: "feature_video_ads",
   },
   {
     id: "lifestyle",
     title: "Lifestyle",
     icon: <Camera className="w-3.5 h-3.5" />,
+    waitlistType: "feature_lifestyle",
   },
   {
     id: "ab-test",
     title: "A/B обложки",
     icon: <FlaskConical className="w-3.5 h-3.5" />,
+    waitlistType: "feature_ab_covers",
   },
 ];
 
@@ -174,19 +184,58 @@ export function MarketplaceHub() {
 // ===== COMING SOON MODAL =====
 
 function ComingSoonModal({ feature, onClose }: { feature: ComingSoonFeature; onClose: () => void }) {
-  const [email, setEmail] = useState("");
+  const { user } = useTelegramAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [showBotPrompt, setShowBotPrompt] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubscribe = async () => {
+    if (!user) {
+      // Fallback to localStorage for non-logged users
+      saveInterest(feature.id);
+      toast.success("Готово! Войдите через Telegram для уведомлений.");
+      onClose();
+      return;
+    }
+
     setIsSubmitting(true);
     
-    saveInterest(feature.id, email.trim() || undefined);
-    
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/waitlist/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: feature.waitlistType, 
+          source: 'create_products' 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        saveInterest(feature.id); // Also save locally for UI state
+        setSubscribed(true);
+        
+        if (!data.canNotify) {
+          setShowBotPrompt(true);
+        } else {
+          toast.success("Готово! Мы напишем вам в Telegram.");
+        }
+      } else {
+        toast.error(data.error || 'Ошибка подписки');
+      }
+    } catch (error) {
+      toast.error('Ошибка сети');
+    } finally {
       setIsSubmitting(false);
-      toast.success("Готово! Мы напишем, когда откроем доступ.");
-      onClose();
-    }, 500);
+    }
+  };
+
+  const handleConnectBot = () => {
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoomBot';
+    window.open(`https://t.me/${botUsername}?start=notify`, '_blank');
+    toast.info('После запуска бота вы будете получать уведомления');
+    onClose();
   };
 
   return (
@@ -211,30 +260,66 @@ function ComingSoonModal({ feature, onClose }: { feature: ComingSoonFeature; onC
           </button>
         </div>
 
-        {/* Content */}
-        <p className="text-sm text-[var(--text)] mb-4">
-          Мы доделываем этот инструмент. Хотите ранний доступ?
-        </p>
+        {subscribed ? (
+          showBotPrompt ? (
+            <div className="py-2">
+              <div className="flex items-center gap-2 text-green-400 mb-4">
+                <CheckCircle2 className="w-5 h-5" />
+                <span className="font-medium">Подписка оформлена!</span>
+              </div>
+              <p className="text-sm text-[var(--muted)] mb-4">
+                Чтобы получить уведомление в Telegram, подключите бота:
+              </p>
+              <Button
+                onClick={handleConnectBot}
+                className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white mb-3"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Подключить бота
+                <ExternalLink className="w-4 h-4 ml-2" />
+              </Button>
+              <Button variant="outline" onClick={onClose} className="w-full">
+                Пропустить
+              </Button>
+            </div>
+          ) : (
+            <div className="py-6 text-center">
+              <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
+              <p className="text-[var(--text)] font-medium">Готово!</p>
+              <p className="text-sm text-[var(--muted)] mt-1">
+                Мы напишем вам в Telegram.
+              </p>
+            </div>
+          )
+        ) : (
+          <>
+            {/* Content */}
+            <p className="text-sm text-[var(--text)] mb-4">
+              Мы доделываем этот инструмент. Хотите ранний доступ?
+            </p>
 
-        {/* Email input (optional) */}
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email (необязательно)"
-          className="w-full px-4 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] text-sm mb-4"
-        />
+            {!user && (
+              <p className="text-xs text-[var(--muted)] mb-4">
+                💡 Войдите через Telegram для уведомлений
+              </p>
+            )}
 
-        {/* Actions */}
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1">
-            Закрыть
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1">
-            <Bell className="w-4 h-4 mr-2" />
-            Уведомить меня
-          </Button>
-        </div>
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onClose} className="flex-1">
+                Закрыть
+              </Button>
+              <Button onClick={handleSubscribe} disabled={isSubmitting} className="flex-1">
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Bell className="w-4 h-4 mr-2" />
+                )}
+                Уведомить меня
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
