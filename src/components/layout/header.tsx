@@ -15,7 +15,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 const navigation = [
   { name: 'Фото', href: '/create' },
   { name: 'Видео', href: '/create/video' },
-  { name: 'Продукты', href: '/create/products' },
+  { name: 'Маркетплейсы', href: '/create/products' },
   { name: 'Библиотека', href: '/library' },
   { name: 'Вдохновение', href: '/inspiration' },
   { name: 'Тарифы', href: '/pricing' },
