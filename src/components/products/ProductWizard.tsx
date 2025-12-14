@@ -69,6 +69,7 @@ export interface ProductWizardState {
   nicheId: string | null;
   sceneId: string | null;
   brandTemplateId: string | null;
+  customPrompt: string;
 }
 
 interface ProductWizardProps {
@@ -92,6 +93,15 @@ const TEMPLATE_STYLES = [
 
 const MAX_PHOTOS = 3;
 const MAX_BENEFITS = 5;
+
+const PROMPT_HINTS = [
+  "белый фон",
+  "минимализм",
+  "яркие акценты",
+  "плашка со скидкой",
+  "премиальный стиль",
+  "мягкие тени",
+];
 
 // ===== COMPONENT =====
 
@@ -551,7 +561,34 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
         </div>
       </Section>
 
-      {/* 9. Advanced Settings Accordion */}
+      {/* 9. Custom Prompt */}
+      <Section title="Свой промт (опционально)">
+        <div className="space-y-2">
+          <textarea
+            value={state.customPrompt}
+            onChange={(e) => onChange({ customPrompt: e.target.value })}
+            placeholder="Опишите дополнительные пожелания: стиль, цвета, расположение текста, акценты..."
+            className="w-full h-20 px-3 py-2 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] text-sm resize-none"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {PROMPT_HINTS.map((hint, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  const current = state.customPrompt;
+                  const newPrompt = current ? `${current}, ${hint}` : hint;
+                  onChange({ customPrompt: newPrompt });
+                }}
+                className="px-2 py-1 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[10px] text-[var(--muted)] hover:border-[var(--gold)]/50 hover:text-[var(--text)] transition-all"
+              >
+                + {hint}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* 10. Advanced Settings Accordion */}
       <div className="border border-[var(--border)] rounded-xl overflow-hidden">
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}

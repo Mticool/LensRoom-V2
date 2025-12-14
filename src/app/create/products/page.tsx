@@ -47,6 +47,7 @@ const initialWizardState: ProductWizardState = {
   nicheId: null,
   sceneId: null,
   brandTemplateId: null,
+  customPrompt: "",
 };
 
 // ===== PAGE COMPONENT =====
@@ -140,6 +141,7 @@ export default function ProductCardsPage() {
       sceneId: wizardState.sceneId,
       scenePromptAddon: promptAddon,
       brandTemplateId: wizardState.brandTemplateId,
+      customPrompt: wizardState.customPrompt,
     };
 
     console.log("[ProductCards] Generation payload:", payload);

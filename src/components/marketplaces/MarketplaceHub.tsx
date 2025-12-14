@@ -5,15 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Package,
-  BarChart3,
   Video,
   Camera,
   FlaskConical,
-  Lock,
   X,
   Bell,
-  ChevronDown,
-  ChevronUp,
   ChevronRight,
   Sparkles,
 } from "lucide-react";
@@ -93,7 +89,6 @@ function hasInterest(featureId: string): boolean {
 
 export function MarketplaceHub() {
   const [modalFeature, setModalFeature] = useState<ComingSoonFeature | null>(null);
-  const [showInfographicsAccordion, setShowInfographicsAccordion] = useState(false);
 
   const handleScrollToWizard = () => {
     const element = document.querySelector("#product-card-wizard");
@@ -163,45 +158,6 @@ export function MarketplaceHub() {
             );
           })}
         </div>
-      </div>
-
-      {/* Infographics Accordion (collapsed by default) */}
-      <div className="border border-[var(--border)] rounded-xl overflow-hidden">
-        <button
-          onClick={() => setShowInfographicsAccordion(!showInfographicsAccordion)}
-          className="w-full flex items-center justify-between p-4 text-left hover:bg-[var(--surface2)] transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-[var(--muted)]" />
-            <span className="text-sm text-[var(--text)]">Инфографика: свой промт</span>
-            <Badge variant="outline" className="text-[10px] border-[var(--gold)]/30 text-[var(--gold)]">
-              Скоро
-            </Badge>
-          </div>
-          {showInfographicsAccordion ? (
-            <ChevronUp className="w-4 h-4 text-[var(--muted)]" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
-          )}
-        </button>
-        
-        {showInfographicsAccordion && (
-          <div className="p-4 pt-0 border-t border-[var(--border)] opacity-60">
-            <p className="text-xs text-[var(--muted)] mb-3">
-              Опишите стиль, плашки и акценты. Мы применим к шаблону.
-            </p>
-            <div className="flex gap-3">
-              <textarea
-                disabled
-                placeholder="Пример: Добавь красную плашку -30% в верхнем правом углу, белый текст 'ХИТ ПРОДАЖ' снизу..."
-                className="flex-1 h-16 px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] text-xs resize-none cursor-not-allowed"
-              />
-              <div className="flex items-center justify-center w-10">
-                <Lock className="w-5 h-5 text-[var(--muted)]" />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Coming Soon Modal */}
