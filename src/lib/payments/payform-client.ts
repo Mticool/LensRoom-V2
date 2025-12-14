@@ -11,15 +11,21 @@ interface CreatePaymentParams {
   description: string;
 }
 
+// Хардкодим production URL для надёжности
+const PRODUCTION_APP_URL = 'https://lensroom.ru';
+
 export class PayformClient {
   private secretKey: string;
   private merchantId: string;
   private baseUrl: string;
+  private appUrl: string;
 
   constructor() {
     this.secretKey = process.env.PAYFORM_SECRET_KEY || '';
     this.merchantId = process.env.PAYFORM_MERCHANT_ID || 'ozoncheck';
     this.baseUrl = 'https://ozoncheck.payform.ru';
+    // Используем env или хардкод production URL
+    this.appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || PRODUCTION_APP_URL;
   }
 
   // Генерация подписи для Prodamus
@@ -56,7 +62,7 @@ export class PayformClient {
       throw new Error(`Subscription ID not found for plan: ${planId}`);
     }
 
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const appUrl = this.appUrl.replace(/\/$/, '');
 
     const params = new URLSearchParams();
     params.append('subscription_id', subscriptionId);
@@ -84,7 +90,7 @@ export class PayformClient {
     description 
   }: CreatePaymentParams): string {
     
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const appUrl = this.appUrl.replace(/\/$/, '');
 
     // Prodamus/Payform параметры для динамического платежа
     const params = new URLSearchParams();
