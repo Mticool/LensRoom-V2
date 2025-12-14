@@ -345,7 +345,7 @@ function Academy() {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <section className="py-24 border-t border-[var(--border)] relative">
+    <section id="academy" className="py-24 border-t border-[var(--border)] relative scroll-mt-20">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[var(--gold)]/5 to-transparent rounded-full blur-[100px]" />
