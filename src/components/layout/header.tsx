@@ -19,7 +19,7 @@ const navigation = [
   { name: 'Библиотека', href: '/library' },
   { name: 'Вдохновение', href: '/inspiration' },
   { name: 'Тарифы', href: '/pricing' },
-  { name: 'Академия', href: '/#academy' },
+  { name: 'Академия', href: '/academy' },
 ];
 
 export function Header() {
