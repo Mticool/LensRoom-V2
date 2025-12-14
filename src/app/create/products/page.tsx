@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import {
   Image as ImageIcon,
   Layers,
   Loader2,
+  Wallet,
+  AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -27,26 +29,52 @@ import {
   getSingleCost,
   getPackCost,
   getPackSavings,
+  getApiModelId,
   type ProductImageMode,
 } from "@/config/productImageModes";
+import {
+  getStarsBalance,
+  deductStars,
+  hasEnoughStars,
+} from "@/lib/stars-balance";
+import {
+  addManyToLibrary,
+  type LibraryItem,
+} from "@/lib/library-storage";
 
 // ===== TYPES =====
 
 type GenerationType = "single" | "pack";
 
-interface ProcessedResult {
-  id: number;
-  original: string;
-  processed: string;
+interface GenerationPayload {
+  modeId: string;
+  modelKey: string;
+  apiModelId: string;
+  generationType: GenerationType;
+  slidesCount: number;
+  requiredStars: number;
+  backgroundStyle: string;
+  productPhotos: string[];
+  // Future fields
+  productTitle?: string;
+  productBenefits?: string[];
+  marketplace?: string;
+  templateStyle?: string;
+}
+
+interface GeneratedResult {
+  id: string;
+  imageUrl: string;
+  status: "pending" | "generating" | "completed" | "failed";
 }
 
 // ===== BACKGROUND STYLES =====
 
 const BACKGROUND_STYLES = [
-  { id: "white", name: "Белый фон", preview: "#FFFFFF" },
-  { id: "studio", name: "Студийный", preview: "#F5F5F5" },
-  { id: "dark", name: "Тёмный", preview: "#1a1a1a" },
-  { id: "gradient", name: "Градиент", preview: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+  { id: "white", name: "Белый фон", preview: "#FFFFFF", prompt: "clean white studio background" },
+  { id: "studio", name: "Студийный", preview: "#F5F5F5", prompt: "professional studio lighting, soft shadows" },
+  { id: "dark", name: "Тёмный", preview: "#1a1a1a", prompt: "elegant dark background, dramatic lighting" },
+  { id: "gradient", name: "Градиент", preview: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", prompt: "modern gradient background" },
 ];
 
 // ===== PAGE COMPONENT =====
@@ -58,15 +86,45 @@ export default function ProductCardsPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [selectedBackground, setSelectedBackground] = useState("white");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [results, setResults] = useState<ProcessedResult[]>([]);
+  const [results, setResults] = useState<GeneratedResult[]>([]);
   const [step, setStep] = useState(1);
+  const [starsBalance, setStarsBalance] = useState(0);
+
+  // Load balance on mount
+  useEffect(() => {
+    setStarsBalance(getStarsBalance());
+  }, []);
 
   // Computed
   const selectedMode = getModeById(selectedModeId) ?? PRODUCT_IMAGE_MODES[0];
+  const slidesCount = generationType === "single" ? 1 : PACK_SLIDES_DEFAULT;
   const totalCost = generationType === "single" 
     ? getSingleCost(selectedModeId)
     : getPackCost(selectedModeId);
   const packSavings = getPackSavings(selectedModeId);
+  const canAfford = starsBalance >= totalCost;
+
+  // Build generation payload
+  const buildPayload = useCallback((): GenerationPayload => {
+    const mode = getModeById(selectedModeId) ?? PRODUCT_IMAGE_MODES[0];
+    const bgStyle = BACKGROUND_STYLES.find(b => b.id === selectedBackground);
+    
+    return {
+      modeId: selectedModeId,
+      modelKey: mode.modelKey,
+      apiModelId: getApiModelId(mode.modelKey),
+      generationType,
+      slidesCount,
+      requiredStars: totalCost,
+      backgroundStyle: selectedBackground,
+      productPhotos: uploadedImages,
+      // These would come from additional form fields
+      productTitle: undefined,
+      productBenefits: undefined,
+      marketplace: undefined,
+      templateStyle: bgStyle?.prompt,
+    };
+  }, [selectedModeId, generationType, slidesCount, totalCost, selectedBackground, uploadedImages]);
 
   // Handlers
   const handleImageUpload = useCallback((files: FileList) => {
@@ -85,25 +143,81 @@ export default function ProductCardsPage() {
       return;
     }
 
-    setIsProcessing(true);
-    toast.loading("Генерация изображений...", { id: "processing" });
+    // Check balance
+    if (!hasEnoughStars(totalCost)) {
+      toast.error(`Недостаточно звёзд. Нужно: ⭐${totalCost}, у вас: ⭐${starsBalance}`);
+      return;
+    }
 
-    // TODO: Real generation via KIE API
-    setTimeout(() => {
-      setResults(
-        uploadedImages.map((img, i) => ({
-          id: i,
-          original: img,
-          processed: img,
-        }))
+    // Build payload
+    const payload = buildPayload();
+    console.log("[ProductCards] Generation payload:", payload);
+
+    // Deduct stars
+    const deducted = deductStars(totalCost);
+    if (!deducted) {
+      toast.error("Ошибка списания звёзд");
+      return;
+    }
+
+    // Update balance display
+    setStarsBalance(getStarsBalance());
+    toast.success(`Списано ⭐${totalCost}`);
+
+    setIsProcessing(true);
+
+    // Create placeholder results
+    const placeholderResults: GeneratedResult[] = Array.from(
+      { length: slidesCount },
+      (_, i) => ({
+        id: `gen_${Date.now()}_${i}`,
+        imageUrl: "",
+        status: "pending" as const,
+      })
+    );
+    setResults(placeholderResults);
+    setStep(3);
+
+    // Simulate generation progress
+    for (let i = 0; i < slidesCount; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setResults((prev) =>
+        prev.map((r, idx) =>
+          idx === i ? { ...r, status: "generating" as const } : r
+        )
       );
-      setIsProcessing(false);
-      setStep(3);
-      toast.success("Готово! 🎉", { id: "processing" });
-    }, 3000);
+    }
+
+    // Simulate completion with placeholder images
+    // In real implementation, this would call KIE API
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const completedResults: GeneratedResult[] = placeholderResults.map((r, i) => ({
+      ...r,
+      imageUrl: uploadedImages[i % uploadedImages.length] || uploadedImages[0],
+      status: "completed" as const,
+    }));
+
+    setResults(completedResults);
+    setIsProcessing(false);
+
+    // Save to library
+    const libraryItems: Omit<LibraryItem, "id" | "createdAt">[] = completedResults.map((r) => ({
+      type: "product" as const,
+      modeId: payload.modeId,
+      modelKey: payload.modelKey,
+      imageUrl: r.imageUrl,
+      metadata: {
+        generationType: payload.generationType,
+        backgroundStyle: payload.backgroundStyle,
+      },
+    }));
+    addManyToLibrary(libraryItems);
+
+    toast.success(`Готово! ${slidesCount} изображений сохранено в библиотеку 🎉`);
   };
 
-  const handleDownload = async (url: string, id: number) => {
+  const handleDownload = async (url: string, id: string) => {
     try {
       await downloadImage(url, `product-${selectedMode.id}-${id}.png`);
       toast.success("Изображение скачано!");
@@ -116,6 +230,7 @@ export default function ProductCardsPage() {
     setStep(1);
     setUploadedImages([]);
     setResults([]);
+    setStarsBalance(getStarsBalance());
   };
 
   return (
@@ -126,16 +241,27 @@ export default function ProductCardsPage() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-10 text-center"
+          className="mb-10"
         >
-          <Badge variant="primary" className="mb-4">
-            <Package className="w-3 h-3 mr-1" />
-            Продуктовые карточки
-          </Badge>
+          <div className="flex items-center justify-between mb-4">
+            <Badge variant="primary">
+              <Package className="w-3 h-3 mr-1" />
+              Продуктовые карточки
+            </Badge>
+            
+            {/* Balance Display */}
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <Wallet className="w-4 h-4 text-[var(--muted)]" />
+              <span className="text-sm text-[var(--muted)]">Баланс:</span>
+              <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
+              <span className="font-semibold text-[var(--text)]">{starsBalance}</span>
+            </div>
+          </div>
+          
           <h1 className="text-3xl md:text-4xl font-bold mb-3 text-[var(--text)]">
             Фото для <span className="text-[var(--gold)]">маркетплейсов</span>
           </h1>
-          <p className="text-[var(--text2)] max-w-xl mx-auto">
+          <p className="text-[var(--text2)] max-w-xl">
             WB, Ozon, Яндекс.Маркет — профессиональные карточки товаров
           </p>
         </motion.div>
@@ -205,9 +331,17 @@ export default function ProductCardsPage() {
                     <div className="text-sm text-[var(--muted)] mb-1">
                       {generationType === "single" ? "Стоимость" : `Стоимость набора (${PACK_SLIDES_DEFAULT})`}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Star className="w-5 h-5 text-[var(--gold)] fill-[var(--gold)]" />
-                      <span className="text-2xl font-bold text-[var(--text)]">{totalCost}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-5 h-5 text-[var(--gold)] fill-[var(--gold)]" />
+                        <span className="text-2xl font-bold text-[var(--text)]">{totalCost}</span>
+                      </div>
+                      {!canAfford && (
+                        <Badge variant="error" className="text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Недостаточно звёзд
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <Button 
@@ -241,7 +375,7 @@ export default function ProductCardsPage() {
                     <div>
                       <div className="font-medium text-[var(--text)]">{selectedMode.name}</div>
                       <div className="text-sm text-[var(--muted)]">
-                        {generationType === "single" ? "1 изображение" : `${PACK_SLIDES_DEFAULT} слайдов`}
+                        {generationType === "single" ? "1 изображение" : `${PACK_SLIDES_DEFAULT} слайдов`} • ⭐{totalCost}
                       </div>
                     </div>
                   </div>
@@ -343,11 +477,16 @@ export default function ProductCardsPage() {
                 </Button>
                 <Button
                   onClick={handleGenerate}
-                  disabled={uploadedImages.length === 0 || isProcessing}
+                  disabled={uploadedImages.length === 0 || isProcessing || !canAfford}
                   className="flex-1"
                   size="lg"
                 >
-                  {isProcessing ? (
+                  {!canAfford ? (
+                    <>
+                      <AlertCircle className="w-5 h-5 mr-2" />
+                      Недостаточно звёзд
+                    </>
+                  ) : isProcessing ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                       Генерация...
@@ -376,39 +515,46 @@ export default function ProductCardsPage() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-[var(--text)]">
-                    Готово! 🎉
+                    {isProcessing ? "Генерация..." : "Готово! 🎉"}
                   </h2>
                   <p className="text-[var(--muted)]">
-                    {results.length} изображений обработано
+                    {results.filter(r => r.status === "completed").length} / {results.length} изображений
                   </p>
                 </div>
-                <Button onClick={resetToStart}>
-                  Создать ещё
-                </Button>
+                {!isProcessing && (
+                  <Button onClick={resetToStart}>
+                    Создать ещё
+                  </Button>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className={cn(
+                "grid gap-4",
+                generationType === "single" ? "grid-cols-1 max-w-md mx-auto" : "grid-cols-2 md:grid-cols-3"
+              )}>
                 {results.map((result) => (
-                  <Card key={result.id} className="overflow-hidden bg-[var(--surface)] border-[var(--border)]">
-                    <img
-                      src={result.processed}
-                      alt={`Result ${result.id + 1}`}
-                      className="w-full aspect-square object-cover"
-                    />
-                    <div className="p-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => handleDownload(result.processed, result.id)}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Скачать
-                      </Button>
-                    </div>
-                  </Card>
+                  <ResultCard
+                    key={result.id}
+                    result={result}
+                    modeName={selectedMode.name}
+                    onDownload={() => handleDownload(result.imageUrl, result.id)}
+                  />
                 ))}
               </div>
+
+              {/* Summary */}
+              {!isProcessing && (
+                <Card className="mt-6 p-4 bg-[var(--surface)] border-[var(--border)]">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[var(--muted)]">
+                      Сохранено в библиотеку
+                    </span>
+                    <span className="text-[var(--text)]">
+                      {results.length} изображений • ⭐{totalCost} списано
+                    </span>
+                  </div>
+                </Card>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -436,31 +582,26 @@ function ModeCard({ mode, selected, onClick }: ModeCardProps) {
           : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gold)]/50"
       )}
     >
-      {/* Selection indicator */}
       {selected && (
         <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[var(--gold)] flex items-center justify-center">
           <Check className="w-4 h-4 text-[#0a0a0f]" />
         </div>
       )}
 
-      {/* Badge */}
       {mode.badge && (
         <Badge variant="primary" className="mb-3 text-xs">
           {mode.badge}
         </Badge>
       )}
 
-      {/* Title */}
       <h3 className="font-semibold text-[var(--text)] mb-1 pr-8">
         {mode.name}
       </h3>
 
-      {/* Description */}
       <p className="text-sm text-[var(--muted)] mb-3 line-clamp-2">
         {mode.description}
       </p>
 
-      {/* Price */}
       <div className="flex items-center gap-1 text-sm">
         <span className="text-[var(--muted)]">от</span>
         <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
@@ -501,29 +642,24 @@ function GenerationTypeCard({
           : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gold)]/50"
       )}
     >
-      {/* Selection indicator */}
       {selected && (
         <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[var(--gold)] flex items-center justify-center">
           <Check className="w-4 h-4 text-[#0a0a0f]" />
         </div>
       )}
 
-      {/* Icon */}
       <div className="w-10 h-10 rounded-xl bg-[var(--surface2)] flex items-center justify-center mb-3 text-[var(--muted)]">
         {icon}
       </div>
 
-      {/* Label */}
       <h3 className="font-semibold text-[var(--text)] mb-1">
         {label}
       </h3>
 
-      {/* Description */}
       <p className="text-sm text-[var(--muted)] mb-3">
         {description}
       </p>
 
-      {/* Cost */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1">
           <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
@@ -536,5 +672,70 @@ function GenerationTypeCard({
         )}
       </div>
     </button>
+  );
+}
+
+interface ResultCardProps {
+  result: GeneratedResult;
+  modeName: string;
+  onDownload: () => void;
+}
+
+function ResultCard({ result, modeName, onDownload }: ResultCardProps) {
+  const isPending = result.status === "pending";
+  const isGenerating = result.status === "generating";
+  const isCompleted = result.status === "completed";
+
+  return (
+    <Card className="overflow-hidden bg-[var(--surface)] border-[var(--border)]">
+      <div className="aspect-square relative">
+        {isCompleted && result.imageUrl ? (
+          <img
+            src={result.imageUrl}
+            alt="Generated product"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--surface2)]">
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-8 h-8 text-[var(--gold)] animate-spin mb-2" />
+                <span className="text-sm text-[var(--muted)]">Генерация...</span>
+              </>
+            ) : isPending ? (
+              <>
+                <ImageIcon className="w-8 h-8 text-[var(--muted)] mb-2" />
+                <span className="text-sm text-[var(--muted)]">В очереди</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-8 h-8 text-red-400 mb-2" />
+                <span className="text-sm text-red-400">Ошибка</span>
+              </>
+            )}
+          </div>
+        )}
+        
+        {/* Mode badge */}
+        <div className="absolute top-2 left-2">
+          <Badge variant="default" className="text-xs bg-[var(--surface)]/90 backdrop-blur">
+            {modeName}
+          </Badge>
+        </div>
+      </div>
+      
+      <div className="p-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={onDownload}
+          disabled={!isCompleted}
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Скачать
+        </Button>
+      </div>
+    </Card>
   );
 }
