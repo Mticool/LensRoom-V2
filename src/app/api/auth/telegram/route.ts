@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
           onConflict: 'telegram_id',
         }
       )
-      .select('id, telegram_id, telegram_username, first_name, photo_url, is_admin')
+      .select('id, telegram_id, telegram_username, first_name, photo_url, is_admin, role')
       .single();
 
     if (upsertError) {
@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
       firstName: profile.first_name,
       photoUrl: profile.photo_url,
       isAdmin: profile.is_admin || false,
+      role: (profile.role as 'user' | 'manager' | 'admin') || 'user',
     };
 
     // 5. Create JWT and set cookie
