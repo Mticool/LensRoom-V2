@@ -1,33 +1,36 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/telegram/auth';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 // GET - Fetch all gallery effects
 export async function GET() {
   try {
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
-    }
+    // Check Telegram auth first
+    const telegramSession = await getSession();
     
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    if (!telegramSession) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin or manager
+    const supabase = getSupabaseAdmin();
     const { data: profile } = await supabase
       .from('telegram_profiles')
       .select('is_admin, role')
-      .eq('id', user.id)
+      .eq('id', telegramSession.profileId)
       .single();
 
-    if (!profile?.is_admin && profile?.role !== 'manager') {
+    const isAdmin = profile?.is_admin || profile?.role === 'admin';
+    const isManager = profile?.role === 'manager';
+
+    if (!isAdmin && !isManager) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Fetch effects
-    const { data: effects, error } = await supabase
+    const supabaseQuery = getSupabaseAdmin();
+    const { data: effects, error } = await supabaseQuery
       .from('effects_gallery')
       .select('*')
       .order('display_order', { ascending: true });
@@ -47,25 +50,25 @@ export async function GET() {
 // POST - Create or update gallery effect
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
-    }
+    // Check Telegram auth
+    const telegramSession = await getSession();
     
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    if (!telegramSession) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin or manager
+    const supabase = getSupabaseAdmin();
     const { data: profile } = await supabase
       .from('telegram_profiles')
       .select('is_admin, role')
-      .eq('id', user.id)
+      .eq('id', telegramSession.profileId)
       .single();
 
-    if (!profile?.is_admin && profile?.role !== 'manager') {
+    const isAdmin = profile?.is_admin || profile?.role === 'admin';
+    const isManager = profile?.role === 'manager';
+
+    if (!isAdmin && !isManager) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -147,25 +150,25 @@ export async function POST(request: Request) {
 // DELETE - Delete gallery effect
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
-    }
+    // Check Telegram auth
+    const telegramSession = await getSession();
     
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    if (!telegramSession) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin or manager
+    const supabase = getSupabaseAdmin();
     const { data: profile } = await supabase
       .from('telegram_profiles')
       .select('is_admin, role')
-      .eq('id', user.id)
+      .eq('id', telegramSession.profileId)
       .single();
 
-    if (!profile?.is_admin && profile?.role !== 'manager') {
+    const isAdmin = profile?.is_admin || profile?.role === 'admin';
+    const isManager = profile?.role === 'manager';
+
+    if (!isAdmin && !isManager) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
