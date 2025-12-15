@@ -70,7 +70,9 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
       // 3. Start polling for status
       pollingRef.current = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`/api/auth/telegram/status?code=${code}`);
+          const statusResponse = await fetch(`/api/auth/telegram/status?code=${code}`, {
+            credentials: 'include', // Critical: allows browser to save cookies from response
+          });
           const data = await statusResponse.json();
           
           if (data.status === 'authenticated') {
