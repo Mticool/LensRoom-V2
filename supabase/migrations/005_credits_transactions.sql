@@ -91,3 +91,4 @@ CREATE POLICY "Users can insert own transactions" ON public.credit_transactions
 -- Grant permissions
 GRANT ALL ON public.credits TO authenticated;
 GRANT ALL ON public.credit_transactions TO authenticated;
+

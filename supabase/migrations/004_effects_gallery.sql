@@ -74,3 +74,4 @@ CREATE TRIGGER trigger_effects_gallery_updated_at
 
 -- Insert initial effects from config (optional - can be done via admin panel)
 -- This seeds the database with default effects
+

@@ -80,11 +80,15 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
               pollingRef.current = null;
             }
             setLoginState('success');
-            await refreshSession();
+            
+            // Wait a bit for cookie to be set, then refresh session
+            setTimeout(async () => {
+              await refreshSession();
+              // Force page reload to ensure session is fully loaded
+              window.location.reload();
+            }, 500);
+            
             toast.success('Вы успешно вошли!');
-            setTimeout(() => {
-              onClose();
-            }, 1000);
           } else if (data.status === 'expired') {
             // Code expired
             if (pollingRef.current) {

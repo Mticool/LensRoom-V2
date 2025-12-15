@@ -176,3 +176,4 @@ export function formatPriceDisplay(price: ComputedPrice): {
     full: `Стоимость: ${price.stars}⭐`,
   };
 }
+

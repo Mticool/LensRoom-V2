@@ -74,6 +74,8 @@ export async function GET(request: NextRequest) {
 
       // Set session cookie
       await setSessionCookie(token);
+      
+      console.log('[Telegram Status] Session created and cookie set for user:', profile.id);
 
       // Clean up old codes (optional, for hygiene)
       await supabase

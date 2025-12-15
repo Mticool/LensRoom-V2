@@ -39,3 +39,4 @@ export interface VideoGenerationOptions {
 }
 
 export type GenerationOptions = PhotoGenerationOptions | VideoGenerationOptions;
+
