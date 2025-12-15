@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const price = computePrice(model, {
       mode,
       duration: duration || modelInfo.fixedDuration || 5,
-      quality,
+      videoQuality: quality,
       audio,
       variants,
     });
