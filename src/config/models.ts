@@ -4,7 +4,7 @@
  */
 
 export type ModelType = 'photo' | 'video';
-export type PhotoQuality = '1k' | '2k' | '4k' | 'turbo' | 'balanced' | 'quality' | 'fast' | 'ultra';
+export type PhotoQuality = '1k' | '2k' | '4k' | '1k_2k' | 'turbo' | 'balanced' | 'quality' | 'fast' | 'ultra';
 export type VideoQuality = '720p' | '1080p' | 'fast' | 'quality';
 export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard';
 export type PhotoMode = 't2i' | 'i2i';
