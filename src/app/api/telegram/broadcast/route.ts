@@ -44,18 +44,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // 3. Get all active subscribers with notification enabled
+    // 3. Get all active subscribers for this type
     const { data: subscribers, error } = await supabase
       .from('waitlist_subscriptions')
       .select(`
         id,
         profile_id,
-        telegram_profiles!inner(telegram_id),
-        telegram_bot_links!inner(chat_id, can_notify)
+        telegram_profiles!inner(telegram_id)
       `)
       .eq('type', body.type)
-      .eq('status', 'active')
-      .eq('telegram_bot_links.can_notify', true);
+      .eq('status', 'active');
 
     if (error) {
       console.error('[Broadcast] Query error:', error);
@@ -71,22 +69,41 @@ export async function POST(request: NextRequest) {
         sent: 0,
         failed: 0,
         total: 0,
-        message: 'No active subscribers with notifications enabled',
+        message: 'No active subscribers',
       });
     }
 
-    // 4. Prepare messages
-    const messages = subscribers
-      .filter((sub: any) => sub.telegram_bot_links?.chat_id)
-      .map((sub: any) => ({
-        chat_id: sub.telegram_bot_links.chat_id,
+    // 4. Get telegram_ids and find bot links with chat_id
+    const telegramIds = subscribers.map((s: any) => s.telegram_profiles.telegram_id);
+    
+    const { data: botLinks } = await supabase
+      .from('telegram_bot_links')
+      .select('telegram_id, chat_id, can_notify')
+      .in('telegram_id', telegramIds)
+      .eq('can_notify', true);
+
+    if (!botLinks || botLinks.length === 0) {
+      return NextResponse.json({
+        ok: true,
+        sent: 0,
+        failed: 0,
+        total: 0,
+        message: 'No subscribers with notifications enabled',
+      });
+    }
+
+    // 5. Prepare messages
+    const messages = botLinks
+      .filter((link: any) => link.chat_id)
+      .map((link: any) => ({
+        chat_id: link.chat_id,
         text: body.message,
       }));
 
-    // 5. Send messages
+    // 6. Send messages
     const result = await sendBulkMessages(messages);
 
-    // 6. Update notified_at for sent messages
+    // 7. Update notified_at for sent messages
     const subscriberIds = subscribers.map((s: any) => s.id);
     await supabase
       .from('waitlist_subscriptions')
