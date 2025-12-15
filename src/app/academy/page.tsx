@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   GraduationCap,
   Users,
@@ -12,6 +12,7 @@ import {
   X,
   MessageCircle,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
@@ -49,18 +50,79 @@ const FORMAT_LINES = [
 ];
 
 // ===== MODAL =====
+type ModalState = 'idle' | 'logging_in' | 'waiting_telegram' | 'subscribed' | 'need_bot';
+
 function AcademyModal({ onClose }: { onClose: () => void }) {
-  const { user } = useTelegramAuth();
+  const { user, refreshSession } = useTelegramAuth();
+  const [state, setState] = useState<ModalState>('idle');
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [showBotPrompt, setShowBotPrompt] = useState(false);
+  const [loginCode, setLoginCode] = useState<string | null>(null);
+  const [botLink, setBotLink] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  const handleTelegramLogin = async () => {
+    try {
+      setState('logging_in');
+      
+      const initResponse = await fetch('/api/auth/telegram/init', { method: 'POST' });
+      if (!initResponse.ok) throw new Error('Failed to initialize login');
+      
+      const { code, botLink: link } = await initResponse.json();
+      setLoginCode(code);
+      setBotLink(link);
+      setState('waiting_telegram');
+      
+      window.open(link, '_blank');
+      
+      // Poll for login completion
+      pollingRef.current = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(`/api/auth/telegram/status?code=${code}`);
+          const data = await statusResponse.json();
+          
+          if (data.status === 'authenticated') {
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current);
+              pollingRef.current = null;
+            }
+            await refreshSession();
+            // Auto-subscribe after login
+            await handleSubscribe();
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 2000);
+      
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          if (state === 'waiting_telegram') {
+            setState('idle');
+            toast.error('Время ожидания истекло');
+          }
+        }
+      }, 5 * 60 * 1000);
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      setState('idle');
+      toast.error('Не удалось начать вход');
+    }
+  };
 
   const handleSubscribe = async () => {
-    if (!user) {
-      toast.error('Войдите в аккаунт, чтобы подписаться');
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch('/api/waitlist/subscribe', {
@@ -72,24 +134,30 @@ function AcademyModal({ onClose }: { onClose: () => void }) {
       const data = await response.json();
 
       if (response.ok) {
-        setSubmitted(true);
         if (!data.canNotify) {
-          setShowBotPrompt(true);
+          setState('need_bot');
+        } else {
+          setState('subscribed');
         }
       } else {
         toast.error(data.error || 'Ошибка подписки');
+        setState('idle');
       }
     } catch (error) {
       toast.error('Ошибка сети');
+      setState('idle');
     } finally {
       setLoading(false);
     }
   };
 
   const handleConnectBot = () => {
-    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoomBot';
-    window.open(`https://t.me/${botUsername}?start=notify`, '_blank');
+    window.open('https://t.me/LensRoom_bot?start=notify', '_blank');
     toast.info('После запуска бота вы будете получать уведомления');
+  };
+
+  const handleOpenTelegram = () => {
+    if (botLink) window.open(botLink, '_blank');
   };
 
   return (
@@ -110,41 +178,57 @@ function AcademyModal({ onClose }: { onClose: () => void }) {
           <h3 className="text-lg font-semibold text-[var(--text)]">Академия LensRoom</h3>
         </div>
 
-        {submitted ? (
-          showBotPrompt ? (
-            <div className="py-4">
-              <div className="flex items-center gap-2 text-green-400 mb-4">
-                <CheckCircle2 className="w-5 h-5" />
-                <span className="font-medium">Подписка оформлена!</span>
-              </div>
-              <p className="text-sm text-[var(--muted)] mb-4">
-                Чтобы получить уведомление в Telegram, подключите нашего бота:
-              </p>
-              <Button
-                onClick={handleConnectBot}
-                className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white mb-3"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Подключить бота
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={onClose}
-                className="w-full"
-              >
-                Пропустить
-              </Button>
+        {state === 'waiting_telegram' ? (
+          <div className="py-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#0088cc]/10 flex items-center justify-center mx-auto mb-4">
+              <MessageCircle className="w-8 h-8 text-[#0088cc]" />
             </div>
-          ) : (
-            <div className="py-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-green-500" />
-              </div>
-              <p className="text-[var(--text)] font-medium">Готово!</p>
-              <p className="text-sm text-[var(--muted)] mt-1">Мы напишем вам в Telegram, когда откроем набор.</p>
+            <p className="text-[var(--text)] font-medium mb-2">Откройте Telegram</p>
+            <p className="text-sm text-[var(--muted)] mb-4">
+              Нажмите <b>Start</b> в боте, чтобы войти и записаться.
+            </p>
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--gold)]" />
+              <span className="text-xs text-[var(--muted)]">Ожидание...</span>
             </div>
-          )
+            <Button
+              onClick={handleOpenTelegram}
+              className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Открыть Telegram
+              <ExternalLink className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        ) : state === 'subscribed' ? (
+          <div className="py-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-green-500" />
+            </div>
+            <p className="text-[var(--text)] font-medium">Готово!</p>
+            <p className="text-sm text-[var(--muted)] mt-1">Мы напишем вам в Telegram, когда откроем набор.</p>
+          </div>
+        ) : state === 'need_bot' ? (
+          <div className="py-4">
+            <div className="flex items-center gap-2 text-green-400 mb-4">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="font-medium">Подписка оформлена!</span>
+            </div>
+            <p className="text-sm text-[var(--muted)] mb-4">
+              Чтобы получить уведомление в Telegram, подключите бота:
+            </p>
+            <Button
+              onClick={handleConnectBot}
+              className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white mb-3"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Подключить бота
+              <ExternalLink className="w-4 h-4 ml-2" />
+            </Button>
+            <Button variant="outline" onClick={onClose} className="w-full">
+              Пропустить
+            </Button>
+          </div>
         ) : (
           <div>
             {user ? (
@@ -166,9 +250,15 @@ function AcademyModal({ onClose }: { onClose: () => void }) {
                   Войдите через Telegram, чтобы записаться в лист ожидания и получить уведомление о старте.
                 </p>
                 <Button
-                  onClick={onClose}
-                  className="w-full bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] font-semibold"
+                  onClick={handleTelegramLogin}
+                  disabled={state === 'logging_in'}
+                  className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white"
                 >
+                  {state === 'logging_in' ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                  )}
                   Войти через Telegram
                 </Button>
               </>
