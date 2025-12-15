@@ -200,3 +200,4 @@ export const MODE_DESCRIPTIONS: Record<VideoModeId, string> = {
   start_end: 'AI создаст плавный переход между двумя кадрами',
   storyboard: 'Соберите видео из нескольких сцен',
 };
+

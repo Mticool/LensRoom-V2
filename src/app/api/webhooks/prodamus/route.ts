@@ -177,13 +177,13 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Fallback based on common packages
+      // Fallback based on common packages (новые пакеты)
       if (credits === 0) {
         const amount = parseFloat(payload.sum);
-        if (amount >= 2490) credits = 3000;
-        else if (amount >= 1190) credits = 1200;
-        else if (amount >= 599) credits = 500;
-        else if (amount >= 299) credits = 200;
+        if (amount >= 4990) credits = 3500; // Ultra
+        else if (amount >= 2490) credits = 1500; // Max
+        else if (amount >= 790) credits = 400; // Plus
+        else if (amount >= 199) credits = 80; // Mini
       }
 
       console.log('[Prodamus Webhook] Processing package:', {

@@ -3,88 +3,128 @@ export interface SubscriptionPlan {
   name: string;
   price: number;
   credits: number;
+  description?: string;
+  subtitle?: string;
   features: string[];
   popular?: boolean;
   recurring?: boolean;
+  badge?: string;
 }
 
 export interface CreditPackage {
   id: string;
+  name: string;
   credits: number;
   price: number;
+  description?: string;
+  features?: string[];
   discount?: number;
   popular?: boolean;
+  badge?: string;
 }
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
-    id: 'starter',
-    name: 'Стартовый',
-    price: 0,
-    credits: 100,
+    id: 'star',
+    name: 'Star',
+    price: 490,
+    credits: 300,
+    subtitle: 'Акция до конца декабря',
+    badge: 'Попробовать',
+    description: '300⭐ в месяц + 50⭐ при регистрации. Для старта и теста моделей: фото, первые ролики, обложки и эффекты.',
     features: [
-      '100 кредитов единоразово',
-      'Базовые модели',
-      'Стандартная скорость',
-      'Базовая поддержка',
+      'Доступ к фото и видео моделям',
+      'Библиотека результатов',
+      'Базовые настройки генерации',
+      'Идеально для первого опыта',
     ],
+    recurring: true,
   },
   {
     id: 'pro',
     name: 'Pro',
     price: 990,
-    credits: 500,
+    credits: 800,
+    badge: 'Лучший выбор',
+    description: '800⭐ в месяц. Оптимальный тариф для регулярного контента и задач каждый день.',
     popular: true,
     recurring: true,
     features: [
-      '500 кредитов/месяц',
-      'Все AI модели',
-      'Приоритетная генерация',
-      'HD качество',
-      'Приоритетная поддержка',
+      'Всё из Star',
+      'Больше монет на генерации',
+      'Удобно для Reels/Shorts и рекламы',
+      'Меньше ограничений — больше результата',
     ],
   },
   {
     id: 'business',
     name: 'Business',
     price: 2990,
-    credits: 2000,
+    credits: 3000,
+    badge: 'Для объёма',
+    description: '3000⭐ в месяц. Для бизнеса, маркетплейсов и производства контента потоком.',
     recurring: true,
     features: [
-      '2000 кредитов/месяц',
-      'Все AI модели',
-      'Максимальная скорость',
-      '4K качество',
-      'API доступ',
-      'Персональный менеджер',
+      'Всё из Pro',
+      'Максимум монет под большие задачи',
+      'Подходит для команды/агентства/селлеров',
+      'Комфортный объём на месяц',
     ],
   },
 ];
 
 export const CREDIT_PACKAGES: CreditPackage[] = [
   {
-    id: 'pack_200',
-    credits: 200,
-    price: 299,
+    id: 'mini',
+    name: 'Mini',
+    credits: 80,
+    price: 199,
+    description: 'Быстро докупить монеты, когда нужно доделать 1–2 задачи.',
+    features: [
+      'Без подписки',
+      'Быстрое пополнение',
+      'Для точечных задач',
+    ],
   },
   {
-    id: 'pack_500',
-    credits: 500,
-    price: 599,
-    discount: 20,
-  },
-  {
-    id: 'pack_1200',
-    credits: 1200,
-    price: 1190,
-    discount: 34,
+    id: 'plus',
+    name: 'Plus',
+    credits: 400,
+    price: 790,
+    badge: 'Выгодно',
+    description: 'Удобный пакет для серии попыток: сделал → проверил → докрутил.',
+    features: [
+      'Хорошо для пачки фото',
+      'Хватает на несколько видео',
+      'Оптимум цена/объём',
+    ],
     popular: true,
   },
   {
-    id: 'pack_3000',
-    credits: 3000,
+    id: 'max',
+    name: 'Max',
+    credits: 1500,
     price: 2490,
-    discount: 44,
+    badge: 'Максимум',
+    description: 'Для спринта: много генераций за короткий период. Максимум выгоды за ⭐.',
+    features: [
+      'Контент сразу на неделю/месяц',
+      'Под кампании и запуски',
+      'Самый большой объём',
+    ],
+  },
+  {
+    id: 'ultra',
+    name: 'Ultra',
+    credits: 3500,
+    price: 4990,
+    badge: 'Для профи',
+    description: '3500⭐. Максимальный объём для контента и рекламы: делайте много генераций без пауз и ограничений.',
+    features: [
+      'Лучшее соотношение объёма',
+      'Под большие кампании и каталоги',
+      'Идеально для видео и пачек фото',
+    ],
   },
 ];
 

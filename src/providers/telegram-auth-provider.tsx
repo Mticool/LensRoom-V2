@@ -31,6 +31,8 @@ function tryExtractTelegramAuthFromHash(): any | null {
   }
 }
 
+type UserRole = 'user' | 'manager' | 'admin';
+
 interface TelegramUser {
   id: string;
   telegramId: number;
@@ -39,6 +41,7 @@ interface TelegramUser {
   lastName: string | null;
   photoUrl: string | null;
   isAdmin: boolean;
+  role: UserRole;
   canNotify: boolean;
 }
 
@@ -144,4 +147,5 @@ export function useTelegramAuth() {
   }
   return context;
 }
+
 

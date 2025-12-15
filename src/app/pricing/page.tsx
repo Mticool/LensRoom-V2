@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Sparkles, Crown, Zap, Loader2 } from 'lucide-react';
+import { Sparkles, Crown, Zap, Loader2, Star, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -51,45 +50,47 @@ export default function PricingPage() {
   };
 
   const planIcons = {
-    starter: Sparkles,
+    star: Sparkles,
     pro: Crown,
     business: Zap,
   };
 
-  const planGradients = {
-    starter: 'from-green-500 to-emerald-500',
-    pro: 'from-purple-500 to-blue-500',
-    business: 'from-orange-500 to-red-500',
-  };
-
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)]">
-      <div className="container mx-auto px-4 py-16 lg:py-24">
+    <div className="min-h-screen bg-[var(--bg)]">
+      <div className="container mx-auto px-6 py-20 lg:py-24">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
-          <Badge variant="primary" className="mb-6 px-4 py-2">
+          <Badge className="mb-6 px-4 py-2 bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/30">
             Тарифы
           </Badge>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--color-text-primary)] mb-6">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text)] mb-6">
             Простые и{' '}
-            <span className="bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
+            <span className="text-[var(--gold)]">
               понятные тарифы
             </span>
           </h1>
-          <p className="text-lg md:text-xl text-[var(--color-text-secondary)] max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-[var(--text2)] max-w-2xl mx-auto mb-6">
             Платите только за то, что используете. Без скрытых платежей.
           </p>
+          
+          {/* Promo Banner */}
+          <div className="max-w-md mx-auto">
+            <div className="p-4 rounded-xl bg-[var(--gold)]/10 border border-[var(--gold)]/30 text-center">
+              <p className="text-sm text-[var(--gold)] font-medium">
+                Star — 490 ₽ до 31 декабря. Далее тарифы — от 990 ₽.
+              </p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Subscription Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-24 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 max-w-5xl mx-auto">
           {SUBSCRIPTION_PLANS.map((plan, index) => {
             const Icon = planIcons[plan.id as keyof typeof planIcons] || Sparkles;
-            const gradient = planGradients[plan.id as keyof typeof planGradients] || 'from-gray-500 to-gray-600';
             const isPopular = 'popular' in plan && plan.popular;
             const isLoading = loading === plan.id;
             
@@ -100,113 +101,100 @@ export default function PricingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card 
-                  variant="hover" 
-                 
+                <div
                   className={cn(
-                    "relative h-full",
-                    isPopular && "border-2 border-purple-500 shadow-xl shadow-purple-500/20"
+                    "relative p-6 rounded-2xl transition-all h-full",
+                    isPopular
+                      ? 'bg-[var(--surface)] border-2 border-[var(--gold)] scale-105 shadow-lg'
+                      : 'bg-[var(--surface)] border border-[var(--border)]'
                   )}
                 >
-                  {isPopular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                      <div className="px-6 py-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold text-sm shadow-lg">
-                        ПОПУЛЯРНЫЙ
-                      </div>
+                  {(plan.badge || plan.popular) && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--gold)] text-black text-xs font-bold rounded-full">
+                      {plan.badge || 'ПОПУЛЯРНЫЙ'}
                     </div>
                   )}
 
-                  <div className={cn("p-8", isPopular && "pt-10")}>
-                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-6 shadow-lg`}>
-                      <Icon className="w-7 h-7 text-white" />
+                  <div className={cn("text-center mb-6", (plan.badge || plan.popular) && "pt-2")}>
+                    <div className="w-12 h-12 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center mx-auto mb-4">
+                      <Icon className="w-6 h-6 text-[var(--gold)]" />
                     </div>
-
-                    <h3 className="text-2xl font-bold text-[var(--color-text-primary)] mb-2">{plan.name}</h3>
-                    
-                    <div className="mb-6">
-                      {plan.price === 0 ? (
-                        <span className="text-4xl font-bold text-[var(--color-text-primary)]">FREE</span>
-                      ) : (
-                        <>
-                          <span className={cn(
-                            "text-4xl font-bold",
-                            isPopular 
-                              ? "bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent"
-                              : "text-[var(--color-text-primary)]"
-                          )}>
-                            {formatPrice(plan.price)}
-                          </span>
-                          <span className="text-[var(--color-text-secondary)] ml-2">/мес</span>
-                        </>
-                      )}
-                    </div>
-
-                    <p className="text-[var(--color-text-secondary)] mb-6">
-                      {plan.credits} кредитов {plan.recurring ? 'каждый месяц' : 'на старт'}
-                    </p>
-
-                    <ul className="space-y-4 mb-8">
-                      {plan.features.map((feature, i) => (
-                        <li key={i} className="flex items-start gap-3">
-                          <div className={cn(
-                            "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5",
-                            isPopular ? "bg-purple-500/20" : "bg-[var(--color-bg-tertiary)]"
-                          )}>
-                            <Check className={cn(
-                              "w-4 h-4",
-                              isPopular ? "text-purple-500" : "text-[var(--color-text-secondary)]"
-                            )} />
-                          </div>
-                          <span className="text-[var(--color-text-primary)]">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {plan.price === 0 ? (
-                      <Button asChild variant="secondary" size="lg" className="w-full">
-                        <Link href="/create">Начать бесплатно</Link>
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant={isPopular ? "default" : "secondary"} 
-                        size="lg" 
-                        className={cn("w-full", isPopular && "shadow-lg shadow-purple-500/20")}
-                        onClick={() => handlePurchase('subscription', plan.id)}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Загрузка...
-                          </>
-                        ) : (
-                          `Подписаться за ${formatPrice(plan.price)}/мес`
-                        )}
-                      </Button>
+                    <h3 className="font-bold text-[var(--text)] text-xl mb-1">{plan.name}</h3>
+                    {plan.subtitle && (
+                      <p className="text-xs text-[var(--muted)] mb-2">{plan.subtitle}</p>
                     )}
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-4xl font-bold text-[var(--text)]">
+                        {plan.price.toLocaleString()}
+                      </span>
+                      <span className="text-[var(--muted)]">₽/мес</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                      <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
+                      <span className="text-sm font-semibold text-[var(--gold)]">{plan.credits} ⭐</span>
+                    </div>
                   </div>
-                </Card>
+
+                  {plan.description && (
+                    <p className="text-sm text-[var(--text2)] mb-4 text-center leading-relaxed">
+                      {plan.description}
+                    </p>
+                  )}
+
+                  <ul className="space-y-3 mb-6">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-[var(--text2)]">
+                        <CheckCircle2 className="w-4 h-4 text-[var(--gold)] mt-0.5 shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    className={cn(
+                      "w-full",
+                      isPopular
+                        ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)]'
+                        : 'bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--border)]'
+                    )}
+                    onClick={() => handlePurchase('subscription', plan.id)}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Загрузка...
+                      </>
+                    ) : plan.id === 'star' ? (
+                      'Оформить Star'
+                    ) : plan.id === 'pro' ? (
+                      'Выбрать Pro'
+                    ) : (
+                      'Выбрать Business'
+                    )}
+                  </Button>
+                </div>
               </motion.div>
             );
           })}
         </div>
 
         {/* Credit Packages */}
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-5xl mx-auto border-t border-[var(--border)] pt-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-[var(--color-text-primary)] mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text)] mb-4">
               Пакеты{' '}
-              <span className="bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-                кредитов
+              <span className="text-[var(--gold)]">
+                ⭐
               </span>
             </h2>
-            <p className="text-lg text-[var(--color-text-secondary)]">
-              Покупайте кредиты пакетами и экономьте до 44%
+            <p className="text-lg text-[var(--text2)]">
+              Разовая покупка монет без подписки
             </p>
           </motion.div>
 
@@ -222,60 +210,76 @@ export default function PricingPage() {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card
-                    variant={pkg.popular ? "hover" : "default"}
-                   
-                   
+                  <div
                     className={cn(
-                      "relative",
-                      pkg.popular && "border-2 border-purple-500 shadow-lg shadow-purple-500/20"
+                      "relative p-6 rounded-2xl transition-all text-center",
+                      pkg.popular
+                        ? 'bg-[var(--surface)] border-2 border-[var(--gold)] shadow-lg'
+                        : 'bg-[var(--surface)] border border-[var(--border)]'
                     )}
                   >
-                    <div className="p-6 text-center">
-                      {pkg.popular && (
-                        <div className="mb-3">
-                          <span className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold">
-                            ВЫГОДНО
-                          </span>
-                        </div>
-                      )}
-                      
-                      {'discount' in pkg && pkg.discount && (
-                        <div className="mb-2">
-                          <span className="text-xs text-green-400 font-medium">
-                            -{pkg.discount}% выгоднее
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="text-4xl font-bold text-[var(--color-text-primary)] mb-2">
+                    {(pkg.badge || pkg.popular) && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[var(--gold)] text-black text-xs font-bold rounded-full">
+                        {pkg.badge || 'ВЫГОДНО'}
+                      </div>
+                    )}
+                    
+                    <div className="text-center mb-4">
+                      <h3 className="font-bold text-[var(--text)] text-lg mb-2">{pkg.name}</h3>
+                      <div className="text-4xl font-bold text-[var(--text)] mb-1">
                         {pkg.credits}
                       </div>
-                      <div className="text-sm text-[var(--color-text-tertiary)] mb-4">кредитов</div>
-                      <div className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent mb-2">
+                      <div className="text-sm text-[var(--muted)] mb-3">⭐</div>
+                      <div className="text-3xl font-bold text-[var(--gold)] mb-3">
                         {formatPrice(pkg.price)}
                       </div>
-                      <div className="text-xs text-[var(--color-text-tertiary)] mb-6">
-                        {(pkg.price / pkg.credits).toFixed(2)} ₽ за кредит
-                      </div>
-                      
-                      <Button 
-                        variant={pkg.popular ? "default" : "secondary"} 
-                        className={cn("w-full", pkg.popular && "shadow-lg shadow-purple-500/20")}
-                        onClick={() => handlePurchase('package', pkg.id)}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          'Купить'
-                        )}
-                      </Button>
+                      {pkg.description && (
+                        <p className="text-xs text-[var(--text2)] mb-4 leading-relaxed">
+                          {pkg.description}
+                        </p>
+                      )}
                     </div>
-                  </Card>
+
+                    {pkg.features && (
+                      <ul className="space-y-2 mb-6 text-left">
+                        {pkg.features.map((feature, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-[var(--text2)]">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[var(--gold)] mt-0.5 shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    
+                    <Button
+                      className={cn(
+                        "w-full",
+                        pkg.popular
+                          ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)]'
+                          : 'bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--border)]'
+                      )}
+                      onClick={() => handlePurchase('package', pkg.id)}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        `Купить ${pkg.name}`
+                      )}
+                    </Button>
+                  </div>
                 </motion.div>
               );
             })}
+          </div>
+
+          {/* Info Text */}
+          <div className="mt-12 text-center max-w-2xl mx-auto">
+            <p className="text-sm text-[var(--text2)] leading-relaxed">
+              ⭐ — внутренняя валюта LensRoom. Монеты списываются только за запуск генерации.
+              <br />
+              Стоимость зависит от модели и режима (фото/видео/длина/качество).
+            </p>
           </div>
         </div>
 
@@ -284,9 +288,9 @@ export default function PricingPage() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-3xl mx-auto mt-24"
+          className="max-w-3xl mx-auto mt-24 border-t border-[var(--border)] pt-24"
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-[var(--color-text-primary)] text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-[var(--text)] text-center mb-12">
             Частые вопросы
           </h2>
 
@@ -313,12 +317,13 @@ export default function PricingPage() {
                 a: 'Купленные кредиты не сгорают и действуют бессрочно. Кредиты по подписке действуют до конца периода.',
               },
             ].map((faq, i) => (
-              <Card key={i} variant="hover">
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">{faq.q}</h3>
-                  <p className="text-[var(--color-text-secondary)]">{faq.a}</p>
-                </div>
-              </Card>
+              <div
+                key={i}
+                className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/30 transition-colors"
+              >
+                <h3 className="text-lg font-semibold text-[var(--text)] mb-2">{faq.q}</h3>
+                <p className="text-[var(--text2)]">{faq.a}</p>
+              </div>
             ))}
           </div>
         </motion.div>

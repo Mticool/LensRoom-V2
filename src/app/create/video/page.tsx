@@ -36,10 +36,11 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { VIDEO_MODELS } from '@/lib/models';
+import { VIDEO_MODELS, getModelById } from '@/config/models';
 import { useVideoGeneratorStore } from '@/stores/video-generator-store';
 import { toast } from 'sonner';
 import { getEffectById } from '@/config/effectsGallery';
+import { computePrice, formatPriceDisplay } from '@/lib/pricing/compute-price';
 
 type VideoModeId = 't2v' | 'i2v' | 'start_end' | 'storyboard';
 
@@ -140,8 +141,12 @@ function VideoCreatePageContent() {
   } = useVideoGeneratorStore();
 
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
+  const [selectedQuality, setSelectedQuality] = useState<'720p' | '1080p' | 'fast' | 'quality' | undefined>(undefined);
+  const [audioEnabled, setAudioEnabled] = useState(false);
   
-  const selectedModelData = VIDEO_MODELS.find(m => m.id === selectedModel);
+  const selectedModelData = getModelById(selectedModel);
+  const isVideoModel = selectedModelData?.type === 'video';
+  const videoModel = isVideoModel ? selectedModelData : null;
 
   // Handle preset from URL params
   useEffect(() => {
@@ -176,8 +181,8 @@ function VideoCreatePageContent() {
     }
     
     if (modelParam) {
-      const model = VIDEO_MODELS.find(m => m.id === modelParam);
-      if (model) {
+      const model = getModelById(modelParam);
+      if (model && model.type === 'video') {
         setSelectedModel(modelParam);
       }
     }
@@ -199,9 +204,10 @@ function VideoCreatePageContent() {
     setPresetApplied(true);
   }, [searchParams, presetApplied, setPrompt, setSelectedModel, setDuration, setMode]);
   
-  const modelSupportsI2v = selectedModelData?.supportsI2v ?? false;
-  const modelSupportsStartEnd = selectedModelData?.supportsStartEnd ?? false;
-  const modelSupportsStoryboard = selectedModelData?.supportsStoryboard ?? false;
+  const modelSupportsI2v = videoModel?.supportsI2v ?? false;
+  const modelSupportsStartEnd = videoModel?.supportsStartEnd ?? false;
+  const modelSupportsStoryboard = videoModel?.supportsStoryboard ?? false;
+  const modelSupportsAudio = videoModel?.supportsAudio ?? false;
 
   const getAvailableModes = useCallback(() => {
     const modes: VideoModeId[] = ['t2v'];
@@ -226,21 +232,22 @@ function VideoCreatePageContent() {
   }, [getAvailableModes, selectedModelData?.name, setMode]);
 
   const handleModelChange = useCallback((modelId: string) => {
-    const model = VIDEO_MODELS.find(m => m.id === modelId);
-    setSelectedModel(modelId);
+    const model = getModelById(modelId);
+    if (!model || model.type !== 'video') return;
     
-    const supportedModes: VideoModeId[] = ['t2v'];
-    if (model?.supportsI2v) supportedModes.push('i2v');
-    if (model?.supportsStartEnd) supportedModes.push('start_end');
-    if (model?.supportsStoryboard) supportedModes.push('storyboard');
+    setSelectedModel(modelId);
+    setSelectedQuality(undefined);
+    setAudioEnabled(false);
+    
+    const supportedModes: VideoModeId[] = model.modes || ['t2v'];
     
     if (!supportedModes.includes(currentMode)) {
-      if (model?.supportsStoryboard) {
+      if (model.modes?.includes('storyboard')) {
         setCurrentMode('storyboard');
-        toast.info(`${model?.name} работает в режиме Раскадровка`);
+        toast.info(`${model.name} работает в режиме Раскадровка`);
       } else {
         setCurrentMode('t2v');
-        toast.info(`${model?.name} — переключено на Текст → Видео`);
+        toast.info(`${model.name} — переключено на Текст → Видео`);
       }
     }
   }, [currentMode, setSelectedModel]);
@@ -344,9 +351,16 @@ function VideoCreatePageContent() {
     setScenes(prev => prev.map(s => s.id === id ? { ...s, image: undefined } : s));
   };
 
-  const totalCredits = selectedModelData?.creditCost 
-    ? selectedModelData.creditCost * Math.ceil(duration / 5)
-    : null;
+  // Compute price using new system
+  const price = videoModel ? computePrice(selectedModel, {
+    mode: currentMode,
+    duration: duration || videoModel.fixedDuration || 5,
+    quality: selectedQuality,
+    audio: modelSupportsAudio ? audioEnabled : undefined,
+    variants: 1,
+  }) : { credits: 0, stars: 0, approxRub: 0 };
+  
+  const priceDisplay = formatPriceDisplay(price);
 
   const handleGenerate = () => {
     if (!canGenerate) return;
@@ -398,73 +412,79 @@ function VideoCreatePageContent() {
               Видео модели
             </h2>
             <div className="space-y-1">
-              {VIDEO_MODELS.map((model) => (
-                <button
-                  key={model.id}
-                  onClick={() => handleModelChange(model.id)}
-                  className={cn(
-                    "w-full text-left p-3 rounded-xl transition-all group",
-                    selectedModel === model.id
-                      ? "bg-[var(--gold)]/20 border border-[var(--gold)]/50"
-                      : "hover:bg-[var(--surface2)] border border-transparent"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "font-medium text-sm truncate",
-                          selectedModel === model.id ? "text-[var(--text)]" : "text-[var(--text2)]"
-                        )}>
-                          {model.name}
-                        </span>
-                        {selectedModel === model.id && (
-                          <Check className="w-3.5 h-3.5 text-[var(--gold)] flex-shrink-0" />
-                        )}
+              {VIDEO_MODELS.map((model) => {
+                const minPrice = computePrice(model.id, { 
+                  duration: model.fixedDuration || model.durationOptions?.[0] || 5,
+                  variants: 1,
+                });
+                return (
+                  <button
+                    key={model.id}
+                    onClick={() => handleModelChange(model.id)}
+                    className={cn(
+                      "w-full text-left p-3 rounded-xl transition-all group",
+                      selectedModel === model.id
+                        ? "bg-[var(--gold)]/20 border border-[var(--gold)]/50"
+                        : "hover:bg-[var(--surface2)] border border-transparent"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "font-medium text-sm truncate",
+                            selectedModel === model.id ? "text-[var(--text)]" : "text-[var(--text2)]"
+                          )}>
+                            {model.name}
+                          </span>
+                          {selectedModel === model.id && (
+                            <Check className="w-3.5 h-3.5 text-[var(--gold)] flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[var(--muted)] line-clamp-1 mt-0.5">
+                          {model.shortLabel ? `${model.shortLabel} • ${model.description}` : model.description}
+                        </p>
                       </div>
-                      <p className="text-[11px] text-[var(--muted)] line-clamp-1 mt-0.5">
-                        {model.description}
-                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 flex-wrap">
-                    {model.quality === 'ultra' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold">
-                        ULTRA
+                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+                      {model.quality === 'ultra' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold">
+                          ULTRA
+                        </span>
+                      )}
+                      {model.speed === 'fast' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center gap-0.5">
+                          <Zap className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                      {model.supportsI2v && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)] font-bold">
+                          i2v
+                        </span>
+                      )}
+                      {model.supportsAudio && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-400 font-bold flex items-center gap-0.5">
+                          <Volume2 className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                      {model.supportsStartEnd && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold flex items-center gap-0.5">
+                          <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                      {model.supportsStoryboard && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold flex items-center gap-0.5">
+                          <LayoutGrid className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                      <span className="text-[10px] text-[var(--muted)] flex items-center gap-0.5 ml-auto">
+                        <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                        от {minPrice.stars}⭐
                       </span>
-                    )}
-                    {model.speed === 'fast' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center gap-0.5">
-                        <Zap className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    {model.supportsI2v && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)] font-bold">
-                        i2v
-                      </span>
-                    )}
-                    {model.supportsAudio && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-400 font-bold flex items-center gap-0.5">
-                        <Volume2 className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    {model.supportsStartEnd && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold flex items-center gap-0.5">
-                        <ArrowRight className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    {model.supportsStoryboard && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold flex items-center gap-0.5">
-                        <LayoutGrid className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    <span className="text-[10px] text-[var(--muted)] flex items-center gap-0.5 ml-auto">
-                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                      {model.creditCost ?? '—'}
-                    </span>
-                  </div>
-                </button>
-              ))}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             {history && history.length > 0 && (
@@ -534,30 +554,92 @@ function VideoCreatePageContent() {
                 </div>
 
                 {/* Selected Model Info */}
-                {selectedModelData && (
+                {videoModel && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
                     <div className="w-10 h-10 rounded-lg bg-[var(--gold)]/20 flex items-center justify-center">
                       <Video className="w-5 h-5 text-[var(--gold)]" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[var(--text)]">{selectedModelData.name}</span>
-                        {selectedModelData.quality === 'ultra' && (
+                        <span className="font-semibold text-[var(--text)]">{videoModel.name}</span>
+                        {videoModel.quality === 'ultra' && (
                           <Badge variant="warning" className="text-[9px] px-1.5 py-0">ULTRA</Badge>
                         )}
-                        {selectedModelData.supportsAudio && (
+                        {videoModel.supportsAudio && (
                           <Badge variant="outline" className="text-[9px] px-1.5 py-0 flex items-center gap-0.5">
                             <Volume2 className="w-2.5 h-2.5" />
                             Звук
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-[var(--muted)]">{selectedModelData.description}</p>
+                      <p className="text-xs text-[var(--muted)]">{videoModel.description}</p>
                     </div>
                     <Badge variant="primary" className="font-bold">
-                      ⭐ {selectedModelData.creditCost ?? '—'}
+                      {priceDisplay.stars}
                     </Badge>
                   </div>
+                )}
+
+                {/* Quality Selector */}
+                {videoModel && videoModel.qualityOptions && (
+                  <Card variant="hover" padding="sm">
+                    <label className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">
+                      Качество
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {videoModel.qualityOptions.map((quality) => {
+                        const qualityPrice = computePrice(videoModel.id, { 
+                          duration: duration || videoModel.fixedDuration || 5,
+                          quality,
+                          audio: modelSupportsAudio ? audioEnabled : undefined,
+                          variants: 1,
+                        });
+                        return (
+                          <button
+                            key={quality}
+                            onClick={() => setSelectedQuality(quality)}
+                            className={cn(
+                              "p-2 rounded-lg border text-center text-xs transition-all",
+                              selectedQuality === quality
+                                ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--text)]"
+                                : "border-[var(--border)] hover:border-[var(--gold)]/50 text-[var(--text2)]"
+                            )}
+                          >
+                            <div className="font-medium">{quality.toUpperCase()}</div>
+                            <div className="text-[10px] text-[var(--muted)] mt-0.5">{qualityPrice.stars}⭐</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Audio Toggle */}
+                {videoModel && modelSupportsAudio && (
+                  <Card variant="hover" padding="sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider block mb-1">
+                          Аудио
+                        </label>
+                        <p className="text-[10px] text-[var(--text2)]">
+                          {audioEnabled ? 'С синхронизированным звуком' : 'Без звука'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setAudioEnabled(!audioEnabled)}
+                        className={cn(
+                          "relative w-12 h-6 rounded-full transition-colors",
+                          audioEnabled ? "bg-[var(--gold)]" : "bg-[var(--border)]"
+                        )}
+                      >
+                        <div className={cn(
+                          "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform",
+                          audioEnabled ? "translate-x-6" : "translate-x-0"
+                        )} />
+                      </button>
+                    </div>
+                  </Card>
                 )}
 
                 {/* MODE: Text to Video */}
@@ -962,6 +1044,18 @@ function VideoCreatePageContent() {
                   </details>
                 </Card>
 
+                {/* Price Display */}
+                {videoModel && (
+                  <div className="text-center py-3 px-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                    <p className="text-lg font-bold text-[var(--text)] mb-1">
+                      {priceDisplay.full}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {duration ? `${duration}с` : videoModel.fixedDuration ? `${videoModel.fixedDuration}с` : '—'}
+                    </p>
+                  </div>
+                )}
+
                 {/* Generate Button */}
                 <Button
                   variant="default"
@@ -979,7 +1073,6 @@ function VideoCreatePageContent() {
                     <>
                       <Video className="w-4 h-4 mr-2" />
                       {currentMode === 'storyboard' ? 'Собрать видео' : currentMode === 'start_end' ? 'Создать переход' : currentMode === 'i2v' ? 'Анимировать' : 'Создать'}
-                      {totalCredits ? ` • ${totalCredits} ⭐` : ''}
                     </>
                   )}
                 </Button>

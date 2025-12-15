@@ -88,6 +88,7 @@ export async function verifySessionToken(token: string): Promise<TelegramSession
       firstName: payload.firstName as string | null,
       photoUrl: payload.photoUrl as string | null,
       isAdmin: payload.isAdmin as boolean,
+      role: (payload.role as 'user' | 'manager' | 'admin') || 'user',
     };
   } catch {
     return null;
@@ -135,4 +136,5 @@ export async function clearSessionCookie() {
 export function getSessionCookieName() {
   return COOKIE_NAME;
 }
+
 

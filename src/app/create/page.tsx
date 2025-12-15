@@ -29,11 +29,12 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PHOTO_MODELS } from '@/lib/models';
+import { PHOTO_MODELS, getModelById } from '@/config/models';
 import { useGeneratorStore } from '@/stores/generator-store';
 import { useGenerateFromStore } from '@/hooks/use-generate-photo';
 import { toast } from 'sonner';
 import { getEffectById } from '@/config/effectsGallery';
+import { computePrice, formatPriceDisplay } from '@/lib/pricing/compute-price';
 
 const QUICK_TAGS = [
   'высокое качество',
@@ -104,6 +105,8 @@ function CreatePageContent() {
   const [mode, setMode] = useState<'t2i' | 'i2i'>('t2i');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceStrength, setReferenceStrength] = useState(0.75);
+  const [selectedQuality, setSelectedQuality] = useState<string | undefined>(undefined);
+  const [selectedResolution, setSelectedResolution] = useState<string | undefined>(undefined);
 
   // Handle preset from URL params
   useEffect(() => {
@@ -134,8 +137,8 @@ function CreatePageContent() {
     
     // Handle individual params
     if (modelParam) {
-      const model = PHOTO_MODELS.find(m => m.id === modelParam);
-      if (model) {
+      const model = getModelById(modelParam);
+      if (model && model.type === 'photo') {
         setSelectedModel(modelParam);
       }
     }
@@ -148,10 +151,12 @@ function CreatePageContent() {
   }, [searchParams, presetApplied, setPrompt, setSelectedModel]);
 
   const { generate, canGenerate } = useGenerateFromStore();
-  const selectedModelData = PHOTO_MODELS.find(m => m.id === selectedModel);
+  const selectedModelData = getModelById(selectedModel);
+  const isPhotoModel = selectedModelData?.type === 'photo';
+  const photoModel = isPhotoModel ? selectedModelData : null;
   
   // Check if selected model supports i2i
-  const modelSupportsI2i = selectedModelData?.supportsI2i ?? false;
+  const modelSupportsI2i = photoModel?.supportsI2i ?? false;
   
   // Auto-switch to t2i if model doesn't support i2i
   const handleModeChange = useCallback((newMode: 't2i' | 'i2i') => {
@@ -164,13 +169,17 @@ function CreatePageContent() {
   
   // When model changes, check if current mode is supported
   const handleModelChange = useCallback((modelId: string) => {
-    const model = PHOTO_MODELS.find(m => m.id === modelId);
+    const model = getModelById(modelId);
     setSelectedModel(modelId);
     
+    // Reset quality/resolution when model changes
+    setSelectedQuality(undefined);
+    setSelectedResolution(undefined);
+    
     // If current mode is i2i but new model doesn't support it, switch to t2i
-    if (mode === 'i2i' && !model?.supportsI2i) {
+    if (model?.type === 'photo' && mode === 'i2i' && !model.supportsI2i) {
       setMode('t2i');
-      toast.info(`${model?.name} работает только в режиме Текст → Фото`);
+      toast.info(`${model.name} работает только в режиме Текст → Фото`);
     }
   }, [mode, setSelectedModel]);
 
@@ -179,9 +188,14 @@ function CreatePageContent() {
     setPrompt(newPrompt);
   };
 
-  const totalCredits = selectedModelData?.creditCost 
-    ? selectedModelData.creditCost * variants 
-    : null;
+  // Compute price using new system
+  const price = selectedModelData ? computePrice(selectedModel, {
+    quality: selectedQuality,
+    resolution: selectedResolution,
+    variants,
+  }) : { credits: 0, stars: 0, approxRub: 0 };
+  
+  const priceDisplay = formatPriceDisplay(price);
 
   // Handle file upload
   const handleFileUpload = useCallback((file: File) => {
@@ -237,60 +251,63 @@ function CreatePageContent() {
               Фото модели
             </h2>
             <div className="space-y-1">
-              {PHOTO_MODELS.map((model) => (
-                <button
-                  key={model.id}
-                  onClick={() => handleModelChange(model.id)}
-                  className={cn(
-                    "w-full text-left p-3 rounded-xl transition-all group",
-                    selectedModel === model.id
-                      ? "bg-[var(--gold)]/20 border border-[var(--gold)]/50"
-                      : "hover:bg-[var(--surface2)] border border-transparent"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "font-medium text-sm truncate",
-                          selectedModel === model.id ? "text-[var(--text)]" : "text-[var(--text2)]"
-                        )}>
-                          {model.name}
-                        </span>
-                        {selectedModel === model.id && (
-                          <Check className="w-3.5 h-3.5 text-[var(--gold)] flex-shrink-0" />
-                        )}
+              {PHOTO_MODELS.map((model) => {
+                const minPrice = computePrice(model.id, { variants: 1 });
+                return (
+                  <button
+                    key={model.id}
+                    onClick={() => handleModelChange(model.id)}
+                    className={cn(
+                      "w-full text-left p-3 rounded-xl transition-all group",
+                      selectedModel === model.id
+                        ? "bg-[var(--gold)]/20 border border-[var(--gold)]/50"
+                        : "hover:bg-[var(--surface2)] border border-transparent"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "font-medium text-sm truncate",
+                            selectedModel === model.id ? "text-[var(--text)]" : "text-[var(--text2)]"
+                          )}>
+                            {model.name}
+                          </span>
+                          {selectedModel === model.id && (
+                            <Check className="w-3.5 h-3.5 text-[var(--gold)] flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[var(--muted)] line-clamp-1 mt-0.5">
+                          {model.shortLabel ? `${model.shortLabel} • ${model.description}` : model.description}
+                        </p>
                       </div>
-                      <p className="text-[11px] text-[var(--muted)] line-clamp-1 mt-0.5">
-                        {model.description}
-                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                    {model.quality === 'ultra' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold">
-                        ULTRA
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      {model.quality === 'ultra' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold">
+                          ULTRA
+                        </span>
+                      )}
+                      {model.speed === 'fast' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center gap-0.5">
+                          <Zap className="w-2.5 h-2.5" />
+                          FAST
+                        </span>
+                      )}
+                      {model.supportsI2i && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)] font-bold flex items-center gap-0.5">
+                          <Layers className="w-2.5 h-2.5" />
+                          i2i
+                        </span>
+                      )}
+                      <span className="text-[10px] text-[var(--muted)] flex items-center gap-0.5 ml-auto">
+                        <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                        от {minPrice.stars}⭐
                       </span>
-                    )}
-                    {model.speed === 'fast' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center gap-0.5">
-                        <Zap className="w-2.5 h-2.5" />
-                        FAST
-                      </span>
-                    )}
-                    {model.supportsI2i && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)] font-bold flex items-center gap-0.5">
-                        <Layers className="w-2.5 h-2.5" />
-                        i2i
-                      </span>
-                    )}
-                    <span className="text-[10px] text-[var(--muted)] flex items-center gap-0.5 ml-auto">
-                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                      {model.creditCost ?? '—'}
-                    </span>
-                  </div>
-                </button>
-              ))}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             {/* History Section */}
@@ -376,24 +393,83 @@ function CreatePageContent() {
                 </div>
 
                 {/* Selected Model Info */}
-                {selectedModelData && (
+                {photoModel && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
                     <div className="w-10 h-10 rounded-lg bg-[var(--gold)]/20 flex items-center justify-center">
                       <Sparkles className="w-5 h-5 text-[var(--gold)]" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[var(--text)]">{selectedModelData.name}</span>
-                        {selectedModelData.quality === 'ultra' && (
+                        <span className="font-semibold text-[var(--text)]">{photoModel.name}</span>
+                        {photoModel.quality === 'ultra' && (
                           <Badge variant="warning" className="text-[9px] px-1.5 py-0">ULTRA</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-[var(--muted)]">{selectedModelData.description}</p>
+                      <p className="text-xs text-[var(--muted)]">{photoModel.description}</p>
                     </div>
                     <Badge variant="primary" className="font-bold">
-                      ⭐ {selectedModelData.creditCost ?? '—'}
+                      {priceDisplay.stars}
                     </Badge>
                   </div>
+                )}
+
+                {/* Quality/Resolution Selector */}
+                {photoModel && (photoModel.qualityOptions || photoModel.pricing && typeof photoModel.pricing === 'object') && (
+                  <Card variant="hover" padding="sm">
+                    <label className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider mb-2 block">
+                      Качество / Разрешение
+                    </label>
+                    {photoModel.qualityOptions ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {photoModel.qualityOptions.map((quality) => {
+                          const qualityPrice = computePrice(photoModel.id, { quality, variants: 1 });
+                          return (
+                            <button
+                              key={quality}
+                              onClick={() => {
+                                setSelectedQuality(quality);
+                                setSelectedResolution(undefined);
+                              }}
+                              className={cn(
+                                "p-2 rounded-lg border text-center text-xs transition-all",
+                                selectedQuality === quality
+                                  ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--text)]"
+                                  : "border-[var(--border)] hover:border-[var(--gold)]/50 text-[var(--text2)]"
+                              )}
+                            >
+                              <div className="font-medium">{quality.toUpperCase()}</div>
+                              <div className="text-[10px] text-[var(--muted)] mt-0.5">{qualityPrice.stars}⭐</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : photoModel.pricing && typeof photoModel.pricing === 'object' && !photoModel.qualityOptions ? (
+                      // Qwen Image: resolution-based pricing
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.keys(photoModel.pricing).map((resolution) => {
+                          const resPrice = computePrice(photoModel.id, { resolution, variants: 1 });
+                          return (
+                            <button
+                              key={resolution}
+                              onClick={() => {
+                                setSelectedResolution(resolution);
+                                setSelectedQuality(undefined);
+                              }}
+                              className={cn(
+                                "p-2 rounded-lg border text-center text-xs transition-all",
+                                selectedResolution === resolution
+                                  ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--text)]"
+                                  : "border-[var(--border)] hover:border-[var(--gold)]/50 text-[var(--text2)]"
+                              )}
+                            >
+                              <div className="font-medium">{resolution}</div>
+                              <div className="text-[10px] text-[var(--muted)] mt-0.5">{resPrice.stars}⭐</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </Card>
                 )}
 
                 {/* Reference Image Upload (for i2i mode) */}
@@ -646,6 +722,18 @@ function CreatePageContent() {
                   </details>
                 </Card>
 
+                {/* Price Display */}
+                {photoModel && (
+                  <div className="text-center py-3 px-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                    <p className="text-lg font-bold text-[var(--text)] mb-1">
+                      {priceDisplay.full}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {variants > 1 ? `${variants} варианта` : '1 вариант'}
+                    </p>
+                  </div>
+                )}
+
                 {/* Generate Button */}
                 <Button
                   variant="default"
@@ -662,7 +750,7 @@ function CreatePageContent() {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 mr-2" />
-                      {mode === 'i2i' ? 'Преобразовать' : 'Создать'} {totalCredits ? `• ${totalCredits} ⭐` : ''}
+                      {mode === 'i2i' ? 'Преобразовать' : 'Создать'}
                     </>
                   )}
                 </Button>

@@ -18,7 +18,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data: profile } = await supabase
       .from('telegram_profiles')
-      .select('id, telegram_id, telegram_username, first_name, last_name, photo_url, is_admin')
+      .select('id, telegram_id, telegram_username, first_name, last_name, photo_url, is_admin, role')
       .eq('id', session.profileId)
       .single();
 
@@ -37,7 +37,8 @@ export async function GET() {
         firstName: profile.first_name,
         lastName: profile.last_name,
         photoUrl: profile.photo_url,
-        isAdmin: profile.is_admin,
+        isAdmin: profile.is_admin || profile.role === 'admin',
+        role: (profile.role as 'user' | 'manager' | 'admin') || 'user',
         canNotify: botLink?.can_notify || false,
       } : null,
     });
@@ -46,4 +47,5 @@ export async function GET() {
     return NextResponse.json({ user: null });
   }
 }
+
 

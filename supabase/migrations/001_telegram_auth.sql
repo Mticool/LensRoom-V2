@@ -100,3 +100,4 @@ CREATE TRIGGER trg_telegram_bot_links_updated
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
+

@@ -1,0 +1,178 @@
+/**
+ * Price computation: credits -> stars -> ₽
+ * Single source of truth for pricing calculations
+ */
+
+import { ModelConfig, PhotoModelConfig, VideoModelConfig, getModelById } from '@/config/models';
+import { CREDIT_PACKAGES } from '@/lib/pricing/plans';
+
+export interface PriceOptions {
+  // Photo options
+  quality?: string; // '1k', '2k', '4k', 'turbo', 'balanced', 'quality', 'fast', 'ultra', '1k_2k'
+  resolution?: string; // '512x512', '1024x1024', etc.
+  
+  // Video options
+  mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard';
+  duration?: number | string; // 5, 10, 15, or '15-25'
+  quality?: '720p' | '1080p' | 'fast' | 'quality';
+  audio?: boolean;
+  
+  // Common
+  variants?: number; // Number of variants to generate
+}
+
+export interface ComputedPrice {
+  credits: number; // Raw Kie credits
+  stars: number; // Rounded up: ceil(credits)
+  approxRub: number; // Approximate price in RUB (based on current plan)
+}
+
+// Default price per credit (from best deal: Max pack = 2490₽ / 1500 credits = 1.66₽/credit)
+// Ultra pack = 4990₽ / 3500 credits = 1.43₽/credit (better deal)
+// We use the best deal for calculation
+const DEFAULT_RUB_PER_CREDIT = 4990 / 3500; // ≈ 1.43₽/credit (Ultra pack)
+
+/**
+ * Get current user's plan price per credit (if available)
+ * Falls back to default (max pack)
+ */
+function getRubPerCredit(): number {
+  // TODO: Get from user's current subscription/plan
+  // For now, use the best deal (max pack)
+  const bestDeal = CREDIT_PACKAGES.reduce((best, current) => {
+    const bestPrice = best.price / best.credits;
+    const currentPrice = current.price / current.credits;
+    return currentPrice < bestPrice ? current : best;
+  });
+  
+  return bestDeal.price / bestDeal.credits; // ₽ per credit
+}
+
+/**
+ * Compute price for a photo model
+ */
+function computePhotoPrice(
+  model: PhotoModelConfig,
+  options: PriceOptions
+): ComputedPrice {
+  const variants = options.variants || 1;
+  let creditsPerImage = 0;
+  
+  // Extract pricing
+  if (typeof model.pricing === 'number') {
+    creditsPerImage = model.pricing;
+  } else if (options.quality && model.pricing[options.quality as keyof typeof model.pricing]) {
+    creditsPerImage = model.pricing[options.quality as keyof typeof model.pricing] as number;
+  } else if (options.resolution && model.pricing[options.resolution as keyof typeof model.pricing]) {
+    creditsPerImage = model.pricing[options.resolution as keyof typeof model.pricing] as number;
+  } else {
+    // Fallback to first available price
+    const firstPrice = Object.values(model.pricing)[0];
+    creditsPerImage = typeof firstPrice === 'number' ? firstPrice : 0;
+  }
+  
+  const totalCredits = creditsPerImage * variants;
+  const stars = Math.ceil(totalCredits);
+  const rubPerCredit = getRubPerCredit();
+  const approxRub = Math.round(stars * rubPerCredit);
+  
+  return {
+    credits: totalCredits,
+    stars,
+    approxRub,
+  };
+}
+
+/**
+ * Compute price for a video model
+ */
+function computeVideoPrice(
+  model: VideoModelConfig,
+  options: PriceOptions
+): ComputedPrice {
+  const variants = options.variants || 1;
+  let creditsPerVideo = 0;
+  
+  const duration = options.duration || model.fixedDuration || 5;
+  const durationKey = String(duration);
+  
+  // Extract pricing
+  if (typeof model.pricing === 'number') {
+    // Price per second
+    const seconds = typeof duration === 'number' ? duration : 5; // Default to 5 for ranges
+    creditsPerVideo = model.pricing * seconds;
+  } else if (options.quality && model.pricing[options.quality as keyof typeof model.pricing]) {
+    const qualityPricing = model.pricing[options.quality as keyof typeof model.pricing] as { [key: string]: number };
+    creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;
+  } else if (model.pricing[durationKey as keyof typeof model.pricing]) {
+    const durationPricing = model.pricing[durationKey as keyof typeof model.pricing];
+    if (typeof durationPricing === 'number') {
+      creditsPerVideo = durationPricing;
+    } else if (typeof durationPricing === 'object') {
+      // Handle audio/no_audio options (e.g., Kling)
+      if (options.audio !== undefined) {
+        creditsPerVideo = durationPricing[options.audio ? 'audio' : 'no_audio'] || 0;
+      } else {
+        // Default to no_audio
+        creditsPerVideo = durationPricing['no_audio'] || Object.values(durationPricing)[0] as number || 0;
+      }
+    }
+  } else {
+    // Fallback to first available price
+    const firstQuality = Object.keys(model.pricing)[0];
+    if (firstQuality && model.pricing[firstQuality as keyof typeof model.pricing]) {
+      const qualityPricing = model.pricing[firstQuality as keyof typeof model.pricing] as { [key: string]: number };
+      creditsPerVideo = Object.values(qualityPricing)[0] as number || 0;
+    }
+  }
+  
+  const totalCredits = creditsPerVideo * variants;
+  const stars = Math.ceil(totalCredits);
+  const rubPerCredit = getRubPerCredit();
+  const approxRub = Math.round(stars * rubPerCredit);
+  
+  return {
+    credits: totalCredits,
+    stars,
+    approxRub,
+  };
+}
+
+/**
+ * Main function: compute price for any model
+ */
+export function computePrice(
+  modelId: string,
+  options: PriceOptions = {}
+): ComputedPrice {
+  const model = getModelById(modelId);
+  
+  if (!model) {
+    return {
+      credits: 0,
+      stars: 0,
+      approxRub: 0,
+    };
+  }
+  
+  if (model.type === 'photo') {
+    return computePhotoPrice(model, options);
+  } else {
+    return computeVideoPrice(model, options);
+  }
+}
+
+/**
+ * Format price for display
+ */
+export function formatPriceDisplay(price: ComputedPrice): {
+  stars: string;
+  rub: string;
+  full: string;
+} {
+  return {
+    stars: `${price.stars}⭐`,
+    rub: `≈${price.approxRub}₽`,
+    full: `Стоимость: ${price.stars}⭐`,
+  };
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { Button } from '@/components/ui/button';
 import { 
@@ -26,7 +26,11 @@ import {
   DollarSign,
   Star,
   Crown,
+  Sparkles,
+  Image as ImageIcon,
+  UserCog,
 } from 'lucide-react';
+import { GalleryEditor, type EffectPreset } from '@/components/admin/gallery-editor';
 import { toast } from 'sonner';
 
 // ===== TYPES =====
@@ -115,11 +119,13 @@ const WAITLIST_TYPES = [
 ];
 
 const TABS = [
-  { id: 'overview', name: 'Обзор', icon: LayoutDashboard },
-  { id: 'payments', name: 'Платежи', icon: CreditCard },
-  { id: 'waitlist', name: 'Waitlist', icon: Bell },
-  { id: 'users', name: 'Пользователи', icon: Users },
-  { id: 'broadcast', name: 'Рассылка', icon: Send },
+  { id: 'overview', name: 'Обзор', icon: LayoutDashboard, adminOnly: true },
+  { id: 'gallery', name: 'Галерея', icon: Sparkles, adminOnly: false },
+  { id: 'payments', name: 'Платежи', icon: CreditCard, adminOnly: true },
+  { id: 'waitlist', name: 'Waitlist', icon: Bell, adminOnly: true },
+  { id: 'users', name: 'Пользователи', icon: Users, adminOnly: true },
+  { id: 'managers', name: 'Менеджеры', icon: UserCog, adminOnly: true },
+  { id: 'broadcast', name: 'Рассылка', icon: Send, adminOnly: true },
 ];
 
 // ===== MAIN COMPONENT =====
@@ -137,13 +143,90 @@ export default function AdminPage() {
   const [selectedType, setSelectedType] = useState<string>('academy');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [sending, setSending] = useState(false);
+  
+  // Gallery state
+  const [galleryPresets, setGalleryPresets] = useState<EffectPreset[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
 
-  // Check admin access
+  // Check if user is admin or manager
+  const isAdmin = user?.isAdmin === true || user?.role === 'admin';
+  const isManager = user?.role === 'manager';
+  const hasAccess = isAdmin || isManager;
+
+  // Check admin/manager access
   useEffect(() => {
-    if (!authLoading && (!user || !user.isAdmin)) {
+    if (!authLoading && !hasAccess) {
       window.location.href = '/';
     }
-  }, [user, authLoading]);
+    // Managers should only see gallery tab
+    if (!authLoading && isManager && !isAdmin) {
+      setActiveTab('gallery');
+    }
+  }, [user, authLoading, hasAccess, isAdmin, isManager]);
+
+  // Fetch gallery data
+  const fetchGallery = useCallback(async () => {
+    setGalleryLoading(true);
+    try {
+      const res = await fetch('/api/admin/gallery');
+      if (res.ok) {
+        const data = await res.json();
+        // Transform from DB format to component format
+        const presets = (data.effects || []).map((e: any) => ({
+          id: e.id,
+          presetId: e.preset_id,
+          title: e.title,
+          contentType: e.content_type,
+          modelKey: e.model_key,
+          tileRatio: e.tile_ratio,
+          costStars: e.cost_stars,
+          mode: e.mode,
+          variantId: e.variant_id,
+          previewImage: e.preview_image,
+          templatePrompt: e.template_prompt,
+          featured: e.featured,
+          published: e.published,
+          order: e.display_order || 0,
+          createdAt: e.created_at,
+          updatedAt: e.updated_at,
+        }));
+        setGalleryPresets(presets);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Failed to fetch gallery:', errorData);
+        toast.error(errorData.error || 'Ошибка загрузки галереи');
+      }
+    } catch (error) {
+      console.error('Failed to fetch gallery:', error);
+      toast.error('Ошибка сети при загрузке галереи');
+    } finally {
+      setGalleryLoading(false);
+    }
+  }, []);
+
+  // Gallery handlers
+  const handleGallerySave = async (preset: EffectPreset) => {
+    const res = await fetch('/api/admin/gallery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preset),
+    });
+    if (!res.ok) throw new Error('Save failed');
+    await fetchGallery();
+  };
+
+  const handleGalleryDelete = async (presetId: string) => {
+    const res = await fetch(`/api/admin/gallery?presetId=${presetId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Delete failed');
+    await fetchGallery();
+  };
+
+  const handleGalleryReorder = async (presets: EffectPreset[]) => {
+    // TODO: Implement reorder API
+    setGalleryPresets(presets);
+  };
 
   // Fetch all data
   const fetchData = async () => {
@@ -186,10 +269,13 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (user?.isAdmin) {
-      fetchData();
+    if (hasAccess) {
+      if (isAdmin) {
+        fetchData();
+      }
+      fetchGallery();
     }
-  }, [user, selectedType]);
+  }, [hasAccess, isAdmin, selectedType, fetchGallery]);
 
   // Send broadcast
   const handleBroadcast = async () => {
@@ -234,9 +320,12 @@ export default function AdminPage() {
     );
   }
 
-  if (!user?.isAdmin) {
+  if (!hasAccess) {
     return null;
   }
+
+  // Filter tabs based on role
+  const visibleTabs = TABS.filter(tab => isAdmin || !tab.adminOnly);
 
   return (
     <main className="min-h-screen bg-[var(--bg)]">
@@ -246,22 +335,40 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center">
-                <Settings className="w-5 h-5 text-[var(--gold)]" />
+                {isManager && !isAdmin ? (
+                  <Sparkles className="w-5 h-5 text-[var(--gold)]" />
+                ) : (
+                  <Settings className="w-5 h-5 text-[var(--gold)]" />
+                )}
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[var(--text)]">Админ-панель</h1>
-                <p className="text-xs text-[var(--muted)]">LensRoom Management</p>
+                <h1 className="text-xl font-bold text-[var(--text)]">
+                  {isManager && !isAdmin ? 'Редактор галереи' : 'Админ-панель'}
+                </h1>
+                <p className="text-xs text-[var(--muted)]">
+                  {isManager && !isAdmin ? 'Управление эффектами' : 'LensRoom Management'}
+                </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchData}
-              disabled={loading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Обновить
-            </Button>
+            <div className="flex items-center gap-2">
+              {isManager && !isAdmin && (
+                <span className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
+                  Менеджер
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (isAdmin) fetchData();
+                  fetchGallery();
+                }}
+                disabled={loading || galleryLoading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${(loading || galleryLoading) ? 'animate-spin' : ''}`} />
+                Обновить
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -269,7 +376,7 @@ export default function AdminPage() {
       <div className="container mx-auto px-6 py-6">
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -286,7 +393,7 @@ export default function AdminPage() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && isAdmin && (
           <OverviewTab 
             dashboardStats={dashboardStats} 
             waitlistStats={stats}
@@ -294,7 +401,17 @@ export default function AdminPage() {
           />
         )}
 
-        {activeTab === 'payments' && (
+        {activeTab === 'gallery' && (
+          <GalleryEditor
+            presets={galleryPresets}
+            onSave={handleGallerySave}
+            onDelete={handleGalleryDelete}
+            onReorder={handleGalleryReorder}
+            loading={galleryLoading}
+          />
+        )}
+
+        {activeTab === 'payments' && isAdmin && (
           <PaymentsTab
             payments={payments}
             subscriptions={subscriptions}
@@ -303,7 +420,7 @@ export default function AdminPage() {
           />
         )}
 
-        {activeTab === 'waitlist' && (
+        {activeTab === 'waitlist' && isAdmin && (
           <WaitlistTab
             stats={stats}
             subscriptions={waitlistSubs}
@@ -313,11 +430,15 @@ export default function AdminPage() {
           />
         )}
 
-        {activeTab === 'users' && (
+        {activeTab === 'users' && isAdmin && (
           <UsersTab users={users} loading={loading} />
         )}
 
-        {activeTab === 'broadcast' && (
+        {activeTab === 'managers' && isAdmin && (
+          <ManagersTab users={users} loading={loading} onRefresh={fetchData} />
+        )}
+
+        {activeTab === 'broadcast' && isAdmin && (
           <BroadcastTab
             stats={stats}
             selectedType={selectedType}
@@ -1032,3 +1153,181 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+// ===== MANAGERS TAB =====
+function ManagersTab({ 
+  users, 
+  loading, 
+  onRefresh 
+}: { 
+  users: TelegramUser[]; 
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  const managers = users.filter(u => (u as any).role === 'manager');
+  const potentialManagers = users.filter(u => (u as any).role !== 'manager' && !u.is_admin);
+
+  const updateRole = async (userId: string, role: 'user' | 'manager') => {
+    setUpdating(userId);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role }),
+      });
+      
+      if (res.ok) {
+        toast.success(role === 'manager' ? 'Менеджер добавлен!' : 'Роль убрана');
+        onRefresh();
+      } else {
+        toast.error('Ошибка обновления');
+      }
+    } catch (error) {
+      toast.error('Ошибка сети');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Info */}
+      <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <UserCog className="w-5 h-5 text-purple-400 mt-0.5" />
+          <div>
+            <h3 className="font-medium text-[var(--text)] mb-1">Роль менеджера</h3>
+            <p className="text-sm text-[var(--muted)]">
+              Менеджеры имеют доступ только к редактору галереи эффектов. Они могут создавать, 
+              редактировать и удалять пресеты, но не имеют доступа к другим разделам админ-панели.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Current Managers */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <h2 className="text-lg font-semibold text-[var(--text)]">
+            Текущие менеджеры ({managers.length})
+          </h2>
+        </div>
+        
+        {managers.length === 0 ? (
+          <div className="text-center py-12">
+            <UserCog className="w-12 h-12 text-[var(--muted)] mx-auto mb-3" />
+            <p className="text-[var(--muted)]">Нет менеджеров</p>
+            <p className="text-xs text-[var(--muted)] mt-1">
+              Добавьте менеджера из списка пользователей ниже
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[var(--border)]">
+            {managers.map((u) => (
+              <div key={u.id} className="flex items-center justify-between px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <span className="text-sm font-medium text-purple-400">
+                      {u.first_name?.[0] || u.telegram_username?.[0] || '?'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--text)]">
+                      {u.first_name || 'Без имени'}
+                    </p>
+                    {u.telegram_username && (
+                      <p className="text-xs text-[var(--muted)]">@{u.telegram_username}</p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateRole(u.id, 'user')}
+                  disabled={updating === u.id}
+                  className="text-red-400 border-red-400/30 hover:bg-red-400/10"
+                >
+                  {updating === u.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Убрать роль'
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add Manager */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <h2 className="text-lg font-semibold text-[var(--text)]">
+            Добавить менеджера
+          </h2>
+        </div>
+        
+        {potentialManagers.length === 0 ? (
+          <div className="text-center py-12">
+            <Users className="w-12 h-12 text-[var(--muted)] mx-auto mb-3" />
+            <p className="text-[var(--muted)]">Нет доступных пользователей</p>
+          </div>
+        ) : (
+          <div className="max-h-96 overflow-y-auto divide-y divide-[var(--border)]">
+            {potentialManagers.slice(0, 20).map((u) => (
+              <div key={u.id} className="flex items-center justify-between px-6 py-3 hover:bg-[var(--surface2)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[var(--gold)]/10 flex items-center justify-center">
+                    <span className="text-xs font-medium text-[var(--gold)]">
+                      {u.first_name?.[0] || u.telegram_username?.[0] || '?'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[var(--text)]">
+                      {u.first_name || 'Без имени'}
+                    </p>
+                    {u.telegram_username && (
+                      <p className="text-[10px] text-[var(--muted)]">@{u.telegram_username}</p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateRole(u.id, 'manager')}
+                  disabled={updating === u.id}
+                  className="h-7 text-xs"
+                >
+                  {updating === u.id ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <>
+                      <UserCog className="w-3 h-3 mr-1" />
+                      Сделать менеджером
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))}
+            {potentialManagers.length > 20 && (
+              <div className="px-6 py-3 text-center text-xs text-[var(--muted)]">
+                +{potentialManagers.length - 20} ещё пользователей
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

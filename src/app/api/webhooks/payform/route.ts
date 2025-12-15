@@ -111,11 +111,11 @@ export async function POST(request: NextRequest) {
     // 4. Определяем credits из суммы если не знаем
     if (credits === 0 && body.sum) {
       const amount = parseFloat(body.sum);
-      // Маппинг сумм на кредиты
-      if (amount >= 2490) credits = 3000;
-      else if (amount >= 1190) credits = 1200;
-      else if (amount >= 599) credits = 500;
-      else if (amount >= 299) credits = 200;
+      // Маппинг сумм на кредиты (новые пакеты)
+      if (amount >= 4990) credits = 3500; // Ultra
+      else if (amount >= 2490) credits = 1500; // Max
+      else if (amount >= 790) credits = 400; // Plus
+      else if (amount >= 199) credits = 80; // Mini
       else credits = Math.floor(amount); // Fallback: 1 кредит = 1 рубль
     }
 

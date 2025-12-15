@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { kieClient } from "@/lib/api/kie-client";
-import { PHOTO_MODELS } from "@/lib/models";
+import { PHOTO_MODELS, getModelById } from "@/config/models";
+import { computePrice } from "@/lib/pricing/compute-price";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,16 +18,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Find model info
-    const modelInfo = PHOTO_MODELS.find((m) => m.id === model);
-    if (!modelInfo) {
+    const modelInfo = getModelById(model);
+    if (!modelInfo || modelInfo.type !== 'photo') {
       return NextResponse.json(
         { error: "Invalid model", availableModels: PHOTO_MODELS.map(m => m.id) },
         { status: 400 }
       );
     }
 
-    // Calculate credit cost
-    const creditCost = (modelInfo.creditCost || 5) * variants;
+    // Calculate credit cost using new pricing system
+    const { quality, resolution } = body;
+    const price = computePrice(model, {
+      quality,
+      resolution,
+      variants,
+    });
+    const creditCost = price.stars; // Use stars (which is ceil(credits))
 
     // Check auth and credits
     const supabase = await createServerSupabaseClient();
@@ -86,15 +93,43 @@ export async function POST(request: NextRequest) {
       }
 
       // Save generation to history
-      await supabase.from('generations').insert({
+      const { data: generation, error: genError } = await supabase
+        .from('generations')
+        .insert({
+          user_id: user.id,
+          type: 'photo',
+          model_id: model,
+          model_name: modelInfo.name,
+          prompt: prompt,
+          negative_prompt: negativePrompt,
+          aspect_ratio: aspectRatio,
+          variants: variants,
+          credits_used: creditCost,
+          status: 'processing',
+        })
+        .select()
+        .single();
+
+      if (genError) {
+        console.error('[API] Failed to save generation:', genError);
+        // Don't fail the request, but log the error
+      }
+
+      // Record credit transaction (deduction)
+      await supabase.from('credit_transactions').insert({
         user_id: user.id,
-        type: 'photo',
-        model: model,
-        prompt: prompt,
-        negative_prompt: negativePrompt,
-        settings: { aspectRatio, variants },
-        credits_used: creditCost,
-        status: 'processing',
+        amount: -creditCost, // Negative for deduction
+        type: 'deduction',
+        description: `Генерация фото: ${modelInfo.name} (${variants} вариант${variants > 1 ? 'а' : ''})`,
+        metadata: {
+          model_id: model,
+          model_name: modelInfo.name,
+          type: 'photo',
+          variants: variants,
+          quality: quality,
+          resolution: resolution,
+        },
+        generation_id: generation?.id,
       });
     }
 
@@ -109,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     // Generate image
     const response = await kieClient.generateImage({
-      model: modelInfo.apiId || model,
+      model: modelInfo.apiId,
       prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
       aspectRatio: aspectRatioMap[aspectRatio] || "1:1",
       resolution: "1K",

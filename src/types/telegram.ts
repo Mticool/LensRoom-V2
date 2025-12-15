@@ -9,6 +9,9 @@ export interface TelegramLoginPayload {
   hash: string;
 }
 
+// User roles
+export type UserRole = 'user' | 'manager' | 'admin';
+
 // Profile from database
 export interface Profile {
   id: string;
@@ -18,6 +21,7 @@ export interface Profile {
   last_name: string | null;
   photo_url: string | null;
   is_admin: boolean;
+  role: UserRole;
   created_at: string;
   last_login_at: string;
 }
@@ -60,6 +64,7 @@ export interface TelegramSession {
   firstName: string | null;
   photoUrl: string | null;
   isAdmin: boolean;
+  role: UserRole;
 }
 
 // Telegram webhook update types
@@ -88,4 +93,5 @@ export interface TelegramChat {
   id: number;
   type: 'private' | 'group' | 'supergroup' | 'channel';
 }
+
 
