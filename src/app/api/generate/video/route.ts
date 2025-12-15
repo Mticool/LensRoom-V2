@@ -48,15 +48,21 @@ export async function POST(request: NextRequest) {
     });
     const creditCost = price.stars;
 
-    // Check auth and credits
-    const supabase = await createServerSupabaseClient();
+    // Check Telegram auth
+    const telegramSession = await getSession();
     
-    if (!supabase) {
+    if (!telegramSession) {
       return NextResponse.json(
-        { error: 'Server error' },
-        { status: 500 }
+        { error: 'Unauthorized. Please log in to generate videos.' },
+        { status: 401 }
       );
     }
+
+    // Use Telegram profile ID as user_id
+    const userId = telegramSession.profileId;
+    
+    // Use admin client for DB operations
+    const supabase = getSupabaseAdmin();
 
     // Get user credits
     const { data: creditsData, error: creditsError } = await supabase
