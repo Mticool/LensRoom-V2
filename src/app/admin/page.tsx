@@ -1,0 +1,716 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useTelegramAuth } from '@/providers/telegram-auth-provider';
+import { Button } from '@/components/ui/button';
+import { 
+  Users, 
+  Send, 
+  RefreshCw, 
+  GraduationCap, 
+  Video, 
+  Camera, 
+  FlaskConical,
+  BarChart3,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Bell,
+  TrendingUp,
+  MessageCircle,
+  Settings,
+  LayoutDashboard,
+  UserCheck,
+  Clock,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+// ===== TYPES =====
+interface WaitlistStats {
+  byType: Record<string, number>;
+  totalCanNotify: number;
+}
+
+interface Subscription {
+  id: string;
+  profile_id: string;
+  type: string;
+  source: string | null;
+  status: string;
+  created_at: string;
+  notified_at: string | null;
+  telegram_profiles: {
+    telegram_username: string | null;
+    first_name: string | null;
+    telegram_id: number;
+  };
+}
+
+interface TelegramUser {
+  id: string;
+  telegram_id: number;
+  telegram_username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  is_admin: boolean;
+  created_at: string;
+  last_login_at: string;
+  can_notify?: boolean;
+}
+
+interface DashboardStats {
+  totalUsers: number;
+  usersWithNotifications: number;
+  totalWaitlist: number;
+  recentLogins: number;
+}
+
+// ===== CONSTANTS =====
+const WAITLIST_TYPES = [
+  { id: 'academy', name: 'Академия', icon: GraduationCap, color: 'text-purple-400', bg: 'bg-purple-400/10' },
+  { id: 'feature_video_ads', name: 'Видео-реклама', icon: Video, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+  { id: 'feature_lifestyle', name: 'Lifestyle', icon: Camera, color: 'text-green-400', bg: 'bg-green-400/10' },
+  { id: 'feature_ab_covers', name: 'A/B обложки', icon: FlaskConical, color: 'text-orange-400', bg: 'bg-orange-400/10' },
+];
+
+const TABS = [
+  { id: 'overview', name: 'Обзор', icon: LayoutDashboard },
+  { id: 'waitlist', name: 'Waitlist', icon: Bell },
+  { id: 'users', name: 'Пользователи', icon: Users },
+  { id: 'broadcast', name: 'Рассылка', icon: Send },
+];
+
+// ===== MAIN COMPONENT =====
+export default function AdminPage() {
+  const { user, loading: authLoading } = useTelegramAuth();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [stats, setStats] = useState<WaitlistStats | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [users, setUsers] = useState<TelegramUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<string>('academy');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  // Check admin access
+  useEffect(() => {
+    if (!authLoading && (!user || !user.isAdmin)) {
+      window.location.href = '/';
+    }
+  }, [user, authLoading]);
+
+  // Fetch all data
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, usersRes, subsRes] = await Promise.all([
+        fetch('/api/admin/stats'),
+        fetch('/api/admin/users'),
+        fetch(`/api/admin/waitlist?type=${selectedType}`),
+      ]);
+
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setStats(data.waitlist);
+        setDashboardStats(data.dashboard);
+      }
+      
+      if (usersRes.ok) {
+        const data = await usersRes.json();
+        setUsers(data.users || []);
+      }
+      
+      if (subsRes.ok) {
+        const data = await subsRes.json();
+        setSubscriptions(data.subscriptions || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.isAdmin) {
+      fetchData();
+    }
+  }, [user, selectedType]);
+
+  // Send broadcast
+  const handleBroadcast = async () => {
+    if (!broadcastMessage.trim()) {
+      toast.error('Введите текст сообщения');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch('/api/telegram/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: selectedType,
+          message: broadcastMessage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Отправлено: ${data.sent}, Ошибок: ${data.failed}`);
+        setBroadcastMessage('');
+        fetchData();
+      } else {
+        toast.error(data.error || 'Ошибка отправки');
+      }
+    } catch (error) {
+      toast.error('Ошибка сети');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+      </div>
+    );
+  }
+
+  if (!user?.isAdmin) {
+    return null;
+  }
+
+  return (
+    <main className="min-h-screen bg-[var(--bg)]">
+      {/* Header */}
+      <div className="border-b border-[var(--border)] bg-[var(--surface)]">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center">
+                <Settings className="w-5 h-5 text-[var(--gold)]" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-[var(--text)]">Админ-панель</h1>
+                <p className="text-xs text-[var(--muted)]">LensRoom Management</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchData}
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Обновить
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-6 py-6">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-[var(--gold)] text-black'
+                  : 'bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface2)] border border-[var(--border)]'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <OverviewTab 
+            dashboardStats={dashboardStats} 
+            waitlistStats={stats}
+            loading={loading}
+          />
+        )}
+
+        {activeTab === 'waitlist' && (
+          <WaitlistTab
+            stats={stats}
+            subscriptions={subscriptions}
+            selectedType={selectedType}
+            setSelectedType={setSelectedType}
+            loading={loading}
+          />
+        )}
+
+        {activeTab === 'users' && (
+          <UsersTab users={users} loading={loading} />
+        )}
+
+        {activeTab === 'broadcast' && (
+          <BroadcastTab
+            stats={stats}
+            selectedType={selectedType}
+            setSelectedType={setSelectedType}
+            broadcastMessage={broadcastMessage}
+            setBroadcastMessage={setBroadcastMessage}
+            sending={sending}
+            handleBroadcast={handleBroadcast}
+          />
+        )}
+      </div>
+    </main>
+  );
+}
+
+// ===== OVERVIEW TAB =====
+function OverviewTab({ 
+  dashboardStats, 
+  waitlistStats,
+  loading 
+}: { 
+  dashboardStats: DashboardStats | null;
+  waitlistStats: WaitlistStats | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Main Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={Users}
+          label="Всего пользователей"
+          value={dashboardStats?.totalUsers || 0}
+          color="text-blue-400"
+          bg="bg-blue-400/10"
+        />
+        <StatCard
+          icon={Bell}
+          label="С уведомлениями"
+          value={dashboardStats?.usersWithNotifications || 0}
+          color="text-green-400"
+          bg="bg-green-400/10"
+        />
+        <StatCard
+          icon={Clock}
+          label="Входов за 7 дней"
+          value={dashboardStats?.recentLogins || 0}
+          color="text-purple-400"
+          bg="bg-purple-400/10"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Всего в Waitlist"
+          value={dashboardStats?.totalWaitlist || 0}
+          color="text-[var(--gold)]"
+          bg="bg-[var(--gold)]/10"
+        />
+      </div>
+
+      {/* Waitlist by Type */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Waitlist по типам</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {WAITLIST_TYPES.map(type => {
+            const Icon = type.icon;
+            const count = waitlistStats?.byType[type.id] || 0;
+            return (
+              <div key={type.id} className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface2)]">
+                <div className={`w-10 h-10 rounded-lg ${type.bg} flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${type.color}`} />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-[var(--text)]">{count}</p>
+                  <p className="text-xs text-[var(--muted)]">{type.name}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== STAT CARD =====
+function StatCard({ 
+  icon: Icon, 
+  label, 
+  value, 
+  color, 
+  bg 
+}: { 
+  icon: any; 
+  label: string; 
+  value: number; 
+  color: string; 
+  bg: string;
+}) {
+  return (
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5">
+      <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
+        <Icon className={`w-5 h-5 ${color}`} />
+      </div>
+      <p className="text-2xl font-bold text-[var(--text)]">{value}</p>
+      <p className="text-sm text-[var(--muted)]">{label}</p>
+    </div>
+  );
+}
+
+// ===== WAITLIST TAB =====
+function WaitlistTab({
+  stats,
+  subscriptions,
+  selectedType,
+  setSelectedType,
+  loading,
+}: {
+  stats: WaitlistStats | null;
+  subscriptions: Subscription[];
+  selectedType: string;
+  setSelectedType: (type: string) => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Type Selector */}
+      <div className="flex flex-wrap gap-2">
+        {WAITLIST_TYPES.map(type => {
+          const Icon = type.icon;
+          const count = stats?.byType[type.id] || 0;
+          const isSelected = selectedType === type.id;
+          
+          return (
+            <button
+              key={type.id}
+              onClick={() => setSelectedType(type.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+                isSelected
+                  ? 'bg-[var(--gold)]/10 border-[var(--gold)] text-[var(--gold)]'
+                  : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text)] hover:border-[var(--gold)]/50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="text-sm font-medium">{type.name}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-[var(--gold)]/20' : 'bg-[var(--surface2)]'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Subscriptions Table */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <h2 className="text-lg font-semibold text-[var(--text)]">
+            Подписчики ({subscriptions.length})
+          </h2>
+        </div>
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+          </div>
+        ) : subscriptions.length === 0 ? (
+          <div className="text-center py-12">
+            <Bell className="w-12 h-12 text-[var(--muted)] mx-auto mb-3" />
+            <p className="text-[var(--muted)]">Нет подписчиков</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--surface2)]">
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Пользователь</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Источник</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Дата</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscriptions.map((sub) => (
+                  <tr key={sub.id} className="border-b border-[var(--border)] hover:bg-[var(--surface2)]">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--text)]">
+                          {sub.telegram_profiles?.first_name || 'Без имени'}
+                        </p>
+                        {sub.telegram_profiles?.telegram_username && (
+                          <p className="text-xs text-[var(--muted)]">
+                            @{sub.telegram_profiles.telegram_username}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                      {sub.source || '—'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                      {new Date(sub.created_at).toLocaleDateString('ru-RU')}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={sub.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== USERS TAB =====
+function UsersTab({ users, loading }: { users: TelegramUser[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-[var(--border)]">
+        <h2 className="text-lg font-semibold text-[var(--text)]">
+          Все пользователи ({users.length})
+        </h2>
+      </div>
+      
+      {users.length === 0 ? (
+        <div className="text-center py-12">
+          <Users className="w-12 h-12 text-[var(--muted)] mx-auto mb-3" />
+          <p className="text-[var(--muted)]">Нет пользователей</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--surface2)]">
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Пользователь</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Telegram ID</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Уведомления</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Регистрация</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Последний вход</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-[var(--border)] hover:bg-[var(--surface2)]">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[var(--gold)]/10 flex items-center justify-center">
+                        <span className="text-sm font-medium text-[var(--gold)]">
+                          {u.first_name?.[0] || u.telegram_username?.[0] || '?'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-[var(--text)]">
+                          {u.first_name || 'Без имени'}
+                          {u.is_admin && (
+                            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)]">
+                              Admin
+                            </span>
+                          )}
+                        </p>
+                        {u.telegram_username && (
+                          <p className="text-xs text-[var(--muted)]">@{u.telegram_username}</p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-[var(--muted)] font-mono">
+                    {u.telegram_id}
+                  </td>
+                  <td className="px-6 py-4">
+                    {u.can_notify ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-green-400">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Вкл
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-[var(--muted)]">
+                        <AlertCircle className="w-3 h-3" />
+                        Выкл
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                    {new Date(u.created_at).toLocaleDateString('ru-RU')}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                    {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('ru-RU') : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== BROADCAST TAB =====
+function BroadcastTab({
+  stats,
+  selectedType,
+  setSelectedType,
+  broadcastMessage,
+  setBroadcastMessage,
+  sending,
+  handleBroadcast,
+}: {
+  stats: WaitlistStats | null;
+  selectedType: string;
+  setSelectedType: (type: string) => void;
+  broadcastMessage: string;
+  setBroadcastMessage: (msg: string) => void;
+  sending: boolean;
+  handleBroadcast: () => void;
+}) {
+  const selectedTypeInfo = WAITLIST_TYPES.find(t => t.id === selectedType);
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      {/* Type Selector */}
+      <div>
+        <label className="block text-sm font-medium text-[var(--text)] mb-2">
+          Кому отправить
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {WAITLIST_TYPES.map(type => {
+            const Icon = type.icon;
+            const count = stats?.byType[type.id] || 0;
+            const isSelected = selectedType === type.id;
+            
+            return (
+              <button
+                key={type.id}
+                onClick={() => setSelectedType(type.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+                  isSelected
+                    ? 'bg-[var(--gold)]/10 border-[var(--gold)] text-[var(--gold)]'
+                    : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text)] hover:border-[var(--gold)]/50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-sm">{type.name}</span>
+                <span className="text-xs opacity-60">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Message Input */}
+      <div>
+        <label className="block text-sm font-medium text-[var(--text)] mb-2">
+          Текст сообщения
+        </label>
+        <textarea
+          value={broadcastMessage}
+          onChange={(e) => setBroadcastMessage(e.target.value)}
+          placeholder="Привет! У нас отличные новости..."
+          className="w-full h-40 px-4 py-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] resize-none"
+        />
+        <p className="text-xs text-[var(--muted)] mt-2">
+          Поддерживается HTML: &lt;b&gt;жирный&lt;/b&gt;, &lt;i&gt;курсив&lt;/i&gt;, &lt;a href="..."&gt;ссылка&lt;/a&gt;
+        </p>
+      </div>
+
+      {/* Preview */}
+      {broadcastMessage && (
+        <div>
+          <label className="block text-sm font-medium text-[var(--text)] mb-2">
+            Предпросмотр
+          </label>
+          <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#0088cc] flex items-center justify-center flex-shrink-0">
+                <MessageCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--text)] mb-1">LensRoom</p>
+                <div 
+                  className="text-sm text-[var(--text2)]"
+                  dangerouslySetInnerHTML={{ __html: broadcastMessage.replace(/\n/g, '<br>') }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Button */}
+      <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+        <p className="text-sm text-[var(--muted)]">
+          {selectedTypeInfo && (
+            <>
+              <selectedTypeInfo.icon className={`w-4 h-4 ${selectedTypeInfo.color} inline mr-1`} />
+              Получат {stats?.byType[selectedType] || 0} подписчиков
+            </>
+          )}
+        </p>
+        <Button
+          onClick={handleBroadcast}
+          disabled={sending || !broadcastMessage.trim()}
+          className="bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)]"
+        >
+          {sending ? (
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+          ) : (
+            <Send className="w-4 h-4 mr-2" />
+          )}
+          Отправить рассылку
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ===== STATUS BADGE =====
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'active') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded-full">
+        <CheckCircle2 className="w-3 h-3" />
+        Активен
+      </span>
+    );
+  }
+  if (status === 'notified') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full">
+        <Send className="w-3 h-3" />
+        Уведомлен
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-[var(--muted)] bg-[var(--surface2)] px-2 py-1 rounded-full">
+      <AlertCircle className="w-3 h-3" />
+      {status}
+    </span>
+  );
+}
