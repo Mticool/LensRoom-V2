@@ -355,7 +355,7 @@ function VideoCreatePageContent() {
   const price = videoModel ? computePrice(selectedModel, {
     mode: currentMode,
     duration: duration || videoModel.fixedDuration || 5,
-    quality: selectedQuality,
+    videoQuality: selectedQuality,
     audio: modelSupportsAudio ? audioEnabled : undefined,
     variants: 1,
   }) : { credits: 0, stars: 0, approxRub: 0 };
@@ -590,7 +590,7 @@ function VideoCreatePageContent() {
                       {videoModel.qualityOptions.map((quality) => {
                         const qualityPrice = computePrice(videoModel.id, { 
                           duration: duration || videoModel.fixedDuration || 5,
-                          quality,
+                          videoQuality: quality,
                           audio: modelSupportsAudio ? audioEnabled : undefined,
                           variants: 1,
                         });

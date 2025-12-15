@@ -14,7 +14,7 @@ export interface PriceOptions {
   // Video options
   mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard';
   duration?: number | string; // 5, 10, 15, or '15-25'
-  quality?: '720p' | '1080p' | 'fast' | 'quality';
+  videoQuality?: '720p' | '1080p' | 'fast' | 'quality'; // Renamed to avoid conflict with photo quality
   audio?: boolean;
   
   // Common
@@ -101,8 +101,8 @@ function computeVideoPrice(
     // Price per second
     const seconds = typeof duration === 'number' ? duration : 5; // Default to 5 for ranges
     creditsPerVideo = model.pricing * seconds;
-  } else if (options.quality && model.pricing[options.quality as keyof typeof model.pricing]) {
-    const qualityPricing = model.pricing[options.quality as keyof typeof model.pricing] as { [key: string]: number };
+  } else if (options.videoQuality && model.pricing[options.videoQuality as keyof typeof model.pricing]) {
+    const qualityPricing = model.pricing[options.videoQuality as keyof typeof model.pricing] as { [key: string]: number };
     creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;
   } else if (model.pricing[durationKey as keyof typeof model.pricing]) {
     const durationPricing = model.pricing[durationKey as keyof typeof model.pricing];
