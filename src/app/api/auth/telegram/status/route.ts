@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         role: (profile.role as 'user' | 'manager' | 'admin') || 'user',
       });
 
-      // Create response first
+      // Create response
       const response = NextResponse.json({
         status: 'authenticated',
         user: {
@@ -87,14 +87,15 @@ export async function GET(request: NextRequest) {
         canNotify: botLink?.can_notify ?? true,
       });
 
-      // Set cookie on response
-      const { cookies } = await import('next/headers');
-      const cookieStore = await cookies();
-      cookieStore.set('lr_session', token, {
+      // Set cookie on response using headers (proper way in Next.js App Router)
+      const isProduction = process.env.NODE_ENV === 'production';
+      const maxAge = 30 * 24 * 60 * 60; // 30 days
+      
+      response.cookies.set('lr_session', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
         sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
+        maxAge: maxAge,
         path: '/',
       });
       
