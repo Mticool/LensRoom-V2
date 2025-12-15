@@ -124,7 +124,6 @@ const TABS = [
   { id: 'payments', name: 'Платежи', icon: CreditCard, adminOnly: true },
   { id: 'waitlist', name: 'Waitlist', icon: Bell, adminOnly: true },
   { id: 'users', name: 'Пользователи', icon: Users, adminOnly: true },
-  { id: 'managers', name: 'Менеджеры', icon: UserCog, adminOnly: true },
   { id: 'broadcast', name: 'Рассылка', icon: Send, adminOnly: true },
 ];
 
@@ -434,9 +433,6 @@ export default function AdminPage() {
           <UsersTab users={users} loading={loading} />
         )}
 
-        {activeTab === 'managers' && isAdmin && (
-          <ManagersTab users={users} loading={loading} onRefresh={fetchData} />
-        )}
 
         {activeTab === 'broadcast' && isAdmin && (
           <BroadcastTab
