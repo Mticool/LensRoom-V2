@@ -72,18 +72,8 @@ export async function GET(request: NextRequest) {
         role: (profile.role as 'user' | 'manager' | 'admin') || 'user',
       });
 
-      // Set session cookie
-      await setSessionCookie(token);
-      
-      console.log('[Telegram Status] Session created and cookie set for user:', profile.id);
-
-      // Clean up old codes (optional, for hygiene)
-      await supabase
-        .from('telegram_login_codes')
-        .delete()
-        .lt('expires_at', new Date().toISOString());
-
-      return NextResponse.json({
+      // Create response first
+      const response = NextResponse.json({
         status: 'authenticated',
         user: {
           id: profile.id,
@@ -96,6 +86,27 @@ export async function GET(request: NextRequest) {
         },
         canNotify: botLink?.can_notify ?? true,
       });
+
+      // Set cookie on response
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      cookieStore.set('lr_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+        path: '/',
+      });
+      
+      console.log('[Telegram Status] Session created and cookie set for user:', profile.id);
+
+      // Clean up old codes (optional, for hygiene)
+      await supabase
+        .from('telegram_login_codes')
+        .delete()
+        .lt('expires_at', new Date().toISOString());
+
+      return response;
     }
 
     // Not yet used - still waiting
