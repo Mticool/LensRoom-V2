@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { sendTelegramMessage } from '@/lib/telegram/bot';
 import { TelegramUpdate } from '@/types/telegram';
+import { createSessionToken, setSessionCookie } from '@/lib/telegram/auth';
 
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
       const startParam = text.split(' ')[1] || null;
 
       // Upsert bot link with can_notify = true
-      const { error } = await supabase
+      const { error: botLinkError } = await supabase
         .from('telegram_bot_links')
         .upsert(
           {
@@ -55,26 +56,74 @@ export async function POST(request: NextRequest) {
           }
         );
 
-      if (error) {
-        console.error('[Telegram Webhook] Error upserting bot link:', error);
+      if (botLinkError) {
+        console.error('[Telegram Webhook] Error upserting bot link:', botLinkError);
       }
 
-      // Also create/update profile if doesn't exist
-      await supabase
+      // Create/update profile
+      const { data: profile, error: profileError } = await supabase
         .from('telegram_profiles')
         .upsert(
           {
             telegram_id: telegramId,
             telegram_username: username || null,
             first_name: firstName || null,
+            last_name: message.from.last_name || null,
+            photo_url: null, // Bot doesn't receive photo
+            last_login_at: new Date().toISOString(),
           },
           {
             onConflict: 'telegram_id',
             ignoreDuplicates: false,
           }
-        );
+        )
+        .select('id')
+        .single();
 
-      // Send welcome message
+      if (profileError) {
+        console.error('[Telegram Webhook] Error upserting profile:', profileError);
+      }
+
+      // Check if this is a login request (login_CODE)
+      if (startParam?.startsWith('login_')) {
+        const loginCode = startParam.replace('login_', '');
+        
+        // Validate and mark login code as used
+        const { data: loginCodeData, error: codeError } = await supabase
+          .from('telegram_login_codes')
+          .update({ 
+            used: true, 
+            telegram_id: telegramId,
+            profile_id: profile?.id,
+            used_at: new Date().toISOString(),
+          })
+          .eq('code', loginCode)
+          .eq('used', false)
+          .gt('expires_at', new Date().toISOString())
+          .select()
+          .single();
+
+        if (codeError || !loginCodeData) {
+          console.log('[Telegram Webhook] Invalid or expired login code:', loginCode);
+          await sendTelegramMessage({
+            chat_id: chatId,
+            text: `❌ Ссылка для входа устарела или уже использована.\n\n` +
+              `Вернитесь на сайт и нажмите "Войти через Telegram" снова.`,
+          });
+        } else {
+          // Login successful!
+          await sendTelegramMessage({
+            chat_id: chatId,
+            text: `✅ Вы успешно вошли на сайт LensRoom!\n\n` +
+              `Можете вернуться в браузер — вход выполнен.\n\n` +
+              `🔔 Теперь вы будете получать уведомления о новых функциях и Академии.`,
+          });
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Regular /start - welcome message
       await sendTelegramMessage({
         chat_id: chatId,
         text: `👋 Привет${firstName ? `, ${firstName}` : ''}!\n\n` +
