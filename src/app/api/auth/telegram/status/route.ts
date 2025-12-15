@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
         firstName: profile.first_name,
         photoUrl: profile.photo_url,
         isAdmin: profile.is_admin || false,
+        role: (profile.role as 'user' | 'manager' | 'admin') || 'user',
       });
 
       // Set session cookie
