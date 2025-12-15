@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
         profileId: profile.id,
         telegramId: profile.telegram_id,
         username: profile.telegram_username,
+        firstName: profile.first_name,
+        photoUrl: profile.photo_url,
+        isAdmin: profile.is_admin || false,
       });
 
       // Create response with session cookie
