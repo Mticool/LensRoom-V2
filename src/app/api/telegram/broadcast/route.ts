@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       .select(`
         id,
         profile_id,
-        profiles!inner(telegram_id),
+        telegram_profiles!inner(telegram_id),
         telegram_bot_links!inner(chat_id, can_notify)
       `)
       .eq('type', body.type)

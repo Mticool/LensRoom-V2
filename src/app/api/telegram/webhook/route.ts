@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
       // Also create/update profile if doesn't exist
       await supabase
-        .from('profiles')
+        .from('telegram_profiles')
         .upsert(
           {
             telegram_id: telegramId,
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         .select('type, status')
         .eq('profile_id', (
           await supabase
-            .from('profiles')
+            .from('telegram_profiles')
             .select('id')
             .eq('telegram_id', telegramId)
             .single()

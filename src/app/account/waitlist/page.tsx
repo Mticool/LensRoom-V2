@@ -31,7 +31,7 @@ interface Subscription {
   status: string;
   created_at: string;
   notified_at: string | null;
-  profiles: {
+  telegram_profiles: {
     telegram_username: string | null;
     first_name: string | null;
     telegram_id: number;
@@ -270,11 +270,11 @@ export default function AdminWaitlistPage() {
                       <td className="px-6 py-4">
                         <div>
                           <p className="text-sm font-medium text-[var(--text)]">
-                            {sub.profiles?.first_name || 'Без имени'}
+                            {sub.telegram_profiles?.first_name || 'Без имени'}
                           </p>
-                          {sub.profiles?.telegram_username && (
+                          {sub.telegram_profiles?.telegram_username && (
                             <p className="text-xs text-[var(--muted)]">
-                              @{sub.profiles.telegram_username}
+                              @{sub.telegram_profiles.telegram_username}
                             </p>
                           )}
                         </div>

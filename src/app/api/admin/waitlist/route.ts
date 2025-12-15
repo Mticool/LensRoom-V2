@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         status,
         created_at,
         notified_at,
-        profiles (
+        telegram_profiles (
           telegram_id,
           telegram_username,
           first_name,

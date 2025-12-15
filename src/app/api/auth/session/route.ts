@@ -17,7 +17,7 @@ export async function GET() {
     // Get fresh profile data
     const supabase = getSupabaseAdmin();
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('telegram_profiles')
       .select('id, telegram_id, telegram_username, first_name, last_name, photo_url, is_admin')
       .eq('id', session.profileId)
       .single();

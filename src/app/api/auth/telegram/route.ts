@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     
     const { data: profile, error: upsertError } = await supabase
-      .from('profiles')
+      .from('telegram_profiles')
       .upsert(
         {
           telegram_id: payload.id,
