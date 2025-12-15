@@ -58,20 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in to generate videos.' },
-        { status: 401 }
-      );
-    }
-
     // Get user credits
     const { data: creditsData, error: creditsError } = await supabase
       .from('credits')
       .select('amount')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (creditsError || !creditsData) {
@@ -102,7 +93,7 @@ export async function POST(request: NextRequest) {
         amount: newBalance,
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (deductError) {
       return NextResponse.json(
@@ -115,7 +106,7 @@ export async function POST(request: NextRequest) {
     const { data: generation, error: genError } = await supabase
       .from('generations')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         type: 'video',
         model_id: model,
         model_name: modelInfo.name,
@@ -135,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // Record credit transaction (deduction)
     await supabase.from('credit_transactions').insert({
-      user_id: user.id,
+      user_id: userId,
       amount: -creditCost, // Negative for deduction
       type: 'deduction',
       description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с, ${variants} вариант${variants > 1 ? 'а' : ''})`,
