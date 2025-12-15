@@ -71,8 +71,16 @@ export async function GET(request: NextRequest) {
         isAdmin: profile.is_admin || false,
       });
 
-      // Create response with session cookie
-      const response = NextResponse.json({
+      // Set session cookie
+      await setSessionCookie(token);
+
+      // Clean up old codes (optional, for hygiene)
+      await supabase
+        .from('telegram_login_codes')
+        .delete()
+        .lt('expires_at', new Date().toISOString());
+
+      return NextResponse.json({
         status: 'authenticated',
         user: {
           id: profile.id,
@@ -83,19 +91,8 @@ export async function GET(request: NextRequest) {
           photoUrl: profile.photo_url,
           isAdmin: profile.is_admin,
         },
-        canNotify: botLink?.can_notify ?? true, // They just started the bot, so yes
+        canNotify: botLink?.can_notify ?? true,
       });
-
-      // Set session cookie
-      setSessionCookie(response, token);
-
-      // Clean up old codes (optional, for hygiene)
-      await supabase
-        .from('telegram_login_codes')
-        .delete()
-        .lt('expires_at', new Date().toISOString());
-
-      return response;
     }
 
     // Not yet used - still waiting
