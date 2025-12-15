@@ -115,6 +115,8 @@ function VideoCreatePageContent() {
     { id: '2', prompt: '' },
   ]);
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
 
   const {
     mode,
@@ -141,7 +143,7 @@ function VideoCreatePageContent() {
   } = useVideoGeneratorStore();
 
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
-  const [selectedQuality, setSelectedQuality] = useState<'720p' | '1080p' | 'fast' | 'quality' | undefined>(undefined);
+  const [selectedQuality, setSelectedQuality] = useState<string | undefined>(undefined);
   const [audioEnabled, setAudioEnabled] = useState(false);
   
   const selectedModelData = getModelById(selectedModel);
@@ -502,18 +504,53 @@ function VideoCreatePageContent() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {history.slice(0, 6).map((item: any) => (
-                    <button
-                      key={item.id}
-                      onClick={() => useVideoGeneratorStore.setState({ result: item })}
-                      className="group relative aspect-video rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
-                    >
-                      <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Video className="w-4 h-4 text-white" />
-                      </div>
-                    </button>
-                  ))}
+                  {history.slice(0, 6).map((item: any) => {
+                    // Parse result_urls if it's a string
+                    let videoUrl = item.url;
+                    let thumbnailUrl = item.thumbnailUrl;
+                    
+                    if (!videoUrl && item.result_urls) {
+                      try {
+                        const urls = typeof item.result_urls === 'string' 
+                          ? JSON.parse(item.result_urls) 
+                          : item.result_urls;
+                        videoUrl = Array.isArray(urls) ? urls[0] : urls;
+                      } catch (e) {
+                        console.error('Error parsing result_urls:', e);
+                      }
+                    }
+
+                    // Generate thumbnail from video URL if not available
+                    if (!thumbnailUrl && videoUrl) {
+                      thumbnailUrl = videoUrl.replace(/\.(mp4|webm|mov)$/, '_thumb.jpg');
+                    }
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          console.log('[Video History] Clicked:', item);
+                          setSelectedVideo({ ...item, url: videoUrl, thumbnailUrl });
+                          setVideoModalOpen(true);
+                        }}
+                        className="group relative aspect-video rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
+                      >
+                        {thumbnailUrl ? (
+                          <img src={thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-pink-900/20 flex items-center justify-center">
+                            <Film className="w-6 h-6 text-[var(--muted)]" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Video className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[9px] text-white">
+                          {item.status === 'completed' ? '✓' : item.status === 'processing' ? '...' : '⏱'}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1146,6 +1183,107 @@ function VideoCreatePageContent() {
           </div>
         </main>
       </div>
+
+      {/* Video Modal */}
+      {videoModalOpen && selectedVideo && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setVideoModalOpen(false)}
+        >
+          <div 
+            className="relative max-w-5xl w-full bg-[var(--surface)] rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setVideoModalOpen(false)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Video Player */}
+            <div className="aspect-video bg-black">
+              {selectedVideo.url ? (
+                <video 
+                  src={selectedVideo.url}
+                  controls
+                  autoPlay
+                  className="w-full h-full"
+                  poster={selectedVideo.thumbnailUrl}
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-white gap-3">
+                  <Film className="w-16 h-16 text-[var(--muted)]" />
+                  <p className="text-sm">Видео недоступно</p>
+                  <p className="text-xs text-[var(--muted)]">Статус: {selectedVideo.status}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Video Info */}
+            <div className="p-6 border-t border-[var(--border)]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-[var(--text)] mb-1">
+                    {selectedVideo.model_name || selectedVideo.model}
+                  </h3>
+                  <p className="text-sm text-[var(--text2)] line-clamp-2">
+                    {selectedVideo.prompt}
+                  </p>
+                  <div className="flex items-center gap-3 mt-3 text-xs text-[var(--muted)]">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(selectedVideo.created_at).toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    {selectedVideo.credits_used && (
+                      <span className="flex items-center gap-1">
+                        <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                        {selectedVideo.credits_used} кредитов
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                {selectedVideo.url && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        const a = document.createElement('a');
+                        a.href = selectedVideo.url;
+                        a.download = `video_${selectedVideo.id}.mp4`;
+                        a.click();
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Скачать
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedVideo.url);
+                        toast.success('Ссылка скопирована!');
+                      }}
+                    >
+                      <Share2 className="w-4 h-4 mr-2" />
+                      Поделиться
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -306,6 +306,7 @@ export default function ProductCardsPage() {
         onBuyStars={handleBuyStars}
         slidesCount={slidesCount}
         generationType={wizardState.generationType}
+        modeId={wizardState.modeId}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/telegram/auth';
+import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 /**
@@ -11,7 +11,7 @@ export async function GET() {
     const session = await getSession();
     
     if (!session) {
-      return NextResponse.json({ user: null });
+      return NextResponse.json({ user: null, balance: 0 });
     }
 
     // Get fresh profile data
@@ -29,6 +29,23 @@ export async function GET() {
       .eq('telegram_id', session.telegramId)
       .single();
 
+    // Get balance
+    let balance = 0;
+    try {
+      const userId = await getAuthUserId(session);
+      if (userId) {
+        const { data: creditsData } = await supabase
+          .from('credits')
+          .select('amount')
+          .eq('user_id', userId)
+          .single();
+        
+        balance = creditsData?.amount || 0;
+      }
+    } catch (error) {
+      console.error('[Session] Error fetching balance:', error);
+    }
+
     return NextResponse.json({
       user: profile ? {
         id: profile.id,
@@ -41,10 +58,11 @@ export async function GET() {
         role: (profile.role as 'user' | 'manager' | 'admin') || 'user',
         canNotify: botLink?.can_notify || false,
       } : null,
+      balance,
     });
   } catch (error) {
     console.error('[Session] Error:', error);
-    return NextResponse.json({ user: null });
+    return NextResponse.json({ user: null, balance: 0 });
   }
 }
 

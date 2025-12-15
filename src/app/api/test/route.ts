@@ -63,14 +63,16 @@ export async function GET(request: NextRequest) {
         break;
 
       case "video":
-        // Test video generation
+        // Test video generation with Kling 2.6 (text-to-video)
         console.log("[TEST] Starting video generation test...");
         const videoResponse = await kieClient.generateVideo({
-          model: "sora-2",
+          model: "kling-2.6/text-to-video",
+          provider: "kie_market",
           prompt: "waves crashing on a beach at sunset, cinematic, slow motion",
           aspectRatio: "16:9",
           duration: 5,
-          fps: 30,
+          sound: false,
+          mode: "t2v",
         });
         results.taskId = videoResponse.id;
         results.status = videoResponse.status;

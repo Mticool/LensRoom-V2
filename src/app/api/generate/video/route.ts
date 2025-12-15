@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { getModelById } from '@/config/models';
+import { kieClient } from '@/lib/api/kie-client';
+import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
 
 export async function POST(request: NextRequest) {
@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       duration, 
       mode = 't2v',
       quality,
+      resolution,
       audio,
       variants = 1,
       aspectRatio = '16:9',
@@ -21,9 +22,10 @@ export async function POST(request: NextRequest) {
       referenceImage,
       startImage,
       endImage,
+      shots, // For storyboard mode
     } = body;
 
-    if (!prompt) {
+    if (!prompt && mode !== 'storyboard') {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
@@ -32,15 +34,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Find model info
-    const modelInfo = getModelById(model);
+    const modelInfo = getModelById(model) as VideoModelConfig | undefined;
     if (!modelInfo || modelInfo.type !== 'video') {
       return NextResponse.json(
-        { error: 'Invalid video model' },
+        { error: 'Invalid video model', availableModels: VIDEO_MODELS.map(m => m.id) },
         { status: 400 }
       );
     }
 
-    // Calculate credit cost using new pricing system
+    // Check if mode is supported by this model
+    if (!modelInfo.modes.includes(mode)) {
+      return NextResponse.json(
+        { error: `Mode '${mode}' is not supported by ${modelInfo.name}. Supported modes: ${modelInfo.modes.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Calculate credit cost using pricing system
     const price = computePrice(model, {
       mode,
       duration: duration || modelInfo.fixedDuration || 5,
@@ -127,7 +137,6 @@ export async function POST(request: NextRequest) {
         model_name: modelInfo.name,
         prompt: prompt,
         negative_prompt: negativePrompt,
-        aspect_ratio: aspectRatio,
         duration: duration || modelInfo.fixedDuration || 5,
         credits_used: creditCost,
         status: 'processing',
@@ -140,11 +149,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Record credit transaction (deduction)
-    await supabase.from('credit_transactions').insert({
+    const { error: txError } = await supabase.from('credit_transactions').insert({
       user_id: userId,
-      amount: -creditCost, // Negative for deduction
+      amount: -creditCost,
       type: 'deduction',
-      description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с, ${variants} вариант${variants > 1 ? 'а' : ''})`,
+      description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с)`,
       metadata: {
         model_id: model,
         model_name: modelInfo.name,
@@ -153,20 +162,72 @@ export async function POST(request: NextRequest) {
         duration: duration || modelInfo.fixedDuration || 5,
         quality: quality,
         audio: audio,
-        variants: variants,
       },
       generation_id: generation?.id,
     });
 
-    // Generate video (mock for now, but structure is ready)
-    const jobId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    if (txError) {
+      console.error('[API] Failed to record transaction:', txError);
+    }
+
+    // Generate video via KIE API
+    // Determine image URL based on mode
+    let imageUrl: string | undefined;
+    let lastFrameUrl: string | undefined;
+    
+    if (mode === 'i2v' && referenceImage) {
+      imageUrl = referenceImage;
+    } else if (mode === 'start_end') {
+      if (startImage) imageUrl = startImage;
+      if (endImage) lastFrameUrl = endImage;
+    }
+
+    // Select correct API model ID based on mode
+    // Some models have different endpoints for t2v and i2v
+    let apiModelId = modelInfo.apiId;
+    if ((mode === 'i2v' || mode === 'start_end') && modelInfo.apiIdI2v) {
+      apiModelId = modelInfo.apiIdI2v;
+    }
+
+    console.log('[API] Video generation request:', {
+      model: model,
+      apiModelId: apiModelId,
+      provider: modelInfo.provider,
+      mode: mode,
+      duration: duration,
+    });
+
+    // Call KIE API with provider info
+    const response = await kieClient.generateVideo({
+      model: apiModelId,
+      provider: modelInfo.provider,
+      prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
+      imageUrl: imageUrl,
+      lastFrameUrl: lastFrameUrl,
+      duration: duration || modelInfo.fixedDuration || 5,
+      aspectRatio: aspectRatio,
+      sound: audio || false,
+      mode: mode,
+      resolution: resolution,
+      quality: quality,
+      shots: shots, // For storyboard mode
+    });
+
+    // Update generation with task ID
+    if (generation?.id) {
+      await supabase
+        .from('generations')
+        .update({ task_id: response.id })
+        .eq('id', generation.id);
+    }
 
     return NextResponse.json({
       success: true,
-      jobId,
-      status: 'processing',
-      message: 'Video generation started',
+      jobId: response.id,
+      status: response.status,
+      estimatedTime: response.estimatedTime || 120,
       creditCost: creditCost,
+      generationId: generation?.id,
     });
   } catch (error) {
     console.error('[API] Video generation error:', error);
@@ -177,5 +238,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

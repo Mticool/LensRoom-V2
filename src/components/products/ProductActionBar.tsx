@@ -11,6 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getPackSavings, getSingleCost } from "@/config/productImageModes";
 
 interface ProductActionBarProps {
   totalCost: number;
@@ -21,6 +22,7 @@ interface ProductActionBarProps {
   onBuyStars: () => void;
   slidesCount: number;
   generationType: "single" | "pack";
+  modeId?: string; // Добавили для расчёта экономии
 }
 
 export function ProductActionBar({
@@ -32,9 +34,12 @@ export function ProductActionBar({
   onBuyStars,
   slidesCount,
   generationType,
+  modeId = "standard",
 }: ProductActionBarProps) {
   const hasEnoughStars = starsBalance >= totalCost;
   const insufficientStars = totalCost - starsBalance;
+  const savings = generationType === "pack" ? getPackSavings(modeId) : 0;
+  const perImageCost = getSingleCost(modeId);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--surface)]/95 backdrop-blur-lg border-t border-[var(--border)]">
@@ -57,19 +62,37 @@ export function ProductActionBar({
 
             {/* Cost */}
             <div>
-              <div className="text-xs text-[var(--muted)] mb-0.5">
-                {generationType === "single" ? "Стоимость" : `Набор (${slidesCount} слайдов)`}
-              </div>
-              <div className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-[var(--gold)] fill-[var(--gold)]" />
-                <span className="text-xl font-bold text-[var(--text)]">{totalCost}</span>
-                {!hasEnoughStars && (
-                  <Badge variant="error" className="text-xs">
-                    <AlertCircle className="w-3 h-3 mr-1" />
-                    Не хватает {insufficientStars}⭐
-                  </Badge>
-                )}
-              </div>
+              {generationType === "single" ? (
+                <>
+                  <div className="text-xs text-[var(--muted)] mb-0.5">
+                    Стоимость
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold text-[var(--text)]">{totalCost}⭐</span>
+                    <span className="text-sm text-[var(--muted)]">/ изображение</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-xs text-[var(--muted)] mb-0.5">
+                    Набор ({slidesCount} слайдов)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold text-[var(--text)]">{totalCost}⭐</span>
+                    {savings > 0 && (
+                      <Badge variant="success" className="text-xs">
+                        экономия {savings}⭐
+                      </Badge>
+                    )}
+                    {!hasEnoughStars && (
+                      <Badge variant="error" className="text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Не хватает {insufficientStars}⭐
+                      </Badge>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

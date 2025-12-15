@@ -19,40 +19,27 @@ export const useCreditsStore = create<CreditsState>((set, get) => ({
   fetchBalance: async () => {
     set({ loading: true, error: null });
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use API endpoint that handles both Telegram and Supabase auth
+      const response = await fetch('/api/auth/session', {
+        credentials: 'include', // Important for cookie-based auth
+      });
+      
+      if (!response.ok) {
+        set({ balance: 0, loading: false });
+        return;
+      }
+
+      const { user, balance } = await response.json();
       
       if (!user) {
         set({ balance: 0, loading: false });
         return;
       }
 
-      const { data, error } = await supabase
-        .from('credits')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No credits record found, create one
-          const { data: newCredits, error: insertError } = await supabase
-            .from('credits')
-            .insert({ user_id: user.id, balance: 100 })
-            .select('balance')
-            .single();
-
-          if (insertError) throw insertError;
-          set({ balance: newCredits?.balance || 100, loading: false });
-          return;
-        }
-        throw error;
-      }
-
-      set({ balance: data?.balance || 0, loading: false });
+      set({ balance: balance || 0, loading: false });
     } catch (error) {
       console.error('Error fetching credits:', error);
-      set({ error: 'Failed to fetch credits', loading: false });
+      set({ error: 'Failed to fetch credits', balance: 0, loading: false });
     }
   },
 

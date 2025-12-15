@@ -9,12 +9,12 @@ import { CREDIT_PACKAGES } from '@/lib/pricing/plans';
 export interface PriceOptions {
   // Photo options
   quality?: string; // '1k', '2k', '4k', 'turbo', 'balanced', 'quality', 'fast', 'ultra', '1k_2k'
-  resolution?: string; // '512x512', '1024x1024', etc.
+  resolution?: string; // '512x512', '1024x1024', '480p', '720p', '1080p' etc.
   
   // Video options
   mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard';
   duration?: number | string; // 5, 10, 15, or '15-25'
-  videoQuality?: '720p' | '1080p' | 'fast' | 'quality'; // Renamed to avoid conflict with photo quality
+  videoQuality?: string; // '720p', '1080p', '480p', 'fast', 'quality', 'standard', 'high'
   audio?: boolean;
   
   // Common

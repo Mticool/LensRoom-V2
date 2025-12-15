@@ -114,8 +114,6 @@ export async function POST(request: NextRequest) {
         model_name: modelInfo.name,
         prompt: prompt,
         negative_prompt: negativePrompt,
-        aspect_ratio: aspectRatio,
-        variants: variants,
         credits_used: creditCost,
         status: 'processing',
       })

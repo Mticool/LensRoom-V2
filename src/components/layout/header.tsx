@@ -19,7 +19,8 @@ const navigation = [
   { name: 'Фото', href: '/create' },
   { name: 'Видео', href: '/create/video' },
   { name: 'Маркетплейсы', href: '/create/products' },
-  { name: 'Библиотека', href: '/library' },
+  { name: 'Мои результаты', href: '/library' },
+  { name: 'Промпты', href: '/prompts' },
   { name: 'Вдохновение', href: '/inspiration' },
   { name: 'Тарифы', href: '/pricing' },
   { name: 'Академия', href: '/academy' },
@@ -38,11 +39,11 @@ export function Header() {
   const { balance, fetchBalance } = useCreditsStore();
 
   useEffect(() => {
-    // Credits are currently tied to Supabase auth session
-    if (supabaseUser) {
+    // Fetch balance for any logged in user (Telegram or Supabase)
+    if (telegramUser || supabaseUser) {
       fetchBalance();
     }
-  }, [supabaseUser, fetchBalance]);
+  }, [telegramUser, supabaseUser, fetchBalance]);
 
   const handleSignOut = async () => {
     try {
@@ -135,7 +136,7 @@ export function Header() {
                       </div>
                     )}
                     <span className="text-sm font-semibold text-[var(--gold)]">
-                      {supabaseUser ? `${balance} ⭐` : 'Telegram'}
+                      {balance} ⭐
                     </span>
                     <ChevronDown className={cn(
                       "w-4 h-4 text-[var(--muted)] transition-transform",
@@ -185,14 +186,8 @@ export function Header() {
                               </div>
                             </div>
                             <div className="mt-2 flex items-center gap-1">
-                              {supabaseUser ? (
-                                <>
-                                  <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
-                                  <span className="text-xs text-[var(--muted)]">кредитов</span>
-                                </>
-                              ) : (
-                                <span className="text-xs text-[var(--muted)]">Вход через Telegram</span>
-                              )}
+                              <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
+                              <span className="text-xs text-[var(--muted)]">кредитов</span>
                             </div>
                           </div>
 
@@ -335,7 +330,7 @@ export function Header() {
                           )}
                           <div>
                             <p className="text-sm font-semibold text-[var(--gold)]">
-                              {supabaseUser ? `${balance} ⭐` : 'Telegram'}
+                              {balance} ⭐
                             </p>
                             <p className="text-xs text-[var(--muted)]">{displayName}</p>
                           </div>

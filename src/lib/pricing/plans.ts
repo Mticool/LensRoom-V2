@@ -1,3 +1,6 @@
+// Now uses unified pricing from src/config/pricing.ts
+import { SUBSCRIPTION_TIERS, STAR_PACKS } from '@/config/pricing';
+
 export interface SubscriptionPlan {
   id: string;
   name: string;
@@ -23,110 +26,70 @@ export interface CreditPackage {
   badge?: string;
 }
 
-export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  {
-    id: 'star',
-    name: 'Star',
-    price: 490,
-    credits: 300,
-    subtitle: 'Акция до конца декабря',
-    badge: 'Попробовать',
-    description: '300⭐ в месяц + 50⭐ при регистрации. Для старта и теста моделей: фото, первые ролики, обложки и эффекты.',
-    features: [
-      'Доступ к фото и видео моделям',
-      'Библиотека результатов',
-      'Базовые настройки генерации',
-      'Идеально для первого опыта',
-    ],
-    recurring: true,
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 990,
-    credits: 800,
-    badge: 'Лучший выбор',
-    description: '800⭐ в месяц. Оптимальный тариф для регулярного контента и задач каждый день.',
-    popular: true,
-    recurring: true,
-    features: [
-      'Всё из Star',
-      'Больше монет на генерации',
-      'Удобно для Reels/Shorts и рекламы',
-      'Меньше ограничений — больше результата',
-    ],
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: 2990,
-    credits: 3000,
-    badge: 'Для объёма',
-    description: '3000⭐ в месяц. Для бизнеса, маркетплейсов и производства контента потоком.',
-    recurring: true,
-    features: [
-      'Всё из Pro',
-      'Максимум монет под большие задачи',
-      'Подходит для команды/агентства/селлеров',
-      'Комфортный объём на месяц',
-    ],
-  },
-];
+// Convert unified config to page format
+export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = SUBSCRIPTION_TIERS.map((tier) => {
+  const descriptions: Record<string, string> = {
+    star: `${tier.stars}⭐ в месяц + 50⭐ при регистрации. Для старта и теста моделей: фото, первые ролики, обложки и эффекты.`,
+    pro: `${tier.stars}⭐ в месяц. Оптимальный тариф для регулярного контента и задач каждый день.`,
+    business: `${tier.stars}⭐ в месяц. Для бизнеса, маркетплейсов и производства контента потоком.`,
+  };
 
-export const CREDIT_PACKAGES: CreditPackage[] = [
-  {
-    id: 'mini',
-    name: 'Mini',
-    credits: 80,
-    price: 199,
-    description: 'Быстро докупить монеты, когда нужно доделать 1–2 задачи.',
-    features: [
-      'Без подписки',
-      'Быстрое пополнение',
-      'Для точечных задач',
-    ],
-  },
-  {
-    id: 'plus',
-    name: 'Plus',
-    credits: 400,
-    price: 790,
-    badge: 'Выгодно',
-    description: 'Удобный пакет для серии попыток: сделал → проверил → докрутил.',
-    features: [
-      'Хорошо для пачки фото',
-      'Хватает на несколько видео',
-      'Оптимум цена/объём',
-    ],
-    popular: true,
-  },
-  {
-    id: 'max',
-    name: 'Max',
-    credits: 1500,
-    price: 2490,
-    badge: 'Максимум',
-    description: 'Для спринта: много генераций за короткий период. Максимум выгоды за ⭐.',
-    features: [
-      'Контент сразу на неделю/месяц',
-      'Под кампании и запуски',
-      'Самый большой объём',
-    ],
-  },
-  {
-    id: 'ultra',
-    name: 'Ultra',
-    credits: 3500,
-    price: 4990,
-    badge: 'Для профи',
-    description: '3500⭐. Максимальный объём для контента и рекламы: делайте много генераций без пауз и ограничений.',
-    features: [
-      'Лучшее соотношение объёма',
-      'Под большие кампании и каталоги',
-      'Идеально для видео и пачек фото',
-    ],
-  },
-];
+  const badges: Record<string, string> = {
+    star: 'Попробовать',
+    pro: 'Лучший выбор',
+    business: 'Для объёма',
+  };
+
+  const subtitles: Record<string, string> = {
+    star: 'Акция до конца декабря',
+  };
+
+  return {
+    id: tier.id,
+    name: tier.name,
+    price: tier.price,
+    credits: tier.stars,
+    subtitle: subtitles[tier.id],
+    badge: badges[tier.id],
+    description: descriptions[tier.id] || tier.features.join('. '),
+    features: tier.features,
+    popular: tier.popular,
+    recurring: true,
+  };
+});
+
+export const CREDIT_PACKAGES: CreditPackage[] = STAR_PACKS.map((pack) => {
+  const descriptions: Record<string, string> = {
+    mini: 'Быстро докупить монеты, когда нужно доделать 1–2 задачи.',
+    plus: 'Удобный пакет для серии попыток: сделал → проверил → докрутил.',
+    max: 'Для спринта: много генераций за короткий период. Максимум выгоды за ⭐.',
+    ultra: `${pack.stars}⭐. Максимальный объём для контента и рекламы: делайте много генераций без пауз и ограничений.`,
+  };
+
+  const featuresList: Record<string, string[]> = {
+    mini: ['Без подписки', 'Быстрое пополнение', 'Для точечных задач'],
+    plus: ['Хорошо для пачки фото', 'Хватает на несколько видео', 'Оптимум цена/объём'],
+    max: ['Контент сразу на неделю/месяц', 'Под кампании и запуски', 'Самый большой объём'],
+    ultra: ['Лучшее соотношение объёма', 'Под большие кампании и каталоги', 'Идеально для видео и пачек фото'],
+  };
+
+  const badges: Record<string, string> = {
+    plus: 'Выгодно',
+    max: 'Максимум',
+    ultra: 'Для профи',
+  };
+
+  return {
+    id: pack.id,
+    name: pack.id.charAt(0).toUpperCase() + pack.id.slice(1),
+    credits: pack.stars + (pack.bonus || 0),
+    price: pack.price,
+    badge: badges[pack.id],
+    description: descriptions[pack.id] || `${pack.stars}⭐ за ${pack.price}₽`,
+    features: featuresList[pack.id] || [],
+    popular: pack.popular,
+  };
+});
 
 export function getCreditPrice(packageId: string): number {
   const pkg = CREDIT_PACKAGES.find((p) => p.id === packageId);

@@ -17,12 +17,23 @@ export async function GET(
 
     const status = await kieClient.getGenerationStatus(jobId);
 
+    // Transform outputs to results format expected by frontend
+    const results = status.outputs?.map((output, index) => ({
+      id: `${jobId}_${index}`,
+      url: output.url,
+      prompt: '',
+      model: '',
+      width: output.width,
+      height: output.height,
+    })) || [];
+
     return NextResponse.json({
       success: true,
       jobId,
       status: status.status,
       progress: status.progress || 0,
-      outputs: status.outputs,
+      results: results,
+      outputs: status.outputs, // Keep for backward compatibility
       error: status.error,
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSession, getAuthUserId } from "@/lib/telegram/auth";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 // Types
 interface GenerationInput {
@@ -9,18 +10,24 @@ interface GenerationInput {
   aspectRatio?: string;
 }
 
-// GET - Fetch user's generations
+// GET - Fetch user's generations (history)
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
-    }
+    // Check Telegram auth
+    const telegramSession = await getSession();
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    if (!telegramSession) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Get auth.users.id from Telegram session
+    const userId = await getAuthUserId(telegramSession);
+    
+    if (!userId) {
+      return NextResponse.json({ error: "User account not found" }, { status: 404 });
+    }
+
+    const supabase = getSupabaseAdmin();
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
@@ -32,7 +39,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("generations")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -56,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      generations: data,
+      generations: data || [],
       count: data?.length || 0,
     });
   } catch (error) {
@@ -71,15 +78,21 @@ export async function GET(request: NextRequest) {
 // POST - Create a new generation record
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
-    }
+    // Check Telegram auth
+    const telegramSession = await getSession();
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    if (!telegramSession) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Get auth.users.id from Telegram session
+    const userId = await getAuthUserId(telegramSession);
+    
+    if (!userId) {
+      return NextResponse.json({ error: "User account not found" }, { status: 404 });
+    }
+
+    const supabase = getSupabaseAdmin();
 
     const body: GenerationInput = await request.json();
 
@@ -93,11 +106,11 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("generations")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         type: body.type,
-        model: body.modelId,
+        model_id: body.modelId,
+        model_name: body.modelId,
         prompt: body.prompt,
-        aspect_ratio: body.aspectRatio || "1:1",
         status: "pending",
       })
       .select()
