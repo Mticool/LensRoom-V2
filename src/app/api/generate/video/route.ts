@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/telegram/auth';
+import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getModelById } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
@@ -60,8 +60,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use Telegram profile ID as user_id
-    const userId = telegramSession.profileId;
+    // Get auth.users.id from Telegram session
+    const userId = await getAuthUserId(telegramSession);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User account not found. Please contact support.' },
+        { status: 404 }
+      );
+    }
     
     // Use admin client for DB operations
     const supabase = getSupabaseAdmin();

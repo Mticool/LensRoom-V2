@@ -137,4 +137,32 @@ export function getSessionCookieName() {
   return COOKIE_NAME;
 }
 
+/**
+ * Get auth.users.id from Telegram session
+ * Maps telegram_profiles.id -> auth.users.id
+ */
+export async function getAuthUserId(telegramSession: TelegramSession): Promise<string | null> {
+  try {
+    const { getSupabaseAdmin } = await import('@/lib/supabase/admin');
+    const supabase = getSupabaseAdmin();
+    
+    // Find auth user by telegram_id in user_metadata
+    const { data: authUsers, error } = await supabase.auth.admin.listUsers();
+    
+    if (error) {
+      console.error('[Telegram Auth] Failed to list users:', error);
+      return null;
+    }
+    
+    const authUser = authUsers.users.find(
+      (u) => u.user_metadata?.telegram_id === telegramSession.telegramId
+    );
+    
+    return authUser?.id || null;
+  } catch (error) {
+    console.error('[Telegram Auth] Error getting auth user ID:', error);
+    return null;
+  }
+}
+
 
