@@ -67,7 +67,7 @@ export interface VideoModelConfig {
   
   // Available options
   modes: VideoMode[];
-  durationOptions: number[] | string[]; // e.g., [5, 10] or ['15-25']
+  durationOptions: (number | string)[]; // e.g., [5, 10] or ['15-25'] or [10, '15-25']
   qualityOptions?: VideoQuality[];
   aspectRatios: string[];
   fixedDuration?: number; // If duration is fixed (e.g., Veo = 8s)
