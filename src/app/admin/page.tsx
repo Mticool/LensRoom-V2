@@ -22,6 +22,10 @@ import {
   LayoutDashboard,
   UserCheck,
   Clock,
+  CreditCard,
+  DollarSign,
+  Star,
+  Crown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -65,6 +69,43 @@ interface DashboardStats {
   recentLogins: number;
 }
 
+interface Payment {
+  id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  type: string;
+  created_at: string;
+  profiles?: {
+    email: string | null;
+    full_name: string | null;
+  };
+}
+
+interface Subscription {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  status: string;
+  credits_per_month: number;
+  current_period_start: string;
+  current_period_end: string;
+  created_at: string;
+  profiles?: {
+    email: string | null;
+    full_name: string | null;
+    plan: string | null;
+  };
+}
+
+interface PaymentStats {
+  totalActiveSubscriptions: number;
+  totalPayments: number;
+  totalRevenue: number;
+  planCounts: Record<string, number>;
+}
+
 // ===== CONSTANTS =====
 const WAITLIST_TYPES = [
   { id: 'academy', name: 'Академия', icon: GraduationCap, color: 'text-purple-400', bg: 'bg-purple-400/10' },
@@ -75,6 +116,7 @@ const WAITLIST_TYPES = [
 
 const TABS = [
   { id: 'overview', name: 'Обзор', icon: LayoutDashboard },
+  { id: 'payments', name: 'Платежи', icon: CreditCard },
   { id: 'waitlist', name: 'Waitlist', icon: Bell },
   { id: 'users', name: 'Пользователи', icon: Users },
   { id: 'broadcast', name: 'Рассылка', icon: Send },
@@ -86,8 +128,11 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState<WaitlistStats | null>(null);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [waitlistSubs, setWaitlistSubs] = useState<any[]>([]);
   const [users, setUsers] = useState<TelegramUser[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<string>('academy');
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -104,10 +149,11 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statsRes, usersRes, subsRes] = await Promise.all([
+      const [statsRes, usersRes, waitlistRes, paymentsRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/admin/users'),
         fetch(`/api/admin/waitlist?type=${selectedType}`),
+        fetch('/api/admin/payments'),
       ]);
 
       if (statsRes.ok) {
@@ -121,9 +167,16 @@ export default function AdminPage() {
         setUsers(data.users || []);
       }
       
-      if (subsRes.ok) {
-        const data = await subsRes.json();
+      if (waitlistRes.ok) {
+        const data = await waitlistRes.json();
+        setWaitlistSubs(data.subscriptions || []);
+      }
+
+      if (paymentsRes.ok) {
+        const data = await paymentsRes.json();
+        setPayments(data.payments || []);
         setSubscriptions(data.subscriptions || []);
+        setPaymentStats(data.stats || null);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -241,10 +294,19 @@ export default function AdminPage() {
           />
         )}
 
+        {activeTab === 'payments' && (
+          <PaymentsTab
+            payments={payments}
+            subscriptions={subscriptions}
+            stats={paymentStats}
+            loading={loading}
+          />
+        )}
+
         {activeTab === 'waitlist' && (
           <WaitlistTab
             stats={stats}
-            subscriptions={subscriptions}
+            subscriptions={waitlistSubs}
             selectedType={selectedType}
             setSelectedType={setSelectedType}
             loading={loading}
@@ -686,6 +748,262 @@ function BroadcastTab({
         </Button>
       </div>
     </div>
+  );
+}
+
+// ===== PAYMENTS TAB =====
+function PaymentsTab({
+  payments,
+  subscriptions,
+  stats,
+  loading,
+}: {
+  payments: Payment[];
+  subscriptions: Subscription[];
+  stats: PaymentStats | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={Crown}
+          label="Активных подписок"
+          value={stats?.totalActiveSubscriptions || 0}
+          color="text-purple-400"
+          bg="bg-purple-400/10"
+        />
+        <StatCard
+          icon={CreditCard}
+          label="Всего платежей"
+          value={stats?.totalPayments || 0}
+          color="text-blue-400"
+          bg="bg-blue-400/10"
+        />
+        <StatCard
+          icon={DollarSign}
+          label="Выручка (₽)"
+          value={stats?.totalRevenue || 0}
+          color="text-green-400"
+          bg="bg-green-400/10"
+        />
+        <StatCard
+          icon={Star}
+          label="Pro пользователей"
+          value={stats?.planCounts?.['pro'] || 0}
+          color="text-[var(--gold)]"
+          bg="bg-[var(--gold)]/10"
+        />
+      </div>
+
+      {/* Plan Distribution */}
+      {stats?.planCounts && Object.keys(stats.planCounts).length > 0 && (
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Распределение по тарифам</h2>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(stats.planCounts).map(([plan, count]) => (
+              <div 
+                key={plan} 
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--surface2)]"
+              >
+                <span className="text-sm font-medium text-[var(--text)] capitalize">{plan}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gold)]/20 text-[var(--gold)]">
+                  {count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active Subscriptions */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <h2 className="text-lg font-semibold text-[var(--text)]">
+            Подписки ({subscriptions.length})
+          </h2>
+        </div>
+        
+        {subscriptions.length === 0 ? (
+          <div className="text-center py-12">
+            <Crown className="w-12 h-12 text-[var(--muted)] mx-auto mb-3" />
+            <p className="text-[var(--muted)]">Нет активных подписок</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--surface2)]">
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Пользователь</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Тариф</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Кредитов/мес</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Статус</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Действует до</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscriptions.map((sub) => (
+                  <tr key={sub.id} className="border-b border-[var(--border)] hover:bg-[var(--surface2)]">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--text)]">
+                          {sub.profiles?.full_name || 'Без имени'}
+                        </p>
+                        {sub.profiles?.email && (
+                          <p className="text-xs text-[var(--muted)]">{sub.profiles.email}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-[var(--gold)] capitalize">
+                        {sub.plan_id}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--text)]">
+                      {sub.credits_per_month}
+                    </td>
+                    <td className="px-6 py-4">
+                      <SubscriptionStatusBadge status={sub.status} />
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                      {sub.current_period_end 
+                        ? new Date(sub.current_period_end).toLocaleDateString('ru-RU')
+                        : '—'
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Recent Payments */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <h2 className="text-lg font-semibold text-[var(--text)]">
+            Последние платежи ({payments.length})
+          </h2>
+        </div>
+        
+        {payments.length === 0 ? (
+          <div className="text-center py-12">
+            <CreditCard className="w-12 h-12 text-[var(--muted)] mx-auto mb-3" />
+            <p className="text-[var(--muted)]">Нет платежей</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--surface2)]">
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Пользователь</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Сумма</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Тип</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Статус</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-[var(--muted)] uppercase">Дата</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((payment) => (
+                  <tr key={payment.id} className="border-b border-[var(--border)] hover:bg-[var(--surface2)]">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--text)]">
+                          {payment.profiles?.full_name || 'Без имени'}
+                        </p>
+                        {payment.profiles?.email && (
+                          <p className="text-xs text-[var(--muted)]">{payment.profiles.email}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-[var(--text)]">
+                      {payment.amount} {payment.currency || '₽'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--muted)] capitalize">
+                      {payment.type || '—'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <PaymentStatusBadge status={payment.status} />
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[var(--muted)]">
+                      {new Date(payment.created_at).toLocaleDateString('ru-RU')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== SUBSCRIPTION STATUS BADGE =====
+function SubscriptionStatusBadge({ status }: { status: string }) {
+  if (status === 'active') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded-full">
+        <CheckCircle2 className="w-3 h-3" />
+        Активна
+      </span>
+    );
+  }
+  if (status === 'cancelled' || status === 'canceled') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-red-400 bg-red-400/10 px-2 py-1 rounded-full">
+        <AlertCircle className="w-3 h-3" />
+        Отменена
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-[var(--muted)] bg-[var(--surface2)] px-2 py-1 rounded-full">
+      {status}
+    </span>
+  );
+}
+
+// ===== PAYMENT STATUS BADGE =====
+function PaymentStatusBadge({ status }: { status: string }) {
+  if (status === 'completed' || status === 'success') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded-full">
+        <CheckCircle2 className="w-3 h-3" />
+        Оплачен
+      </span>
+    );
+  }
+  if (status === 'pending') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded-full">
+        <Clock className="w-3 h-3" />
+        Ожидание
+      </span>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-red-400 bg-red-400/10 px-2 py-1 rounded-full">
+        <AlertCircle className="w-3 h-3" />
+        Ошибка
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-[var(--muted)] bg-[var(--surface2)] px-2 py-1 rounded-full">
+      {status}
+    </span>
   );
 }
 
