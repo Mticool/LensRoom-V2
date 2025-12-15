@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/telegram/auth';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getModelById } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
 
