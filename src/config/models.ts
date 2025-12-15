@@ -281,8 +281,10 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: false,
     supportsStoryboard: true,
     pricing: {
-      '10': 150,
-      '15-25': 270,
+      storyboard: {
+        '10': 150,
+        '15-25': 270,
+      },
     },
     modes: ['storyboard'],
     durationOptions: [10, '15-25'],
