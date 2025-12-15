@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 // GET - Fetch all gallery effects
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
     
     // Check auth
     const { data: { user } } = await supabase.auth.getUser();
@@ -44,7 +44,7 @@ export async function GET() {
 // POST - Create or update gallery effect
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
     
     // Check auth
     const { data: { user } } = await supabase.auth.getUser();
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
 // DELETE - Delete gallery effect
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
     
     // Check auth
     const { data: { user } } = await supabase.auth.getUser();
