@@ -3,6 +3,34 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { TelegramSession } from '@/types/telegram';
 
+function decodeBase64Url(input: string): string {
+  // base64url -> base64
+  let str = input.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  return atob(str);
+}
+
+function tryExtractTelegramAuthFromHash(): any | null {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash || '';
+  if (!hash.includes('tgAuthResult=')) return null;
+
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  const tgAuthResult = params.get('tgAuthResult');
+  if (!tgAuthResult) return null;
+
+  try {
+    const decoded = decodeBase64Url(decodeURIComponent(tgAuthResult));
+    const obj = JSON.parse(decoded);
+    if (obj?.id) obj.id = Number(obj.id);
+    if (obj?.auth_date) obj.auth_date = Number(obj.auth_date);
+    return obj;
+  } catch (e) {
+    console.error('[TelegramAuth] Failed to parse tgAuthResult:', e);
+    return null;
+  }
+}
+
 interface TelegramUser {
   id: string;
   telegramId: number;
@@ -28,6 +56,26 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   const [user, setUser] = useState<TelegramUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Sign in with Telegram Login Widget payload
+  const signInWithTelegram = useCallback(async (payload: any) => {
+    const response = await fetch('/api/auth/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Authentication failed');
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      canNotify: data.canNotify || false,
+    };
+  }, []);
+
   // Fetch current session on mount
   const refreshSession = useCallback(async () => {
     try {
@@ -43,37 +91,26 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
-    refreshSession();
-  }, [refreshSession]);
-
-  // Sign in with Telegram Login Widget payload
-  const signInWithTelegram = async (payload: any) => {
-    try {
-      const response = await fetch('/api/auth/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Authentication failed');
-      }
-
-      const data = await response.json();
-      
-      // Refresh session to get full user data
-      await refreshSession();
-
-      return {
-        success: true,
-        canNotify: data.canNotify || false,
-      };
-    } catch (error) {
-      console.error('[TelegramAuth] Sign in error:', error);
-      throw error;
+    // Support Telegram redirect login flow (often on mobile):
+    // Telegram can redirect back with #tgAuthResult=<base64url-json>
+    const redirectPayload = tryExtractTelegramAuthFromHash();
+    if (redirectPayload) {
+      // Clear hash early to avoid repeated attempts
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      (async () => {
+        try {
+          await signInWithTelegram(redirectPayload);
+        } catch (e) {
+          console.error('[TelegramAuth] Redirect sign-in failed:', e);
+        } finally {
+          await refreshSession();
+        }
+      })();
+      return;
     }
-  };
+
+    refreshSession();
+  }, [refreshSession, signInWithTelegram]);
 
   // Sign out
   const signOut = async () => {
