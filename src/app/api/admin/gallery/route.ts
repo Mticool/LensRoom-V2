@@ -5,6 +5,9 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+    }
     
     // Check auth
     const { data: { user } } = await supabase.auth.getUser();
@@ -45,6 +48,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+    }
     
     // Check auth
     const { data: { user } } = await supabase.auth.getUser();
@@ -142,6 +148,9 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+    }
     
     // Check auth
     const { data: { user } } = await supabase.auth.getUser();
