@@ -145,20 +145,44 @@ export async function getAuthUserId(telegramSession: TelegramSession): Promise<s
   try {
     const { getSupabaseAdmin } = await import('@/lib/supabase/admin');
     const supabase = getSupabaseAdmin();
-    
-    // Find auth user by telegram_id in user_metadata
+
+    // Fast path: if telegram_profiles has auth_user_id, use it (avoids listing all users).
+    try {
+      const { data: profile, error: pErr } = await supabase
+        .from('telegram_profiles')
+        .select('auth_user_id')
+        .eq('id', telegramSession.profileId)
+        .single();
+
+      const mapped = (profile as any)?.auth_user_id as string | null | undefined;
+      if (!pErr && mapped) return mapped;
+    } catch {
+      // ignore (column may not exist yet)
+    }
+
+    // Fallback: Find auth user by telegram_id in user_metadata (slow on large userbases)
     const { data: authUsers, error } = await supabase.auth.admin.listUsers();
-    
     if (error) {
       console.error('[Telegram Auth] Failed to list users:', error);
       return null;
     }
-    
-    const authUser = authUsers.users.find(
-      (u) => u.user_metadata?.telegram_id === telegramSession.telegramId
-    );
-    
-    return authUser?.id || null;
+
+    const authUser = authUsers.users.find((u) => u.user_metadata?.telegram_id === telegramSession.telegramId);
+    const authUserId = authUser?.id || null;
+
+    // Best-effort: persist mapping for future requests
+    if (authUserId) {
+      try {
+        await supabase
+          .from('telegram_profiles')
+          .update({ auth_user_id: authUserId } as any)
+          .eq('id', telegramSession.profileId);
+      } catch {
+        // ignore
+      }
+    }
+
+    return authUserId;
   } catch (error) {
     console.error('[Telegram Auth] Error getting auth user ID:', error);
     return null;

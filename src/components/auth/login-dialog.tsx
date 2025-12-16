@@ -6,6 +6,7 @@ import { X, Loader2, MessageCircle, ExternalLink, CheckCircle } from 'lucide-rea
 import { Button } from '@/components/ui/button';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useAuth } from '@/providers/auth-provider';
+import { captureReferralCodeFromUrl, getStoredReferralCode, clearStoredReferralCode } from '@/lib/referrals/client';
 import { toast } from 'sonner';
 
 interface LoginDialogProps {
@@ -49,6 +50,9 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
   const handleTelegramLogin = async () => {
     try {
       setLoginState('loading');
+      // Save ?ref=... for later claim when status turns authenticated
+      try { captureReferralCodeFromUrl(); } catch {}
+      const referralCode = getStoredReferralCode();
       
       // 1. Get login code from server
       const initResponse = await fetch('/api/auth/telegram/init', {
@@ -70,7 +74,9 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
       // 3. Start polling for status
       pollingRef.current = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`/api/auth/telegram/status?code=${code}`, {
+          const qs = new URLSearchParams({ code });
+          if (referralCode) qs.set('ref', referralCode);
+          const statusResponse = await fetch(`/api/auth/telegram/status?${qs.toString()}`, {
             credentials: 'include', // Critical: allows browser to save cookies from response
           });
           const data = await statusResponse.json();
@@ -82,6 +88,7 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
               pollingRef.current = null;
             }
             setLoginState('success');
+            try { clearStoredReferralCode(); } catch {}
             
             // Wait a bit for cookie to be set, then refresh session
             setTimeout(async () => {

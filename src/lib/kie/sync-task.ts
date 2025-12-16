@@ -1,0 +1,185 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+const KIE_API_KEY = process.env.KIE_API_KEY;
+const KIE_MARKET_BASE_URL = process.env.KIE_MARKET_BASE_URL || "https://api.kie.ai";
+
+export type KieTaskState = "waiting" | "queuing" | "generating" | "success" | "fail";
+
+function parseResultJsonToUrls(resultJson: string): string[] {
+  try {
+    const parsed = JSON.parse(resultJson);
+    if (parsed?.outputs && Array.isArray(parsed.outputs)) return parsed.outputs.filter((u: any) => typeof u === "string");
+    if (parsed?.resultUrls && Array.isArray(parsed.resultUrls)) return parsed.resultUrls.filter((u: any) => typeof u === "string");
+    if (Array.isArray(parsed)) return parsed.filter((u: any) => typeof u === "string");
+    if (typeof parsed === "string") return [parsed];
+    return [];
+  } catch {
+    return [resultJson];
+  }
+}
+
+async function fetchRecordInfo(taskId: string): Promise<{ state: KieTaskState; resultJson?: string; failMsg?: string; failCode?: string }> {
+  if (!KIE_API_KEY) throw new Error("KIE_API_KEY not configured");
+
+  const res = await fetch(`${KIE_MARKET_BASE_URL}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
+    headers: { Authorization: `Bearer ${KIE_API_KEY}` },
+  });
+
+  const text = await res.text();
+  if (!res.ok) throw new Error(`KIE recordInfo error (${res.status}): ${text.slice(0, 200)}`);
+
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`KIE recordInfo invalid JSON: ${text.slice(0, 200)}`);
+  }
+
+  if (json?.code !== 0) throw new Error(json?.message || json?.msg || "KIE recordInfo returned error");
+
+  const data = json?.data || {};
+  return {
+    state: data.state as KieTaskState,
+    resultJson: data.resultJson,
+    failMsg: data.failMsg,
+    failCode: data.failCode,
+  };
+}
+
+async function safeUpdateGeneration(supabase: SupabaseClient, generationId: string, patch: Record<string, any>) {
+  let working = { ...patch };
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const { error } = await supabase.from("generations").update(working).eq("id", generationId);
+    if (!error) return;
+    if ((error as any).code !== "PGRST204") throw error;
+    const msg: string = (error as any).message || "";
+    const m = msg.match(/Could not find the '([^']+)' column/);
+    const missing = m?.[1];
+    if (!missing) throw error;
+    delete working[missing];
+  }
+}
+
+async function downloadAndStoreAsset(params: {
+  supabase: SupabaseClient;
+  generationId: string;
+  userId: string;
+  kind: "image" | "video";
+  sourceUrl: string;
+}): Promise<string> {
+  const { supabase, generationId, userId, kind, sourceUrl } = params;
+
+  const downloadResponse = await fetch(sourceUrl);
+  if (!downloadResponse.ok) throw new Error(`Download failed: ${downloadResponse.status}`);
+
+  const buffer = await downloadResponse.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  console.log("[KIE sync-task] downloaded", { generationId, kind, bytes: bytes.byteLength, sourceUrl });
+
+  const contentType = downloadResponse.headers.get("content-type") || "";
+  let extension = kind === "video" ? "mp4" : "jpg";
+  if (contentType.includes("png")) extension = "png";
+  else if (contentType.includes("webp")) extension = "webp";
+  else if (contentType.includes("mp4")) extension = "mp4";
+  else if (contentType.includes("webm")) extension = "webm";
+
+  const fileName = `${generationId}_${Date.now()}.${extension}`;
+  const storagePath = `${userId}/${kind}/${fileName}`;
+
+  console.log("[KIE sync-task] uploading", { generationId, storagePath, contentType });
+  const { error: uploadError } = await supabase.storage
+    .from("generations")
+    .upload(storagePath, bytes, { contentType: contentType || undefined, upsert: true });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from("generations").getPublicUrl(storagePath);
+  console.log("[KIE sync-task] stored", { generationId, publicUrl: data.publicUrl });
+  return data.publicUrl;
+}
+
+export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId: string }) {
+  const { supabase, taskId } = params;
+
+  const { data: generation, error: fetchError } = await supabase
+    .from("generations")
+    .select("*")
+    .eq("task_id", taskId)
+    .single();
+
+  if (fetchError || !generation) {
+    return { ok: false, reason: "generation_not_found" as const };
+  }
+
+  const st = String(generation.status || "").toLowerCase();
+  if (st === "completed" || st === "failed") {
+    return { ok: true, status: st as "completed" | "failed", assetUrl: generation.asset_url || null };
+  }
+  if (st === "success") {
+    return { ok: true, status: "completed" as const, assetUrl: generation.asset_url || null };
+  }
+
+  const info = await fetchRecordInfo(taskId);
+  console.log("[KIE sync-task] recordInfo", { taskId, state: info.state, hasResultJson: !!info.resultJson, failCode: info.failCode });
+
+  if (info.state === "success") {
+    const urls = info.resultJson ? parseResultJsonToUrls(info.resultJson) : [];
+    if (!urls.length) {
+      await safeUpdateGeneration(supabase, generation.id, {
+        status: "failed",
+        error: "No results returned from KIE recordInfo",
+        updated_at: new Date().toISOString(),
+      });
+      return { ok: true, status: "failed" as const, error: "no_results" as const };
+    }
+
+    const kind: "image" | "video" = String(generation.type || "").toLowerCase() === "video" ? "video" : "image";
+
+    let assetUrl: string | null = null;
+    try {
+      assetUrl = await downloadAndStoreAsset({
+        supabase,
+        generationId: generation.id,
+        userId: generation.user_id,
+        kind,
+        sourceUrl: urls[0],
+      });
+    } catch (e) {
+      console.warn("[KIE sync-task] storage failed, using source url", { taskId, err: e });
+      assetUrl = urls[0];
+    }
+
+    await safeUpdateGeneration(supabase, generation.id, {
+      status: "success",
+      result_urls: urls,
+      asset_url: assetUrl,
+      preview_url: assetUrl,
+      thumbnail_url: assetUrl,
+      error: null,
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    return { ok: true, status: "success" as const, assetUrl, resultUrls: urls };
+  }
+
+  if (info.state === "fail") {
+    const msg = info.failMsg || `Generation failed (code: ${info.failCode || "unknown"})`;
+    await safeUpdateGeneration(supabase, generation.id, {
+      status: "failed",
+      error: msg,
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    return { ok: true, status: "failed" as const, error: msg };
+  }
+
+  // In-progress states
+  const nextStatus = info.state === "waiting" || info.state === "queuing" ? "queued" : "generating";
+  await safeUpdateGeneration(supabase, generation.id, {
+    status: nextStatus,
+    updated_at: new Date().toISOString(),
+  });
+
+  return { ok: true, status: nextStatus as "queued" | "generating", state: info.state };
+}

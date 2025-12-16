@@ -104,6 +104,10 @@ function computeVideoPrice(
   } else if (options.videoQuality && model.pricing[options.videoQuality as keyof typeof model.pricing]) {
     const qualityPricing = model.pricing[options.videoQuality as keyof typeof model.pricing] as { [key: string]: number };
     creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;
+  } else if (options.mode && model.pricing[options.mode as keyof typeof model.pricing]) {
+    // Pricing keyed by mode (e.g. storyboard)
+    const modePricing = model.pricing[options.mode as keyof typeof model.pricing] as { [key: string]: number };
+    creditsPerVideo = modePricing[durationKey] || modePricing[String(model.fixedDuration || 5)] || 0;
   } else if (model.pricing[durationKey as keyof typeof model.pricing]) {
     const durationPricing = model.pricing[durationKey as keyof typeof model.pricing];
     if (typeof durationPricing === 'number') {
@@ -175,5 +179,14 @@ export function formatPriceDisplay(price: ComputedPrice): {
     rub: `≈${price.approxRub}₽`,
     full: `Стоимость: ${price.stars}⭐`,
   };
+}
+
+// Single-source star helpers (UI + server validation)
+export function calcStars(modelId: string, options: PriceOptions = {}): number {
+  return computePrice(modelId, options).stars;
+}
+
+export function calcApproxRub(modelId: string, options: PriceOptions = {}): number {
+  return computePrice(modelId, options).approxRub;
 }
 

@@ -3,9 +3,15 @@ import { validateTelegramHash, createSessionToken, setSessionCookie } from '@/li
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { TelegramLoginPayload, TelegramSession } from '@/types/telegram';
 
+function tgEmail(telegramId: number) {
+  // Deterministic pseudo-email so we can create a Supabase auth user for Telegram logins.
+  // This is NOT used for email login; it's only an internal identifier.
+  return `tg_${telegramId}@lensroom.local`;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const payload: TelegramLoginPayload = await request.json();
+    const payload: TelegramLoginPayload & { referralCode?: string } = await request.json();
 
     // 1. Validate required fields
     if (!payload.id || !payload.hash || !payload.auth_date) {
@@ -68,6 +74,76 @@ export async function POST(request: NextRequest) {
     const token = await createSessionToken(session);
     await setSessionCookie(token);
 
+    // 5.1 Ensure auth.users entry exists for this Telegram user (single source of truth for credits/referrals)
+    // Note: We rely on service role here; do not expose this to client.
+    let authUserId: string | null = null;
+    try {
+      const email = tgEmail(payload.id);
+
+      // Try to find existing auth user (by metadata OR deterministic email)
+      const { data: users } = await supabase.auth.admin.listUsers();
+      const found = users?.users?.find(
+        (u) => u.user_metadata?.telegram_id === payload.id || u.email === email
+      );
+      authUserId = found?.id || null;
+
+      if (!authUserId) {
+        // Create one if missing
+        const randomPassword = cryptoRandomString(32);
+        const { data: created, error: createError } = await supabase.auth.admin.createUser({
+          email,
+          password: randomPassword,
+          email_confirm: true,
+          user_metadata: {
+            telegram_id: payload.id,
+            telegram_username: payload.username || null,
+            first_name: payload.first_name || null,
+            last_name: payload.last_name || null,
+            photo_url: payload.photo_url || null,
+          },
+        });
+
+        if (createError) {
+          console.warn('[Telegram Auth] Failed to create auth user (ignored):', createError);
+        } else {
+          authUserId = created.user?.id || null;
+        }
+      }
+
+      // Ensure credits row exists (best-effort)
+      if (authUserId) {
+        await supabase
+          .from('credits')
+          .upsert({ user_id: authUserId, amount: 0 }, { onConflict: 'user_id' });
+      }
+
+      // Best-effort: persist mapping to telegram_profiles for fast lookups (migration 013).
+      if (authUserId) {
+        try {
+          await supabase
+            .from('telegram_profiles')
+            .update({ auth_user_id: authUserId } as any)
+            .eq('id', profile.id);
+        } catch {
+          // ignore if column doesn't exist yet
+        }
+      }
+    } catch (e) {
+      console.warn('[Telegram Auth] Ensure auth user failed (ignored):', e);
+    }
+
+    // 5.2 Apply referral bonus (best-effort, idempotent in DB)
+    if (authUserId && payload.referralCode && typeof payload.referralCode === 'string' && payload.referralCode.trim()) {
+      try {
+        await supabase.rpc('claim_referral', {
+          p_code: payload.referralCode.trim(),
+          p_invitee_user_id: authUserId,
+        });
+      } catch (e) {
+        console.warn('[Telegram Auth] Referral claim failed (ignored):', e);
+      }
+    }
+
     // 6. Check if user can receive notifications
     const { data: botLink } = await supabase
       .from('telegram_bot_links')
@@ -93,6 +169,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function cryptoRandomString(len: number) {
+  // Avoid adding new deps; deterministic enough for internal password.
+  // This password is never used for login (Telegram uses our JWT cookie).
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let out = '';
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
 }
 
 // Logout endpoint

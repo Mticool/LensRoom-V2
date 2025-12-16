@@ -35,7 +35,7 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
                  border border-[var(--border)] break-inside-avoid mb-4
                  transition-all duration-300 ease-out
                  hover:translate-y-[-2px]
-                 hover:border-[var(--gold)]/50
+                 hover:border-white/50
                  hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]
                  focus:outline-none focus:ring-2 focus:ring-[var(--gold)]/50 focus:ring-offset-2 focus:ring-offset-[var(--bg)]
                  text-left"
@@ -55,7 +55,7 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
         {/* Cost pill - top right */}
         <div className="absolute top-3 right-3 px-2 py-1 rounded-full 
                         bg-black/50 backdrop-blur-sm
-                        text-[11px] font-semibold text-[var(--gold)]
+                        text-[11px] font-semibold text-white
                         flex items-center gap-1">
           ⭐{preset.costStars}
         </div>
@@ -86,8 +86,8 @@ function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
           onClick={() => onFilterChange(chip.id)}
           className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
             ${activeFilter === chip.id
-              ? 'bg-[var(--gold)] text-black'
-              : 'bg-[var(--surface)] text-[var(--text2)] border border-[var(--border)] hover:border-[var(--gold)]/50 hover:text-[var(--text)]'
+              ? 'bg-white text-black'
+              : 'bg-[var(--surface)] text-[var(--text2)] border border-[var(--border)] hover:border-white/50 hover:text-[var(--text)]'
             }`}
         >
           {chip.label}
@@ -136,18 +136,8 @@ export function EffectsGallery() {
   }, []);
 
   return (
-    <section className="py-24">
+    <section className="pb-8">
       <div className="container mx-auto px-6">
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-4xl lg:text-5xl font-bold text-[var(--text)] mb-4">
-            Галерея эффектов
-          </h2>
-          <p className="text-[var(--text2)] text-lg">
-            Выберите эффект и создайте за минуту
-          </p>
-        </div>
-
         {/* Filter chips */}
         <div className="mb-8">
           <FilterChips 

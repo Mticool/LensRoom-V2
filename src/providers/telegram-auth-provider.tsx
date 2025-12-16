@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { TelegramSession } from '@/types/telegram';
+import { captureReferralCodeFromUrl, getStoredReferralCode, clearStoredReferralCode } from '@/lib/referrals/client';
 
 function decodeBase64Url(input: string): string {
   // base64url -> base64
@@ -61,10 +62,16 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
 
   // Sign in with Telegram Login Widget payload
   const signInWithTelegram = useCallback(async (payload: any) => {
+    // Capture ?ref=... as early as possible (mobile Safari often keeps query across redirects)
+    try { captureReferralCodeFromUrl(); } catch {}
+    const referralCode = getStoredReferralCode();
     const response = await fetch('/api/auth/telegram', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        referralCode: referralCode || undefined,
+      }),
     });
 
     if (!response.ok) {
@@ -73,6 +80,8 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
     }
 
     const data = await response.json();
+    // Clear stored referral once we've successfully signed in (claim is idempotent server-side)
+    try { clearStoredReferralCode(); } catch {}
     return {
       success: true,
       canNotify: data.canNotify || false,
@@ -94,6 +103,9 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
+    // Save referral code from URL if present (even before login)
+    try { captureReferralCodeFromUrl(); } catch {}
+
     // Support Telegram redirect login flow (often on mobile):
     // Telegram can redirect back with #tgAuthResult=<base64url-json>
     const redirectPayload = tryExtractTelegramAuthFromHash();

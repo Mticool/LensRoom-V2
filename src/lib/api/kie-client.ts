@@ -54,10 +54,20 @@ export interface VeoRecordInfoResponse {
   data: {
     taskId: string;
     successFlag: number; // 0=processing, 1=success, 2=failed, 3=invalid
+    // Newer responses include result URLs under `response`
+    response?: {
+      resultUrls?: string[];
+      originUrls?: string[] | null;
+      resolution?: string;
+      hasAudioList?: boolean[];
+      seeds?: number[];
+    };
+    // Older/alternate schema
     info?: {
       resultUrls?: string[]; // Video URLs when successFlag=1
       errorMsg?: string;
     };
+    errorMessage?: string | null;
   };
 }
 
@@ -206,10 +216,19 @@ class KieAIClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
+    let parsedBody: unknown = undefined;
+    if (options.body) {
+      try {
+        parsedBody = JSON.parse(options.body as string);
+      } catch {
+        parsedBody = String(options.body);
+      }
+    }
+
     console.log("[KIE API] Request:", {
       url,
       method: options.method || "GET",
-      body: options.body ? JSON.parse(options.body as string) : undefined,
+      body: parsedBody,
     });
 
     const response = await fetch(url, {
@@ -221,7 +240,22 @@ class KieAIClient {
       },
     });
 
-    const data = await response.json();
+    // Check for empty response
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      console.error("[KIE API] Empty response from:", url);
+      throw new KieAPIError("Empty response from API", response.status);
+    }
+
+    // Parse JSON safely
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("[KIE API] Invalid JSON response:", text.substring(0, 500));
+      throw new KieAPIError(`Invalid JSON response: ${text.substring(0, 100)}`, response.status);
+    }
+    
     console.log("[KIE API] Response:", data);
 
     // KIE API returns code in body
@@ -321,12 +355,18 @@ class KieAIClient {
 
       if (status.data.successFlag === 1) {
         // Success
-        const urls = status.data.info?.resultUrls || [];
+        const urls =
+          status.data.response?.resultUrls ||
+          status.data.info?.resultUrls ||
+          [];
         console.log(`[VEO] Task ${taskId} completed with ${urls.length} video(s)`);
         return urls;
       } else if (status.data.successFlag === 2 || status.data.successFlag === 3) {
         // Failed or invalid
-        const errorMsg = status.data.info?.errorMsg || 'Video generation failed';
+        const errorMsg =
+          status.data.errorMessage ||
+          status.data.info?.errorMsg ||
+          'Video generation failed';
         throw new KieAPIError(errorMsg, 500);
       }
 
@@ -362,6 +402,20 @@ class KieAIClient {
       if (params.model.includes('flux-2')) {
         input.resolution = params.resolution || '1K';
         input.aspect_ratio = params.aspectRatio || '16:9';
+      } else if (params.model.startsWith('seedream/4.5')) {
+        // Seedream requires `quality`: basic (2K) / high (4K)
+        input.aspect_ratio = params.aspectRatio || '1:1';
+        input.quality = params.quality === 'ultra' ? 'high' : 'basic';
+      } else if (params.model === 'z-image') {
+        // Z-image: per docs only prompt + aspect_ratio are required
+        input.aspect_ratio = params.aspectRatio || '1:1';
+      } else if (params.model === 'qwen/image-edit') {
+        // Qwen image-edit: requires image_url
+        const img = params.imageInputs?.[0];
+        if (!img) {
+          throw new KieAPIError('image_url is required', 400);
+        }
+        input.image_url = img;
       } else {
         // For other models, add parameters conditionally
         if (params.aspectRatio) input.aspect_ratio = params.aspectRatio;
@@ -369,8 +423,10 @@ class KieAIClient {
       }
 
       if (params.outputFormat) input.output_format = params.outputFormat;
-      if (params.quality) input.quality = params.quality;
-      if (params.imageInputs && params.imageInputs.length > 0) {
+      if (params.quality && params.model !== 'qwen/image-edit' && !params.model.startsWith('seedream/4.5')) {
+        input.quality = params.quality;
+      }
+      if (params.imageInputs && params.imageInputs.length > 0 && params.model !== 'qwen/image-edit') {
         input.image_input = params.imageInputs;
       }
 
@@ -463,9 +519,16 @@ class KieAIClient {
 
   // === VEO 3.1 VIDEO GENERATION ===
   private async generateVeoVideo(params: GenerateVideoRequest): Promise<GenerateVideoResponse> {
+    // Veo API is strict about aspect ratios; it returns 422 "Ratio error" for unsupported values (e.g. 1:1).
+    const rawAspect = String(params.aspectRatio || '16:9');
+    const veoAspect = rawAspect === '1:1' ? '16:9' : rawAspect;
+    if (rawAspect !== veoAspect) {
+      console.warn('[VEO] Unsupported aspect ratio requested, falling back:', { rawAspect, veoAspect });
+    }
+
     const request: VeoGenerateRequest = {
       prompt: params.prompt || '',
-      aspectRatio: params.aspectRatio || '16:9',
+      aspectRatio: veoAspect,
       enhancePrompt: true,
     };
 
@@ -675,7 +738,23 @@ class KieAIClient {
         // Success
         status = "completed";
         progress = 100;
-        const urls = data.info?.resultUrls || [];
+        let urls =
+          data.response?.resultUrls ||
+          data.info?.resultUrls ||
+          [];
+
+        // Some Veo tasks return successFlag=1 but resultUrls is empty.
+        // In that case, try to fetch 1080p URL via get-1080p-video endpoint.
+        if (!urls || urls.length === 0) {
+          try {
+            const p1080 = await this.veoGet1080p(taskId);
+            const u = p1080?.data?.video1080pUrl;
+            if (u) urls = [u];
+          } catch (e) {
+            console.warn("[VEO] 1080p fallback failed:", e);
+          }
+        }
+
         outputs = urls.map((url) => ({
           url,
           width: 1920,
@@ -686,7 +765,10 @@ class KieAIClient {
         // Failed
         status = "failed";
         progress = 0;
-        error = data.info?.errorMsg || 'Video generation failed';
+        error =
+          data.errorMessage ||
+          data.info?.errorMsg ||
+          'Video generation failed';
       } else {
         // Processing (successFlag === 0)
         status = "processing";

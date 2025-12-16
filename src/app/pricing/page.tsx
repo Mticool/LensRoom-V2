@@ -64,14 +64,11 @@ export default function PricingPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <Badge className="mb-6 px-4 py-2 bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/30">
+          <Badge className="mb-6 px-4 py-2 bg-white/5 text-white border border-white/10">
             Тарифы
           </Badge>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text)] mb-6">
-            Простые и{' '}
-            <span className="text-[var(--gold)]">
-              понятные тарифы
-            </span>
+            Простые и понятные тарифы
           </h1>
           <p className="text-lg md:text-xl text-[var(--text2)] max-w-2xl mx-auto mb-6">
             Платите только за то, что используете. Без скрытых платежей.
@@ -79,8 +76,8 @@ export default function PricingPage() {
           
           {/* Promo Banner */}
           <div className="max-w-md mx-auto">
-            <div className="p-4 rounded-xl bg-[var(--gold)]/10 border border-[var(--gold)]/30 text-center">
-              <p className="text-sm text-[var(--gold)] font-medium">
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+              <p className="text-sm text-white font-medium">
                 Star — 490 ₽ до 31 декабря. Далее тарифы — от 990 ₽.
               </p>
             </div>
@@ -103,9 +100,9 @@ export default function PricingPage() {
               >
                 <div
                   className={cn(
-                    "relative p-6 rounded-2xl transition-all h-full",
+                    "relative p-6 rounded-2xl transition-all motion-reduce:transition-none h-full",
                     isPopular
-                      ? 'bg-[var(--surface)] border-2 border-[var(--gold)] scale-105 shadow-lg'
+                      ? 'bg-[var(--surface)] border-2 border-white/20 shadow-[var(--shadow-md)]'
                       : 'bg-[var(--surface)] border border-[var(--border)]'
                   )}
                 >
@@ -130,8 +127,8 @@ export default function PricingPage() {
                       <span className="text-[var(--muted)]">₽/мес</span>
                     </div>
                     <div className="flex items-center justify-center gap-2 mt-2">
-                      <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
-                      <span className="text-sm font-semibold text-[var(--gold)]">{plan.credits} ⭐</span>
+                      <Star className="w-4 h-4 text-white fill-white" />
+                      <span className="text-sm font-semibold text-white">{plan.credits} ⭐</span>
                     </div>
                   </div>
 
@@ -188,10 +185,7 @@ export default function PricingPage() {
             className="text-center mb-12"
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text)] mb-4">
-              Пакеты{' '}
-              <span className="text-[var(--gold)]">
-                ⭐
-              </span>
+              Пакеты ⭐
             </h2>
             <p className="text-lg text-[var(--text2)]">
               Разовая покупка монет без подписки
@@ -212,9 +206,9 @@ export default function PricingPage() {
                 >
                   <div
                     className={cn(
-                      "relative p-6 rounded-2xl transition-all text-center",
+                      "relative p-6 rounded-2xl transition-all motion-reduce:transition-none text-center",
                       pkg.popular
-                        ? 'bg-[var(--surface)] border-2 border-[var(--gold)] shadow-lg'
+                        ? 'bg-[var(--surface)] border-2 border-white/20 shadow-[var(--shadow-md)]'
                         : 'bg-[var(--surface)] border border-[var(--border)]'
                     )}
                   >
@@ -255,8 +249,8 @@ export default function PricingPage() {
                       className={cn(
                         "w-full",
                         pkg.popular
-                          ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)]'
-                          : 'bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--border)]'
+                          ? 'bg-white text-black hover:bg-white/90'
+                          : 'bg-[var(--surface2)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--surface)] hover:border-white/20'
                       )}
                       onClick={() => handlePurchase('package', pkg.id)}
                       disabled={isLoading}
@@ -319,7 +313,7 @@ export default function PricingPage() {
             ].map((faq, i) => (
               <div
                 key={i}
-                className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/30 transition-colors"
+                className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-white/20 transition-colors motion-reduce:transition-none"
               >
                 <h3 className="text-lg font-semibold text-[var(--text)] mb-2">{faq.q}</h3>
                 <p className="text-[var(--text2)]">{faq.a}</p>

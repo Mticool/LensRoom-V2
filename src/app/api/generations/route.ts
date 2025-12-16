@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { syncKieTaskToDb } from "@/lib/kie/sync-task";
 
 // Types
 interface GenerationInput {
@@ -8,6 +9,16 @@ interface GenerationInput {
   modelId: string;
   prompt: string;
   aspectRatio?: string;
+}
+
+interface GenerationPatchInput {
+  id: string;
+  status?: "pending" | "processing" | "completed" | "failed";
+  results?: Array<{ url: string; thumbnail?: string }>;
+  thumbnailUrl?: string;
+  creditsUsed?: number;
+  taskId?: string;
+  error?: string;
 }
 
 // GET - Fetch user's generations (history)
@@ -35,6 +46,8 @@ export async function GET(request: NextRequest) {
     const favorites = searchParams.get("favorites") === "true";
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
+    const sync = searchParams.get("sync") === "true";
+    const fallbackSyncEnabled = process.env.KIE_FALLBACK_SYNC === "true";
 
     let query = supabase
       .from("generations")
@@ -60,6 +73,26 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("[Generations API] Error fetching:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Optional best-effort server-side fallback syncing (auth-protected).
+    if (sync && fallbackSyncEnabled && Array.isArray(data) && data.length) {
+      const supabaseAdmin = getSupabaseAdmin();
+      const candidates = (data as any[])
+        .filter((g) => {
+          const st = String(g.status || "");
+          const inProgress = st === "pending" || st === "processing" || st === "queued" || st === "generating";
+          return inProgress && !!g.task_id && !g.asset_url;
+        })
+        .slice(0, 5);
+
+      for (const g of candidates) {
+        try {
+          await syncKieTaskToDb({ supabase: supabaseAdmin, taskId: String(g.task_id) });
+        } catch (e) {
+          console.warn("[Generations API] Fallback sync failed:", g.task_id, e);
+        }
+      }
     }
 
     return NextResponse.json({
@@ -128,5 +161,61 @@ export async function POST(request: NextRequest) {
       { error: "Internal server error" },
       { status: 500 }
     );
+  }
+}
+
+// PATCH - Update generation record (Telegram auth)
+export async function PATCH(request: NextRequest) {
+  try {
+    const telegramSession = await getSession();
+    if (!telegramSession) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = await getAuthUserId(telegramSession);
+    if (!userId) {
+      return NextResponse.json({ error: "User account not found" }, { status: 404 });
+    }
+
+    const body: GenerationPatchInput = await request.json();
+    if (!body?.id) {
+      return NextResponse.json({ error: "Missing required field: id" }, { status: 400 });
+    }
+
+    const updateData: Record<string, any> = {};
+
+    if (body.status) {
+      updateData.status = body.status;
+    }
+    if (body.results) {
+      updateData.results = body.results;
+      if (!body.thumbnailUrl && body.results.length > 0) {
+        updateData.thumbnail_url = body.results[0].thumbnail || body.results[0].url;
+      }
+    }
+    if (body.thumbnailUrl) updateData.thumbnail_url = body.thumbnailUrl;
+    if (typeof body.creditsUsed === "number") updateData.credits_used = body.creditsUsed;
+    if (body.taskId) updateData.task_id = body.taskId;
+    if (body.error) updateData.error = body.error;
+    updateData.updated_at = new Date().toISOString();
+
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("generations")
+      .update(updateData)
+      .eq("id", body.id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[Generations API] Error updating:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ generation: data });
+  } catch (error) {
+    console.error("[Generations API] PATCH Error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

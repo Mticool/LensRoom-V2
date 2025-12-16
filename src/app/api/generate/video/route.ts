@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       mode = 't2v',
       quality,
       resolution,
-      audio,
+      audio, // ignored: we always enable sound when model supports it
       variants = 1,
       aspectRatio = '16:9',
       negativePrompt,
@@ -51,11 +51,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate credit cost using pricing system
+    const alwaysSound = !!modelInfo.supportsAudio;
     const price = computePrice(model, {
       mode,
       duration: duration || modelInfo.fixedDuration || 5,
       videoQuality: quality,
-      audio,
+      audio: alwaysSound,
       variants,
     });
     const creditCost = price.stars;
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save generation to history
+    // Save generation to history (use only columns that exist on prod)
     const { data: generation, error: genError } = await supabase
       .from('generations')
       .insert({
@@ -137,9 +138,8 @@ export async function POST(request: NextRequest) {
         model_name: modelInfo.name,
         prompt: prompt,
         negative_prompt: negativePrompt,
-        duration: duration || modelInfo.fixedDuration || 5,
         credits_used: creditCost,
-        status: 'processing',
+        status: 'queued',
       })
       .select()
       .single();
@@ -148,38 +148,47 @@ export async function POST(request: NextRequest) {
       console.error('[API] Failed to save generation:', genError);
     }
 
-    // Record credit transaction (deduction)
-    const { error: txError } = await supabase.from('credit_transactions').insert({
-      user_id: userId,
-      amount: -creditCost,
-      type: 'deduction',
-      description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с)`,
-      metadata: {
-        model_id: model,
-        model_name: modelInfo.name,
-        type: 'video',
-        mode: mode,
-        duration: duration || modelInfo.fixedDuration || 5,
-        quality: quality,
-        audio: audio,
-      },
-      generation_id: generation?.id,
-    });
-
-    if (txError) {
-      console.error('[API] Failed to record transaction:', txError);
+    // Record credit transaction (avoid columns missing on prod, like metadata)
+    try {
+      const { error: txError } = await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: -creditCost,
+        type: 'deduction',
+        description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с)`,
+        generation_id: generation?.id,
+      });
+      if (txError) console.error('[API] Failed to record transaction:', txError);
+    } catch (e) {
+      console.error('[API] Failed to record transaction:', e);
     }
 
     // Generate video via KIE API
-    // Determine image URL based on mode
+    // Determine image URL based on mode (supports base64 data URLs -> upload to Supabase Storage)
     let imageUrl: string | undefined;
     let lastFrameUrl: string | undefined;
     
+    const uploadDataUrlToStorage = async (dataUrl: string, suffix: string) => {
+      // data:image/png;base64,xxxx
+      const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+      if (!match) return dataUrl; // already a URL
+      const mime = match[1];
+      const b64 = match[2];
+      const buffer = Buffer.from(b64, 'base64');
+      const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+      const path = `${userId}/inputs/${Date.now()}_${suffix}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('generations')
+        .upload(path, buffer, { contentType: mime, upsert: true });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('generations').getPublicUrl(path);
+      return pub.publicUrl;
+    };
+
     if (mode === 'i2v' && referenceImage) {
-      imageUrl = referenceImage;
+      imageUrl = await uploadDataUrlToStorage(referenceImage, 'i2v');
     } else if (mode === 'start_end') {
-      if (startImage) imageUrl = startImage;
-      if (endImage) lastFrameUrl = endImage;
+      if (startImage) imageUrl = await uploadDataUrlToStorage(startImage, 'start');
+      if (endImage) lastFrameUrl = await uploadDataUrlToStorage(endImage, 'end');
     }
 
     // Select correct API model ID based on mode
@@ -206,7 +215,7 @@ export async function POST(request: NextRequest) {
       lastFrameUrl: lastFrameUrl,
       duration: duration || modelInfo.fixedDuration || 5,
       aspectRatio: aspectRatio,
-      sound: audio || false,
+      sound: alwaysSound,
       mode: mode,
       resolution: resolution,
       quality: quality,
@@ -217,7 +226,7 @@ export async function POST(request: NextRequest) {
     if (generation?.id) {
       await supabase
         .from('generations')
-        .update({ task_id: response.id })
+        .update({ task_id: response.id, status: 'generating' })
         .eq('id', generation.id);
     }
 
@@ -228,6 +237,8 @@ export async function POST(request: NextRequest) {
       estimatedTime: response.estimatedTime || 120,
       creditCost: creditCost,
       generationId: generation?.id,
+      provider: modelInfo.provider,
+      kind: "video",
     });
   } catch (error) {
     console.error('[API] Video generation error:', error);

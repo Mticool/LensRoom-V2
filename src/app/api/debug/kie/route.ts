@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       }
 
       // 3. Check Storage
-      let storageFiles = [];
+      let storageFiles: any[] = [];
       if (generation?.user_id) {
         const { data: files } = await supabase
           .storage

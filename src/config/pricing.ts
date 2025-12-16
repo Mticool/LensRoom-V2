@@ -100,27 +100,28 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
 export const STAR_PACKS: StarPack[] = [
   {
     id: 'mini',
-    stars: 100,
-    price: 99,
+    stars: 1000,
+    price: 990,
+    bonus: 50,
   },
   {
     id: 'plus',
-    stars: 300,
-    price: 290,
-    bonus: 10,
+    stars: 1600,
+    price: 1490,
+    bonus: 200,
   },
   {
     id: 'max',
-    stars: 700,
-    price: 690,
-    bonus: 50,
+    stars: 2200,
+    price: 1990,
+    bonus: 350,
     popular: true,
   },
   {
     id: 'ultra',
-    stars: 1500,
-    price: 1490,
-    bonus: 150,
+    stars: 3500,
+    price: 2990,
+    bonus: 700,
   },
 ];
 
@@ -180,3 +181,4 @@ export function calculateSavings(pack: StarPack): number {
   const actualPrice = pack.price;
   return basePrice - actualPrice + (pack.bonus || 0);
 }
+

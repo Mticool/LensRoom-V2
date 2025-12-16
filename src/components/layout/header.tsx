@@ -15,17 +15,6 @@ import { LoginDialog } from '@/components/auth/login-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
 
-const navigation = [
-  { name: 'Фото', href: '/create' },
-  { name: 'Видео', href: '/create/video' },
-  { name: 'Маркетплейсы', href: '/create/products' },
-  { name: 'Мои результаты', href: '/library' },
-  { name: 'Промпты', href: '/prompts' },
-  { name: 'Вдохновение', href: '/inspiration' },
-  { name: 'Тарифы', href: '/pricing' },
-  { name: 'Академия', href: '/academy' },
-];
-
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -73,6 +62,18 @@ export function Header() {
     supabaseUser?.email ||
     'Пользователь';
 
+  const studioEnabled = process.env.NEXT_PUBLIC_STUDIO_BETA === 'true';
+  const navigation = [
+    { name: 'Фото', href: '/create' },
+    { name: 'Видео', href: '/create/video' },
+    ...(studioEnabled ? [{ name: 'Studio (beta)', href: '/create/studio' }] : []),
+    { name: 'Маркетплейсы', href: '/create/products' },
+    { name: 'Мои результаты', href: '/library' },
+    { name: 'Вдохновение', href: '/inspiration' },
+    { name: 'Тарифы', href: '/pricing' },
+    { name: 'Академия', href: '/academy' },
+  ];
+
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] glass">
@@ -80,7 +81,7 @@ export function Header() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[var(--gold)] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-black" />
               </div>
               <span className="text-lg font-bold text-[var(--text)]">LensRoom</span>
@@ -119,7 +120,7 @@ export function Header() {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/50 transition-all"
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-white/20 transition-all motion-reduce:transition-none"
                   >
                     {/* Avatar */}
                     {telegramUser?.photoUrl ? (
@@ -131,11 +132,11 @@ export function Header() {
                         className="rounded-full"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] text-sm font-bold">
+                      <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white text-sm font-bold">
                         {displayName[0].toUpperCase()}
                       </div>
                     )}
-                    <span className="text-sm font-semibold text-[var(--gold)]">
+                    <span className="text-sm font-semibold text-white">
                       {balance} ⭐
                     </span>
                     <ChevronDown className={cn(
@@ -186,7 +187,7 @@ export function Header() {
                               </div>
                             </div>
                             <div className="mt-2 flex items-center gap-1">
-                              <span className="text-sm font-semibold text-[var(--gold)]">{balance} ⭐</span>
+                              <span className="text-sm font-semibold text-white">{balance} ⭐</span>
                               <span className="text-xs text-[var(--muted)]">кредитов</span>
                             </div>
                           </div>
@@ -214,7 +215,7 @@ export function Header() {
                             {telegramUser && !telegramUser.canNotify && (
                               <button
                                 onClick={handleConnectBot}
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors w-full"
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-white/5 transition-colors motion-reduce:transition-none w-full"
                               >
                                 <MessageCircle className="w-4 h-4" />
                                 Подключить уведомления
@@ -324,12 +325,12 @@ export function Header() {
                               className="rounded-full"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] font-bold text-sm">
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm">
                               {displayName[0].toUpperCase()}
                             </div>
                           )}
                           <div>
-                            <p className="text-sm font-semibold text-[var(--gold)]">
+                            <p className="text-sm font-semibold text-white">
                               {balance} ⭐
                             </p>
                             <p className="text-xs text-[var(--muted)]">{displayName}</p>
@@ -357,7 +358,7 @@ export function Header() {
                         <Link
                           href="/account/waitlist"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white hover:bg-white/5 transition-colors motion-reduce:transition-none"
                         >
                           <Settings className="w-4 h-4" />
                           Админ: Waitlist

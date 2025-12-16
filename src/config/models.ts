@@ -129,21 +129,26 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
     shortLabel: 'Ultra',
   },
-  // Premium models (require higher KIE.ai subscription tier)
+  // Seedream 4.5: requires `quality` (basic/high), NOT `resolution`
   {
     id: 'seedream-4.5',
     name: 'Seedream 4.5',
     apiId: 'seedream/4.5-text-to-image',
     type: 'photo',
     provider: 'kie_market',
-    description: 'Самый «рекламный» фотореал, хорошо держит композицию.',
-    rank: 4,
-    featured: false,
+    description: 'Премиальный фотореал. В KIE требуется quality: basic(2K)/high(4K).',
+    rank: 3,
+    featured: true,
     speed: 'medium',
     quality: 'ultra',
     supportsI2i: true,
-    pricing: 6.5, // Fixed: 6.5 credits per image
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
+    pricing: {
+      quality: 6.5,
+      ultra: 10,
+    },
+    qualityOptions: ['quality', 'ultra'],
+    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '21:9'],
+    shortLabel: '2K/4K',
   },
   {
     id: 'flux-2-pro',
@@ -165,28 +170,31 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
     shortLabel: 'Pro',
   },
+  // Z-image: model id is "z-image" (per docs)
   {
     id: 'z-image',
-    name: 'Z-Image',
-    apiId: 'z-image/text-to-image',
+    name: 'Z-image',
+    apiId: 'z-image',
     type: 'photo',
     provider: 'kie_market',
-    description: 'Ровный универсал «на всякий случай», когда другие капризничают.',
+    description: 'Универсальный генератор. По докам KIE используется model: "z-image".',
     rank: 5,
     featured: false,
     speed: 'medium',
-    quality: 'ultra',
+    quality: 'high',
     supportsI2i: true,
-    pricing: 0.8, // Fixed: 0.8 credits per image
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
+    pricing: 0.8,
+    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
+    shortLabel: 'Budget',
   },
+  // Qwen Image Edit: requires image_url (i2i only)
   {
     id: 'qwen-image',
-    name: 'Qwen Image',
+    name: 'Qwen Image Edit',
     apiId: 'qwen/image-edit',
     type: 'photo',
     provider: 'kie_market',
-    description: 'Быстрые итерации и правки, нормально переваривает RU/EN промпты.',
+    description: 'Редактирование изображения по промпту (требует референс).',
     rank: 6,
     featured: false,
     speed: 'fast',
@@ -201,6 +209,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
       '1024x576': 2,
     },
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
+    shortLabel: 'Edit',
   },
 ];
 
@@ -210,11 +219,11 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
 // - Veo 3.1 API: POST /api/v1/veo/generate (separate endpoint)
 
 export const VIDEO_MODELS: VideoModelConfig[] = [
-  // === VEO 3.1 - Uses separate API endpoint ===
+  // === VEO 3.1 - single model with quality toggle ===
   {
-    id: 'veo-3.1-quality',
+    id: 'veo-3.1',
     name: 'Veo 3.1',
-    apiId: 'veo3', // Uses /api/v1/veo/generate with model: veo3
+    apiId: 'veo3', // actual selection is via `qualityOptions` fast/quality in API client
     type: 'video',
     provider: 'kie_veo', // Separate Veo API
     description: 'Премиальный «кинореал» + синхро-аудио, топ под рекламу/вау-ролики.',
@@ -225,35 +234,15 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: true,
     pricing: {
-      quality: { '8': 400 }, // Default ~8 seconds, quality mode
+      quality: { '8': 400 },
+      fast: { '8': 80 },
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [8],
-    qualityOptions: ['quality'],
-    aspectRatios: ['16:9', '9:16', '1:1'],
+    qualityOptions: ['quality', 'fast'],
+    // Veo rejects 1:1 with "Ratio error" (422) — keep only supported ratios.
+    aspectRatios: ['16:9', '9:16'],
     shortLabel: '8s • Ultra',
-  },
-  {
-    id: 'veo-3.1-fast',
-    name: 'Veo 3.1 Fast',
-    apiId: 'veo3_fast', // Uses /api/v1/veo/generate with model: veo3_fast
-    type: 'video',
-    provider: 'kie_veo',
-    description: 'Быстрая версия Veo 3.1 — высокое качество с меньшим временем генерации.',
-    rank: 2,
-    featured: true,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2v: true,
-    supportsAudio: true,
-    pricing: {
-      fast: { '8': 80 }, // Default ~8 seconds, fast mode
-    },
-    modes: ['t2v', 'i2v'],
-    durationOptions: [8],
-    qualityOptions: ['fast'],
-    aspectRatios: ['16:9', '9:16', '1:1'],
-    shortLabel: '8s • Fast',
   },
   
   // === KLING 2.6 - Market API ===
@@ -395,6 +384,10 @@ export function getModelsByType(type: ModelType): ModelConfig[] {
 }
 
 export function getModelById(id: string): ModelConfig | undefined {
+  // Backward-compatible aliases (older URLs/localStorage)
+  if (id === 'veo-3.1-fast' || id === 'veo-3.1-quality') {
+    id = 'veo-3.1';
+  }
   return ALL_MODELS.find(m => m.id === id);
 }
 

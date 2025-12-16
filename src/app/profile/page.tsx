@@ -8,7 +8,7 @@ import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { 
   User, Calendar, CreditCard, Crown, LogOut, Loader2, 
-  Image, Video, RefreshCw, ExternalLink, Download
+  Image, Video, RefreshCw, ExternalLink, Download, Users, Copy, Check
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -34,6 +34,11 @@ export default function ProfilePage() {
   const [loadingGenerations, setLoadingGenerations] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'photo' | 'video'>('all');
 
+  const [refLoading, setRefLoading] = useState(false);
+  const [refError, setRefError] = useState<string | null>(null);
+  const [refData, setRefData] = useState<null | { link: string; invitedCount: number }>(null);
+  const [refCopied, setRefCopied] = useState(false);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/');
@@ -44,8 +49,44 @@ export default function ProfilePage() {
     if (user) {
       fetchBalance();
       fetchGenerations();
+      fetchReferral();
     }
   }, [user, fetchBalance]);
+
+  const fetchReferral = async () => {
+    try {
+      setRefLoading(true);
+      setRefError(null);
+      const res = await fetch('/api/referrals/me', { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRefError(data?.error || 'Не удалось загрузить рефералы');
+        setRefData(null);
+        return;
+      }
+      setRefData({
+        link: data?.link,
+        invitedCount: data?.invitedCount || 0,
+      });
+    } catch (e) {
+      setRefError('Не удалось загрузить рефералы');
+      setRefData(null);
+    } finally {
+      setRefLoading(false);
+    }
+  };
+
+  const copyReferralLink = async () => {
+    if (!refData?.link) return;
+    try {
+      await navigator.clipboard.writeText(refData.link);
+      setRefCopied(true);
+      toast.success('Ссылка скопирована');
+      setTimeout(() => setRefCopied(false), 1500);
+    } catch {
+      toast.error('Не удалось скопировать');
+    }
+  };
 
   const fetchGenerations = async () => {
     try {
@@ -121,7 +162,7 @@ export default function ProfilePage() {
                       className="w-16 h-16 rounded-full"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-full bg-[var(--gold)]/20 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
                       <span className="text-2xl font-bold text-[var(--gold)]">
                         {displayName[0].toUpperCase()}
                       </span>
@@ -161,9 +202,73 @@ export default function ProfilePage() {
                 <p className="text-4xl font-bold text-[var(--gold)] mb-4">
                   {balance} ⭐
                 </p>
-                <Button asChild className="w-full bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90">
+                <Button asChild className="w-full bg-white text-black hover:bg-white/90">
                   <Link href="/pricing">Пополнить баланс</Link>
                 </Button>
+              </Card>
+            </motion.div>
+
+            {/* Referrals */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[var(--text)]">Рефералы</h3>
+                  <Users className="w-5 h-5 text-[var(--muted)]" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 rounded-lg bg-[var(--surface2)]">
+                    <p className="text-xs text-[var(--muted)]">Приглашено</p>
+                    <p className="text-lg font-semibold text-[var(--text)]">
+                      {refLoading ? '…' : (refData?.invitedCount ?? 0)}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[var(--surface2)]">
+                    <p className="text-xs text-[var(--muted)]">Заработано</p>
+                    <p className="text-lg font-semibold text-[var(--gold)]">
+                      {refLoading ? '…' : `${(refData?.invitedCount ?? 0) * 50} ⭐`}
+                    </p>
+                  </div>
+                </div>
+
+                {refError ? (
+                  <p className="text-sm text-[var(--muted)] mb-4">{refError}</p>
+                ) : (
+                  <div className="mb-4">
+                    <p className="text-xs text-[var(--muted)] mb-2">Ваша ссылка</p>
+                    <div className="p-3 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-xs text-[var(--text)] break-all">
+                      {refLoading ? 'Загрузка…' : (refData?.link || '—')}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={copyReferralLink}
+                    disabled={refLoading || !refData?.link}
+                    className="flex-1 bg-white text-black hover:bg-white/90"
+                  >
+                    {refCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                    {refCopied ? 'Скопировано' : 'Копировать'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={fetchReferral}
+                    disabled={refLoading}
+                    className="border-[var(--border)]"
+                    title="Обновить"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <p className="mt-3 text-xs text-[var(--muted)]">
+                  Бонус: +50⭐ вам и +50⭐ другу.
+                </p>
               </Card>
             </motion.div>
 
@@ -219,7 +324,7 @@ export default function ProfilePage() {
                       variant={activeTab === tab ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setActiveTab(tab)}
-                      className={activeTab === tab ? 'bg-[var(--gold)] text-black' : ''}
+                      className={activeTab === tab ? 'bg-white text-black' : ''}
                     >
                       {tab === 'all' && 'Все'}
                       {tab === 'photo' && <><Image className="w-4 h-4 mr-1" /> Фото</>}
@@ -237,7 +342,7 @@ export default function ProfilePage() {
                   <div className="text-center py-12">
                     <Image className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
                     <p className="text-[var(--muted)]">Пока нет генераций</p>
-                    <Button asChild className="mt-4 bg-[var(--gold)] text-black">
+                    <Button asChild className="mt-4 bg-white text-black">
                       <Link href="/create">Создать первую</Link>
                     </Button>
                   </div>

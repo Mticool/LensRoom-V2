@@ -80,6 +80,7 @@ export function ProductPreview({
   const [isExporting, setIsExporting] = useState(false);
   const [isCopyingTexts, setIsCopyingTexts] = useState(false);
   const [isSavingToLibrary, setIsSavingToLibrary] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
   
   const activeSlide = slides[activeIndex];
   const completedSlides = slides.filter(s => s.status === "completed");
@@ -288,7 +289,8 @@ export function ProductPreview({
               <img
                 src={activeSlide.imageUrl}
                 alt={`Slide ${activeIndex + 1}`}
-                className="max-w-full max-h-full object-contain"
+                className="max-w-full max-h-full object-contain cursor-zoom-in"
+                onClick={() => setZoomOpen(true)}
               />
             ) : activeSlide?.status === "generating" ? (
               <div className="flex flex-col items-center gap-3">
@@ -374,12 +376,58 @@ export function ProductPreview({
 
           {/* Zoom button */}
           {activeSlide?.status === "completed" && (
-            <button className="absolute bottom-3 right-3 w-8 h-8 rounded-lg bg-[var(--surface)]/90 backdrop-blur border border-[var(--border)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--text)] transition-colors">
+            <button
+              onClick={() => setZoomOpen(true)}
+              className="absolute bottom-3 right-3 w-8 h-8 rounded-lg bg-[var(--surface)]/90 backdrop-blur border border-[var(--border)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+              aria-label="Увеличить"
+            >
               <ZoomIn className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
+
+      {/* Zoom modal */}
+      {zoomOpen && activeSlide?.status === "completed" && activeSlide.imageUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setZoomOpen(false)}
+        >
+          <div className="relative max-w-6xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-black/70 border border-white/10 text-white flex items-center justify-center"
+              onClick={() => setZoomOpen(false)}
+              aria-label="Закрыть"
+            >
+              ×
+            </button>
+            <img
+              src={activeSlide.imageUrl}
+              alt={`Slide ${activeIndex + 1}`}
+              className="w-full h-auto max-h-[85vh] object-contain rounded-xl"
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-xs text-white/70">
+                {getSlideFilenameDisplay(activeIndex)}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = activeSlide.imageUrl;
+                  a.download = getSlideFilenameDisplay(activeIndex);
+                  a.click();
+                }}
+                className="text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Скачать
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Thumbnails Row */}
       <div className="mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">

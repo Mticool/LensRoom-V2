@@ -29,7 +29,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-[var(--gold)] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-black" />
               </div>
               <span className="font-bold text-[var(--text)]">LensRoom</span>

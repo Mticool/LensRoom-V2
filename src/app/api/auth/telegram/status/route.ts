@@ -9,6 +9,7 @@ import { createSessionToken, setSessionCookie } from '@/lib/telegram/auth';
 export async function GET(request: NextRequest) {
   try {
     const code = request.nextUrl.searchParams.get('code');
+    const referralCode = request.nextUrl.searchParams.get('ref');
     
     if (!code) {
       return NextResponse.json({ error: 'Missing code' }, { status: 400 });
@@ -60,6 +61,23 @@ export async function GET(request: NextRequest) {
         .select('can_notify')
         .eq('telegram_id', loginCode.telegram_id)
         .single();
+
+      // Apply referral bonus (best-effort, idempotent)
+      if (referralCode && referralCode.trim()) {
+        try {
+          const { data: users } = await supabase.auth.admin.listUsers();
+          const authUser = users?.users?.find((u) => u.user_metadata?.telegram_id === loginCode.telegram_id);
+          const authUserId = authUser?.id;
+          if (authUserId) {
+            await supabase.rpc('claim_referral', {
+              p_code: referralCode.trim(),
+              p_invitee_user_id: authUserId,
+            });
+          }
+        } catch (e) {
+          console.warn('[Telegram Status] Referral claim failed (ignored):', e);
+        }
+      }
 
       // Create session token
       const token = await createSessionToken({

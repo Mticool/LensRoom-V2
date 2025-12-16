@@ -62,7 +62,7 @@ export const useVideoGeneratorStore = create<VideoGeneratorState>()(
     (set) => ({
       // Initial state
       mode: "text-to-video",
-      selectedModel: "sora-2",
+      selectedModel: "veo-3.1",
       prompt: "",
       duration: 5,
       cameraMovement: "static",

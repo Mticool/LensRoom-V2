@@ -9,7 +9,7 @@ import { computePrice } from "@/lib/pricing/compute-price";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { model, prompt, negativePrompt, aspectRatio, variants = 1 } = body;
+    const { model, prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage } = body;
 
     // Validate required fields
     if (!model || !prompt) {
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         prompt: prompt,
         negative_prompt: negativePrompt,
         credits_used: creditCost,
-        status: 'processing',
+        status: 'queued',
       })
       .select()
       .single();
@@ -125,22 +125,18 @@ export async function POST(request: NextRequest) {
       // Don't fail the request, but log the error
     }
 
-    // Record credit transaction (deduction)
-    await supabase.from('credit_transactions').insert({
-      user_id: userId,
-      amount: -creditCost, // Negative for deduction
-      type: 'deduction',
-      description: `Генерация фото: ${modelInfo.name} (${variants} вариант${variants > 1 ? 'а' : ''})`,
-      metadata: {
-        model_id: model,
-        model_name: modelInfo.name,
-        type: 'photo',
-        variants: variants,
-        quality: quality,
-        resolution: resolution,
-      },
-      generation_id: generation?.id,
-    });
+    // Record credit transaction (avoid columns missing on prod, like metadata)
+    try {
+      await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: -creditCost, // Negative for deduction
+        type: 'deduction',
+        description: `Генерация фото: ${modelInfo.name} (${variants} вариант${variants > 1 ? 'а' : ''})`,
+        generation_id: generation?.id,
+      });
+    } catch (e) {
+      console.error('[API] Failed to record transaction:', e);
+    }
 
     // Map aspect ratio to KIE format
     const aspectRatioMap: Record<string, string> = {
@@ -152,13 +148,59 @@ export async function POST(request: NextRequest) {
     };
 
     // Generate image
+    const uploadDataUrlToStorage = async (dataUrl: string, suffix: string) => {
+      const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+      if (!match) return dataUrl; // already a URL
+      const mime = match[1];
+      const b64 = match[2];
+      const buffer = Buffer.from(b64, 'base64');
+      const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+      const path = `${userId}/inputs/${Date.now()}_${suffix}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('generations')
+        .upload(path, buffer, { contentType: mime, upsert: true });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('generations').getPublicUrl(path);
+      return pub.publicUrl;
+    };
+
+    let imageInputs: string[] | undefined = undefined;
+    if (mode === 'i2i') {
+      if (!referenceImage) {
+        return NextResponse.json({ error: "referenceImage is required for i2i" }, { status: 400 });
+      }
+      const url = await uploadDataUrlToStorage(referenceImage, 'i2i');
+      imageInputs = [url];
+    }
+
+    const resolutionForKie =
+      typeof resolution === 'string'
+        ? (resolution as any)
+        : quality === '2k'
+          ? '2K'
+          : '1K';
+
     const response = await kieClient.generateImage({
       model: modelInfo.apiId,
       prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
       aspectRatio: aspectRatioMap[aspectRatio] || "1:1",
-      resolution: "1K",
+      resolution: resolutionForKie,
       outputFormat: "png",
+      quality,
+      imageInputs,
     });
+
+    // Attach task_id to DB record so callbacks / sync can find it reliably
+    if (generation?.id) {
+      try {
+        await supabase
+          .from("generations")
+          .update({ task_id: response.id, status: "generating" })
+          .eq("id", generation.id);
+      } catch (e) {
+        console.warn("[API] Failed to set task_id on generation:", e);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -166,6 +208,9 @@ export async function POST(request: NextRequest) {
       status: response.status,
       estimatedTime: response.estimatedTime || 30,
       creditCost: creditCost,
+      generationId: generation?.id,
+      provider: modelInfo.provider,
+      kind: "image",
     });
   } catch (error) {
     console.error("[API] Photo generation error:", error);

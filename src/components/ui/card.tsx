@@ -3,13 +3,13 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]",
+  "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]",
   {
     variants: {
       variant: {
         default: "",
-        hover: "transition-all duration-300 hover:border-[var(--gold)]/30 hover:shadow-lg hover:shadow-[var(--shadow)]",
-        glow: "hover:shadow-[0_0_30px_var(--gold-glow)] transition-all duration-300",
+        hover: "transition-all duration-200 hover:border-white/20 hover:shadow-[var(--shadow-md)] motion-reduce:transition-none",
+        glow: "hover:shadow-[var(--shadow-md)] transition-all duration-200 motion-reduce:transition-none",
       },
       padding: {
         none: "",

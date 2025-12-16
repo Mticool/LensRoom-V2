@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { kieClient } from "@/lib/api/kie-client";
+import type { KieProvider } from "@/config/models";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,9 @@ export async function GET(
 ) {
   try {
     const { jobId } = await params;
+    const url = new URL(request.url);
+    const kind = url.searchParams.get("kind"); // "image" | "video"
+    const provider = (url.searchParams.get("provider") as KieProvider | null) || undefined;
 
     if (!jobId) {
       return NextResponse.json(
@@ -15,17 +19,43 @@ export async function GET(
       );
     }
 
-    const status = await kieClient.getGenerationStatus(jobId);
+    // If caller didn't pass kind/provider, we try to infer by attempting
+    // the Market-image status first, then Market-video, then Veo.
+    let status:
+      | Awaited<ReturnType<typeof kieClient.getGenerationStatus>>
+      | Awaited<ReturnType<typeof kieClient.getVideoGenerationStatus>>;
+
+    if (kind === "video" || provider === "kie_veo") {
+      status = await kieClient.getVideoGenerationStatus(jobId, provider);
+    } else if (kind === "image") {
+      status = await kieClient.getGenerationStatus(jobId);
+    } else {
+      try {
+        status = await kieClient.getGenerationStatus(jobId);
+      } catch (e1) {
+        try {
+          status = await kieClient.getVideoGenerationStatus(jobId);
+        } catch (e2) {
+          status = await kieClient.getVideoGenerationStatus(jobId, "kie_veo");
+        }
+      }
+    }
 
     // Transform outputs to results format expected by frontend
-    const results = status.outputs?.map((output, index) => ({
-      id: `${jobId}_${index}`,
-      url: output.url,
-      prompt: '',
-      model: '',
-      width: output.width,
-      height: output.height,
-    })) || [];
+    const results =
+      status.outputs?.map((output, index) => {
+        const o: any = output;
+        return {
+          id: `${jobId}_${index}`,
+          url: o.url,
+          thumbnailUrl: o.thumbnailUrl,
+          prompt: "",
+          model: "",
+          width: o.width,
+          height: o.height,
+          duration: o.duration,
+        };
+      }) || [];
 
     return NextResponse.json({
       success: true,
@@ -35,6 +65,8 @@ export async function GET(
       results: results,
       outputs: status.outputs, // Keep for backward compatibility
       error: status.error,
+      kind: kind || null,
+      provider: provider || null,
     });
   } catch (error) {
     console.error("[API] Job status error:", error);

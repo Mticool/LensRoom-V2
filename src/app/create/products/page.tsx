@@ -24,11 +24,6 @@ import {
   getApiModelId,
   PRODUCT_IMAGE_MODES,
 } from "@/config/productImageModes";
-import {
-  getStarsBalance,
-  deductStars,
-  hasEnoughStars,
-} from "@/lib/stars-balance";
 import { getMarketplaceProfile } from "@/config/marketplaceProfiles";
 import { getPromptAddon } from "@/config/lifestyleScenes";
 import { getNicheById } from "@/config/productNiches";
@@ -70,7 +65,16 @@ export default function ProductCardsPage() {
 
   // Load balance on mount
   useEffect(() => {
-    setStarsBalance(getStarsBalance());
+    // Real balance from DB
+    (async () => {
+      try {
+        const res = await fetch("/api/credits/balance");
+        const data = await res.json();
+        if (res.ok) setStarsBalance(data.balance || 0);
+      } catch {
+        setStarsBalance(0);
+      }
+    })();
   }, []);
 
   // Update slides count when generation type changes
@@ -108,7 +112,7 @@ export default function ProductCardsPage() {
     }
 
     // Check balance
-    if (!hasEnoughStars(totalCost)) {
+    if (starsBalance < totalCost) {
       toast.error(`Недостаточно звёзд. Нужно: ⭐${totalCost}`);
       return;
     }
@@ -145,49 +149,112 @@ export default function ProductCardsPage() {
     };
 
     console.log("[ProductCards] Generation payload:", payload);
+    // Start real generation
+    try {
+      setIsGenerating(true);
+      setSlides(createPendingSlides(slidesCount));
 
-    // Deduct stars
-    const deducted = deductStars(totalCost);
-    if (!deducted) {
-      toast.error("Ошибка списания звёзд");
-      return;
-    }
+      // Build slide prompts (simple version)
+      const base = [
+        wizardState.productTitle ? `Товар: ${wizardState.productTitle}.` : "",
+        wizardState.productBenefits.filter(b => b.trim()).length
+          ? `Преимущества: ${wizardState.productBenefits.filter(b => b.trim()).join("; ")}.`
+          : "",
+        wizardState.customPrompt ? `Дополнительно: ${wizardState.customPrompt}.` : "",
+        wizardState.removeBackground ? "Сохрани товар, убери фон, сделай чистый маркетплейс-кадр." : "Сохрани товар, сделай маркетплейс-кадр.",
+      ].filter(Boolean).join(" ");
 
-    setStarsBalance(getStarsBalance());
-    toast.success(`Списано ⭐${totalCost}`);
+      const slidePrompts = Array.from({ length: slidesCount }, (_, i) => {
+        const benefit = wizardState.productBenefits[i]?.trim();
+        return benefit ? `${base} Акцент: ${benefit}.` : base;
+      });
 
-    // Start generation
-    setIsGenerating(true);
-    setSlides(createPendingSlides(slidesCount));
+      const res = await fetch("/api/generate/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modeId: wizardState.modeId,
+          generationType: wizardState.generationType,
+          slidesCount,
+          modelKey: selectedMode.modelKey,
+          productPhotos: wizardState.productPhotos,
+          slidePrompts,
+          aspectRatio: "1:1",
+        }),
+      });
 
-    // Simulate generation progress
-    const generatedSlides: Slide[] = [];
-    
-    for (let i = 0; i < slidesCount; i++) {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setSlides(prev => prev.map((s, idx) => 
-        idx === i ? { ...s, status: "generating" } : s
-      ));
-      
-      // Simulate completion
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      const completedSlide: Slide = {
-        id: `slide_${Date.now()}_${i}`,
-        status: "completed",
-        imageUrl: wizardState.productPhotos[i % wizardState.productPhotos.length] || wizardState.productPhotos[0],
-        text: wizardState.productBenefits[i] || undefined,
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || "Ошибка запуска генерации");
+      }
+
+      const generationId: string | null = data.generationId || null;
+      const jobs: Array<{ slideIndex: number; jobId: string }> = data.jobs || [];
+      if (!jobs.length) throw new Error("Сервер не вернул задачи");
+
+      const safePatch = async (update: Partial<{ status: string; resultUrls: string[]; thumbnailUrl: string }>) => {
+        if (!generationId) return;
+        try {
+          await fetch("/api/generations", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: generationId, ...update }),
+          });
+        } catch {
+          // ignore
+        }
       };
-      
-      generatedSlides.push(completedSlide);
-      
-      setSlides(prev => prev.map((s, idx) => 
-        idx === i ? completedSlide : s
-      ));
-    }
 
-    setIsGenerating(false);
-    toast.success(`Готово! ${slidesCount} изображений создано 🎉`);
+      const poll = async (jobId: string) => {
+        const maxAttempts = 180;
+        for (let a = 0; a < maxAttempts; a++) {
+          const r = await fetch(`/api/jobs/${jobId}`);
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(j?.error || "Ошибка статуса");
+          if (j.status === "completed" && j.results?.[0]?.url) return j.results[0].url as string;
+          if (j.status === "failed") throw new Error(j.error || "Генерация не удалась");
+          await new Promise((x) => setTimeout(x, 2500));
+        }
+        throw new Error("Таймаут генерации");
+      };
+
+      await safePatch({ status: "processing" });
+
+      const allUrls: string[] = [];
+      for (const job of jobs) {
+        setSlides(prev => prev.map((s, idx) => idx === job.slideIndex ? { ...s, status: "generating" } : s));
+        const url = await poll(job.jobId);
+        allUrls[job.slideIndex] = url;
+        const completed: Slide = {
+          id: `slide_${job.jobId}`,
+          status: "completed",
+          imageUrl: url,
+          text: wizardState.productBenefits[job.slideIndex] || undefined,
+        };
+        setSlides(prev => prev.map((s, idx) => idx === job.slideIndex ? completed : s));
+      }
+
+      // Persist result URLs into generations (best-effort; schema varies)
+      await safePatch({
+        status: "completed",
+        resultUrls: allUrls.filter(Boolean),
+        thumbnailUrl: allUrls.find(Boolean),
+      });
+
+      // Refresh balance
+      try {
+        const b = await fetch("/api/credits/balance");
+        const bj = await b.json().catch(() => ({}));
+        if (b.ok) setStarsBalance(bj.balance || 0);
+      } catch {}
+
+      toast.success(`Готово! ${slidesCount} изображений создано 🎉`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Ошибка генерации";
+      toast.error(msg);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleRegenerate = async (index: number) => {
@@ -199,7 +266,7 @@ export default function ProductCardsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pb-24">
+    <div className="min-h-screen bg-[var(--bg)] pb-[calc(env(safe-area-inset-bottom)+6rem)] sm:pb-24">
       {/* Header */}
       <div className="border-b border-[var(--border)] bg-[var(--surface)]/50 backdrop-blur-sm sticky top-16 z-30">
         <div className="container mx-auto px-4 lg:px-8 max-w-7xl">
@@ -219,7 +286,7 @@ export default function ProductCardsPage() {
             {/* Balance */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--surface2)]">
               <Wallet className="w-4 h-4 text-[var(--muted)]" />
-              <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
+              <Star className="w-4 h-4 text-white fill-[var(--gold)]" />
               <span className="font-semibold text-[var(--text)]">{starsBalance}</span>
             </div>
           </div>
@@ -240,8 +307,8 @@ export default function ProductCardsPage() {
         {/* Product Card Wizard Section */}
         <div id="product-card-wizard" className="scroll-mt-24">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center">
-              <Package className="w-5 h-5 text-[var(--gold)]" />
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+              <Package className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-[var(--text)]">Карточка товара</h2>

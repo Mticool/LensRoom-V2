@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { EffectsGallery } from '@/components/home/EffectsGallery';
 import { SUBSCRIPTIONS } from '@/lib/pricing-config';
 import { getHomeCopy, renderWithBreaks } from '@/content/home';
+import { ReferralInvite } from '@/components/home/referral-invite';
 
 const copy = getHomeCopy();
 
@@ -30,7 +31,7 @@ function Hero() {
       {/* Abstract background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[800px] h-[600px]">
-          <div className="absolute inset-0 bg-gradient-to-b from-[var(--gold)]/8 via-[var(--gold)]/3 to-transparent rounded-full blur-[120px]" />
+          <div className="absolute inset-0 bg-white/3 rounded-full blur-[120px]" />
         </div>
         <div className="absolute inset-0 bg-[linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] bg-[size:80px_80px] opacity-30" />
       </div>
@@ -49,7 +50,7 @@ function Hero() {
             <Button 
               asChild
               size="lg" 
-              className="bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] font-semibold text-base h-12 px-8"
+              className="bg-white text-black hover:bg-white/90 font-semibold text-base h-12 px-8"
             >
               <Link href={copy.links.create}>
                 {copy.hero.ctaPrimary}
@@ -93,8 +94,8 @@ function Benefits() {
                 key={i}
                 className="text-center p-6"
               >
-                <div className="w-12 h-12 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center mx-auto mb-4">
-                  <Icon className="w-6 h-6 text-[var(--gold)]" />
+                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-4">
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-[var(--text)] mb-2">
                   {item.title}
@@ -170,9 +171,9 @@ function HowItWorks() {
               <div key={i} className="flex items-center gap-3">
                 {i > 0 && <ChevronRight className="w-5 h-5 text-[var(--muted)] hidden md:block" />}
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[var(--gold)]/10 border border-[var(--gold)]/30 flex items-center justify-center text-[var(--gold)] font-bold">
-                    {i + 1}
-                  </div>
+                <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white font-bold">
+                  {i + 1}
+                </div>
                   <span className="text-[var(--text)] font-medium">{step}</span>
                 </div>
               </div>
@@ -203,8 +204,8 @@ function ForWho() {
                 key={i}
                 className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/30 transition-colors"
               >
-                <div className="w-12 h-12 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center mb-4">
-                  <Icon className="w-6 h-6 text-[var(--gold)]" />
+                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4">
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-[var(--text)] mb-2">
                   {item.title}
@@ -325,7 +326,7 @@ function Academy() {
     <section className="py-20 border-t border-[var(--border)]">
       <div className="container mx-auto px-6">
         <div className="max-w-3xl mx-auto">
-          <div className="p-8 rounded-2xl bg-gradient-to-b from-[var(--surface)] to-[var(--surface2)] border border-[var(--border)]">
+          <div className="p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center">
                 <GraduationCap className="w-6 h-6 text-[var(--gold)]" />
@@ -432,6 +433,7 @@ export default function Home() {
   return (
     <main className="bg-[var(--bg)] text-[var(--text)] min-h-screen">
       <Hero />
+      <ReferralInvite />
       <Benefits />
       <GallerySection />
       <Models />

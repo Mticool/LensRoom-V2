@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Eye, User, Copy, Check } from "lucide-react";
+import { Heart, Eye, User, Sparkles } from "lucide-react";
 import { MOCK_GALLERY } from "@/data/gallery";
 import { toast } from "sonner";
 
@@ -27,8 +28,8 @@ const item = {
 };
 
 export default function InspirationPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<TabType>("trending");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Sort based on tab
   const sortedGallery = [...MOCK_GALLERY].sort((a, b) => {
@@ -44,41 +45,54 @@ export default function InspirationPage() {
     }
   });
 
-  const handleCopyPrompt = async (item: typeof MOCK_GALLERY[0]) => {
-    await navigator.clipboard.writeText(item.prompt);
-    setCopiedId(item.id);
-    toast.success("Промпт скопирован!", {
-      description: "Вставьте его в генератор",
+  const handleRepeat = (galleryItem: typeof MOCK_GALLERY[0]) => {
+    // Route to generator with prompt pre-filled
+    const params = new URLSearchParams();
+    params.set("kind", "photo");
+    // Use model from gallery item (match to our internal model keys)
+    const modelMap: Record<string, string> = {
+      "Flux Pro": "flux-2-pro",
+      "Midjourney": "nano-banana-pro", // fallback
+      "DALL-E 3": "imagen-4",
+      "Stable Diffusion": "seedream-4.5",
+      "NovelAI": "nano-banana-pro",
+    };
+    const modelKey = modelMap[galleryItem.model] || "nano-banana-pro";
+    params.set("model", modelKey);
+    params.set("prompt", galleryItem.prompt);
+    
+    router.push(`/create/studio?${params.toString()}`);
+    toast.success("Открываем генератор", {
+      description: "Промпт уже вставлен",
     });
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-20 bg-[var(--bg)]">
+    <div className="min-h-screen pt-20 sm:pt-24 pb-16 sm:pb-20 bg-[var(--bg)]">
       <motion.div
-        className="container mx-auto px-4 lg:px-8 py-8"
+        className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         {/* Header */}
         <motion.div
-          className="mb-10"
+          className="mb-6 sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
-            Галерея <span className="text-[var(--gold)]">вдохновения</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4 text-[var(--text)]">
+            Галерея вдохновения
           </h1>
-          <p className="text-xl text-[var(--text2)]">
-            Лучшие работы сообщества LensRoom
+          <p className="text-base sm:text-xl text-[var(--text2)]">
+            Лучшие работы — повторите одним кликом
           </p>
         </motion.div>
 
         {/* Tabs */}
         <motion.div
-          className="flex gap-2 mb-10"
+          className="flex gap-2 mb-6 sm:mb-10 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
@@ -86,20 +100,26 @@ export default function InspirationPage() {
           <Button
             variant={tab === "trending" ? "default" : "secondary"}
             onClick={() => setTab("trending")}
+            size="sm"
+            className="shrink-0"
           >
-            🔥 Trending
+            Trending
           </Button>
           <Button
             variant={tab === "recent" ? "default" : "secondary"}
             onClick={() => setTab("recent")}
+            size="sm"
+            className="shrink-0"
           >
-            🆕 Recent
+            Recent
           </Button>
           <Button
             variant={tab === "top" ? "default" : "secondary"}
             onClick={() => setTab("top")}
+            size="sm"
+            className="shrink-0"
           >
-            ⭐ Top
+            Top
           </Button>
         </motion.div>
 
@@ -116,13 +136,9 @@ export default function InspirationPage() {
               variants={item}
               className="break-inside-avoid mb-6"
             >
-              <Card
-                
-                className="group cursor-pointer overflow-hidden hover:shadow-[0_0_30px_var(--gold-glow)] transition-all duration-300 p-0"
-                onClick={() => handleCopyPrompt(galleryItem)}
-              >
+              <Card className="group overflow-hidden hover:border-white/50 transition-all duration-300 p-0 bg-[var(--surface)] border-[var(--border)]">
                 {/* Image */}
-                <div className="relative overflow-hidden">
+                <div className="relative overflow-hidden cursor-pointer" onClick={() => handleRepeat(galleryItem)}>
                   <img
                     src={galleryItem.imageUrl}
                     alt="Gallery item"
@@ -144,29 +160,16 @@ export default function InspirationPage() {
                             {galleryItem.views}
                           </div>
                         </div>
-                        <Badge className="bg-[var(--gold)] text-[#0a0a0f] font-bold">
+                        <Badge className="bg-white text-black font-bold text-xs">
                           {galleryItem.model}
                         </Badge>
                       </div>
 
-                      {/* Copy indicator */}
-                      <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-black/60">
-                        {copiedId === galleryItem.id ? (
-                          <>
-                            <Check className="w-4 h-4 text-green-400" />
-                            <span className="text-sm text-green-400 font-medium">
-                              Скопировано!
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4" />
-                            <span className="text-sm font-medium">
-                              Скопировать промпт
-                            </span>
-                          </>
-                        )}
-                      </div>
+                      {/* Repeat button */}
+                      <button className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white text-black font-medium hover:bg-white/90 transition-colors">
+                        <Sparkles className="w-4 h-4" />
+                        <span className="text-sm">Повторить</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -177,8 +180,8 @@ export default function InspirationPage() {
                     {galleryItem.prompt}
                   </p>
                   <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                    <div className="w-6 h-6 rounded-full bg-[var(--gold)] flex items-center justify-center">
-                      <User className="w-3 h-3 text-[#0a0a0f]" />
+                    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                      <User className="w-3 h-3 text-white" />
                     </div>
                     <span className="font-medium">{galleryItem.author}</span>
                   </div>

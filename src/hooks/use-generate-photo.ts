@@ -10,6 +10,12 @@ interface GeneratePhotoParams {
   negativePrompt?: string;
   cfgScale?: number;
   steps?: number;
+  // i2i support
+  mode?: 't2i' | 'i2i';
+  referenceImage?: string | null;
+  // quality/resolution passthrough
+  quality?: string;
+  resolution?: string;
 }
 
 interface GenerationResult {
@@ -17,6 +23,16 @@ interface GenerationResult {
   url: string;
   prompt: string;
   model: string;
+}
+
+async function safeReadJson(response: Response): Promise<any> {
+  const text = await response.text();
+  if (!text || text.trim() === "") return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text };
+  }
 }
 
 // Create generation record in DB
@@ -38,7 +54,8 @@ async function createGenerationRecord(params: {
       return null;
     }
     
-    const data = await response.json();
+    const data = await safeReadJson(response);
+    if (!data?.generation?.id) return null;
     return { id: data.generation.id };
   } catch (error) {
     console.warn('[Generation] Failed to create DB record:', error);
@@ -56,10 +73,10 @@ async function updateGenerationRecord(
   }
 ): Promise<void> {
   try {
-    await fetch(`/api/generations/${id}`, {
-      method: 'PATCH',
+    await fetch(`/api/generations`, {
+      method: "PATCH",
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(update),
+      body: JSON.stringify({ id, ...update }),
     });
   } catch (error) {
     console.warn('[Generation] Failed to update DB record:', error);
@@ -78,11 +95,12 @@ async function generatePhoto(
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Generation failed');
+    const error = await safeReadJson(response);
+    throw new Error(error?.error || 'Generation failed');
   }
 
-  const data = await response.json();
+  const data = await safeReadJson(response);
+  if (!data) throw new Error('Empty response from server');
   
   // Poll for results if async
   if (data.jobId) {
@@ -91,7 +109,7 @@ async function generatePhoto(
       await updateGenerationRecord(dbRecordId, { status: 'processing' });
     }
     
-    return pollForResults(data.jobId, onProgress, dbRecordId);
+    return pollForResults(data.jobId, onProgress, dbRecordId, data.provider);
   }
 
   return data.results;
@@ -100,14 +118,19 @@ async function generatePhoto(
 async function pollForResults(
   jobId: string,
   onProgress?: (progress: number) => void,
-  dbRecordId?: string
+  dbRecordId?: string,
+  provider?: string
 ): Promise<GenerationResult[]> {
   const maxAttempts = 120; // 4 minutes max
   let attempts = 0;
 
   while (attempts < maxAttempts) {
-    const response = await fetch(`/api/jobs/${jobId}`);
-    const data = await response.json();
+    const qs = provider ? `?kind=image&provider=${encodeURIComponent(provider)}` : '';
+    const response = await fetch(`/api/jobs/${jobId}${qs}`);
+    const data = await safeReadJson(response);
+    if (!response.ok) {
+      throw new Error(data?.error || `Job status error (${response.status})`);
+    }
 
     // Update progress
     if (data.progress && onProgress) {
@@ -157,20 +180,25 @@ export function useGenerateFromStore() {
   
   const canGenerate = store.prompt.trim().length > 0 && !generatePhotoMutation.isPending;
   
-  const generate = () => {
-    if (!store.prompt.trim()) {
+  const generate = (overrides?: Partial<GeneratePhotoParams>) => {
+    const prompt = overrides?.prompt ?? store.prompt;
+    if (!prompt.trim()) {
       toast.error('Введите промпт');
       return;
     }
     
     generatePhotoMutation.mutate({
-      prompt: store.prompt,
-      model: store.selectedModel,
-      aspectRatio: store.aspectRatio,
-      variants: store.variants,
-      negativePrompt: store.negativePrompt,
-      cfgScale: store.cfgScale,
-      steps: store.steps,
+      prompt,
+      model: overrides?.model ?? store.selectedModel,
+      aspectRatio: overrides?.aspectRatio ?? store.aspectRatio,
+      variants: overrides?.variants ?? store.variants,
+      negativePrompt: overrides?.negativePrompt ?? store.negativePrompt,
+      cfgScale: overrides?.cfgScale ?? store.cfgScale,
+      steps: overrides?.steps ?? store.steps,
+      mode: overrides?.mode ?? (store as any).mode,
+      referenceImage: overrides?.referenceImage ?? (store as any).referenceImage,
+      quality: overrides?.quality,
+      resolution: overrides?.resolution,
     });
   };
   
