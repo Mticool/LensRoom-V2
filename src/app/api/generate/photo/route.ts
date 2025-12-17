@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save generation to history
+    // Save generation to history (using admin client to bypass RLS)
+    console.log('[API] Creating generation for user:', userId, 'model:', model);
     const { data: generation, error: genError } = await supabase
       .from('generations')
       .insert({
@@ -122,9 +123,21 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (genError) {
-      console.error('[API] Failed to save generation:', genError);
-      // Don't fail the request, but log the error
+      console.error('[API] Failed to save generation:', JSON.stringify(genError, null, 2));
+      console.error('[API] Generation data:', { userId, model, prompt: prompt.substring(0, 50) });
+      
+      // Return error to user if generation record fails
+      return NextResponse.json(
+        { 
+          error: "Failed to create generation record", 
+          details: genError.message || genError.toString(),
+          hint: "Check database permissions and RLS policies"
+        },
+        { status: 500 }
+      );
     }
+    
+    console.log('[API] Generation created:', generation?.id);
 
     // Record credit transaction (avoid columns missing on prod, like metadata)
     try {
