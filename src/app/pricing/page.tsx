@@ -38,7 +38,12 @@ export default function PricingPage() {
           return;
         }
         if (response.status === 503) {
-          toast.error('Payment system is temporarily unavailable. Please contact support.');
+          const missing = Array.isArray((data as any)?.missingEnv) ? (data as any).missingEnv.join(', ') : '';
+          const msg =
+            typeof (data as any)?.error === 'string' && (data as any).error
+              ? (data as any).error
+              : 'Оплата временно недоступна. Напишите в поддержку.';
+          toast.error(missing ? `${msg} (${missing})` : msg);
         } else {
           throw new Error(data.error || 'Ошибка при создании платежа');
         }

@@ -41,13 +41,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if payment provider is configured
-    const payformConfigured = process.env.PAYFORM_SECRET_KEY && process.env.PAYFORM_MERCHANT_ID;
-    if (!payformConfigured) {
-      return NextResponse.json({ 
-        error: 'Payment system is not configured. Please contact support.',
-        hint: process.env.NODE_ENV !== 'production' ? 'Missing PAYFORM_SECRET_KEY or PAYFORM_MERCHANT_ID' : undefined
-      }, { status: 503 });
+    // Check if payment provider is configured (return a clear, safe message in production).
+    const missingEnv: string[] = [];
+    if (!process.env.PAYFORM_SECRET_KEY) missingEnv.push("PAYFORM_SECRET_KEY");
+    // Merchant id is not used for URL building here; keep optional.
+    // if (!process.env.PAYFORM_MERCHANT_ID) missingEnv.push("PAYFORM_MERCHANT_ID");
+    if (type === "subscription") {
+      // Subscription requires provider-side subscription ids.
+      if (!process.env.PAYFORM_SUBSCRIPTION_PRO) missingEnv.push("PAYFORM_SUBSCRIPTION_PRO");
+      if (!process.env.PAYFORM_SUBSCRIPTION_BUSINESS) missingEnv.push("PAYFORM_SUBSCRIPTION_BUSINESS");
+    }
+    if (missingEnv.length) {
+      return NextResponse.json(
+        {
+          error: "Оплата пока не подключена. Напишите в поддержку.",
+          provider: "payform",
+          missingEnv,
+        },
+        { status: 503 }
+      );
     }
 
     let paymentUrl: string;
@@ -75,8 +87,9 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Payment configuration error';
         return NextResponse.json({ 
-          error: 'Unable to create payment. Please contact support.',
-          hint: process.env.NODE_ENV !== 'production' ? msg : undefined
+          error: 'Не удалось создать оплату. Напишите в поддержку.',
+          provider: 'payform',
+          hint: process.env.NODE_ENV !== 'production' ? msg : undefined,
         }, { status: 503 });
       }
 
@@ -119,8 +132,9 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Payment configuration error';
         return NextResponse.json({ 
-          error: 'Unable to create payment. Please contact support.',
-          hint: process.env.NODE_ENV !== 'production' ? msg : undefined
+          error: 'Не удалось создать оплату. Напишите в поддержку.',
+          provider: 'payform',
+          hint: process.env.NODE_ENV !== 'production' ? msg : undefined,
         }, { status: 503 });
       }
 
