@@ -36,9 +36,10 @@ export interface ProdamusConfig {
 }
 
 export function getProdamusConfig(): ProdamusConfig | null {
-  // Only evaluate env when Prodamus is actually used (no import-time warnings).
-  const secretKey = env.required("PRODAMUS_SECRET_KEY", "Prodamus API secret");
-  const projectId = env.required("PRODAMUS_PROJECT_ID", "Prodamus project ID");
+  // Prodamus is optional. Do NOT hard-require env vars at import time,
+  // otherwise Payform-only installs will crash with "Missing required env var".
+  const secretKey = env.optional("PRODAMUS_SECRET_KEY");
+  const projectId = env.optional("PRODAMUS_PROJECT_ID");
   if (!secretKey || !projectId) return null;
 
   const appUrl = (env.optional("NEXT_PUBLIC_APP_URL") || "https://lensroom.ru").replace(/\/$/, "");
