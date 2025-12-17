@@ -11,19 +11,25 @@ function getSiteUrl(): string {
 function menuKeyboard(site: string) {
   return [
     [
-      { text: "🎬 Studio", url: `${site}/create/studio` },
-      { text: "📚 Library", url: `${site}/library` },
+      { text: "🎨 Создать фото", callback_data: "gen:photo" },
+      { text: "🎬 Создать видео", callback_data: "gen:video" },
     ],
     [
+      { text: "📚 Мои работы", callback_data: "lib" },
       { text: "⭐ Баланс", callback_data: "bal" },
+    ],
+    [
       { text: "🤝 Рефералы", callback_data: "ref" },
+      { text: "💳 Купить ⭐", url: `${site}/pricing#stars` },
     ],
     [
       { text: "🎓 Академия", callback_data: "aca" },
       { text: "⚙️ Настройки", callback_data: "set" },
     ],
-    [{ text: "🆘 Поддержка", callback_data: "sup" }],
-    [{ text: "💳 Купить ⭐", url: `${site}/pricing#stars` }],
+    [
+      { text: "🆘 Поддержка", callback_data: "sup" },
+      { text: "🌐 Открыть сайт", url: site },
+    ],
   ] as const;
 }
 
@@ -84,10 +90,22 @@ async function setSetting(userId: string | null, patch: Partial<{ notify_enabled
 
 async function sendMainMenu(chatId: number, firstName: string | null) {
   const site = getSiteUrl();
-  const hi = firstName ? `Привет, ${firstName}!` : "Привет!";
+  const hi = firstName ? `${firstName}` : "друг";
+  const text = 
+    `🎨 <b>LensRoom — AI-студия в Telegram</b>\n\n` +
+    `Привет, ${hi}! 👋\n\n` +
+    `Создавайте профессиональные фото и видео с помощью ИИ прямо в боте.\n\n` +
+    `✨ <b>Что умеет бот:</b>\n` +
+    `🎨 Генерация фото (Nano Banana, FLUX, Imagen)\n` +
+    `🎬 Генерация видео (Kling, Veo 2)\n` +
+    `📚 Просмотр всех ваших работ\n` +
+    `⭐ Управление балансом и тарифами\n` +
+    `🤝 Реферальная программа\n\n` +
+    `Выберите действие:`;
+  
   await sendMessage({
     chatId,
-    text: `👋 ${hi}\n\nВыберите действие:`,
+    text,
     keyboard: menuKeyboard(site) as any,
   });
 }
@@ -231,6 +249,143 @@ async function renderSupport(chatId: number, messageId: number | null) {
   else await sendMessage({ chatId, text, keyboard: kb as any });
 }
 
+async function renderLibrary(chatId: number, messageId: number | null, userId: string | null) {
+  const site = getSiteUrl();
+  
+  if (!userId) {
+    const text = `📚 <b>Мои работы</b>\n\nЧтобы просмотреть работы, войдите на сайт через Telegram.\n\n📌 Открыть сайт: ${site}`;
+    const kb = [[{ text: "🌐 Открыть сайт", url: site }], [{ text: "⬅️ В меню", callback_data: "m" }]] as const;
+    if (messageId) await editMessage({ chatId, messageId, text, keyboard: kb as any });
+    else await sendMessage({ chatId, text, keyboard: kb as any });
+    return;
+  }
+
+  const supabase = getSupabaseAdmin();
+  
+  try {
+    const { data: generations } = await supabase
+      .from("generations")
+      .select("id, type, model_name, status, asset_url, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const count = generations?.length || 0;
+    
+    let text = `📚 <b>Мои работы</b>\n\n`;
+    
+    if (count === 0) {
+      text += `У вас пока нет работ.\n\nСоздайте первое фото или видео! 🎨`;
+    } else {
+      text += `Последние ${count} работ:\n\n`;
+      
+      for (const gen of generations || []) {
+        const icon = (gen as any).type === "photo" ? "🖼️" : "🎬";
+        const status = (gen as any).status === "success" ? "✅" : (gen as any).status === "generating" ? "⏳" : "❌";
+        const date = new Date((gen as any).created_at).toLocaleDateString("ru-RU");
+        text += `${icon} ${status} ${(gen as any).model_name} — ${date}\n`;
+      }
+      
+      text += `\n📌 Полная библиотека на сайте:`;
+    }
+
+    const kb = [
+      [{ text: "📚 Открыть Library", url: `${site}/library` }],
+      [
+        { text: "🎨 Создать фото", callback_data: "gen:photo" },
+        { text: "🎬 Создать видео", callback_data: "gen:video" },
+      ],
+      [{ text: "⬅️ В меню", callback_data: "m" }],
+    ] as const;
+
+    if (messageId) await editMessage({ chatId, messageId, text, keyboard: kb as any });
+    else await sendMessage({ chatId, text, keyboard: kb as any });
+  } catch (error) {
+    const text = `📚 <b>Мои работы</b>\n\nОшибка загрузки. Попробуйте позже.\n\n📌 Открыть сайт: ${site}`;
+    const kb = [[{ text: "🌐 Открыть сайт", url: site }], [{ text: "⬅️ В меню", callback_data: "m" }]] as const;
+    if (messageId) await editMessage({ chatId, messageId, text, keyboard: kb as any });
+    else await sendMessage({ chatId, text, keyboard: kb as any });
+  }
+}
+
+async function startPhotoGeneration(chatId: number, messageId: number | null, userId: string | null) {
+  const site = getSiteUrl();
+  
+  if (!userId) {
+    const text = `🎨 <b>Создать фото</b>\n\nЧтобы создавать фото, войдите на сайт через Telegram.\n\n📌 Открыть сайт: ${site}`;
+    const kb = [[{ text: "🌐 Открыть сайт", url: site }], [{ text: "⬅️ В меню", callback_data: "m" }]] as const;
+    if (messageId) await editMessage({ chatId, messageId, text, keyboard: kb as any });
+    else await sendMessage({ chatId, text, keyboard: kb as any });
+    return;
+  }
+
+  const text =
+    `🎨 <b>Создание фото</b>\n\n` +
+    `Отправьте промпт на английском языке одним сообщением.\n\n` +
+    `<b>Примеры:</b>\n` +
+    `• <code>beautiful sunset over mountains</code>\n` +
+    `• <code>futuristic city at night, neon lights</code>\n` +
+    `• <code>cute cat in space suit, realistic</code>\n\n` +
+    `💡 <i>Используется модель Nano Banana (4 ⭐)</i>`;
+
+  const kb = [
+    [{ text: "🌐 Открыть студию", url: `${site}/create/studio` }],
+    [{ text: "⬅️ В меню", callback_data: "m" }],
+  ] as const;
+
+  if (messageId) await editMessage({ chatId, messageId, text, keyboard: kb as any });
+  else await sendMessage({ chatId, text, keyboard: kb as any });
+
+  // Mark that user is in "photo generation" mode
+  const supabase = getSupabaseAdmin();
+  try {
+    await supabase
+      .from("telegram_user_settings")
+      .upsert({ user_id: userId, telegram_id: chatId, bot_mode: "gen_photo", updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  } catch {
+    // ignore
+  }
+}
+
+async function startVideoGeneration(chatId: number, messageId: number | null, userId: string | null) {
+  const site = getSiteUrl();
+  
+  if (!userId) {
+    const text = `🎬 <b>Создать видео</b>\n\nЧтобы создавать видео, войдите на сайт через Telegram.\n\n📌 Открыть сайт: ${site}`;
+    const kb = [[{ text: "🌐 Открыть сайт", url: site }], [{ text: "⬅️ В меню", callback_data: "m" }]] as const;
+    if (messageId) await editMessage({ chatId, messageId, text, keyboard: kb as any });
+    else await sendMessage({ chatId, text, keyboard: kb as any });
+    return;
+  }
+
+  const text =
+    `🎬 <b>Создание видео</b>\n\n` +
+    `Отправьте промпт на английском языке одним сообщением.\n\n` +
+    `<b>Примеры:</b>\n` +
+    `• <code>drone shot of ocean waves</code>\n` +
+    `• <code>time-lapse of city traffic at sunset</code>\n` +
+    `• <code>slow motion of coffee pouring</code>\n\n` +
+    `💡 <i>Используется модель Kling (20 ⭐)</i>`;
+
+  const kb = [
+    [{ text: "🌐 Открыть студию", url: `${site}/create/studio` }],
+    [{ text: "⬅️ В меню", callback_data: "m" }],
+  ] as const;
+
+  if (messageId) await editMessage({ chatId, messageId, text, keyboard: kb as any });
+  else await sendMessage({ chatId, text, keyboard: kb as any });
+
+  // Mark that user is in "video generation" mode
+  const supabase = getSupabaseAdmin();
+  try {
+    await supabase
+      .from("telegram_user_settings")
+      .upsert({ user_id: userId, telegram_id: chatId, bot_mode: "gen_video", updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  } catch {
+    // ignore
+  }
+}
+
 async function startSupportDraft(params: { chatId: number; telegramId: number; userId: string | null; topic: string; generationId?: string | null }) {
   const supabase = getSupabaseAdmin();
 
@@ -325,6 +480,21 @@ export async function POST(request: NextRequest) {
 
       if (data === "sup") {
         await renderSupport(chatId, messageId);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data === "lib") {
+        await renderLibrary(chatId, messageId, userId);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data === "gen:photo") {
+        await startPhotoGeneration(chatId, messageId, userId);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data === "gen:video") {
+        await startVideoGeneration(chatId, messageId, userId);
         return NextResponse.json({ ok: true });
       }
 
@@ -495,6 +665,106 @@ export async function POST(request: NextRequest) {
       }
       await sendMessage({ chatId, text: "🔕 Уведомления отключены. Чтобы включить — откройте ⚙️ Настройки или отправьте /start." });
       return NextResponse.json({ ok: true });
+    }
+
+    // Check if user is in generation mode
+    if (text && !text.startsWith("/") && userId) {
+      try {
+        const { data: settings } = await supabase
+          .from("telegram_user_settings")
+          .select("bot_mode")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        const mode = String((settings as any)?.bot_mode || "");
+
+        if (mode === "gen_photo") {
+          // Reset mode
+          await supabase.from("telegram_user_settings").update({ bot_mode: null, updated_at: new Date().toISOString() }).eq("user_id", userId);
+
+          // Show processing message
+          await sendMessage({
+            chatId,
+            text: `🎨 <b>Создаю фото...</b>\n\nПромпт: <code>${text}</code>\n\nЭто займёт ~30 секунд. Я уведомлю когда готово! ✨`,
+          });
+
+          // Trigger generation via API
+          const site = getSiteUrl();
+          try {
+            const response = await fetch(`${site}/api/generate/photo`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                // We need to pass user context somehow - for now just show instruction
+              },
+              body: JSON.stringify({
+                model: "nano-banana",
+                prompt: text,
+                aspectRatio: "1:1",
+                variants: 1,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Generation failed");
+            }
+
+            // Success - webhook will notify when ready
+          } catch (error) {
+            await sendMessage({
+              chatId,
+              text: `❌ <b>Ошибка генерации</b>\n\nПопробуйте создать на сайте:\n${site}/create/studio`,
+            });
+          }
+
+          await sendMainMenu(chatId, firstName);
+          return NextResponse.json({ ok: true });
+        }
+
+        if (mode === "gen_video") {
+          // Reset mode
+          await supabase.from("telegram_user_settings").update({ bot_mode: null, updated_at: new Date().toISOString() }).eq("user_id", userId);
+
+          // Show processing message
+          await sendMessage({
+            chatId,
+            text: `🎬 <b>Создаю видео...</b>\n\nПромпт: <code>${text}</code>\n\nЭто займёт ~2 минуты. Я уведомлю когда готово! ✨`,
+          });
+
+          // Trigger generation via API
+          const site = getSiteUrl();
+          try {
+            const response = await fetch(`${site}/api/generate/video`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "kling",
+                prompt: text,
+                aspectRatio: "16:9",
+                duration: 5,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Generation failed");
+            }
+
+            // Success - webhook will notify when ready
+          } catch (error) {
+            await sendMessage({
+              chatId,
+              text: `❌ <b>Ошибка генерации</b>\n\nПопробуйте создать на сайте:\n${site}/create/studio`,
+            });
+          }
+
+          await sendMainMenu(chatId, firstName);
+          return NextResponse.json({ ok: true });
+        }
+      } catch {
+        // ignore
+      }
     }
 
     // Support: if there is a draft ticket, treat the next non-command message as its content

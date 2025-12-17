@@ -1,54 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { syncKieTaskToDb } from "@/lib/kie/sync-task";
-import { env } from "@/lib/env";
-import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 /**
- * GET /api/kie/sync?taskId=xxx&secret=yyy
- *
- * Manual fallback sync endpoint (server-only).
- * Requires secret; does not expose KIE keys to client.
+ * POST /api/kie/sync?taskId=xxx
+ * Manually sync a KIE task to database
  */
-export async function GET(request: NextRequest) {
-  const startTime = Date.now();
-  const logPrefix = "[KIE sync]";
-
+export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const taskId = String(searchParams.get("taskId") || "").trim();
-    const secret = searchParams.get("secret");
+    const taskId = searchParams.get("taskId");
 
     if (!taskId) {
-      return NextResponse.json({ error: "taskId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing taskId parameter" },
+        { status: 400 }
+      );
     }
-
-    const expectedSecret =
-      env.optional("KIE_SYNC_SECRET") || env.optional("KIE_CALLBACK_SECRET");
-    if (!expectedSecret) {
-      return integrationNotConfigured("kie", ["KIE_SYNC_SECRET", "KIE_CALLBACK_SECRET"]);
-    }
-    const apiKey = env.optional("KIE_API_KEY");
-    if (!apiKey) {
-      return integrationNotConfigured("kie", ["KIE_API_KEY"]);
-    }
-    if (secret !== expectedSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const supabase = getSupabaseAdmin();
-    const synced = await syncKieTaskToDb({ supabase, taskId });
 
-    console.log(`${logPrefix} handled`, { taskId, synced, ms: Date.now() - startTime });
+    console.log("[KIE Sync] Manual sync requested for task:", taskId);
 
-    return NextResponse.json({ ok: true, synced });
+    const result = await syncKieTaskToDb({ supabase, taskId });
+
+    console.log("[KIE Sync] Sync result:", result);
+
+    return NextResponse.json({
+      success: true,
+      taskId,
+      result,
+    });
   } catch (error) {
-    console.error(`${logPrefix} Unexpected error:`, error);
+    console.error("[KIE Sync] Error:", error);
     return NextResponse.json(
       {
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown",
+        error: error instanceof Error ? error.message : "Sync failed",
       },
       { status: 500 }
     );
   }
 }
 
+/**
+ * GET /api/kie/sync
+ * Health check
+ */
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    endpoint: "/api/kie/sync",
+    usage: "POST /api/kie/sync?taskId=xxx",
+  });
+}
