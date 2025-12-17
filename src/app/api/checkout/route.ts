@@ -19,6 +19,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check if payment provider is configured
+    const payformConfigured = process.env.PAYFORM_SECRET_KEY && process.env.PAYFORM_MERCHANT_ID;
+    if (!payformConfigured) {
+      return NextResponse.json({ 
+        error: 'Payment system is not configured. Please contact support.',
+        hint: process.env.NODE_ENV !== 'production' ? 'Missing PAYFORM_SECRET_KEY or PAYFORM_MERCHANT_ID' : undefined
+      }, { status: 503 });
+    }
+
     let paymentUrl: string;
     const orderNumber = `LR-${Date.now()}-${user.id.slice(0, 8)}`;
 
@@ -29,16 +38,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
 
-      paymentUrl = payform.createSubscriptionPayment({
-        orderNumber,
-        amount: plan.price,
-        customerEmail: user.email!,
-        userId: user.id,
-        type: 'subscription',
-        planId: plan.id,
-        credits: plan.credits,
-        description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
-      });
+      try {
+        paymentUrl = payform.createSubscriptionPayment({
+          orderNumber,
+          amount: plan.price,
+          customerEmail: user.email!,
+          userId: user.id,
+          type: 'subscription',
+          planId: plan.id,
+          credits: plan.credits,
+          description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Payment configuration error';
+        return NextResponse.json({ 
+          error: 'Unable to create payment. Please contact support.',
+          hint: process.env.NODE_ENV !== 'production' ? msg : undefined
+        }, { status: 503 });
+      }
 
       // Сохранить в БД
       await supabase.from('payments').insert({
@@ -65,15 +82,23 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
       }
 
-      paymentUrl = payform.createPackagePayment({
-        orderNumber,
-        amount: pkg.price,
-        customerEmail: user.email!,
-        userId: user.id,
-        type: 'package',
-        credits: pkg.credits,
-        description: `${pkg.credits} кредитов LensRoom`,
-      });
+      try {
+        paymentUrl = payform.createPackagePayment({
+          orderNumber,
+          amount: pkg.price,
+          customerEmail: user.email!,
+          userId: user.id,
+          type: 'package',
+          credits: pkg.credits,
+          description: `${pkg.credits} кредитов LensRoom`,
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Payment configuration error';
+        return NextResponse.json({ 
+          error: 'Unable to create payment. Please contact support.',
+          hint: process.env.NODE_ENV !== 'production' ? msg : undefined
+        }, { status: 503 });
+      }
 
       // Сохранить в БД
       await supabase.from('payments').insert({

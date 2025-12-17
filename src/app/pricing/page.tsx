@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
-import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES, formatPrice } from '@/lib/pricing/plans';
+import { SUBSCRIPTION_TIERS, STAR_PACKS, formatPrice, packBonusPercent, packTotalStars } from '@/config/pricing';
 import { toast } from 'sonner';
 import { LoginDialog } from '@/components/auth/login-dialog';
 
@@ -36,11 +36,22 @@ export default function PricingPage() {
       const data = await response.json();
 
       if (!response.ok || data.error) {
-        throw new Error(data.error || 'Ошибка при создании платежа');
+        // Show user-friendly error messages
+        if (response.status === 503) {
+          toast.error('Payment system is temporarily unavailable. Please contact support.');
+        } else {
+          throw new Error(data.error || 'Ошибка при создании платежа');
+        }
+        setLoading(null);
+        return;
       }
 
-      // Redirect to Prodamus
-      window.location.href = data.url;
+      // Redirect to payment provider
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('Payment URL not received');
+      }
 
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Ошибка при создании платежа';
@@ -54,6 +65,25 @@ export default function PricingPage() {
     pro: Crown,
     business: Zap,
   };
+
+  const plans = SUBSCRIPTION_TIERS.map((t) => ({
+    id: t.id,
+    name: t.name,
+    price: t.price,
+    credits: t.stars,
+    features: t.features,
+    popular: !!t.popular,
+  }));
+
+  const packs = STAR_PACKS.map((p) => ({
+    id: p.id,
+    name: p.id === 'mini' ? 'Mini' : p.id === 'plus' ? 'Plus' : p.id === 'max' ? 'Max' : 'Ultra',
+    price: p.price,
+    starsBase: p.stars,
+    starsTotal: packTotalStars(p),
+    bonusPercent: packBonusPercent(p),
+    popular: !!p.popular,
+  }));
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -78,7 +108,7 @@ export default function PricingPage() {
           <div className="max-w-md mx-auto">
             <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
               <p className="text-sm text-white font-medium">
-                Star — 490 ₽ до 31 декабря. Далее тарифы — от 990 ₽.
+                Оплата только за генерации. Начните с {plans[0]?.name} — от {formatPrice(plans[0]?.price || 0)}.
               </p>
             </div>
           </div>
@@ -86,9 +116,9 @@ export default function PricingPage() {
 
         {/* Subscription Plans */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 max-w-5xl mx-auto">
-          {SUBSCRIPTION_PLANS.map((plan, index) => {
+          {plans.map((plan, index) => {
             const Icon = planIcons[plan.id as keyof typeof planIcons] || Sparkles;
-            const isPopular = 'popular' in plan && plan.popular;
+            const isPopular = !!plan.popular;
             const isLoading = loading === plan.id;
             
             return (
@@ -106,20 +136,17 @@ export default function PricingPage() {
                       : 'bg-[var(--surface)] border border-[var(--border)]'
                   )}
                 >
-                  {(plan.badge || plan.popular) && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--gold)] text-black text-xs font-bold rounded-full">
-                      {plan.badge || 'ПОПУЛЯРНЫЙ'}
+                  {isPopular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-white text-black text-xs font-bold rounded-full">
+                      Лучший выбор
                     </div>
                   )}
 
-                  <div className={cn("text-center mb-6", (plan.badge || plan.popular) && "pt-2")}>
-                    <div className="w-12 h-12 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center mx-auto mb-4">
-                      <Icon className="w-6 h-6 text-[var(--gold)]" />
+                  <div className={cn("text-center mb-6", isPopular && "pt-2")}>
+                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+                      <Icon className="w-6 h-6 text-white" />
                     </div>
                     <h3 className="font-bold text-[var(--text)] text-xl mb-1">{plan.name}</h3>
-                    {plan.subtitle && (
-                      <p className="text-xs text-[var(--muted)] mb-2">{plan.subtitle}</p>
-                    )}
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-4xl font-bold text-[var(--text)]">
                         {plan.price.toLocaleString()}
@@ -132,16 +159,10 @@ export default function PricingPage() {
                     </div>
                   </div>
 
-                  {plan.description && (
-                    <p className="text-sm text-[var(--text2)] mb-4 text-center leading-relaxed">
-                      {plan.description}
-                    </p>
-                  )}
-
                   <ul className="space-y-3 mb-6">
                     {plan.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-[var(--text2)]">
-                        <CheckCircle2 className="w-4 h-4 text-[var(--gold)] mt-0.5 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-white/80 mt-0.5 shrink-0" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -193,7 +214,7 @@ export default function PricingPage() {
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {CREDIT_PACKAGES.map((pkg, index) => {
+            {packs.map((pkg, index) => {
               const isLoading = loading === pkg.id;
               
               return (
@@ -212,38 +233,25 @@ export default function PricingPage() {
                         : 'bg-[var(--surface)] border border-[var(--border)]'
                     )}
                   >
-                    {(pkg.badge || pkg.popular) && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[var(--gold)] text-black text-xs font-bold rounded-full">
-                        {pkg.badge || 'ВЫГОДНО'}
+                    {pkg.bonusPercent > 0 && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black text-xs font-bold rounded-full">
+                        +{pkg.bonusPercent}% бонус
                       </div>
                     )}
                     
                     <div className="text-center mb-4">
                       <h3 className="font-bold text-[var(--text)] text-lg mb-2">{pkg.name}</h3>
                       <div className="text-4xl font-bold text-[var(--text)] mb-1">
-                        {pkg.credits}
+                        {pkg.starsTotal}
                       </div>
                       <div className="text-sm text-[var(--muted)] mb-3">⭐</div>
-                      <div className="text-3xl font-bold text-[var(--gold)] mb-3">
+                      <div className="text-3xl font-bold text-white mb-3">
                         {formatPrice(pkg.price)}
                       </div>
-                      {pkg.description && (
-                        <p className="text-xs text-[var(--text2)] mb-4 leading-relaxed">
-                          {pkg.description}
-                        </p>
-                      )}
+                      <p className="text-xs text-[var(--text2)] mb-4 leading-relaxed">
+                        {pkg.bonusPercent > 0 ? `Бонус +${pkg.starsTotal - pkg.starsBase}⭐` : 'Без бонуса'}
+                      </p>
                     </div>
-
-                    {pkg.features && (
-                      <ul className="space-y-2 mb-6 text-left">
-                        {pkg.features.map((feature, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-[var(--text2)]">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[var(--gold)] mt-0.5 shrink-0" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
                     
                     <Button
                       className={cn(
@@ -258,7 +266,7 @@ export default function PricingPage() {
                       {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        `Купить ${pkg.name}`
+                        `Купить • ${pkg.starsTotal}⭐`
                       )}
                     </Button>
                   </div>
