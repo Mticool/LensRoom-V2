@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, ExternalLink, X, Globe } from "lucide-react";
+import { Loader2, ExternalLink, X, Globe, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { detectWebView, openExternal } from "@/lib/telegram/webview";
@@ -75,7 +75,8 @@ export function LibraryClient() {
   const prevStatusRef = useRef<Record<string, UiStatus>>({});
 
   const isWebView = useMemo(() => detectWebView(), []);
-  const syncEnabled = process.env.NEXT_PUBLIC_KIE_FALLBACK_SYNC === "true";
+  // Disable sync on every request - only sync on manual refresh or when Studio triggers
+  const syncEnabled = false; // process.env.NEXT_PUBLIC_KIE_FALLBACK_SYNC === "true";
 
   const LIMIT = 24;
 
@@ -309,6 +310,23 @@ export function LibraryClient() {
     setImageError((prev) => new Set([...prev, id]));
   };
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      toast.success('Файл скачивается...');
+    } catch (error) {
+      toast.error('Ошибка скачивания');
+    }
+  };
+
   return (
     <div className="min-h-screen pt-20 sm:pt-24 pb-16 sm:pb-20 bg-[var(--bg)]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -356,7 +374,7 @@ export function LibraryClient() {
                           <video
                             src={videoSrc || undefined}
                             poster={poster}
-                            preload="metadata"
+                            preload="none"
                             muted
                             playsInline
                             controls={false}
@@ -401,6 +419,20 @@ export function LibraryClient() {
                           <ExternalLink className="w-4 h-4 mr-2" />
                           Открыть
                         </Button>
+                        {url && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const ext = isVideo ? 'mp4' : 'png';
+                              const filename = `lensroom_${g.id.substring(0, 8)}.${ext}`;
+                              handleDownload(url, filename);
+                            }}
+                            title="Скачать"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -447,6 +479,23 @@ export function LibraryClient() {
                 {selected.model_name || "Результат"}
               </div>
               <div className="flex items-center gap-2">
+                {getFirstUrl(selected) && (
+                  <button
+                    className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                    onClick={() => {
+                      const url = getFirstUrl(selected);
+                      if (!url) return;
+                      const isVideo = String(selected.type || "").toLowerCase() === "video";
+                      const ext = isVideo ? 'mp4' : 'png';
+                      const filename = `lensroom_${selected.id.substring(0, 8)}.${ext}`;
+                      handleDownload(url, filename);
+                    }}
+                    aria-label="Download"
+                    title="Скачать"
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
+                )}
                 {isWebView && getFirstUrl(selected) && (
                   <button
                     className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
@@ -472,7 +521,7 @@ export function LibraryClient() {
                   src={getFirstUrl(selected) || undefined}
                   controls
                   playsInline
-                  preload="metadata"
+                  preload="auto"
                   className="w-full max-h-[60vh] bg-black"
                   onError={() => {
                     // Show fallback on error
