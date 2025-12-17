@@ -51,7 +51,7 @@ export class PayformClient {
       throw new Error(`Subscription ID not found for plan: ${planId}`);
     }
 
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://lensroom.ru').replace(/\/$/, '');
 
     const params = new URLSearchParams();
     params.append('subscription_id', subscriptionId);
@@ -79,7 +79,7 @@ export class PayformClient {
     description 
   }: CreatePaymentParams): string {
     
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://lensroom.ru').replace(/\/$/, '');
 
     // Prodamus/Payform параметры для динамического платежа
     const params = new URLSearchParams();

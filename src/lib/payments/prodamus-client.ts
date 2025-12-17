@@ -41,7 +41,7 @@ export function getProdamusConfig(): ProdamusConfig | null {
   const projectId = env.required("PRODAMUS_PROJECT_ID", "Prodamus project ID");
   if (!secretKey || !projectId) return null;
 
-  const appUrl = (env.optional("NEXT_PUBLIC_APP_URL") || "http://localhost:3000").replace(/\/$/, "");
+  const appUrl = (env.optional("NEXT_PUBLIC_APP_URL") || "https://lensroom.ru").replace(/\/$/, "");
   return {
     secretKey,
     projectId,
