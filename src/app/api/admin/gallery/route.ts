@@ -3,16 +3,35 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { requireRole, respondAuthError } from "@/lib/auth/requireRole";
 
 // GET - Fetch all gallery effects
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await requireRole("manager");
 
+    const { searchParams } = new URL(request.url);
+    const placement = searchParams.get('placement'); // 'home' | 'inspiration'
+    const status = searchParams.get('status'); // 'draft' | 'published'
+    const category = searchParams.get('category');
+
     // Fetch effects
-    const supabaseQuery = getSupabaseAdmin();
-    const { data: effects, error } = await supabaseQuery
+    const supabase = getSupabaseAdmin();
+    let query = supabase
       .from('effects_gallery')
-      .select('*')
-      .order('display_order', { ascending: true });
+      .select('*');
+    
+    if (placement) {
+      query = query.eq('placement', placement);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (category) {
+      query = query.eq('category', category);
+    }
+    
+    query = query.order('priority', { ascending: false })
+                 .order('display_order', { ascending: true });
+
+    const { data: effects, error } = await query;
 
     if (error) {
       console.error('Error fetching effects:', error);
@@ -48,18 +67,28 @@ export async function POST(request: Request) {
       featured,
       published,
       order,
+      // New Content Constructor fields
+      placement,
+      status,
+      category,
+      priority,
+      type,
+      assetUrl,
+      posterUrl,
+      aspect,
+      shortDescription,
     } = body;
 
     // Validate required fields
-    if (!presetId || !title || !contentType || !modelKey) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!presetId || !title) {
+      return NextResponse.json({ error: 'Missing required fields: presetId, title' }, { status: 400 });
     }
 
-    const effectData = {
+    const effectData: any = {
       preset_id: presetId,
       title,
-      content_type: contentType,
-      model_key: modelKey,
+      content_type: contentType || 'photo',
+      model_key: modelKey || 'nano-banana-pro',
       tile_ratio: tileRatio || '1:1',
       cost_stars: costStars || 0,
       mode: mode || 't2i',
@@ -70,6 +99,16 @@ export async function POST(request: Request) {
       published: published || false,
       display_order: order || 0,
       updated_at: new Date().toISOString(),
+      // New fields
+      placement: placement || 'home',
+      status: status || 'draft',
+      category: category || null,
+      priority: priority !== undefined ? priority : 0,
+      type: type || (contentType === 'video' ? 'video' : 'image'),
+      asset_url: assetUrl || null,
+      poster_url: posterUrl || null,
+      aspect: aspect || tileRatio || '1:1',
+      short_description: shortDescription || null,
     };
 
     let result;

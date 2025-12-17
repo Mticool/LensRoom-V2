@@ -51,6 +51,16 @@ export interface EffectPreset {
   order: number;
   createdAt?: string;
   updatedAt?: string;
+  // Content Constructor fields
+  placement?: 'home' | 'inspiration';
+  status?: 'draft' | 'published';
+  category?: string;
+  priority?: number;
+  type?: 'image' | 'video';
+  assetUrl?: string;
+  posterUrl?: string;
+  aspect?: '1:1' | '9:16' | '16:9';
+  shortDescription?: string;
 }
 
 interface GalleryEditorProps {
@@ -59,6 +69,7 @@ interface GalleryEditorProps {
   onDelete: (presetId: string) => Promise<void>;
   onReorder: (presets: EffectPreset[]) => Promise<void>;
   loading: boolean;
+  placement?: 'home' | 'inspiration';
 }
 
 // ===== CONSTANTS =====
@@ -86,7 +97,7 @@ const VIDEO_MODES = [
 ];
 
 // ===== MAIN COMPONENT =====
-export function GalleryEditor({ presets, onSave, onDelete, onReorder, loading }: GalleryEditorProps) {
+export function GalleryEditor({ presets, onSave, onDelete, onReorder, loading, placement }: GalleryEditorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'photo' | 'video'>('all');
   const [editingPreset, setEditingPreset] = useState<EffectPreset | null>(null);
@@ -95,7 +106,8 @@ export function GalleryEditor({ presets, onSave, onDelete, onReorder, loading }:
   // Filter presets
   const filteredPresets = presets.filter(p => {
     const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         p.templatePrompt.toLowerCase().includes(searchQuery.toLowerCase());
+                         (p.templatePrompt || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (p.shortDescription || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'all' || p.contentType === filterType;
     return matchesSearch && matchesType;
   });
@@ -103,8 +115,8 @@ export function GalleryEditor({ presets, onSave, onDelete, onReorder, loading }:
   // Create new preset
   const handleCreate = () => {
     const newPreset: EffectPreset = {
-      presetId: `effect-${Date.now()}`,
-      title: 'Новый эффект',
+      presetId: `content-${Date.now()}`,
+      title: 'Новая карточка',
       contentType: 'photo',
       modelKey: 'nano-banana-pro',
       tileRatio: '1:1',
@@ -116,6 +128,15 @@ export function GalleryEditor({ presets, onSave, onDelete, onReorder, loading }:
       featured: false,
       published: false,
       order: presets.length,
+      placement: placement || 'home',
+      status: 'draft',
+      category: '',
+      priority: 0,
+      type: 'image',
+      assetUrl: '',
+      posterUrl: '',
+      aspect: '1:1',
+      shortDescription: '',
     };
     setEditingPreset(newPreset);
     setIsCreating(true);
@@ -189,10 +210,10 @@ export function GalleryEditor({ presets, onSave, onDelete, onReorder, loading }:
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Всего эффектов" value={presets.length} icon={Sparkles} />
-        <StatCard label="Опубликовано" value={presets.filter(p => p.published).length} icon={Eye} />
+        <StatCard label="Всего карточек" value={presets.length} icon={Sparkles} />
+        <StatCard label="Опубликовано" value={presets.filter(p => p.status === 'published').length} icon={Eye} />
         <StatCard label="Featured" value={presets.filter(p => p.featured).length} icon={Star} />
-        <StatCard label="Черновики" value={presets.filter(p => !p.published).length} icon={EyeOff} />
+        <StatCard label="Черновики" value={presets.filter(p => p.status === 'draft').length} icon={EyeOff} />
       </div>
 
       {/* Presets Grid */}
@@ -300,7 +321,7 @@ function PresetCard({
 
         {/* Status */}
         <div className="absolute top-2 right-2">
-          {preset.published ? (
+          {preset.status === 'published' ? (
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/80 text-white font-bold flex items-center gap-0.5">
               <Eye className="w-2.5 h-2.5" />
               LIVE
@@ -380,21 +401,60 @@ function PresetEditorModal({
   const models = form.contentType === 'photo' ? PHOTO_MODELS : VIDEO_MODELS;
   const modes = form.contentType === 'photo' ? PHOTO_MODES : VIDEO_MODES;
 
-  const handleSubmit = async () => {
+  const [uploading, setUploading] = useState(false);
+
+  const handleSubmit = async (publishNow?: boolean) => {
     if (!form.title.trim()) {
       toast.error('Введите название');
-      return;
-    }
-    if (!form.previewImage.trim()) {
-      toast.error('Добавьте изображение превью');
       return;
     }
     
     setSaving(true);
     try {
-      await onSave(form);
+      const finalForm = {
+        ...form,
+        status: publishNow ? 'published' : (form.status || 'draft'),
+      };
+      await onSave(finalForm);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpload = async (file: File, type: 'asset' | 'preview' | 'poster') => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', form.placement || 'home');
+      
+      const res = await fetch('/api/admin/content/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Upload failed');
+      }
+      
+      const data = await res.json();
+      
+      if (type === 'asset') {
+        updateForm({ assetUrl: data.url });
+        toast.success('Файл загружен');
+      } else if (type === 'preview') {
+        updateForm({ previewImage: data.url });
+        toast.success('Превью загружено');
+      } else if (type === 'poster') {
+        updateForm({ posterUrl: data.url });
+        toast.success('Постер загружен');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Ошибка загрузки');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -544,21 +604,93 @@ function PresetEditorModal({
                 </div>
               </div>
 
+              {/* Content Constructor Fields */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">Размещение</h3>
+                
+                {/* Category */}
+                <div>
+                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Категория</label>
+                  <input
+                    type="text"
+                    value={form.category || ''}
+                    onChange={(e) => updateForm({ category: e.target.value })}
+                    placeholder="portrait, landscape, art..."
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)]"
+                  />
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-[var(--muted)]">Приоритет (чем выше, тем раньше в списке)</label>
+                    <span className="text-sm font-bold text-[var(--gold)]">{form.priority || 0}</span>
+                  </div>
+                  <Slider
+                    value={[form.priority || 0]}
+                    onValueChange={([v]) => updateForm({ priority: v })}
+                    min={0}
+                    max={100}
+                    step={1}
+                  />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Статус публикации</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => updateForm({ status: 'draft' })}
+                      className={cn(
+                        "flex-1 px-3 py-2 rounded-lg border text-sm transition-all",
+                        form.status === 'draft'
+                          ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--gold)]"
+                          : "border-[var(--border)] text-[var(--text2)] hover:border-[var(--gold)]/50"
+                      )}
+                    >
+                      Черновик
+                    </button>
+                    <button
+                      onClick={() => updateForm({ status: 'published' })}
+                      className={cn(
+                        "flex-1 px-3 py-2 rounded-lg border text-sm transition-all",
+                        form.status === 'published'
+                          ? "border-green-500 bg-green-500/10 text-green-400"
+                          : "border-[var(--border)] text-[var(--text2)] hover:border-green-500/50"
+                      )}
+                    >
+                      Опубликовано
+                    </button>
+                  </div>
+                </div>
+
+                {/* Featured */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.featured}
+                    onChange={(e) => updateForm({ featured: e.target.checked })}
+                    className="w-4 h-4 rounded border-[var(--border)] text-[var(--gold)] focus:ring-[var(--gold)]"
+                  />
+                  <span className="text-sm text-[var(--text2)]">Показать в Featured</span>
+                </label>
+              </div>
+
               {/* Display */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">Отображение</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">Формат</h3>
                 
-                {/* Tile Ratio */}
+                {/* Aspect Ratio */}
                 <div>
-                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Формат плитки</label>
+                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Соотношение сторон</label>
                   <div className="flex gap-2">
                     {TILE_RATIOS.map(ratio => (
                       <button
                         key={ratio.id}
-                        onClick={() => updateForm({ tileRatio: ratio.id as '9:16' | '1:1' | '16:9' })}
+                        onClick={() => updateForm({ aspect: ratio.id as '9:16' | '1:1' | '16:9', tileRatio: ratio.id as '9:16' | '1:1' | '16:9' })}
                         className={cn(
                           "flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg border transition-all",
-                          form.tileRatio === ratio.id
+                          (form.aspect || form.tileRatio) === ratio.id
                             ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--gold)]"
                             : "border-[var(--border)] text-[var(--text2)] hover:border-[var(--gold)]/50"
                         )}
@@ -569,64 +701,92 @@ function PresetEditorModal({
                     ))}
                   </div>
                 </div>
-
-                {/* Toggles */}
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.featured}
-                      onChange={(e) => updateForm({ featured: e.target.checked })}
-                      className="w-4 h-4 rounded border-[var(--border)] text-[var(--gold)] focus:ring-[var(--gold)]"
-                    />
-                    <span className="text-sm text-[var(--text2)]">Featured</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.published}
-                      onChange={(e) => updateForm({ published: e.target.checked })}
-                      className="w-4 h-4 rounded border-[var(--border)] text-[var(--gold)] focus:ring-[var(--gold)]"
-                    />
-                    <span className="text-sm text-[var(--text2)]">Опубликовать</span>
-                  </label>
-                </div>
               </div>
             </div>
 
-            {/* Right Column - Preview & Prompt */}
+            {/* Right Column - Upload & Details */}
             <div className="space-y-5">
-              {/* Preview Image */}
+              {/* Upload Section */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">Превью</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">Загрузка файлов</h3>
                 
+                {/* Asset Upload */}
                 <div>
-                  <label className="text-xs text-[var(--muted)] mb-1.5 block">URL изображения *</label>
+                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Основной файл (изображение/видео)</label>
                   <input
-                    type="text"
-                    value={form.previewImage}
-                    onChange={(e) => updateForm({ previewImage: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)]"
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUpload(file, 'asset');
+                    }}
+                    disabled={uploading}
+                    className="w-full text-sm text-[var(--text)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[var(--gold)] file:text-black file:font-medium hover:file:bg-[var(--gold-hover)] file:cursor-pointer"
                   />
+                  {form.assetUrl && (
+                    <p className="text-[10px] text-green-400 mt-1 truncate">✓ {form.assetUrl}</p>
+                  )}
                 </div>
 
-                {/* Preview */}
-                <div className={cn(
-                  "relative rounded-xl overflow-hidden bg-[var(--surface2)] border border-[var(--border)]",
-                  form.tileRatio === '9:16' ? 'aspect-[9/16] max-w-[200px]' :
-                  form.tileRatio === '16:9' ? 'aspect-video' : 'aspect-square max-w-[250px]'
-                )}>
-                  {form.previewImage ? (
-                    <img src={form.previewImage} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <ImageIcon className="w-8 h-8 text-[var(--muted)] mx-auto mb-2" />
-                        <p className="text-xs text-[var(--muted)]">Добавьте URL</p>
-                      </div>
+                {/* Preview Image Upload */}
+                <div>
+                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Превью (плитка в галерее)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUpload(file, 'preview');
+                    }}
+                    disabled={uploading}
+                    className="w-full text-sm text-[var(--text)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[var(--surface2)] file:text-[var(--text)] file:font-medium hover:file:bg-[var(--border)] file:cursor-pointer"
+                  />
+                  {form.previewImage && (
+                    <div className={cn(
+                      "relative rounded-xl overflow-hidden bg-[var(--surface2)] border border-[var(--border)] mt-2",
+                      (form.aspect || form.tileRatio) === '9:16' ? 'aspect-[9/16] max-w-[150px]' :
+                      (form.aspect || form.tileRatio) === '16:9' ? 'aspect-video max-w-[250px]' : 
+                      'aspect-square max-w-[200px]'
+                    )}>
+                      <img src={form.previewImage} alt="Preview" className="w-full h-full object-cover" />
                     </div>
                   )}
+                </div>
+
+                {/* Poster for Videos */}
+                {form.contentType === 'video' && (
+                  <div>
+                    <label className="text-xs text-[var(--muted)] mb-1.5 block">Постер (для видео)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload(file, 'poster');
+                      }}
+                      disabled={uploading}
+                      className="w-full text-sm text-[var(--text)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[var(--surface2)] file:text-[var(--text)] file:font-medium hover:file:bg-[var(--border)] file:cursor-pointer"
+                    />
+                    {form.posterUrl && (
+                      <p className="text-[10px] text-green-400 mt-1 truncate">✓ {form.posterUrl}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Short Description */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">Описание</h3>
+                
+                <div>
+                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Краткое описание</label>
+                  <textarea
+                    value={form.shortDescription || ''}
+                    onChange={(e) => updateForm({ shortDescription: e.target.value })}
+                    placeholder="Краткое описание карточки для пользователя"
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] resize-none"
+                  />
                 </div>
               </div>
 
@@ -640,7 +800,7 @@ function PresetEditorModal({
                     value={form.templatePrompt}
                     onChange={(e) => updateForm({ templatePrompt: e.target.value })}
                     placeholder="Cinematic smoke transition, particles dissolving and reforming, ethereal atmosphere, 4K quality"
-                    rows={6}
+                    rows={4}
                     className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] resize-none"
                   />
                   <p className="text-[10px] text-[var(--muted)] mt-1">
@@ -648,39 +808,41 @@ function PresetEditorModal({
                   </p>
                 </div>
               </div>
-
-              {/* Variant ID */}
-              <div>
-                <label className="text-xs text-[var(--muted)] mb-1.5 block">Variant ID (опционально)</label>
-                <input
-                  type="text"
-                  value={form.variantId}
-                  onChange={(e) => updateForm({ variantId: e.target.value })}
-                  placeholder="default"
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] font-mono"
-                />
-              </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border)] bg-[var(--surface)]">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Отмена
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)]"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {isNew ? 'Создать' : 'Сохранить'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => handleSubmit(false)}
+              disabled={saving || uploading}
+              variant="outline"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Сохранить черновик
+            </Button>
+            <Button
+              onClick={() => handleSubmit(true)}
+              disabled={saving || uploading}
+              className="bg-green-500 text-white hover:bg-green-600"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Eye className="w-4 h-4 mr-2" />
+              )}
+              Разместить
+            </Button>
+          </div>
         </div>
       </div>
     </div>
