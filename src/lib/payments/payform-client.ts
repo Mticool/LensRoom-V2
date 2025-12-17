@@ -68,6 +68,7 @@ export class PayformClient {
     }));
     params.append('urlSuccess', `${appUrl}/payment/success?type=subscription&plan=${planId}&credits=${credits}`);
     params.append('urlReturn', `${appUrl}/pricing`);
+    params.append('urlNotification', `${appUrl}/api/webhooks/payform`);
 
     return `${this.baseUrl}?${params.toString()}`;
   }
