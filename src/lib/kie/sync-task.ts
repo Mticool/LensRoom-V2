@@ -42,7 +42,13 @@ async function fetchRecordInfo(taskId: string): Promise<{ state: KieTaskState; r
     throw new Error(`KIE recordInfo invalid JSON: ${text.slice(0, 200)}`);
   }
 
-  if (json?.code !== 0) throw new Error(json?.message || json?.msg || "KIE recordInfo returned error");
+  // KIE Market API may return either { code: 0, ... } or { code: 200, ... } for success.
+  const okCode = json?.code === 0 || json?.code === 200 || json?.code === "0" || json?.code === "200";
+  if (!okCode) {
+    const code = typeof json?.code !== "undefined" ? String(json.code) : "unknown";
+    const msg = json?.message || json?.msg || json?.error || "KIE recordInfo returned error";
+    throw new Error(`${msg}${code ? ` (code: ${code})` : ""}`);
+  }
 
   const data = json?.data || {};
   return {

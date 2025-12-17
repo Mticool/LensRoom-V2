@@ -5,6 +5,7 @@ import { getKieClient } from '@/lib/api/kie-client';
 import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 
 export async function POST(request: NextRequest) {
   try {
@@ -129,24 +130,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save generation to history (use only columns that exist on prod)
-    const { data: generation, error: genError } = await supabase
-      .from('generations')
-      .insert({
-        user_id: userId,
-        type: 'video',
-        model_id: model,
-        model_name: modelInfo.name,
-        prompt: prompt,
-        negative_prompt: negativePrompt,
-        credits_used: creditCost,
-        status: 'queued',
-      })
-      .select()
-      .single();
+    // Ensure `profiles` row exists (generations.user_id may FK to profiles.id)
+    try {
+      await ensureProfileExists(supabase, userId);
+    } catch (e) {
+      console.error("[API] Failed to ensure profile exists:", e);
+    }
+
+    // Save generation to history
+    let generation: any = null;
+    let genError: any = null;
+
+    const insertOnce = async () => {
+      const r = await supabase
+        .from("generations")
+        .insert({
+          user_id: userId,
+          type: "video",
+          model_id: model,
+          model_name: modelInfo.name,
+          prompt: prompt,
+          negative_prompt: negativePrompt,
+          credits_used: creditCost,
+          status: "queued",
+        })
+        .select()
+        .single();
+      generation = r.data;
+      genError = r.error;
+    };
+
+    await insertOnce();
+    if (genError) {
+      const code = genError?.code ? String(genError.code) : "";
+      const msg = genError?.message ? String(genError.message) : String(genError);
+      if (code === "23503" || /foreign key/i.test(msg)) {
+        try {
+          await ensureProfileExists(supabase, userId);
+          await insertOnce();
+        } catch (e) {
+          console.error("[API] Retry after ensureProfileExists failed:", e);
+        }
+      }
+    }
 
     if (genError) {
-      console.error('[API] Failed to save generation:', genError);
+      console.error("[API] Failed to save generation:", JSON.stringify(genError, null, 2));
+      return NextResponse.json(
+        {
+          error: "Failed to create generation record",
+          details: genError?.message || String(genError),
+          hint: "Likely missing profiles row or FK/RLS issue on `generations.user_id`",
+        },
+        { status: 500 }
+      );
     }
 
     // Record credit transaction (avoid columns missing on prod, like metadata)

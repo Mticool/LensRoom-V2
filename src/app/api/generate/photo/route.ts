@@ -6,6 +6,7 @@ import { getKieClient } from "@/lib/api/kie-client";
 import { PHOTO_MODELS, getModelById } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 
 export async function POST(request: NextRequest) {
   try {
@@ -105,39 +106,68 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save generation to history (using admin client to bypass RLS)
-    console.log('[API] Creating generation for user:', userId, 'model:', model);
-    const { data: generation, error: genError } = await supabase
-      .from('generations')
-      .insert({
-        user_id: userId,
-        type: 'photo',
-        model_id: model,
-        model_name: modelInfo.name,
-        prompt: prompt,
-        negative_prompt: negativePrompt,
-        credits_used: creditCost,
-        status: 'queued',
-      })
-      .select()
-      .single();
+    // Ensure `profiles` row exists (generations.user_id may FK to profiles.id)
+    try {
+      await ensureProfileExists(supabase, userId);
+    } catch (e) {
+      console.error("[API] Failed to ensure profile exists:", e);
+    }
+
+    // Save generation to history (admin client bypasses RLS; FK can still fail if profile row missing)
+    console.log("[API] Creating generation for user:", userId, "model:", model);
+    let generation: any = null;
+    let genError: any = null;
+
+    const insertOnce = async () => {
+      const r = await supabase
+        .from("generations")
+        .insert({
+          user_id: userId,
+          type: "photo",
+          model_id: model,
+          model_name: modelInfo.name,
+          prompt: prompt,
+          negative_prompt: negativePrompt,
+          credits_used: creditCost,
+          status: "queued",
+        })
+        .select()
+        .single();
+      generation = r.data;
+      genError = r.error;
+    };
+
+    await insertOnce();
+    if (genError) {
+      const code = genError?.code ? String(genError.code) : "";
+      const msg = genError?.message ? String(genError.message) : String(genError);
+
+      // Common root cause: FK violation to profiles.id (23503). Retry after ensuring profile.
+      if (code === "23503" || /foreign key/i.test(msg)) {
+        try {
+          await ensureProfileExists(supabase, userId);
+          await insertOnce();
+        } catch (e) {
+          // keep original error below if still failing
+          console.error("[API] Retry after ensureProfileExists failed:", e);
+        }
+      }
+    }
 
     if (genError) {
-      console.error('[API] Failed to save generation:', JSON.stringify(genError, null, 2));
-      console.error('[API] Generation data:', { userId, model, prompt: prompt.substring(0, 50) });
-      
-      // Return error to user if generation record fails
+      console.error("[API] Failed to save generation:", JSON.stringify(genError, null, 2));
+      console.error("[API] Generation data:", { userId, model, prompt: prompt.substring(0, 50) });
       return NextResponse.json(
-        { 
-          error: "Failed to create generation record", 
-          details: genError.message || genError.toString(),
-          hint: "Check database permissions and RLS policies"
+        {
+          error: "Failed to create generation record",
+          details: genError?.message || String(genError),
+          hint: "Likely missing profiles row or FK/RLS issue on `generations.user_id`",
         },
         { status: 500 }
       );
     }
-    
-    console.log('[API] Generation created:', generation?.id);
+
+    console.log("[API] Generation created:", generation?.id);
 
     // Record credit transaction (avoid columns missing on prod, like metadata)
     try {
