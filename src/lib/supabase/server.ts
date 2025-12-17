@@ -21,13 +21,28 @@ export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      // Keep user logged in longer on server side
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+    },
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
         try {
-          cookieStore.set({ name, value, ...options });
+          // Extend cookie maxAge to 30 days (matches refresh token lifetime)
+          cookieStore.set({ 
+            name, 
+            value, 
+            ...options,
+            maxAge: options.maxAge || 60 * 60 * 24 * 30, // 30 days
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+          });
         } catch {
           // Handle cookie errors in middleware
         }

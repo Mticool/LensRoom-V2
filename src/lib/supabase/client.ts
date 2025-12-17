@@ -19,5 +19,20 @@ export function createClient() {
     return null as any;
   }
   
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      // Keep user logged in longer
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      // Store session in localStorage (persists across tabs/windows)
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    },
+    global: {
+      headers: {
+        'x-client-info': 'lensroom-web',
+      },
+    },
+  });
 }
