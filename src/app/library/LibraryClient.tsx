@@ -197,7 +197,8 @@ export function LibraryClient() {
         v.crossOrigin = "anonymous";
         v.muted = true;
         v.playsInline = true;
-        v.preload = "auto";
+        // Metadata is enough to seek a frame in most browsers and is much lighter than full preload.
+        v.preload = "metadata";
         v.src = videoUrl;
 
         const cleanup = () => {

@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  compress: true,
+  poweredByHeader: false,
+  experimental: {
+    // Reduce client bundle size for large icon libraries.
+    optimizePackageImports: ["lucide-react"],
+  },
 };
 
 export default nextConfig;

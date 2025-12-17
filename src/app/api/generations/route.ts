@@ -22,6 +22,11 @@ interface GenerationPatchInput {
   error?: string;
 }
 
+// Keep API payload small (faster TTFB + less JSON parse on client).
+// Only include fields used by Library/Studio UI.
+const GENERATIONS_SELECT =
+  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,credits_used,task_id,asset_url,preview_url,thumbnail_url,result_urls,results,error,is_favorite,created_at,updated_at";
+
 // GET - Fetch user's generations (history)
 export async function GET(request: NextRequest) {
   try {
@@ -45,14 +50,16 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type");
     const status = searchParams.get("status");
     const favorites = searchParams.get("favorites") === "true";
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limitRaw = parseInt(searchParams.get("limit") || "50");
+    const offsetRaw = parseInt(searchParams.get("offset") || "0");
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 50;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
     const sync = searchParams.get("sync") === "true";
     const fallbackSyncEnabled = env.bool("KIE_FALLBACK_SYNC");
 
     let query = supabase
       .from("generations")
-      .select("*")
+      .select(GENERATIONS_SELECT)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -100,10 +107,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      generations: data || [],
-      count: data?.length || 0,
-    });
+    return NextResponse.json(
+      {
+        generations: data || [],
+        count: data?.length || 0,
+      },
+      {
+        headers: {
+          // Safe because data is per-user (Telegram session cookie). Helps repeat loads.
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=30",
+        },
+      }
+    );
   } catch (error) {
     console.error("[Generations API] Error:", error);
     return NextResponse.json(
