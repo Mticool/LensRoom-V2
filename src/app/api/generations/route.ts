@@ -25,7 +25,8 @@ interface GenerationPatchInput {
 // Keep API payload small (faster TTFB + less JSON parse on client).
 // Only include fields used by Library/Studio UI.
 const GENERATIONS_SELECT =
-  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,credits_used,task_id,asset_url,preview_url,thumbnail_url,result_urls,results,error,is_favorite,created_at,updated_at";
+  // NOTE: some older DB schemas don't have `results` column.
+  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,credits_used,task_id,asset_url,preview_url,thumbnail_url,result_urls,error,is_favorite,created_at,updated_at";
 
 // GET - Fetch user's generations (history)
 export async function GET(request: NextRequest) {
@@ -57,26 +58,32 @@ export async function GET(request: NextRequest) {
     const sync = searchParams.get("sync") === "true";
     const fallbackSyncEnabled = env.bool("KIE_FALLBACK_SYNC");
 
-    let query = supabase
-      .from("generations")
-      .select(GENERATIONS_SELECT)
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+    const buildQuery = (select: string) => {
+      let query = supabase
+        .from("generations")
+        .select(select)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
 
-    if (type) {
-      query = query.eq("type", type);
+      if (type) query = query.eq("type", type);
+      if (status) query = query.eq("status", status);
+      if (favorites) query = query.eq("is_favorite", true);
+      return query;
+    };
+
+    // Prefer a small select for speed, but fall back to "*" for older schemas.
+    let { data, error } = await buildQuery(GENERATIONS_SELECT);
+    if (error) {
+      const msg = String((error as any)?.message || error);
+      const code = String((error as any)?.code || "");
+      const isMissingColumn =
+        code === "42703" || /column .* does not exist/i.test(msg) || /does not exist/i.test(msg);
+
+      if (isMissingColumn) {
+        ({ data, error } = await buildQuery("*"));
+      }
     }
-
-    if (status) {
-      query = query.eq("status", status);
-    }
-
-    if (favorites) {
-      query = query.eq("is_favorite", true);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error("[Generations API] Error fetching:", error);
