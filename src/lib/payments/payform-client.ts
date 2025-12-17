@@ -37,10 +37,12 @@ export class PayformClient {
   // Создать платеж для подписки
   createSubscriptionPayment({ 
     orderNumber, 
+    amount,
     customerEmail, 
     userId, 
     planId, 
-    credits 
+    credits,
+    description,
   }: CreatePaymentParams): string {
     
     const subscriptionId =
@@ -57,8 +59,16 @@ export class PayformClient {
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://lensroom.ru').replace(/\/$/, '');
 
     const params = new URLSearchParams();
+    // Make amount auto-filled on provider form (so user doesn't type anything).
+    params.append('do', 'pay');
+    params.append('sum', amount.toString());
+    params.append('currency', 'rub');
+    params.append('order_id', orderNumber);
     params.append('subscription_id', subscriptionId);
     params.append('customer_email', customerEmail);
+    params.append('products[0][name]', description || `Подписка ${planId}`);
+    params.append('products[0][price]', amount.toString());
+    params.append('products[0][quantity]', '1');
     params.append('customer_extra', JSON.stringify({
       user_id: userId,
       order_id: orderNumber,
@@ -69,6 +79,15 @@ export class PayformClient {
     params.append('urlSuccess', `${appUrl}/payment/success?type=subscription&plan=${planId}&credits=${credits}`);
     params.append('urlReturn', `${appUrl}/pricing`);
     params.append('urlNotification', `${appUrl}/api/webhooks/payform`);
+
+    // Sign like packages (helps Payform accept prefilled sum/order_id)
+    const signData = {
+      sum: amount.toString(),
+      order_id: orderNumber,
+      customer_email: customerEmail,
+    };
+    const signature = this.generateSignature(signData);
+    params.append('signature', signature);
 
     return `${this.baseUrl}?${params.toString()}`;
   }
