@@ -217,7 +217,7 @@ export const MobileModelSelector = memo(function MobileModelSelector({
           <ChevronDown className="w-5 h-5 text-[var(--muted)] shrink-0" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto !z-[100]">
         <SheetHeader className="mb-4">
           <SheetTitle className="text-lg">Выберите модель</SheetTitle>
           <p className="text-sm text-[var(--muted)]">
