@@ -74,14 +74,18 @@ create trigger effects_gallery_updated_at
 -- Enable RLS
 alter table public.effects_gallery enable row level security;
 
+-- Drop existing policies if they exist
+drop policy if exists effects_gallery_read_public on public.effects_gallery;
+drop policy if exists effects_gallery_write_manager_admin on public.effects_gallery;
+
 -- Public can SELECT only published content
-create policy if not exists effects_gallery_read_public 
+create policy effects_gallery_read_public 
   on public.effects_gallery
   for select
   using (status = 'published' or public.has_role(auth.uid(), array['admin', 'manager']));
 
 -- Managers and admins can INSERT/UPDATE/DELETE
-create policy if not exists effects_gallery_write_manager_admin 
+create policy effects_gallery_write_manager_admin 
   on public.effects_gallery
   for all
   to authenticated
