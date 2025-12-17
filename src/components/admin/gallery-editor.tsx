@@ -45,6 +45,7 @@ export interface EffectPreset {
   mode: string;
   variantId: string;
   previewImage: string;
+  previewUrl?: string;
   templatePrompt: string;
   featured: boolean;
   published: boolean;
@@ -124,6 +125,7 @@ export function GalleryEditor({ presets, onSave, onDelete, onReorder, loading, p
       mode: 't2i',
       variantId: 'default',
       previewImage: '',
+      previewUrl: '',
       templatePrompt: '',
       featured: false,
       published: false,
@@ -445,7 +447,7 @@ function PresetEditorModal({
         updateForm({ assetUrl: data.url });
         toast.success('Файл загружен');
       } else if (type === 'preview') {
-        updateForm({ previewImage: data.url });
+        updateForm({ previewImage: data.url, previewUrl: data.url });
         toast.success('Превью загружено');
       } else if (type === 'poster') {
         updateForm({ posterUrl: data.url });
@@ -455,6 +457,111 @@ function PresetEditorModal({
       toast.error(error instanceof Error ? error.message : 'Ошибка загрузки');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const generateWebpPreview = async (file: File): Promise<File | null> => {
+    try {
+      const imgUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = imgUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load image'));
+      });
+      URL.revokeObjectURL(imgUrl);
+
+      const canvas = document.createElement('canvas');
+      // Clamp to a reasonable preview size
+      const maxSide = 1024;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), 'image/webp', 0.82)
+      );
+      if (!blob) return null;
+      return new File([blob], `preview-${Date.now()}.webp`, { type: 'image/webp' });
+    } catch {
+      return null;
+    }
+  };
+
+  const generateVideoPoster = async (file: File): Promise<File | null> => {
+    try {
+      const videoUrl = URL.createObjectURL(file);
+      const video = document.createElement('video');
+      video.src = videoUrl;
+      video.muted = true;
+      video.playsInline = true;
+      video.crossOrigin = 'anonymous';
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = () => reject(new Error('Failed to load video'));
+      });
+
+      // Seek to a tiny offset to ensure we have a frame
+      try {
+        video.currentTime = Math.min(0.1, video.duration || 0.1);
+        await new Promise<void>((resolve) => {
+          video.onseeked = () => resolve();
+        });
+      } catch {
+        // ignore seek failures; use first frame
+      }
+
+      const canvas = document.createElement('canvas');
+      const maxSide = 1024;
+      const scale = Math.min(1, maxSide / Math.max(video.videoWidth || 1, video.videoHeight || 1));
+      canvas.width = Math.max(1, Math.round((video.videoWidth || 1) * scale));
+      canvas.height = Math.max(1, Math.round((video.videoHeight || 1) * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(videoUrl);
+
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), 'image/webp', 0.82)
+      );
+      if (!blob) return null;
+      return new File([blob], `poster-${Date.now()}.webp`, { type: 'image/webp' });
+    } catch {
+      return null;
+    }
+  };
+
+  const handleAssetSelected = async (file: File) => {
+    // Upload original asset
+    await handleUpload(file, 'asset');
+
+    // Auto-set type based on mime
+    const isVideo = file.type.startsWith('video/');
+    updateForm({
+      contentType: isVideo ? 'video' : 'photo',
+      type: isVideo ? 'video' : 'image',
+    });
+
+    // Auto-generate preview/poster
+    if (!isVideo) {
+      const preview = await generateWebpPreview(file);
+      if (preview) {
+        await handleUpload(preview, 'preview');
+      }
+    } else {
+      const poster = await generateVideoPoster(file);
+      if (poster) {
+        await handleUpload(poster, 'poster');
+        // If no preview yet, reuse poster for grid preview
+        if (!form.previewImage) {
+          await handleUpload(poster, 'preview');
+        }
+      }
     }
   };
 
@@ -718,7 +825,7 @@ function PresetEditorModal({
                     accept="image/*,video/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleUpload(file, 'asset');
+                      if (file) handleAssetSelected(file);
                     }}
                     disabled={uploading}
                     className="w-full text-sm text-[var(--text)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[var(--gold)] file:text-black file:font-medium hover:file:bg-[var(--gold-hover)] file:cursor-pointer"

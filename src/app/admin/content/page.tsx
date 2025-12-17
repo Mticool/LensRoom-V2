@@ -24,6 +24,7 @@ function fromDb(row: EffectsApiRow): EffectPreset {
     mode: String(row.mode || "t2i"),
     variantId: String(row.variant_id || row.variantId || "default"),
     previewImage: String(row.preview_image || row.previewImage || ""),
+    previewUrl: String(row.preview_url || row.previewUrl || row.preview_image || row.previewImage || ""),
     templatePrompt: String(row.template_prompt || row.templatePrompt || ""),
     featured: !!(row.featured ?? false),
     published: !!(row.published ?? false),

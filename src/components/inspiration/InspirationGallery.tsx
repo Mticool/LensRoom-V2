@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Sparkles, Star, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ===== TYPES =====
@@ -18,6 +17,7 @@ interface ContentCard {
   cost_stars: number;
   mode: string;
   preview_image: string;
+  preview_url?: string;
   template_prompt: string;
   featured: boolean;
   category: string;
@@ -80,7 +80,7 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
         {/* Image with aspect ratio */}
         <div className={`relative w-full ${getAspectClass(card.aspect || card.tile_ratio)} overflow-hidden`}>
           <img
-            src={card.preview_image}
+            src={card.preview_url || card.preview_image}
             alt={card.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
@@ -88,17 +88,6 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
           
           {/* Bottom gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          
-          {/* Featured badge - top left */}
-          {card.featured && (
-            <div className="absolute top-3 left-3 px-2 py-1 rounded-full 
-                            bg-[var(--gold)] text-black
-                            text-[10px] font-bold
-                            flex items-center gap-1">
-              <Star className="w-3 h-3 fill-current" />
-              FEATURED
-            </div>
-          )}
           
           {/* Cost pill - top right */}
           <div className="absolute top-3 right-3 px-2 py-1 rounded-full 
@@ -108,24 +97,11 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
             ⭐{card.cost_stars}
           </div>
           
-          {/* Title - bottom */}
+          {/* Title - bottom left */}
           <div className="absolute bottom-0 left-0 right-0 p-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate mb-1">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate">
               {card.title}
             </h3>
-            {card.short_description && (
-              <p className="text-xs text-white/80 line-clamp-2">
-                {card.short_description}
-              </p>
-            )}
-          </div>
-
-          {/* Hover overlay with "Повторить" button */}
-          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <div className="text-center">
-              <Sparkles className="w-8 h-8 text-[var(--gold)] mx-auto mb-2" />
-              <span className="text-sm font-medium text-white">Повторить</span>
-            </div>
           </div>
         </div>
       </button>
@@ -258,7 +234,7 @@ export function InspirationGallery() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4"
+        className="columns-1 md:columns-2 lg:columns-3 gap-4"
       >
         {filteredContent.map((card) => (
           <ContentCardComponent

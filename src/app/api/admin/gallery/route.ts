@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       mode,
       variantId,
       previewImage,
+      previewUrl,
       templatePrompt,
       featured,
       published,
@@ -94,9 +95,11 @@ export async function POST(request: Request) {
       mode: mode || 't2i',
       variant_id: variantId || 'default',
       preview_image: previewImage || '',
+      preview_url: (previewUrl || previewImage || '') || null,
       template_prompt: templatePrompt || '',
       featured: featured || false,
-      published: published || false,
+      // Keep legacy `published` in sync with new `status`
+      published: (status || (published ? 'published' : 'draft')) === 'published',
       display_order: order || 0,
       updated_at: new Date().toISOString(),
       // New fields
@@ -111,32 +114,73 @@ export async function POST(request: Request) {
       short_description: shortDescription || null,
     };
 
+    const isMissingColumnError = (err: any) => {
+      const msg = typeof err?.message === 'string' ? err.message : '';
+      return err?.code === '42703' || msg.includes('column') && msg.includes('does not exist');
+    };
+
+    const retryWithoutUnknownColumns = async (op: () => Promise<any>) => {
+      try {
+        return await op();
+      } catch (err: any) {
+        // If a column is missing (e.g. preview_url before migration), retry without optional fields.
+        if (isMissingColumnError(err)) {
+          const safeData = { ...effectData };
+          delete safeData.preview_url;
+          delete safeData.poster_url;
+          delete safeData.asset_url;
+          delete safeData.short_description;
+          // Keep core fields + legacy preview_image for backward compatibility.
+          if (id) {
+            const { data, error } = await (supabase as any)
+              .from('effects_gallery')
+              .update(safeData)
+              .eq('id', id)
+              .select()
+              .single();
+            if (error) throw error;
+            return data;
+          }
+          const { data, error } = await (supabase as any)
+            .from('effects_gallery')
+            .insert({ ...safeData, created_at: new Date().toISOString() })
+            .select()
+            .single();
+          if (error) throw error;
+          return data;
+        }
+        throw err;
+      }
+    };
+
     let result;
     
     if (id) {
       // Update existing
-      const { data, error } = await (supabase as any)
-        .from('effects_gallery')
-        .update(effectData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      result = data;
+      result = await retryWithoutUnknownColumns(async () => {
+        const { data, error } = await (supabase as any)
+          .from('effects_gallery')
+          .update(effectData)
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      });
     } else {
       // Create new
-      const { data, error } = await (supabase as any)
-        .from('effects_gallery')
-        .insert({
-          ...effectData,
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      result = data;
+      result = await retryWithoutUnknownColumns(async () => {
+        const { data, error } = await (supabase as any)
+          .from('effects_gallery')
+          .insert({
+            ...effectData,
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      });
     }
 
     return NextResponse.json({ effect: result });

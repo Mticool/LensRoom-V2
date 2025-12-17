@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   EFFECT_PRESETS, 
   FILTER_CHIPS, 
-  getEffectsByFilter, 
   getOrderedPresetsForMasonry,
   buildPresetUrl,
   getTileAspectClass,
@@ -124,8 +123,58 @@ function MasonryGrid({ presets, onCardClick }: MasonryGridProps) {
 export function EffectsGallery() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterChipId>('all');
-  
-  const filteredPresets = getEffectsByFilter(activeFilter);
+  const [presets, setPresets] = useState<EffectPreset[]>(EFFECT_PRESETS);
+
+  // Load real content from Content Constructor (fallback to static presets)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/content?placement=home&limit=100', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        const list = Array.isArray(data?.content) ? data.content : [];
+        if (cancelled) return;
+        if (list.length) {
+          const mapped: EffectPreset[] = list.map((row: any) => ({
+            presetId: String(row.preset_id || row.presetId || ''),
+            title: String(row.title || ''),
+            contentType: (row.content_type || 'photo') as any,
+            modelKey: String(row.model_key || ''),
+            tileRatio: (row.tile_ratio || row.aspect || '1:1') as any,
+            costStars: Number(row.cost_stars ?? 0),
+            mode: String(row.mode || 't2i'),
+            variantId: String(row.variant_id || 'default'),
+            previewImage: String(row.preview_url || row.preview_image || ''),
+            templatePrompt: String(row.template_prompt || ''),
+            featured: !!row.featured,
+          }));
+          setPresets(mapped);
+        }
+      } catch (e) {
+        // Silent fallback; keep static presets.
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[EffectsGallery] Failed to load DB presets', e);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredPresets = (() => {
+    if (activeFilter === 'all') return presets;
+    const chip = FILTER_CHIPS.find((c) => c.id === activeFilter);
+    if (!chip) return presets;
+    if (chip.type === 'content') {
+      return presets.filter((p) => p.contentType === activeFilter);
+    }
+    if (chip.type === 'model' && chip.modelKey) {
+      return presets.filter((p) => p.modelKey === chip.modelKey);
+    }
+    return presets;
+  })();
   
   const handleCardClick = useCallback((preset: EffectPreset) => {
     router.push(buildPresetUrl(preset));

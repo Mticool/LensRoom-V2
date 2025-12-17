@@ -3,11 +3,12 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { payform } from '@/lib/payments/payform-client';
+import { getProdamusClient } from '@/lib/payments/prodamus-client';
 import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/pricing/plans';
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, itemId } = await request.json();
+    const { type, itemId, provider: requestedProvider } = await request.json();
 
     const supabase = await createServerSupabaseClient();
     
@@ -41,22 +42,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if payment provider is configured (return a clear, safe message in production).
+    // Choose provider: explicit request -> env preference -> auto-detect.
+    const envProvider = (process.env.PAYMENTS_PROVIDER || process.env.NEXT_PUBLIC_PAYMENTS_PROVIDER || '').toLowerCase();
+    const provider = (requestedProvider || envProvider || '').toLowerCase() as 'payform' | 'prodamus' | '';
+
+    const payformAvailable =
+      !!process.env.PAYFORM_SECRET_KEY &&
+      (type !== 'subscription' ||
+        (!!process.env.PAYFORM_SUBSCRIPTION_STAR &&
+          !!process.env.PAYFORM_SUBSCRIPTION_PRO &&
+          !!process.env.PAYFORM_SUBSCRIPTION_BUSINESS));
+    const prodamusAvailable = !!getProdamusClient();
+
+    const selectedProvider: 'payform' | 'prodamus' =
+      provider === 'payform'
+        ? 'payform'
+        : provider === 'prodamus'
+          ? 'prodamus'
+          : payformAvailable
+            ? 'payform'
+            : prodamusAvailable
+              ? 'prodamus'
+              : 'payform';
+
+    // Check if selected provider is configured (return a clear, safe message).
     const missingEnv: string[] = [];
-    if (!process.env.PAYFORM_SECRET_KEY) missingEnv.push("PAYFORM_SECRET_KEY");
-    // Merchant id is not used for URL building here; keep optional.
-    // if (!process.env.PAYFORM_MERCHANT_ID) missingEnv.push("PAYFORM_MERCHANT_ID");
-    if (type === "subscription") {
-      // Subscription requires provider-side subscription ids.
-      if (!process.env.PAYFORM_SUBSCRIPTION_STAR) missingEnv.push("PAYFORM_SUBSCRIPTION_STAR");
-      if (!process.env.PAYFORM_SUBSCRIPTION_PRO) missingEnv.push("PAYFORM_SUBSCRIPTION_PRO");
-      if (!process.env.PAYFORM_SUBSCRIPTION_BUSINESS) missingEnv.push("PAYFORM_SUBSCRIPTION_BUSINESS");
+    if (selectedProvider === 'payform') {
+      if (!process.env.PAYFORM_SECRET_KEY) missingEnv.push("PAYFORM_SECRET_KEY");
+      if (type === "subscription") {
+        if (!process.env.PAYFORM_SUBSCRIPTION_STAR) missingEnv.push("PAYFORM_SUBSCRIPTION_STAR");
+        if (!process.env.PAYFORM_SUBSCRIPTION_PRO) missingEnv.push("PAYFORM_SUBSCRIPTION_PRO");
+        if (!process.env.PAYFORM_SUBSCRIPTION_BUSINESS) missingEnv.push("PAYFORM_SUBSCRIPTION_BUSINESS");
+      }
+    } else {
+      if (!process.env.PRODAMUS_SECRET_KEY) missingEnv.push("PRODAMUS_SECRET_KEY");
+      if (!process.env.PRODAMUS_PROJECT_ID) missingEnv.push("PRODAMUS_PROJECT_ID");
     }
     if (missingEnv.length) {
       return NextResponse.json(
         {
           error: "Оплата пока не подключена. Напишите в поддержку.",
-          provider: "payform",
+          provider: selectedProvider,
           missingEnv,
         },
         { status: 503 }
@@ -75,21 +101,35 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        paymentUrl = payform.createSubscriptionPayment({
-          orderNumber,
-          amount: plan.price,
-          customerEmail,
-          userId: user.id,
-          type: 'subscription',
-          planId: plan.id,
-          credits: plan.credits,
-          description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
-        });
+        if (selectedProvider === 'payform') {
+          paymentUrl = payform.createSubscriptionPayment({
+            orderNumber,
+            amount: plan.price,
+            customerEmail,
+            userId: user.id,
+            type: 'subscription',
+            planId: plan.id,
+            credits: plan.credits,
+            description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
+          });
+        } else {
+          const prodamus = getProdamusClient();
+          if (!prodamus) throw new Error('Prodamus not configured');
+          paymentUrl = prodamus.createPaymentLink({
+            orderNumber,
+            amount: plan.price,
+            customerEmail,
+            userId: user.id,
+            type: 'subscription',
+            planId: plan.id,
+            credits: plan.credits,
+          });
+        }
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Payment configuration error';
         return NextResponse.json({ 
           error: 'Не удалось создать оплату. Напишите в поддержку.',
-          provider: 'payform',
+          provider: selectedProvider,
           hint: process.env.NODE_ENV !== 'production' ? msg : undefined,
         }, { status: 503 });
       }
@@ -103,7 +143,7 @@ export async function POST(request: NextRequest) {
         amount: plan.price,
         credits: plan.credits,
         status: 'pending',
-        metadata: { plan_id: plan.id, plan_name: plan.name, provider: 'payform' },
+        metadata: { plan_id: plan.id, plan_name: plan.name, provider: selectedProvider },
       });
 
       console.log('[Checkout] Subscription payment created:', {
@@ -111,6 +151,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         planId: plan.id,
         price: plan.price,
+        provider: selectedProvider,
       });
 
     } else if (type === 'package') {
@@ -121,20 +162,33 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        paymentUrl = payform.createPackagePayment({
-          orderNumber,
-          amount: pkg.price,
-          customerEmail,
-          userId: user.id,
-          type: 'package',
-          credits: pkg.credits,
-          description: `${pkg.credits} кредитов LensRoom`,
-        });
+        if (selectedProvider === 'payform') {
+          paymentUrl = payform.createPackagePayment({
+            orderNumber,
+            amount: pkg.price,
+            customerEmail,
+            userId: user.id,
+            type: 'package',
+            credits: pkg.credits,
+            description: `${pkg.credits} кредитов LensRoom`,
+          });
+        } else {
+          const prodamus = getProdamusClient();
+          if (!prodamus) throw new Error('Prodamus not configured');
+          paymentUrl = prodamus.createPaymentLink({
+            orderNumber,
+            amount: pkg.price,
+            customerEmail,
+            userId: user.id,
+            type: 'package',
+            credits: pkg.credits,
+          });
+        }
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Payment configuration error';
         return NextResponse.json({ 
           error: 'Не удалось создать оплату. Напишите в поддержку.',
-          provider: 'payform',
+          provider: selectedProvider,
           hint: process.env.NODE_ENV !== 'production' ? msg : undefined,
         }, { status: 503 });
       }
@@ -151,7 +205,7 @@ export async function POST(request: NextRequest) {
           package_id: pkg.id, 
           credits: pkg.credits,
           popular: pkg.popular || false,
-          provider: 'payform',
+          provider: selectedProvider,
         },
       });
 
@@ -161,6 +215,7 @@ export async function POST(request: NextRequest) {
         packageId: pkg.id,
         credits: pkg.credits,
         price: pkg.price,
+        provider: selectedProvider,
       });
 
     } else {
@@ -170,6 +225,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       url: paymentUrl,
       orderId: orderNumber,
+      provider: selectedProvider,
     });
 
   } catch (error) {
