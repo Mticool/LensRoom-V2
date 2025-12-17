@@ -114,11 +114,15 @@ async function downloadAndStoreAsset(params: {
 export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId: string }) {
   const { supabase, taskId } = params;
 
+  // There can be duplicate rows with the same task_id (e.g., retries).
+  // Always pick the most recent record instead of using `.single()`.
   const { data: generation, error: fetchError } = await supabase
     .from("generations")
     .select("*")
     .eq("task_id", taskId)
-    .single();
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (fetchError || !generation) {
     return { ok: false, reason: "generation_not_found" as const };
