@@ -18,12 +18,6 @@ export default function PricingPage() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   const handlePurchase = async (type: 'subscription' | 'package', itemId: string) => {
-    if (!user) {
-      setAuthDialogOpen(true);
-      toast.error('Войдите чтобы оформить покупку');
-      return;
-    }
-
     setLoading(itemId);
 
     try {
@@ -39,7 +33,7 @@ export default function PricingPage() {
         // Show user-friendly error messages
         if (response.status === 401) {
           setAuthDialogOpen(true);
-          toast.error('Сессия истекла. Войдите снова.');
+          toast.error(user ? 'Сессия истекла. Войдите снова.' : 'Войдите чтобы оформить покупку');
           setLoading(null);
           return;
         }
