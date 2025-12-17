@@ -25,3 +25,5 @@ from auth.users au
 where tp.auth_user_id is null
   and (au.user_metadata->>'telegram_id') is not null
   and (au.user_metadata->>'telegram_id')::bigint = tp.telegram_id;
+
+

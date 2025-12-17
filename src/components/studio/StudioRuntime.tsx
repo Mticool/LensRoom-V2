@@ -15,7 +15,7 @@ import type { Aspect, Duration, Mode, Quality } from "@/config/studioModels";
 import { getStudioModelByKey, STUDIO_PHOTO_MODELS, STUDIO_VIDEO_MODELS } from "@/config/studioModels";
 
 import { StudioShell } from "@/components/studio/StudioShell";
-import { ModelSidebar } from "@/components/studio/ModelSidebar";
+import { ModelSidebar, MobileModelSelector } from "@/components/studio/ModelSidebar";
 import { GeneratorPreview } from "@/components/studio/GeneratorPreview";
 import { SettingsPanel } from "@/components/studio/SettingsPanel";
 import { PromptBox } from "@/components/studio/PromptBox";
@@ -490,6 +490,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   return (
     <StudioShell
       sidebar={<ModelSidebar models={models} selectedKey={selectedModelId} onSelect={(key) => setSelectedModelId(key)} />}
+      mobileModelSelector={<MobileModelSelector models={models} selectedKey={selectedModelId} onSelect={(key) => setSelectedModelId(key)} />}
     >
       <div className="space-y-6">
         <div className="grid xl:grid-cols-[1.1fr_0.9fr] gap-6">

@@ -4,7 +4,7 @@
  */
 
 import { ModelConfig, PhotoModelConfig, VideoModelConfig, getModelById } from '@/config/models';
-import { CREDIT_PACKAGES } from '@/lib/pricing/plans';
+import { STAR_PACKS, packTotalStars } from '@/config/pricing';
 
 export interface PriceOptions {
   // Photo options
@@ -27,25 +27,20 @@ export interface ComputedPrice {
   approxRub: number; // Approximate price in RUB (based on current plan)
 }
 
-// Default price per credit (from best deal: Max pack = 2490₽ / 1500 credits = 1.66₽/credit)
-// Ultra pack = 4990₽ / 3500 credits = 1.43₽/credit (better deal)
-// We use the best deal for calculation
-const DEFAULT_RUB_PER_CREDIT = 4990 / 3500; // ≈ 1.43₽/credit (Ultra pack)
-
 /**
  * Get current user's plan price per credit (if available)
  * Falls back to default (max pack)
  */
 function getRubPerCredit(): number {
   // TODO: Get from user's current subscription/plan
-  // For now, use the best deal (max pack)
-  const bestDeal = CREDIT_PACKAGES.reduce((best, current) => {
-    const bestPrice = best.price / best.credits;
-    const currentPrice = current.price / current.credits;
+  // For now, use the best deal (best ⭐ per ₽)
+  const bestDeal = STAR_PACKS.reduce((best, current) => {
+    const bestPrice = best.price / packTotalStars(best); // ₽ per ⭐
+    const currentPrice = current.price / packTotalStars(current);
     return currentPrice < bestPrice ? current : best;
   });
-  
-  return bestDeal.price / bestDeal.credits; // ₽ per credit
+
+  return bestDeal.price / packTotalStars(bestDeal); // ₽ per ⭐
 }
 
 /**
@@ -189,4 +184,5 @@ export function calcStars(modelId: string, options: PriceOptions = {}): number {
 export function calcApproxRub(modelId: string, options: PriceOptions = {}): number {
   return computePrice(modelId, options).approxRub;
 }
+
 

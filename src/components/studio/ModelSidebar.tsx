@@ -149,54 +149,6 @@ export const ModelSidebar = memo(function ModelSidebar({
 
   return (
     <>
-      {/* Mobile: Sheet trigger */}
-      <div className="lg:hidden mb-4">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="w-full justify-between h-auto py-3 border-[var(--border)] hover:border-[var(--gold)]/50 transition-colors"
-            >
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-[var(--surface2)] flex items-center justify-center shrink-0">
-                  <Layers className="w-5 h-5 text-[var(--gold)]" />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="font-semibold text-sm text-[var(--text)] truncate">
-                    {selectedModel?.name || "Выбрать модель"}
-                  </div>
-                  <div className="text-xs text-[var(--muted)] truncate mt-0.5">
-                    {selectedModel?.subtitle || "Нажмите для выбора"}
-                  </div>
-                  {selectedModel && selectedModel.baseStars > 0 && (
-                    <div className="text-xs text-[var(--gold)] mt-1 font-medium">
-                      от {selectedModel.baseStars} ⭐
-                    </div>
-                  )}
-                </div>
-              </div>
-              <ChevronDown className="w-5 h-5 text-[var(--muted)] shrink-0" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
-            <SheetHeader className="mb-4">
-              <SheetTitle className="text-lg">Выберите модель</SheetTitle>
-              <p className="text-sm text-[var(--muted)]">
-                Текущая: <span className="text-[var(--gold)] font-medium">{selectedModel?.name}</span>
-              </p>
-            </SheetHeader>
-            <div className="space-y-2">
-              <SidebarContent
-                photo={photo}
-                video={video}
-                selectedKey={selectedKey}
-                onSelect={handleSelect}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-
       {/* Desktop: Sidebar */}
       <div className="hidden lg:block rounded-[20px] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
         <div className="px-4 py-4 border-b border-[var(--border)]">
@@ -213,5 +165,74 @@ export const ModelSidebar = memo(function ModelSidebar({
         />
       </div>
     </>
+  );
+});
+
+// Export mobile selector separately for use in StudioShell header
+export const MobileModelSelector = memo(function MobileModelSelector({
+  models,
+  selectedKey,
+  onSelect,
+}: ModelSidebarProps) {
+  const { photo, video, selectedModel } = useMemo(() => {
+    return {
+      photo: models.filter((m) => m.kind === "photo"),
+      video: models.filter((m) => m.kind === "video"),
+      selectedModel: models.find((m) => m.key === selectedKey),
+    };
+  }, [models, selectedKey]);
+
+  const [open, setOpen] = useState(false);
+
+  const handleSelect = (key: string) => {
+    onSelect(key);
+    setOpen(false);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button 
+          variant="outline" 
+          className="w-full justify-between h-auto py-3 border-[var(--border)] hover:border-[var(--gold)]/50 transition-colors"
+        >
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-[var(--surface2)] flex items-center justify-center shrink-0">
+              <Layers className="w-5 h-5 text-[var(--gold)]" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="font-semibold text-sm text-[var(--text)] truncate">
+                {selectedModel?.name || "Выбрать модель"}
+              </div>
+              <div className="text-xs text-[var(--muted)] truncate mt-0.5">
+                {selectedModel?.subtitle || "Нажмите для выбора"}
+              </div>
+              {selectedModel && selectedModel.baseStars > 0 && (
+                <div className="text-xs text-[var(--gold)] mt-1 font-medium">
+                  от {selectedModel.baseStars} ⭐
+                </div>
+              )}
+            </div>
+          </div>
+          <ChevronDown className="w-5 h-5 text-[var(--muted)] shrink-0" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+        <SheetHeader className="mb-4">
+          <SheetTitle className="text-lg">Выберите модель</SheetTitle>
+          <p className="text-sm text-[var(--muted)]">
+            Текущая: <span className="text-[var(--gold)] font-medium">{selectedModel?.name}</span>
+          </p>
+        </SheetHeader>
+        <div className="space-y-2">
+          <SidebarContent
+            photo={photo}
+            video={video}
+            selectedKey={selectedKey}
+            onSelect={handleSelect}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 });

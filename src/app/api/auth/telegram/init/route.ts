@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import crypto from 'crypto';
+import { env } from "@/lib/env";
 
 // Generate a unique login code and store it
 // User will click link to bot with this code
@@ -15,7 +16,7 @@ export async function POST() {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     // Store the code in database
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('telegram_login_codes')
       .insert({
         code,
@@ -32,7 +33,7 @@ export async function POST() {
     }
 
     // Return the code and bot link
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'LensRoom_bot';
+    const botUsername = env.optional("TELEGRAM_BOT_USERNAME") || 'LensRoom_bot';
     const botLink = `https://t.me/${botUsername}?start=login_${code}`;
 
     return NextResponse.json({
@@ -48,4 +49,5 @@ export async function POST() {
     );
   }
 }
+
 

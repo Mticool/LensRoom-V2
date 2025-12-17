@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing code' }, { status: 400 });
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin() as any;
 
     // Check if the code was used
     const { data: loginCode, error } = await supabase
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       if (referralCode && referralCode.trim()) {
         try {
           const { data: users } = await supabase.auth.admin.listUsers();
-          const authUser = users?.users?.find((u) => u.user_metadata?.telegram_id === loginCode.telegram_id);
+          const authUser = users?.users?.find((u: any) => u.user_metadata?.telegram_id === loginCode.telegram_id);
           const authUserId = authUser?.id;
           if (authUserId) {
             await supabase.rpc('claim_referral', {
@@ -142,4 +142,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 

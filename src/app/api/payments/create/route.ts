@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { prodamusClient } from '@/lib/payments/prodamus-client';
+import { getProdamusClient } from '@/lib/payments/prodamus-client';
 import { CREDIT_PACKAGES } from '@/lib/pricing/plans';
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +39,12 @@ export async function POST(request: NextRequest) {
     const orderNumber = `LR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Create payment link
-    const paymentUrl = prodamusClient.createPaymentLink({
+    const prodamus = getProdamusClient();
+    if (!prodamus) {
+      return integrationNotConfigured("prodamus", ["PRODAMUS_SECRET_KEY", "PRODAMUS_PROJECT_ID"]);
+    }
+
+    const paymentUrl = prodamus.createPaymentLink({
       orderNumber,
       amount: package_.price,
       customerEmail: user.email || '',

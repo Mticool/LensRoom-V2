@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { cachedJson, invalidateCached } from "@/lib/client/generations-cache";
 
 // Types
 export interface Generation {
@@ -54,13 +55,18 @@ async function fetchGenerations(options: FetchOptions = {}): Promise<Generation[
   if (options.limit) params.set("limit", String(options.limit));
   if (options.offset) params.set("offset", String(options.offset));
 
-  const response = await fetch(`/api/generations?${params.toString()}`);
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to fetch generations");
-  }
-  const data = await response.json();
-  return data.generations;
+  const url = `/api/generations?${params.toString()}`;
+  const cacheKey = `generations:${url}`;
+  const data = await cachedJson(cacheKey, async () => {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[generations] fetch", { url });
+    }
+    const response = await fetch(url);
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.error || "Failed to fetch generations");
+    return json;
+  });
+  return (data as any).generations;
 }
 
 async function fetchGeneration(id: string): Promise<Generation> {
@@ -142,6 +148,7 @@ export function useCreateGeneration() {
     mutationFn: createGeneration,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["generations"] });
+      invalidateCached("generations:");
       console.log("[useCreateGeneration] Created:", data.id);
     },
     onError: (error) => {
@@ -161,6 +168,7 @@ export function useUpdateGeneration() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["generations"] });
       queryClient.invalidateQueries({ queryKey: ["generation", data.id] });
+      invalidateCached("generations:");
     },
     onError: (error) => {
       console.error("[useUpdateGeneration] Error:", error);
@@ -176,6 +184,7 @@ export function useDeleteGeneration() {
     mutationFn: deleteGeneration,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["generations"] });
+      invalidateCached("generations:");
       toast.success("Генерация удалена");
     },
     onError: (error) => {

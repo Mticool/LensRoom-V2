@@ -14,6 +14,7 @@ export interface StudioModel {
   kind: ModelKind;
   apiId: string;
 
+  subtitle: string;
   baseStars: number;
   qualityTiers: Quality[];
   aspectRatios: Aspect[];
@@ -67,7 +68,24 @@ function defaultPriceOptions(model: ModelConfig): any {
 }
 
 function toStudioModel(model: ModelConfig): StudioModel {
-  const baseStars = computePrice(model.id, defaultPriceOptions(model)).stars;
+  const computed = computePrice(model.id, defaultPriceOptions(model)).stars;
+  const baseStarsOverride: Record<string, number> = {
+    // Ensure we never show "—" for Sora 2 in sidebar, even if pricing config changes.
+    "sora-2": 40,
+  };
+  const baseStars = computed > 0 ? computed : (baseStarsOverride[model.id] || 0);
+
+  const subtitleOverride: Record<string, string> = {
+    "nano-banana": "Быстро и дёшево для тестов/черновиков",
+    "veo-3.1": "Кинореал • fast по умолчанию",
+    "sora-2": "Стабильное i2v-видео для большинства задач",
+    "sora-2-pro": "Премиум качество (i2v / start_end)",
+  };
+  const subtitle =
+    subtitleOverride[model.id] ||
+    String((model as any).shortLabel || "").trim() ||
+    String((model as any).description || "").trim() ||
+    model.apiId;
 
   if (model.type === "photo") {
     return {
@@ -75,6 +93,7 @@ function toStudioModel(model: ModelConfig): StudioModel {
       name: model.name,
       kind: "photo",
       apiId: model.apiId,
+      subtitle,
       baseStars,
       qualityTiers: qualityTiersForPhoto(model),
       aspectRatios: model.aspectRatios || ["1:1"],
@@ -89,6 +108,7 @@ function toStudioModel(model: ModelConfig): StudioModel {
     name: v.name,
     kind: "video",
     apiId: v.apiId,
+    subtitle,
     baseStars,
     qualityTiers: qualityTiersForVideo(v),
     aspectRatios: v.aspectRatios || ["16:9"],

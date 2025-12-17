@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateTelegramHash, createSessionToken, setSessionCookie } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { TelegramLoginPayload, TelegramSession } from '@/types/telegram';
+import { env } from "@/lib/env";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 function tgEmail(telegramId: number) {
   // Deterministic pseudo-email so we can create a Supabase auth user for Telegram logins.
@@ -21,6 +23,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ensure Telegram integration configured (return stable JSON instead of throwing in prod).
+    const missing: string[] = [];
+    if (!env.optional("TELEGRAM_BOT_TOKEN")) missing.push("TELEGRAM_BOT_TOKEN");
+    if (!env.optional("JWT_SECRET")) missing.push("JWT_SECRET");
+    if (missing.length) {
+      console.error("[Telegram Auth] Integration is not configured:", missing.join(", "));
+      return integrationNotConfigured("telegram", missing);
+    }
+
     // 2. Validate Telegram hash (HMAC signature)
     const isValid = validateTelegramHash(payload);
     if (!isValid) {
@@ -31,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Upsert profile in Supabase
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin() as any;
     
     const { data: profile, error: upsertError } = await supabase
       .from('telegram_profiles')
@@ -83,7 +94,7 @@ export async function POST(request: NextRequest) {
       // Try to find existing auth user (by metadata OR deterministic email)
       const { data: users } = await supabase.auth.admin.listUsers();
       const found = users?.users?.find(
-        (u) => u.user_metadata?.telegram_id === payload.id || u.email === email
+        (u: any) => u.user_metadata?.telegram_id === payload.id || u.email === email
       );
       authUserId = found?.id || null;
 
@@ -195,5 +206,6 @@ export async function DELETE() {
     );
   }
 }
+
 
 

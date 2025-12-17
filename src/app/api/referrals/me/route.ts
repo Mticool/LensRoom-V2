@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { env } from "@/lib/env";
 
 export async function GET() {
   try {
@@ -50,7 +51,7 @@ export async function GET() {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lensroom.ru";
+    const baseUrl = (env.optional("SITE_URL") || env.optional("NEXT_PUBLIC_APP_URL") || "https://lensroom.ru").replace(/\/$/, "");
     const link = `${baseUrl}/?ref=${encodeURIComponent(code)}`;
 
     return NextResponse.json({
@@ -66,4 +67,5 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to load referral info" }, { status: 500 });
   }
 }
+
 

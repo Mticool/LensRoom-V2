@@ -24,3 +24,4 @@ export function clearStoredReferralCode() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+

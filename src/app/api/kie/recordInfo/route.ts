@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const KIE_API_KEY = process.env.KIE_API_KEY;
-const KIE_MARKET_BASE_URL = process.env.KIE_MARKET_BASE_URL || 'https://api.kie.ai';
-
-if (!KIE_API_KEY) {
-  console.error('[KIE recordInfo] Missing KIE_API_KEY');
-}
+import { env } from "@/lib/env";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 /**
  * GET /api/kie/recordInfo?taskId=xxx
@@ -25,21 +20,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!KIE_API_KEY) {
-      return NextResponse.json(
-        { error: 'KIE_API_KEY not configured' },
-        { status: 500 }
-      );
+    const apiKey = env.optional("KIE_API_KEY");
+    if (!apiKey) {
+      return integrationNotConfigured("kie", ["KIE_API_KEY"]);
     }
+    const baseUrl = env.optional("KIE_MARKET_BASE_URL") || "https://api.kie.ai";
 
     console.log(`[KIE recordInfo] Checking task: ${taskId}`);
 
     const response = await fetch(
-      `${KIE_MARKET_BASE_URL}/api/v1/jobs/recordInfo?taskId=${taskId}`,
+      `${baseUrl}/api/v1/jobs/recordInfo?taskId=${taskId}`,
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${KIE_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
       }
     );
@@ -92,3 +86,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

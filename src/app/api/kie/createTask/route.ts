@@ -2,20 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getKieModel, validateModelInput } from '@/config/kieModels';
-
-const KIE_API_KEY = process.env.KIE_API_KEY;
-const KIE_MARKET_BASE_URL = process.env.KIE_MARKET_BASE_URL || 'https://api.kie.ai';
-const KIE_UPLOAD_BASE_URL = process.env.KIE_UPLOAD_BASE_URL || 'https://kieai.redpandaai.co';
-const KIE_CALLBACK_SECRET = process.env.KIE_CALLBACK_SECRET;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lensroom.ru';
-
-if (!KIE_API_KEY) {
-  console.error('[KIE createTask] Missing KIE_API_KEY');
-}
-
-if (!KIE_CALLBACK_SECRET) {
-  console.warn('[KIE createTask] Missing KIE_CALLBACK_SECRET - callbacks will not be secure');
-}
+import { env } from "@/lib/env";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 // ===== TYPES =====
 
@@ -40,18 +28,20 @@ interface KieUploadResponse {
 
 // ===== HELPERS =====
 
-async function uploadImageToKie(imageData: { url?: string; base64?: string }): Promise<string> {
-  if (!KIE_API_KEY) {
-    throw new Error('KIE_API_KEY not configured');
-  }
+async function uploadImageToKie(params: {
+  apiKey: string;
+  uploadBaseUrl: string;
+  imageData: { url?: string; base64?: string };
+}): Promise<string> {
+  const { apiKey, uploadBaseUrl, imageData } = params;
 
   try {
     // If we have URL, use url-upload endpoint
     if (imageData.url) {
-      const response = await fetch(`${KIE_UPLOAD_BASE_URL}/api/file-url-upload`, {
+      const response = await fetch(`${uploadBaseUrl}/api/file-url-upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${KIE_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: imageData.url }),
@@ -73,10 +63,10 @@ async function uploadImageToKie(imageData: { url?: string; base64?: string }): P
 
     // If we have base64, use base64-upload endpoint
     if (imageData.base64) {
-      const response = await fetch(`${KIE_UPLOAD_BASE_URL}/api/file-base64-upload`, {
+      const response = await fetch(`${uploadBaseUrl}/api/file-base64-upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${KIE_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ file: imageData.base64 }),
@@ -109,6 +99,18 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
   try {
+    // Read integration config lazily (no import-time env access)
+    const apiKey = env.optional("KIE_API_KEY") || "";
+    const callbackSecret = env.optional("KIE_CALLBACK_SECRET") || "";
+    const callbackBase = env.optional("KIE_CALLBACK_URL") || "";
+    const missing: string[] = [];
+    if (!apiKey) missing.push("KIE_API_KEY");
+    if (!callbackSecret) missing.push("KIE_CALLBACK_SECRET");
+    if (!callbackBase) missing.push("KIE_CALLBACK_URL");
+    if (missing.length) return integrationNotConfigured("kie", missing);
+    const marketBaseUrl = env.optional("KIE_MARKET_BASE_URL") || "https://api.kie.ai";
+    const uploadBaseUrl = env.optional("KIE_UPLOAD_BASE_URL") || "https://kieai.redpandaai.co";
+
     // 1. Parse request
     const body: CreateTaskRequestBody = await request.json();
     const { modelKey, prompt, options = {}, assets } = body;
@@ -177,8 +179,9 @@ export async function POST(request: NextRequest) {
     if (model.mode === 'i2v' && assets) {
       try {
         const uploadedUrl = await uploadImageToKie({
-          url: assets.imageUrl,
-          base64: assets.imageBase64,
+          apiKey,
+          uploadBaseUrl,
+          imageData: { url: assets.imageUrl, base64: assets.imageBase64 },
         });
         kieInput.imageUrl = uploadedUrl;
         console.log(`[KIE createTask] Image uploaded: ${uploadedUrl}`);
@@ -213,9 +216,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 9. Prepare callback URL
-    const callBackUrl = KIE_CALLBACK_SECRET 
-      ? `${APP_URL}/api/kie/callback?secret=${KIE_CALLBACK_SECRET}`
-      : undefined;
+    const base = callbackBase.replace(/\/$/, "");
+    const callBackUrl = `${base}/api/kie/callback?secret=${encodeURIComponent(callbackSecret)}`;
 
     // 10. Create task in Market API
     const kiePayload = {
@@ -226,10 +228,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`[KIE createTask] Calling Market API with:`, JSON.stringify(kiePayload, null, 2));
 
-    const response = await fetch(`${KIE_MARKET_BASE_URL}/api/v1/jobs/createTask`, {
+    const response = await fetch(`${marketBaseUrl}/api/v1/jobs/createTask`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${KIE_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(kiePayload),
@@ -338,3 +340,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

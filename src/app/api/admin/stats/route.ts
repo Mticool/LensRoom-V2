@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { requireRole, respondAuthError } from "@/lib/auth/requireRole";
 
 /**
  * GET /api/admin/stats
@@ -8,13 +8,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
  */
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session?.isAdmin) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
+    await requireRole("admin");
 
     const supabase = getSupabaseAdmin();
 
@@ -69,10 +63,8 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[Admin Stats] Error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return respondAuthError(error);
   }
 }
+
 

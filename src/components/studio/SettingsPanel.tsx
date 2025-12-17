@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { memo, useId } from "react";
 import type { Aspect, Duration, Mode, Quality, StudioModel } from "@/config/studioModels";
 import { cn } from "@/lib/utils";
 import { Upload, Volume2 } from "lucide-react";
@@ -35,21 +35,7 @@ const QUALITY_LABELS: Record<string, string> = {
   "1080p": "1080p",
 };
 
-export function SettingsPanel({
-  model,
-  mode,
-  onModeChange,
-  quality,
-  onQualityChange,
-  aspect,
-  onAspectChange,
-  duration,
-  onDurationChange,
-  audio,
-  onAudioChange,
-  referenceImage,
-  onReferenceImageChange,
-}: {
+interface SettingsPanelProps {
   model: StudioModel;
   mode: Mode;
   onModeChange: (m: Mode) => void;
@@ -63,7 +49,23 @@ export function SettingsPanel({
   onAudioChange?: (v: boolean) => void;
   referenceImage: File | null;
   onReferenceImageChange: (f: File | null) => void;
-}) {
+}
+
+export const SettingsPanel = memo(function SettingsPanel({
+  model,
+  mode,
+  onModeChange,
+  quality,
+  onQualityChange,
+  aspect,
+  onAspectChange,
+  duration,
+  onDurationChange,
+  audio,
+  onAudioChange,
+  referenceImage,
+  onReferenceImageChange,
+}: SettingsPanelProps) {
   const refId = useId();
 
   const showDuration = model.kind === "video" && !!model.durationOptions?.length && mode !== "storyboard";
@@ -230,4 +232,4 @@ export function SettingsPanel({
       </div>
     </div>
   );
-}
+});

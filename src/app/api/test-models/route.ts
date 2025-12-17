@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { env } from "@/lib/env";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 // Try different model ID formats from KIE.ai
 const MODELS_TO_TEST = [
@@ -49,17 +51,19 @@ export async function GET(request: Request) {
   const singleModel = searchParams.get("model");
   const onlyWorking = searchParams.get("working") === "true";
   
-  const apiKey = process.env.KIE_API_KEY;
-  const baseUrl = process.env.NEXT_PUBLIC_KIE_API_URL || "https://api.kie.ai";
+  const apiKey = env.optional("KIE_API_KEY");
+  const callbackSecret = env.optional("KIE_CALLBACK_SECRET");
+  const callbackUrlBase = env.optional("KIE_CALLBACK_URL");
+  const baseUrl = env.optional("NEXT_PUBLIC_KIE_API_URL") || "https://api.kie.ai";
   
   if (!apiKey) {
-    return NextResponse.json({
-      error: "KIE_API_KEY not configured",
-      mockMode: true,
-      hint: "Add KIE_API_KEY to .env.local",
-      results: [],
-    });
+    return integrationNotConfigured("kie", ["KIE_API_KEY"]);
   }
+
+  const missingForRealGenerations: string[] = [];
+  if (!apiKey) missingForRealGenerations.push("KIE_API_KEY");
+  if (!callbackSecret) missingForRealGenerations.push("KIE_CALLBACK_SECRET");
+  if (!callbackUrlBase) missingForRealGenerations.push("KIE_CALLBACK_URL");
 
   const results: TestResult[] = [];
   const modelsToTest = singleModel 
@@ -133,6 +137,8 @@ export async function GET(request: Request) {
     mockMode: false,
     apiUrl: baseUrl,
     apiKeyConfigured: true,
+    callbackConfigured: !!callbackSecret && !!callbackUrlBase,
+    missingForRealGenerations: missingForRealGenerations.length ? missingForRealGenerations : [],
     summary: {
       total: modelsToTest.length,
       tested: results.length,
@@ -146,11 +152,13 @@ export async function GET(request: Request) {
 
 // Check task status
 export async function POST(request: Request) {
-  const apiKey = process.env.KIE_API_KEY;
-  const baseUrl = process.env.NEXT_PUBLIC_KIE_API_URL || "https://api.kie.ai";
+  const apiKey = env.optional("KIE_API_KEY");
+  const callbackSecret = env.optional("KIE_CALLBACK_SECRET");
+  const callbackUrlBase = env.optional("KIE_CALLBACK_URL");
+  const baseUrl = env.optional("NEXT_PUBLIC_KIE_API_URL") || "https://api.kie.ai";
   
   if (!apiKey) {
-    return NextResponse.json({ error: "KIE_API_KEY not configured" }, { status: 401 });
+    return integrationNotConfigured("kie", ["KIE_API_KEY"]);
   }
 
   try {
@@ -172,6 +180,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       endpoint: `/api/v1/jobs/recordInfo?taskId=${taskId}`,
       response: data,
+      callbackConfigured: !!callbackSecret && !!callbackUrlBase,
     });
   } catch (error) {
     return NextResponse.json({

@@ -71,6 +71,7 @@ export interface TelegramSession {
 export interface TelegramUpdate {
   update_id: number;
   message?: TelegramMessage;
+  callback_query?: TelegramCallbackQuery;
 }
 
 export interface TelegramMessage {
@@ -79,6 +80,7 @@ export interface TelegramMessage {
   chat: TelegramChat;
   date: number;
   text?: string;
+  reply_to_message?: TelegramMessage;
 }
 
 export interface TelegramUser {
@@ -93,5 +95,13 @@ export interface TelegramChat {
   id: number;
   type: 'private' | 'group' | 'supergroup' | 'channel';
 }
+
+export interface TelegramCallbackQuery {
+  id: string;
+  from: TelegramUser;
+  message?: TelegramMessage;
+  data?: string;
+}
+
 
 

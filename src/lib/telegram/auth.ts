@@ -2,20 +2,31 @@ import crypto from 'crypto';
 import { TelegramLoginPayload, TelegramSession } from '@/types/telegram';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { env } from "@/lib/env";
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
 const COOKIE_NAME = 'lr_session';
 const MAX_AUTH_AGE = 24 * 60 * 60; // 24 hours in seconds
 const SESSION_DURATION = 30 * 24 * 60 * 60; // 30 days in seconds
+
+function getTelegramBotToken(): string {
+  // No import-time env reads; only when auth is used.
+  return env.required("TELEGRAM_BOT_TOKEN");
+}
+
+function getJwtSecret(): string {
+  const s = env.required("JWT_SECRET");
+  // In dev we allow empty and fall back to a local-only secret.
+  return s || "dev-secret-change-me";
+}
 
 /**
  * Validate Telegram Login Widget hash
  * https://core.telegram.org/widgets/login#checking-authorization
  */
 export function validateTelegramHash(payload: TelegramLoginPayload): boolean {
-  if (!TELEGRAM_BOT_TOKEN) {
-    console.error('[Telegram Auth] TELEGRAM_BOT_TOKEN not configured');
+  const token = getTelegramBotToken();
+  if (!token) {
+    console.error('[Telegram Auth] Integration is not configured (missing TELEGRAM_BOT_TOKEN)');
     return false;
   }
 
@@ -38,7 +49,7 @@ export function validateTelegramHash(payload: TelegramLoginPayload): boolean {
   // secret_key = SHA256(bot_token)
   const secretKey = crypto
     .createHash('sha256')
-    .update(TELEGRAM_BOT_TOKEN)
+    .update(token)
     .digest();
 
   // computed_hash = HMAC_SHA256(data_check_string, secret_key)
@@ -62,7 +73,7 @@ export function validateTelegramHash(payload: TelegramLoginPayload): boolean {
  * Create JWT session token
  */
 export async function createSessionToken(session: TelegramSession): Promise<string> {
-  const secret = new TextEncoder().encode(JWT_SECRET);
+  const secret = new TextEncoder().encode(getJwtSecret());
   
   const token = await new SignJWT({ ...session })
     .setProtectedHeader({ alg: 'HS256' })
@@ -78,7 +89,7 @@ export async function createSessionToken(session: TelegramSession): Promise<stri
  */
 export async function verifySessionToken(token: string): Promise<TelegramSession | null> {
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET);
+    const secret = new TextEncoder().encode(getJwtSecret());
     const { payload } = await jwtVerify(token, secret);
     
     return {
@@ -167,7 +178,7 @@ export async function getAuthUserId(telegramSession: TelegramSession): Promise<s
       return null;
     }
 
-    const authUser = authUsers.users.find((u) => u.user_metadata?.telegram_id === telegramSession.telegramId);
+    const authUser = authUsers.users.find((u: any) => u.user_metadata?.telegram_id === telegramSession.telegramId);
     const authUserId = authUser?.id || null;
 
     // Best-effort: persist mapping for future requests
@@ -188,5 +199,6 @@ export async function getAuthUserId(telegramSession: TelegramSession): Promise<s
     return null;
   }
 }
+
 
 

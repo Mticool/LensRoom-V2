@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { requireRole, respondAuthError } from "@/lib/auth/requireRole";
 
 /**
  * GET /api/admin/payments
@@ -8,13 +8,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
  */
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session?.isAdmin) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
+    await requireRole("admin");
 
     const supabase = getSupabaseAdmin();
 
@@ -72,7 +66,8 @@ export async function GET() {
       .select('amount')
       .eq('status', 'completed');
 
-    const totalRevenue = revenueData?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+    const revenueAny = (revenueData as any[]) || [];
+    const totalRevenue = revenueAny.reduce((sum, p) => sum + Number(p?.amount || 0), 0);
 
     // Get plan distribution
     const { data: planData } = await supabase
@@ -81,7 +76,8 @@ export async function GET() {
       .not('plan', 'is', null);
 
     const planCounts: Record<string, number> = {};
-    planData?.forEach((p: any) => {
+    const planAny = (planData as any[]) || [];
+    planAny.forEach((p: any) => {
       if (p.plan) {
         planCounts[p.plan] = (planCounts[p.plan] || 0) + 1;
       }
@@ -99,10 +95,8 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[Admin Payments] Error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return respondAuthError(error);
   }
 }
+
 

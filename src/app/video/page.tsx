@@ -761,7 +761,7 @@ function StickyCostBar({
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg)]/95 backdrop-blur-lg border-t border-white/10 z-50">
       <div className="container mx-auto px-4 lg:px-6 max-w-7xl">
-        <div className="flex items-center justify-between py-4">
+        <div className="flex items-center justify-between py-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}>
           {/* Cost Display */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -805,5 +805,6 @@ function StickyCostBar({
     </div>
   );
 }
+
 
 

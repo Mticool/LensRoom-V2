@@ -416,3 +416,4 @@ export const EFFECT_CATEGORIES = ['Visual Effects', 'Portrait', 'Product', 'Cine
 export type EffectCategory = typeof EFFECT_CATEGORIES[number];
 
 
+

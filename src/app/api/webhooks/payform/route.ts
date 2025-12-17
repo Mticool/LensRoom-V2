@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { env } from "@/lib/env";
+import { STAR_PACKS, packTotalStars } from "@/config/pricing";
 
-// Используем service role для webhook (без RLS ограничений)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getWebhookSupabase() {
+  const url = env.required("NEXT_PUBLIC_SUPABASE_URL", "Supabase URL for webhooks");
+  const serviceKey =
+    env.optional("SUPABASE_SERVICE_ROLE_KEY") ||
+    env.required("NEXT_PUBLIC_SUPABASE_ANON_KEY", "Supabase anon key (fallback)");
+
+  if (!url || !serviceKey) return null;
+  return createClient(url, serviceKey);
+}
 
 interface PayformWebhook {
   date: string;
@@ -34,6 +40,14 @@ interface PayformWebhook {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getWebhookSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Integration is not configured", hint: "Missing Supabase keys for webhook" },
+        { status: 500 }
+      );
+    }
+
     // Получить данные
     const contentType = request.headers.get('content-type') || '';
     let body: PayformWebhook;
@@ -111,13 +125,12 @@ export async function POST(request: NextRequest) {
     // 4. Определяем credits из суммы если не знаем
     if (credits === 0 && body.sum) {
       const amount = parseFloat(body.sum);
-      // Маппинг сумм на кредиты (пакеты монет)
-      // Важно: здесь credits = total credits including bonus.
-      if (amount >= 2990) credits = 4200; // 3500 + 700
-      else if (amount >= 1990) credits = 2550; // 2200 + 350
-      else if (amount >= 1490) credits = 1800; // 1600 + 200
-      else if (amount >= 990) credits = 1050; // 1000 + 50
-      else credits = Math.floor(amount); // Fallback: 1 кредит = 1 рубль
+      // Маппинг сумм на кредиты (пакеты ⭐) — единый источник: src/config/pricing.ts
+      // Важно: credits = total ⭐ including bonus.
+      const sorted = [...STAR_PACKS].sort((a, b) => b.price - a.price);
+      const matched = sorted.find((p) => amount + 0.01 >= p.price);
+      if (matched) credits = packTotalStars(matched);
+      else credits = Math.floor(amount); // Fallback
     }
 
     console.log('📊 Parsed data:', { userId, orderId, paymentType, credits, planId });

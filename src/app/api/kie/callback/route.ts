@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { syncKieTaskToDb } from "@/lib/kie/sync-task";
-
-const KIE_CALLBACK_SECRET = process.env.KIE_CALLBACK_SECRET;
-
-if (!KIE_CALLBACK_SECRET) {
-  console.warn("[KIE callback] Missing KIE_CALLBACK_SECRET - callbacks will not be secure");
-}
+import { env } from "@/lib/env";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 /**
  * POST /api/kie/callback?secret=xxx
@@ -22,7 +18,14 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const secret = searchParams.get("secret");
 
-    if (KIE_CALLBACK_SECRET && secret !== KIE_CALLBACK_SECRET) {
+    const expectedSecret = env.optional("KIE_CALLBACK_SECRET") || "";
+    const apiKey = env.optional("KIE_API_KEY") || "";
+    const missing: string[] = [];
+    if (!expectedSecret) missing.push("KIE_CALLBACK_SECRET");
+    if (!apiKey) missing.push("KIE_API_KEY");
+    if (missing.length) return integrationNotConfigured("kie", missing);
+
+    if (secret !== expectedSecret) {
       console.error(`${logPrefix} Invalid secret`);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -61,3 +64,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

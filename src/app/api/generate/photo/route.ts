@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { kieClient } from "@/lib/api/kie-client";
+import { getKieClient } from "@/lib/api/kie-client";
 import { PHOTO_MODELS, getModelById } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 export async function POST(request: NextRequest) {
   try {
@@ -179,6 +180,17 @@ export async function POST(request: NextRequest) {
         : quality === '2k'
           ? '2K'
           : '1K';
+
+    let kieClient: any;
+    try {
+      kieClient = getKieClient();
+    } catch (e) {
+      return integrationNotConfigured("kie", [
+        "KIE_API_KEY",
+        "KIE_CALLBACK_SECRET",
+        "KIE_CALLBACK_URL",
+      ]);
+    }
 
     const response = await kieClient.generateImage({
       model: modelInfo.apiId,

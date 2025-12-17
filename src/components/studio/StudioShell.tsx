@@ -3,14 +3,16 @@
 import { ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { PanelLeft } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 export function StudioShell({
   sidebar,
   children,
+  mobileModelSelector,
 }: {
   sidebar: ReactNode;
   children: ReactNode;
+  mobileModelSelector?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -18,26 +20,27 @@ export function StudioShell({
     <div className="studio-theme min-h-screen bg-[var(--bg)] text-[var(--text)]">
       {/* Mobile top bar */}
       <div className="lg:hidden sticky top-16 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="text-sm font-semibold tracking-wide">Studio</div>
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)] hover:border-[var(--border)] rounded-xl"
+        <div className="px-4 py-3">
+          {/* Mobile model selector - replaces "Studio" text */}
+          {mobileModelSelector || (
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)]"
+                >
+                  <span className="text-sm font-semibold">Studio</span>
+                  <ChevronDown className="w-4 h-4 ml-2 shrink-0" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="bottom"
+                className="max-h-[80vh] overflow-y-auto bg-[var(--bg)] text-[var(--text)] border-t border-[var(--border)]"
               >
-                <PanelLeft className="w-4 h-4 mr-2" />
-                Модели
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="p-0 w-[92vw] max-w-[380px] bg-[var(--bg)] text-[var(--text)] border-r border-[var(--border)]"
-            >
-              <div className="h-full overflow-y-auto">{sidebar}</div>
-            </SheetContent>
-          </Sheet>
+                <div className="h-full">{sidebar}</div>
+              </SheetContent>
+            </Sheet>
+          )}
         </div>
       </div>
 

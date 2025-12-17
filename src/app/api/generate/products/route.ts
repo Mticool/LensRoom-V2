@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { kieClient } from "@/lib/api/kie-client";
+import { getKieClient } from "@/lib/api/kie-client";
 import { getApiModelId, getPackCost, getSingleCost, PACK_SLIDES_DEFAULT } from "@/config/productImageModes";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 type ProductGenerateBody = {
   modeId: string;
@@ -146,6 +147,16 @@ export async function POST(request: NextRequest) {
     }
 
     const apiModelId = getApiModelId(modelKey);
+    let kieClient: any;
+    try {
+      kieClient = getKieClient();
+    } catch (e) {
+      return integrationNotConfigured("kie", [
+        "KIE_API_KEY",
+        "KIE_CALLBACK_SECRET",
+        "KIE_CALLBACK_URL",
+      ]);
+    }
 
     // Create KIE tasks (one per slide)
     const jobs: Array<{ slideIndex: number; jobId: string }> = [];

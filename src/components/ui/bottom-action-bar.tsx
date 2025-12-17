@@ -48,7 +48,10 @@ export function BottomActionBar({
         className
       )}
     >
-      <div className="container mx-auto px-6 py-4">
+      <div
+        className="container mx-auto px-6 py-4"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
+      >
         <div className="flex items-center justify-between gap-4">
           {/* Left: Price Display */}
           <div className="flex-1 min-w-0">
@@ -89,3 +92,4 @@ export function BottomActionBar({
     </div>
   );
 }
+

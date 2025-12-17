@@ -326,3 +326,4 @@ export function GenerationResult({ generation, onClose }: GenerationResultProps)
     </div>
   );
 }
+

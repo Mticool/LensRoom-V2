@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-
-const KIE_API_KEY = process.env.KIE_API_KEY;
-const KIE_MARKET_BASE_URL = process.env.KIE_MARKET_BASE_URL || 'https://api.kie.ai';
+import { env } from "@/lib/env";
 
 /**
  * GET /api/debug/kie?taskId=xxx
@@ -36,12 +34,14 @@ export async function GET(request: NextRequest) {
       let kieStatus = null;
       let kieError = null;
 
-      if (KIE_API_KEY) {
+      const apiKey = env.optional("KIE_API_KEY");
+      const baseUrl = env.optional("KIE_MARKET_BASE_URL") || "https://api.kie.ai";
+      if (apiKey) {
         try {
           const response = await fetch(
-            `${KIE_MARKET_BASE_URL}/api/v1/jobs/recordInfo?taskId=${taskId}`,
+            `${baseUrl}/api/v1/jobs/recordInfo?taskId=${taskId}`,
             {
-              headers: { Authorization: `Bearer ${KIE_API_KEY}` },
+              headers: { Authorization: `Bearer ${apiKey}` },
             }
           );
 
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
           } : null,
         },
         kie_api: {
-          configured: !!KIE_API_KEY,
+          configured: !!apiKey,
           status: kieStatus,
           error: kieError,
         },
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
       by_kind: {} as Record<string, number>,
     };
 
-    recentGenerations?.forEach(gen => {
+    recentGenerations?.forEach((gen: any) => {
       stats.by_status[gen.status] = (stats.by_status[gen.status] || 0) + 1;
       if (gen.provider) stats.by_provider[gen.provider] = (stats.by_provider[gen.provider] || 0) + 1;
       if (gen.kind) stats.by_kind[gen.kind] = (stats.by_kind[gen.kind] || 0) + 1;
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       summary: stats,
-      recent_generations: recentGenerations?.map(gen => ({
+      recent_generations: recentGenerations?.map((gen: any) => ({
         ...gen,
         has_asset_url: !!gen.asset_url,
         time_since_created: Math.round((Date.now() - new Date(gen.created_at).getTime()) / 1000),
@@ -243,3 +243,4 @@ function diagnose(dbRecord: any, kieStatus: any): string[] {
 
   return issues;
 }
+

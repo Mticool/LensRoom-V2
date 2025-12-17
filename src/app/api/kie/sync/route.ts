@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { syncKieTaskToDb } from "@/lib/kie/sync-task";
-
-const KIE_SYNC_SECRET = process.env.KIE_SYNC_SECRET || process.env.KIE_CALLBACK_SECRET;
+import { env } from "@/lib/env";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 /**
  * GET /api/kie/sync?taskId=xxx&secret=yyy
@@ -23,9 +23,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "taskId is required" }, { status: 400 });
     }
 
-    if (KIE_SYNC_SECRET && secret !== KIE_SYNC_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const expectedSecret =
+      env.optional("KIE_SYNC_SECRET") || env.optional("KIE_CALLBACK_SECRET");
+    if (!expectedSecret) {
+      return integrationNotConfigured("kie", ["KIE_SYNC_SECRET", "KIE_CALLBACK_SECRET"]);
     }
+    const apiKey = env.optional("KIE_API_KEY");
+    if (!apiKey) {
+      return integrationNotConfigured("kie", ["KIE_API_KEY"]);
+    }
+    if (secret !== expectedSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const supabase = getSupabaseAdmin();
     const synced = await syncKieTaskToDb({ supabase, taskId });
@@ -44,3 +51,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

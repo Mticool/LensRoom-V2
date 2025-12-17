@@ -40,3 +40,4 @@ export function calcRub(stars: number): number {
   return Math.ceil(stars * RUB_PER_STAR);
 }
 
+

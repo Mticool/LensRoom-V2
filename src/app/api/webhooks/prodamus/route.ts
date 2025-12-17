@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { prodamusClient } from '@/lib/payments/prodamus-client';
+import { getProdamusClient } from '@/lib/payments/prodamus-client';
+import { STAR_PACKS, packTotalStars } from "@/config/pricing";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 interface ProdamusWebhookPayload {
   order_id: string;
@@ -60,7 +62,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify signature
-    if (!prodamusClient.verifyWebhookSignature(flatPayload, signature)) {
+    const prodamus = getProdamusClient();
+    if (!prodamus) {
+      return integrationNotConfigured("prodamus", ["PRODAMUS_SECRET_KEY", "PRODAMUS_PROJECT_ID"]);
+    }
+
+    if (!prodamus.verifyWebhookSignature(flatPayload, signature)) {
       console.error('[Prodamus Webhook] Invalid signature');
       // In development, continue anyway for testing
       if (process.env.NODE_ENV === 'production') {
@@ -180,10 +187,9 @@ export async function POST(request: NextRequest) {
       // Fallback based on common packages (новые пакеты)
       if (credits === 0) {
         const amount = parseFloat(payload.sum);
-        if (amount >= 4990) credits = 3500; // Ultra
-        else if (amount >= 2490) credits = 1500; // Max
-        else if (amount >= 790) credits = 400; // Plus
-        else if (amount >= 199) credits = 80; // Mini
+        const sorted = [...STAR_PACKS].sort((a, b) => b.price - a.price);
+        const matched = sorted.find((p) => amount + 0.01 >= p.price);
+        if (matched) credits = packTotalStars(matched);
       }
 
       console.log('[Prodamus Webhook] Processing package:', {

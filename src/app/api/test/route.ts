@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { kieClient } from "@/lib/api/kie-client";
+import { getKieClient } from "@/lib/api/kie-client";
+import { env } from "@/lib/env";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,15 +17,19 @@ export async function GET(request: NextRequest) {
       case "ping":
         // Simple availability check
         results.message = "API client initialized";
-        results.hasApiKey = !!process.env.KIE_API_KEY;
-        results.baseUrl = process.env.NEXT_PUBLIC_KIE_API_URL || "https://api.kie.ai";
-        results.mockMode = kieClient.isInMockMode();
+        results.hasApiKey = !!env.optional("KIE_API_KEY");
+        results.baseUrl = env.optional("NEXT_PUBLIC_KIE_API_URL") || "https://api.kie.ai";
+        try {
+          results.mockMode = getKieClient().isInMockMode();
+        } catch {
+          results.mockMode = null;
+        }
         results.success = true;
         break;
 
       case "health":
         // Test health endpoint
-        const isHealthy = await kieClient.checkHealth();
+        const isHealthy = await getKieClient().checkHealth();
         results.healthy = isHealthy;
         results.success = isHealthy;
         break;
@@ -32,7 +37,7 @@ export async function GET(request: NextRequest) {
       case "image":
         // Test image generation
         console.log("[TEST] Starting image generation test...");
-        const imageResponse = await kieClient.generateImage({
+        const imageResponse = await getKieClient().generateImage({
           model: "nano-banana-pro",
           prompt: "a beautiful sunset over mountains, photorealistic, 8k",
           aspectRatio: "1:1",
@@ -53,7 +58,7 @@ export async function GET(request: NextRequest) {
           throw new Error("taskId query parameter is required for status test");
         }
         console.log("[TEST] Checking status for task:", taskId);
-        const statusResponse = await kieClient.getGenerationStatus(taskId);
+        const statusResponse = await getKieClient().getGenerationStatus(taskId);
         results.taskId = taskId;
         results.status = statusResponse.status;
         results.progress = statusResponse.progress;
@@ -65,7 +70,7 @@ export async function GET(request: NextRequest) {
       case "video":
         // Test video generation with Kling 2.6 (text-to-video)
         console.log("[TEST] Starting video generation test...");
-        const videoResponse = await kieClient.generateVideo({
+        const videoResponse = await getKieClient().generateVideo({
           model: "kling-2.6/text-to-video",
           provider: "kie_market",
           prompt: "waves crashing on a beach at sunset, cinematic, slow motion",

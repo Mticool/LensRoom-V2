@@ -44,7 +44,10 @@ export function ProductActionBar({
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--surface)]/95 backdrop-blur-lg border-t border-[var(--border)]">
       <div className="container mx-auto px-4 lg:px-8 max-w-7xl">
-        <div className="flex items-center justify-between py-4 gap-4">
+        <div
+          className="flex items-center justify-between py-4 gap-4"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
+        >
           {/* Left: Cost breakdown */}
           <div className="flex items-center gap-6">
             {/* Balance */}
@@ -136,5 +139,6 @@ export function ProductActionBar({
     </div>
   );
 }
+
 
 

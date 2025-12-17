@@ -1,7 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { env } from "@/lib/env";
+import { notifyGenerationStatus } from "@/lib/telegram/notify";
 
-const KIE_API_KEY = process.env.KIE_API_KEY;
-const KIE_MARKET_BASE_URL = process.env.KIE_MARKET_BASE_URL || "https://api.kie.ai";
+function getKieMarketConfig() {
+  const apiKey = env.required("KIE_API_KEY", "KIE Market API key");
+  const baseUrl = env.optional("KIE_MARKET_BASE_URL") || "https://api.kie.ai";
+  if (!apiKey) return null;
+  return { apiKey, baseUrl };
+}
 
 export type KieTaskState = "waiting" | "queuing" | "generating" | "success" | "fail";
 
@@ -19,10 +25,11 @@ function parseResultJsonToUrls(resultJson: string): string[] {
 }
 
 async function fetchRecordInfo(taskId: string): Promise<{ state: KieTaskState; resultJson?: string; failMsg?: string; failCode?: string }> {
-  if (!KIE_API_KEY) throw new Error("KIE_API_KEY not configured");
+  const cfg = getKieMarketConfig();
+  if (!cfg) throw new Error("KIE not configured");
 
-  const res = await fetch(`${KIE_MARKET_BASE_URL}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
-    headers: { Authorization: `Bearer ${KIE_API_KEY}` },
+  const res = await fetch(`${cfg.baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
+    headers: { Authorization: `Bearer ${cfg.apiKey}` },
   });
 
   const text = await res.text();
@@ -156,9 +163,16 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
       preview_url: assetUrl,
       thumbnail_url: assetUrl,
       error: null,
-      completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    // Telegram notification (idempotent in DB)
+    try {
+      const kind = String(generation.type || "").toLowerCase() === "video" ? "video" : "photo";
+      await notifyGenerationStatus({ userId: String(generation.user_id), generationId: String(generation.id), kind, status: "success" });
+    } catch {
+      // ignore
+    }
 
     return { ok: true, status: "success" as const, assetUrl, resultUrls: urls };
   }
@@ -168,9 +182,16 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     await safeUpdateGeneration(supabase, generation.id, {
       status: "failed",
       error: msg,
-      completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    // Telegram notification (idempotent in DB)
+    try {
+      const kind = String(generation.type || "").toLowerCase() === "video" ? "video" : "photo";
+      await notifyGenerationStatus({ userId: String(generation.user_id), generationId: String(generation.id), kind, status: "failed" });
+    } catch {
+      // ignore
+    }
     return { ok: true, status: "failed" as const, error: msg };
   }
 

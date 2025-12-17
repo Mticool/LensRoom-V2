@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { kieClient } from "@/lib/api/kie-client";
+import { getKieClient } from "@/lib/api/kie-client";
 import type { KieProvider } from "@/config/models";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    let kieClient: any;
+    try {
+      kieClient = getKieClient();
+    } catch (e) {
+      return integrationNotConfigured("kie", [
+        "KIE_API_KEY",
+        "KIE_CALLBACK_SECRET",
+        "KIE_CALLBACK_URL",
+      ]);
+    }
+
     const { jobId } = await params;
     const url = new URL(request.url);
     const kind = url.searchParams.get("kind"); // "image" | "video"
@@ -21,9 +33,7 @@ export async function GET(
 
     // If caller didn't pass kind/provider, we try to infer by attempting
     // the Market-image status first, then Market-video, then Veo.
-    let status:
-      | Awaited<ReturnType<typeof kieClient.getGenerationStatus>>
-      | Awaited<ReturnType<typeof kieClient.getVideoGenerationStatus>>;
+    let status: any;
 
     if (kind === "video" || provider === "kie_veo") {
       status = await kieClient.getVideoGenerationStatus(jobId, provider);
@@ -43,7 +53,7 @@ export async function GET(
 
     // Transform outputs to results format expected by frontend
     const results =
-      status.outputs?.map((output, index) => {
+      status.outputs?.map((output: any, index: number) => {
         const o: any = output;
         return {
           id: `${jobId}_${index}`,

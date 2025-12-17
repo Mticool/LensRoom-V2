@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { syncKieTaskToDb } from "@/lib/kie/sync-task";
+import { env } from "@/lib/env";
 
 // Types
 interface GenerationInput {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
     const sync = searchParams.get("sync") === "true";
-    const fallbackSyncEnabled = process.env.KIE_FALLBACK_SYNC === "true";
+    const fallbackSyncEnabled = env.bool("KIE_FALLBACK_SYNC");
 
     let query = supabase
       .from("generations")

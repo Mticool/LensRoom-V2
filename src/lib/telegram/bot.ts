@@ -1,5 +1,14 @@
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+import { env } from "@/lib/env";
+
 const TELEGRAM_API_BASE = 'https://api.telegram.org/bot';
+
+export function getTelegramBotToken(): string | null {
+  return env.optional("TELEGRAM_BOT_TOKEN") || null;
+}
+
+export function getTelegramWebhookSecret(): string | null {
+  return env.optional("TELEGRAM_WEBHOOK_SECRET") || null;
+}
 
 export interface SendMessageOptions {
   chat_id: number;
@@ -12,13 +21,14 @@ export interface SendMessageOptions {
  * Send message via Telegram Bot API
  */
 export async function sendTelegramMessage(options: SendMessageOptions): Promise<boolean> {
-  if (!TELEGRAM_BOT_TOKEN) {
-    console.error('[Telegram Bot] TELEGRAM_BOT_TOKEN not configured');
+  const token = getTelegramBotToken();
+  if (!token) {
+    console.error('[Telegram Bot] Integration is not configured (missing TELEGRAM_BOT_TOKEN)');
     return false;
   }
 
   try {
-    const response = await fetch(`${TELEGRAM_API_BASE}${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    const response = await fetch(`${TELEGRAM_API_BASE}${token}/sendMessage`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -75,7 +85,7 @@ export async function sendBulkMessages(
  * Get bot username from environment
  */
 export function getTelegramBotUsername(): string {
-  return process.env.TELEGRAM_BOT_USERNAME || 'LensRoomBot';
+  return env.optional("TELEGRAM_BOT_USERNAME") || 'LensRoomBot';
 }
 
 /**
@@ -86,5 +96,6 @@ export function getBotStartLink(startParam?: string): string {
   const base = `https://t.me/${botUsername}`;
   return startParam ? `${base}?start=${startParam}` : base;
 }
+
 
 

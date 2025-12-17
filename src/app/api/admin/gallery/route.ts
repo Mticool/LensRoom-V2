@@ -1,32 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { requireRole, respondAuthError } from "@/lib/auth/requireRole";
 
 // GET - Fetch all gallery effects
 export async function GET() {
   try {
-    // Check Telegram auth first
-    const telegramSession = await getSession();
-    
-    if (!telegramSession) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin or manager
-    const supabase = getSupabaseAdmin();
-    const { data: profile } = await supabase
-      .from('telegram_profiles')
-      .select('is_admin, role')
-      .eq('id', telegramSession.profileId)
-      .single();
-
-    const isAdmin = profile?.is_admin || profile?.role === 'admin';
-    const isManager = profile?.role === 'manager';
-
-    if (!isAdmin && !isManager) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await requireRole("manager");
 
     // Fetch effects
     const supabaseQuery = getSupabaseAdmin();
@@ -43,34 +22,15 @@ export async function GET() {
     return NextResponse.json({ effects: effects || [] });
   } catch (error) {
     console.error('Gallery API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return respondAuthError(error);
   }
 }
 
 // POST - Create or update gallery effect
 export async function POST(request: Request) {
   try {
-    // Check Telegram auth
-    const telegramSession = await getSession();
-    
-    if (!telegramSession) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin or manager
+    await requireRole("manager");
     const supabase = getSupabaseAdmin();
-    const { data: profile } = await supabase
-      .from('telegram_profiles')
-      .select('is_admin, role')
-      .eq('id', telegramSession.profileId)
-      .single();
-
-    const isAdmin = profile?.is_admin || profile?.role === 'admin';
-    const isManager = profile?.role === 'manager';
-
-    if (!isAdmin && !isManager) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     const body = await request.json();
     const {
@@ -116,7 +76,7 @@ export async function POST(request: Request) {
     
     if (id) {
       // Update existing
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('effects_gallery')
         .update(effectData)
         .eq('id', id)
@@ -127,7 +87,7 @@ export async function POST(request: Request) {
       result = data;
     } else {
       // Create new
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('effects_gallery')
         .insert({
           ...effectData,
@@ -143,34 +103,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ effect: result });
   } catch (error: any) {
     console.error('Gallery save error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return respondAuthError(error);
   }
 }
 
 // DELETE - Delete gallery effect
 export async function DELETE(request: Request) {
   try {
-    // Check Telegram auth
-    const telegramSession = await getSession();
-    
-    if (!telegramSession) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin or manager
+    await requireRole("manager");
     const supabase = getSupabaseAdmin();
-    const { data: profile } = await supabase
-      .from('telegram_profiles')
-      .select('is_admin, role')
-      .eq('id', telegramSession.profileId)
-      .single();
-
-    const isAdmin = profile?.is_admin || profile?.role === 'admin';
-    const isManager = profile?.role === 'manager';
-
-    if (!isAdmin && !isManager) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     const { searchParams } = new URL(request.url);
     const presetId = searchParams.get('presetId');
@@ -189,7 +130,8 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Gallery delete error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return respondAuthError(error);
   }
 }
+
 

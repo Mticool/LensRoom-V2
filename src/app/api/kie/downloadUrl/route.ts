@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const KIE_API_KEY = process.env.KIE_API_KEY;
-const KIE_MARKET_BASE_URL = process.env.KIE_MARKET_BASE_URL || 'https://api.kie.ai';
-
-if (!KIE_API_KEY) {
-  console.error('[KIE downloadUrl] Missing KIE_API_KEY');
-}
+import { env } from "@/lib/env";
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 interface DownloadUrlRequest {
   url: string;
@@ -39,21 +34,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!KIE_API_KEY) {
-      return NextResponse.json(
-        { error: 'KIE_API_KEY not configured' },
-        { status: 500 }
-      );
+    const apiKey = env.optional("KIE_API_KEY");
+    if (!apiKey) {
+      return integrationNotConfigured("kie", ["KIE_API_KEY"]);
     }
+    const baseUrl = env.optional("KIE_MARKET_BASE_URL") || "https://api.kie.ai";
 
     console.log(`[KIE downloadUrl] Getting download URL for: ${url}`);
 
     const response = await fetch(
-      `${KIE_MARKET_BASE_URL}/api/v1/common/download-url`,
+      `${baseUrl}/api/v1/common/download-url`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${KIE_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url }),
@@ -108,3 +102,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

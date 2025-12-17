@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kieClient } from '@/lib/api/kie-client';
+import { getKieClient } from '@/lib/api/kie-client';
+import { integrationNotConfigured } from "@/lib/http/integration-error";
 
 /**
  * Get 1080p version of Veo video
@@ -10,6 +11,17 @@ export async function GET(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    let kieClient: any;
+    try {
+      kieClient = getKieClient();
+    } catch (e) {
+      return integrationNotConfigured("kie", [
+        "KIE_API_KEY",
+        "KIE_CALLBACK_SECRET",
+        "KIE_CALLBACK_URL",
+      ]);
+    }
+
     const { taskId } = await params;
 
     if (!taskId) {
@@ -47,3 +59,4 @@ export async function GET(
     );
   }
 }
+

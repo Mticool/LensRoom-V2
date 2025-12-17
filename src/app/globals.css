@@ -104,6 +104,20 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* ===== Telegram WebView mobile UX ===== */
+/* Applied only when we add .tg-webview on <html>. */
+html.tg-webview,
+html.tg-webview body {
+  overscroll-behavior-y: none; /* prevent rubber-band scroll in embedded webviews */
+  height: 100%;
+}
+
+/* Allow using safe-area variables in CSS/Tailwind calc() */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-top: env(safe-area-inset-top);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
@@ -188,7 +202,12 @@ body {
 }
 
 ::selection {
-  background-color: var(--gold-glow);
+  background-color: rgba(214, 179, 106, 0.3); /* --color-gold with opacity */
+  color: var(--text);
+}
+
+::-moz-selection {
+  background-color: rgba(214, 179, 106, 0.3);
   color: var(--text);
 }
 

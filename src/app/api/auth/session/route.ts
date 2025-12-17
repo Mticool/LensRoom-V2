@@ -21,6 +21,18 @@ export async function GET() {
       .select('id, telegram_id, telegram_username, first_name, last_name, photo_url, is_admin, role')
       .eq('id', session.profileId)
       .single();
+    const p = profile as
+      | {
+          id: string;
+          telegram_id: number;
+          telegram_username: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          photo_url: string | null;
+          is_admin: boolean | null;
+          role: string | null;
+        }
+      | null;
 
     // Check notification capability
     const { data: botLink } = await supabase
@@ -40,24 +52,26 @@ export async function GET() {
           .eq('user_id', userId)
           .single();
         
-        balance = creditsData?.amount || 0;
+        balance = Number((creditsData as any)?.amount || 0);
       }
     } catch (error) {
       console.error('[Session] Error fetching balance:', error);
     }
 
     return NextResponse.json({
-      user: profile ? {
-        id: profile.id,
-        telegramId: profile.telegram_id,
-        username: profile.telegram_username,
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-        photoUrl: profile.photo_url,
-        isAdmin: profile.is_admin || profile.role === 'admin',
-        role: (profile.role as 'user' | 'manager' | 'admin') || 'user',
-        canNotify: botLink?.can_notify || false,
-      } : null,
+      user: p
+        ? {
+            id: p.id,
+            telegramId: p.telegram_id,
+            username: p.telegram_username,
+            firstName: p.first_name,
+            lastName: p.last_name,
+            photoUrl: p.photo_url,
+            isAdmin: !!p.is_admin || p.role === "admin",
+            role: (p.role as 'user' | 'manager' | 'admin') || 'user',
+            canNotify: (botLink as any)?.can_notify || false,
+          }
+        : null,
       balance,
     });
   } catch (error) {
@@ -65,5 +79,6 @@ export async function GET() {
     return NextResponse.json({ user: null, balance: 0 });
   }
 }
+
 
 

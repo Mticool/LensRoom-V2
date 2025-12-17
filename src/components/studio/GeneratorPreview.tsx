@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { Aspect, Mode, StudioModel } from "@/config/studioModels";
 import { cn } from "@/lib/utils";
 import { Film, Image as ImageIcon } from "lucide-react";
@@ -13,19 +14,21 @@ function aspectToCss(aspect: Aspect): string {
   return "16 / 9";
 }
 
-export function GeneratorPreview({
-  model,
-  mode,
-  aspect,
-  referencePreviewUrl,
-  resultUrl,
-}: {
+interface GeneratorPreviewProps {
   model: StudioModel;
   mode: Mode;
   aspect: Aspect;
   referencePreviewUrl?: string | null;
   resultUrl?: string | null;
-}) {
+}
+
+export const GeneratorPreview = memo(function GeneratorPreview({
+  model,
+  mode,
+  aspect,
+  referencePreviewUrl,
+  resultUrl,
+}: GeneratorPreviewProps) {
   const isVideo = model.kind === "video";
   const Icon = isVideo ? Film : ImageIcon;
 
@@ -77,4 +80,4 @@ export function GeneratorPreview({
       </div>
     </div>
   );
-}
+});

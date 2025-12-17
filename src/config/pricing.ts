@@ -27,6 +27,17 @@ export interface StarPack {
   popular?: boolean;
 }
 
+// === КУРС ДЛЯ UI (оценка) ===
+// Используется только для "≈ ₽" в интерфейсе. Реальная оплата — по тарифам/пакетам ниже.
+export function packTotalStars(pack: StarPack): number {
+  return pack.stars + (pack.bonus || 0);
+}
+
+export function packBonusPercent(pack: StarPack): number {
+  if (!pack.bonus || pack.stars <= 0) return 0;
+  return Math.round((pack.bonus / pack.stars) * 100);
+}
+
 // === ПОДПИСКИ ===
 export const SUBSCRIPTION_TIERS: PricingTier[] = [
   {
@@ -119,11 +130,28 @@ export const STAR_PACKS: StarPack[] = [
   },
   {
     id: 'ultra',
-    stars: 3500,
-    price: 2990,
-    bonus: 700,
+    stars: 5000,
+    price: 4990,
+    bonus: 1500,
   },
 ];
+
+/**
+ * Сколько ⭐ в среднем даёт 1 ₽ (для "≈ ₽" в UI).
+ * Берём лучший доступный пакет, чтобы оценка не была завышена.
+ */
+export const starsPerRuble: number = (() => {
+  const best = STAR_PACKS.reduce((acc, p) => {
+    const rate = packTotalStars(p) / p.price; // ⭐ per ₽
+    return rate > acc ? rate : acc;
+  }, 0);
+  return best || 0.3;
+})();
+
+export function approxRubFromStars(stars: number): number {
+  if (!starsPerRuble) return 0;
+  return Math.max(0, Math.ceil(stars / starsPerRuble));
+}
 
 // === УТИЛИТЫ ===
 
@@ -177,8 +205,8 @@ export function formatStars(stars: number): string {
  * Рассчитать экономию для пакета
  */
 export function calculateSavings(pack: StarPack): number {
-  const basePrice = pack.stars; // 1⭐ = 1₽ (условно)
-  const actualPrice = pack.price;
-  return basePrice - actualPrice + (pack.bonus || 0);
+  // "Выгода" в ⭐ относительно базового объёма (без бонуса)
+  return packTotalStars(pack) - pack.stars;
 }
+
 

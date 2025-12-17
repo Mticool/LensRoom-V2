@@ -5,17 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "dev:3001": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3002",
     "lint": "next lint",
-    "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "clean": "rm -rf .next out node_modules/.cache",
-    "deploy": "vercel --prod",
-    "deploy:preview": "vercel"
+    "clean": "rm -rf .next out node_modules/.cache"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
@@ -29,6 +23,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.87.1",
     "@tanstack/react-query": "^5.90.12",
+    "@types/js-cookie": "^3.0.6",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -36,6 +31,7 @@
     "framer-motion": "^12.23.26",
     "heic2any": "^0.0.4",
     "jose": "^6.1.3",
+    "js-cookie": "^3.0.5",
     "jszip": "^3.10.1",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",

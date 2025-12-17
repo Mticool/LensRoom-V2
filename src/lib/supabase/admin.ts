@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { env } from "@/lib/env";
 
 /**
  * Supabase Admin Client
@@ -6,35 +7,32 @@ import { createClient } from '@supabase/supabase-js';
  * NEVER expose this client to the browser
  */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl) {
-  console.warn('[Supabase Admin] Missing NEXT_PUBLIC_SUPABASE_URL');
-}
-
-if (!supabaseServiceKey) {
-  console.warn('[Supabase Admin] Missing SUPABASE_SERVICE_ROLE_KEY');
-}
-
-// Create admin client (bypasses RLS)
-export const supabaseAdmin = supabaseUrl && supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  : null;
+let _supabaseAdmin: any = null;
+let _supabaseAdminKey: string | null = null;
 
 /**
  * Get admin client or throw if not configured
  */
-export function getSupabaseAdmin() {
-  if (!supabaseAdmin) {
-    throw new Error('Supabase admin client not configured. Check environment variables.');
+export function getSupabaseAdmin(): any {
+  const supabaseUrl = env.required("NEXT_PUBLIC_SUPABASE_URL");
+  const supabaseServiceKey = env.required("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Supabase admin client not configured. Check environment variables.");
   }
-  return supabaseAdmin;
+
+  const key = `${supabaseUrl}::${supabaseServiceKey}`;
+  if (_supabaseAdmin && _supabaseAdminKey === key) return _supabaseAdmin;
+
+  _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+  _supabaseAdminKey = key;
+  return _supabaseAdmin;
 }
+
 
 

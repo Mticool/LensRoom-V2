@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { env } from "@/lib/env";
 
 interface CreatePaymentParams {
   orderNumber: string;
@@ -27,19 +28,39 @@ interface CreateSubscriptionParams {
   credits: number;
 }
 
+export interface ProdamusConfig {
+  secretKey: string;
+  projectId: string;
+  baseUrl: string;
+  appUrl: string;
+}
+
+export function getProdamusConfig(): ProdamusConfig | null {
+  // Only evaluate env when Prodamus is actually used (no import-time warnings).
+  const secretKey = env.required("PRODAMUS_SECRET_KEY", "Prodamus API secret");
+  const projectId = env.required("PRODAMUS_PROJECT_ID", "Prodamus project ID");
+  if (!secretKey || !projectId) return null;
+
+  const appUrl = (env.optional("NEXT_PUBLIC_APP_URL") || "http://localhost:3000").replace(/\/$/, "");
+  return {
+    secretKey,
+    projectId,
+    baseUrl: "https://prodamus.ru/pay",
+    appUrl,
+  };
+}
+
 export class ProdamusClient {
   private secretKey: string;
   private projectId: string;
   private baseUrl: string;
+  private appUrl: string;
 
-  constructor() {
-    this.secretKey = process.env.PRODAMUS_SECRET_KEY || '';
-    this.projectId = process.env.PRODAMUS_PROJECT_ID || '';
-    this.baseUrl = 'https://prodamus.ru/pay';
-
-    if (!this.secretKey || !this.projectId) {
-      console.warn('[Prodamus] Missing PRODAMUS_SECRET_KEY or PRODAMUS_PROJECT_ID');
-    }
+  constructor(config: ProdamusConfig) {
+    this.secretKey = config.secretKey;
+    this.projectId = config.projectId;
+    this.baseUrl = config.baseUrl;
+    this.appUrl = config.appUrl;
   }
 
   private generateSignature(params: Record<string, string | number>): string {
@@ -76,8 +97,6 @@ export class ProdamusClient {
   }
 
   createPackagePayment({ orderNumber, amount, customerEmail, userId, credits }: CreatePackageParams): string {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    
     const params: Record<string, string | number> = {
       do: 'link',
       sys: this.projectId,
@@ -88,9 +107,9 @@ export class ProdamusClient {
       'products[0][price]': amount,
       'products[0][quantity]': 1,
       'products[0][sku]': `credits-${credits}`,
-      urlReturn: `${appUrl}/payment/success`,
-      urlNotification: `${appUrl}/api/webhooks/prodamus`,
-      urlSuccess: `${appUrl}/payment/success?type=package&credits=${credits}`,
+      urlReturn: `${this.appUrl}/payment/success`,
+      urlNotification: `${this.appUrl}/api/webhooks/prodamus`,
+      urlSuccess: `${this.appUrl}/payment/success?type=package&credits=${credits}`,
       payment_method: 'card',
     };
 
@@ -106,8 +125,6 @@ export class ProdamusClient {
   }
 
   createSubscriptionPayment({ orderNumber, amount, customerEmail, userId, planId, credits }: CreateSubscriptionParams): string {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    
     const params: Record<string, string | number> = {
       do: 'link',
       sys: this.projectId,
@@ -121,9 +138,9 @@ export class ProdamusClient {
       is_recurring: 1,
       recurrent_period: 'month',
       recurrent_trial_days: 0,
-      urlReturn: `${appUrl}/payment/success`,
-      urlNotification: `${appUrl}/api/webhooks/prodamus`,
-      urlSuccess: `${appUrl}/payment/success?type=subscription&plan=${planId}`,
+      urlReturn: `${this.appUrl}/payment/success`,
+      urlNotification: `${this.appUrl}/api/webhooks/prodamus`,
+      urlSuccess: `${this.appUrl}/payment/success?type=subscription&plan=${planId}`,
       'custom_fields[plan_id]': planId,
       'custom_fields[credits_per_month]': credits,
     };
@@ -183,5 +200,11 @@ export class ProdamusClient {
   }
 }
 
-export const prodamusClient = new ProdamusClient();
-export const prodamus = prodamusClient;
+let _client: ProdamusClient | null = null;
+export function getProdamusClient(): ProdamusClient | null {
+  const cfg = getProdamusConfig();
+  if (!cfg) return null;
+  if (_client) return _client;
+  _client = new ProdamusClient(cfg);
+  return _client;
+}

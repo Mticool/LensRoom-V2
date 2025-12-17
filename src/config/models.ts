@@ -239,10 +239,11 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [8],
-    qualityOptions: ['quality', 'fast'],
+    // Default to fast (per UX requirement); can be switched to quality in UI.
+    qualityOptions: ['fast', 'quality'],
     // Veo rejects 1:1 with "Ratio error" (422) — keep only supported ratios.
     aspectRatios: ['16:9', '9:16'],
-    shortLabel: '8s • Ultra',
+    shortLabel: '8s • Fast',
   },
   
   // === KLING 2.6 - Market API ===
@@ -388,10 +389,14 @@ export function getModelById(id: string): ModelConfig | undefined {
   if (id === 'veo-3.1-fast' || id === 'veo-3.1-quality') {
     id = 'veo-3.1';
   }
+  if (id === 'nano_banana') {
+    id = 'nano-banana';
+  }
   return ALL_MODELS.find(m => m.id === id);
 }
 
 export function getFeaturedModels(type: ModelType): ModelConfig[] {
   return getModelsByType(type).filter(m => m.featured);
 }
+
 

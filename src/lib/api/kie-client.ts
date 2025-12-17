@@ -6,6 +6,7 @@
 // 2. Veo 3.1 API: POST https://api.kie.ai/api/v1/veo/generate
 
 import type { KieProvider } from '@/config/models';
+import { env } from "@/lib/env";
 
 // ===== REQUEST TYPES =====
 
@@ -187,21 +188,30 @@ export class KieAPIError extends Error {
 
 // ===== CLIENT CLASS =====
 
-class KieAIClient {
+export type KieClientConfig = {
+  baseUrl: string;
+  apiKey: string;
+  mockMode: boolean;
+  callbackUrlBase: string; // e.g. https://lensroom.ru
+  callbackSecret: string;
+  veoWebhookSecret?: string;
+};
+
+export class KieAIClient {
   private baseUrl: string;
   private apiKey: string;
   private _isMockMode: boolean;
+  private callbackUrlBase: string;
+  private callbackSecret: string;
+  private veoWebhookSecret?: string;
 
-  constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_KIE_API_URL || "https://api.kie.ai";
-    this.apiKey = process.env.KIE_API_KEY || "";
-    this._isMockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true" || !this.apiKey;
-
-    if (this._isMockMode) {
-      console.warn("[KIE API] Running in MOCK MODE - no real API calls will be made");
-    } else {
-      console.log("[KIE API] Initialized with real API mode");
-    }
+  constructor(config: KieClientConfig) {
+    this.baseUrl = config.baseUrl;
+    this.apiKey = config.apiKey;
+    this._isMockMode = config.mockMode;
+    this.callbackUrlBase = config.callbackUrlBase;
+    this.callbackSecret = config.callbackSecret;
+    this.veoWebhookSecret = config.veoWebhookSecret;
   }
 
   isInMockMode(): boolean {
@@ -554,11 +564,11 @@ class KieAIClient {
       console.warn('[VEO] start_end mode: using first image only, Veo API does not support separate last frame');
     }
 
-    // Add callback URL if configured
-    if (process.env.NEXT_PUBLIC_APP_URL) {
-      const callbackSecret = process.env.VEO_WEBHOOK_SECRET || 'default_secret';
-      request.callBackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/veo?secret=${callbackSecret}`;
-      console.log('[VEO] Using callback URL:', request.callBackUrl);
+    // Add callback URL (recommended to keep delivery reliable)
+    const base = this.callbackUrlBase.replace(/\/$/, "");
+    const secret = this.veoWebhookSecret || this.callbackSecret;
+    if (base && secret) {
+      request.callBackUrl = `${base}/api/webhooks/veo?secret=${encodeURIComponent(secret)}`;
     }
 
     const response = await this.veoGenerate(request);
@@ -1118,4 +1128,54 @@ class KieAIClient {
   }
 }
 
-export const kieClient = new KieAIClient();
+export function getKieConfig() {
+  // Evaluate env only when KIE integration is actually used.
+  const apiKey = env.required("KIE_API_KEY", "KIE API key");
+  const callbackSecret = env.required("KIE_CALLBACK_SECRET", "KIE callback secret");
+  const callbackUrlBase = env.required("KIE_CALLBACK_URL", "Public base URL for callbacks");
+  const baseUrl = env.optional("NEXT_PUBLIC_KIE_API_URL") || "https://api.kie.ai";
+  const mockMode = env.bool("NEXT_PUBLIC_MOCK_MODE");
+  const veoWebhookSecret = env.optional("VEO_WEBHOOK_SECRET") || undefined;
+
+  const missing: string[] = [];
+  if (!apiKey) missing.push("KIE_API_KEY");
+  if (!callbackSecret) missing.push("KIE_CALLBACK_SECRET");
+  if (!callbackUrlBase) missing.push("KIE_CALLBACK_URL");
+
+  return {
+    baseUrl,
+    apiKey,
+    callbackSecret,
+    callbackUrlBase,
+    veoWebhookSecret,
+    mockMode,
+    missing,
+  };
+}
+
+let _kieClient: KieAIClient | null = null;
+let _kieClientKey: string | null = null;
+
+export function getKieClient(): KieAIClient {
+  const cfg = getKieConfig();
+
+  // In dev we return 501 from handlers if not configured.
+  // In prod env.required already throws.
+  if (!cfg.mockMode && cfg.missing.length) {
+    throw new Error(`[KIE] not configured: ${cfg.missing.join(", ")}`);
+  }
+
+  const key = JSON.stringify([cfg.baseUrl, cfg.apiKey, cfg.callbackUrlBase, cfg.callbackSecret, cfg.mockMode]);
+  if (_kieClient && _kieClientKey === key) return _kieClient;
+
+  _kieClient = new KieAIClient({
+    baseUrl: cfg.baseUrl,
+    apiKey: cfg.apiKey,
+    callbackSecret: cfg.callbackSecret,
+    callbackUrlBase: cfg.callbackUrlBase,
+    veoWebhookSecret: cfg.veoWebhookSecret,
+    mockMode: cfg.mockMode || !cfg.apiKey,
+  });
+  _kieClientKey = key;
+  return _kieClient;
+}

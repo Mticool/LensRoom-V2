@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import Cookies from 'js-cookie';
 
 interface AuthContextType {
   user: User | null;
@@ -26,13 +27,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Check both Supabase auth and Telegram session
+    const checkAuth = async () => {
+      // First, check Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        setUser(session.user);
+        setLoading(false);
+        return;
+      }
 
-    // Listen for auth changes
+      // If no Supabase session, check Telegram session cookie
+      const telegramCookie = Cookies.get('lr_session');
+      
+      if (telegramCookie) {
+        // Fetch user info from API (which validates Telegram session)
+        try {
+          const response = await fetch('/api/auth/me', {
+            credentials: 'include',
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            
+            // Create a mock User object for Telegram users
+            if (userData.user) {
+              setUser({
+                id: userData.user.id,
+                email: userData.user.email || `telegram_${userData.telegramId}@lensroom.local`,
+                created_at: userData.user.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                aud: 'authenticated',
+                role: 'authenticated',
+                app_metadata: {},
+                user_metadata: {
+                  telegram_id: userData.telegramId,
+                  username: userData.username,
+                  first_name: userData.firstName,
+                },
+              } as User);
+            }
+          }
+        } catch (error) {
+          console.error('[Auth] Failed to check Telegram session:', error);
+        }
+      }
+      
+      setLoading(false);
+    };
+
+    checkAuth();
+
+    // Listen for Supabase auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
         setUser(session?.user ?? null);

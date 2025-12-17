@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { TelegramSession } from '@/types/telegram';
 import { captureReferralCodeFromUrl, getStoredReferralCode, clearStoredReferralCode } from '@/lib/referrals/client';
+import { detectWebView, expandWebView, getTelegramWebApp } from "@/lib/telegram/webview";
 
 function decodeBase64Url(input: string): string {
   // base64url -> base64
@@ -103,6 +104,26 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
+    // Telegram WebView: expand to full height + disable rubber scroll via CSS class.
+    try {
+      if (detectWebView()) {
+        document.documentElement.classList.add("tg-webview");
+        const webApp = getTelegramWebApp();
+        if (webApp && typeof webApp.ready === "function") {
+          try {
+            webApp.ready();
+          } catch {
+            // ignore
+          }
+        }
+        expandWebView();
+      } else {
+        document.documentElement.classList.remove("tg-webview");
+      }
+    } catch {
+      // ignore
+    }
+
     // Save referral code from URL if present (even before login)
     try { captureReferralCodeFromUrl(); } catch {}
 
@@ -159,5 +180,6 @@ export function useTelegramAuth() {
   }
   return context;
 }
+
 
 

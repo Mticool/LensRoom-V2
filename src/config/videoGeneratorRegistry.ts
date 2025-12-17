@@ -201,3 +201,4 @@ export const MODE_DESCRIPTIONS: Record<VideoModeId, string> = {
   storyboard: 'Соберите видео из нескольких сцен',
 };
 
+
