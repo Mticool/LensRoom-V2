@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import { notifyGenerationStatus } from "@/lib/telegram/notify";
+import { getKieClient } from "@/lib/api/kie-client";
+import { getModelById } from "@/config/models";
 
 function getKieMarketConfig() {
   const apiKey = env.required("KIE_API_KEY", "KIE Market API key");
@@ -134,6 +136,102 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
   }
   if (st === "success") {
     return { ok: true, status: "completed" as const, assetUrl: generation.asset_url || null };
+  }
+
+  // ---- VIDEO SYNC (including Veo) ----
+  if (String(generation.type || "").toLowerCase() === "video") {
+    let status: any = null;
+    let lastErr: any = null;
+    try {
+      const kieClient: any = getKieClient();
+      const modelCfg: any = generation.model_id ? getModelById(String(generation.model_id)) : null;
+      const provider = modelCfg?.provider;
+
+      try {
+        status = await kieClient.getVideoGenerationStatus(String(taskId), provider);
+      } catch (e1) {
+        lastErr = e1;
+        // Retry without provider, then force Veo
+        try {
+          status = await kieClient.getVideoGenerationStatus(String(taskId));
+        } catch (e2) {
+          lastErr = e2;
+          status = await kieClient.getVideoGenerationStatus(String(taskId), "kie_veo");
+        }
+      }
+    } catch (e) {
+      lastErr = e;
+    }
+
+    if (!status) {
+      return { ok: false, reason: "video_status_unavailable" as const, error: String(lastErr || "") };
+    }
+
+    const mapped =
+      status.status === "completed" ? "success" : status.status === "failed" ? "failed" : status.status === "queued" ? "queued" : "generating";
+
+    if (mapped === "success" && Array.isArray(status.outputs) && status.outputs[0]?.url) {
+      const sourceUrl = String(status.outputs[0].url);
+      let assetUrl: string | null = null;
+      try {
+        assetUrl = await downloadAndStoreAsset({
+          supabase,
+          generationId: generation.id,
+          userId: generation.user_id,
+          kind: "video",
+          sourceUrl,
+        });
+      } catch (e) {
+        console.warn("[KIE sync-task] video storage failed, using source url", { taskId, err: e });
+        assetUrl = sourceUrl;
+      }
+
+      await safeUpdateGeneration(supabase, generation.id, {
+        status: "success",
+        result_urls: [sourceUrl],
+        asset_url: assetUrl,
+        // Keep preview/thumbnail null so client can generate poster from first frame.
+        preview_url: null,
+        thumbnail_url: null,
+        error: null,
+        updated_at: new Date().toISOString(),
+      });
+
+      try {
+        await notifyGenerationStatus({
+          userId: String(generation.user_id),
+          generationId: String(generation.id),
+          kind: "video",
+          status: "success",
+        });
+      } catch {}
+
+      return { ok: true, status: "success" as const, assetUrl, resultUrls: [sourceUrl] };
+    }
+
+    if (mapped === "failed") {
+      const msg = String(status.error || "Video generation failed");
+      await safeUpdateGeneration(supabase, generation.id, {
+        status: "failed",
+        error: msg,
+        updated_at: new Date().toISOString(),
+      });
+      try {
+        await notifyGenerationStatus({
+          userId: String(generation.user_id),
+          generationId: String(generation.id),
+          kind: "video",
+          status: "failed",
+        });
+      } catch {}
+      return { ok: true, status: "failed" as const, error: msg };
+    }
+
+    await safeUpdateGeneration(supabase, generation.id, {
+      status: mapped === "queued" ? "queued" : "generating",
+      updated_at: new Date().toISOString(),
+    });
+    return { ok: true, status: mapped as "queued" | "generating", state: status.status };
   }
 
   const info = await fetchRecordInfo(taskId);
