@@ -166,12 +166,15 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
       assetUrl = urls[0];
     }
 
+    // For videos: asset_url is the video file. preview/thumbnail should be an image poster (generated client-side),
+    // so don't set them to the video URL.
+    const isVideo = kind === "video";
     await safeUpdateGeneration(supabase, generation.id, {
       status: "success",
       result_urls: urls,
       asset_url: assetUrl,
-      preview_url: assetUrl,
-      thumbnail_url: assetUrl,
+      preview_url: isVideo ? null : assetUrl,
+      thumbnail_url: isVideo ? null : assetUrl,
       error: null,
       updated_at: new Date().toISOString(),
     });

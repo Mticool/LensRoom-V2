@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getSession, getAuthUserId } from "@/lib/telegram/auth";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { payform } from '@/lib/payments/payform-client';
 import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/pricing/plans';
 
@@ -13,9 +15,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Prefer Supabase auth, but also support Telegram session login (site primary flow).
+    let user: { id: string; email: string | null } | null = null;
+    const { data: { user: sbUser }, error: authError } = await supabase.auth.getUser();
+    if (!authError && sbUser) {
+      user = { id: sbUser.id, email: sbUser.email || null };
+    } else {
+      const telegramSession = await getSession();
+      if (telegramSession) {
+        const userId = await getAuthUserId(telegramSession);
+        if (userId) {
+          // Get email from profiles (telegram users have synthetic email like telegram_<id>@lensroom.ru)
+          const admin = getSupabaseAdmin();
+          const { data: profile } = await admin
+            .from("profiles")
+            .select("email")
+            .eq("id", userId)
+            .maybeSingle();
+          user = { id: userId, email: (profile as any)?.email || null };
+        }
+      }
+    }
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -29,6 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     let paymentUrl: string;
+    const customerEmail = user.email || `user_${user.id.slice(0, 8)}@lensroom.local`;
     const orderNumber = `LR-${Date.now()}-${user.id.slice(0, 8)}`;
 
     if (type === 'subscription') {
@@ -42,7 +65,7 @@ export async function POST(request: NextRequest) {
         paymentUrl = payform.createSubscriptionPayment({
           orderNumber,
           amount: plan.price,
-          customerEmail: user.email!,
+          customerEmail,
           userId: user.id,
           type: 'subscription',
           planId: plan.id,
@@ -58,7 +81,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Сохранить в БД
-      await supabase.from('payments').insert({
+      // Use admin to bypass RLS regardless of auth method
+      await getSupabaseAdmin().from('payments').insert({
         user_id: user.id,
         prodamus_order_id: orderNumber, // Используем существующее поле
         type: 'subscription',
@@ -86,7 +110,7 @@ export async function POST(request: NextRequest) {
         paymentUrl = payform.createPackagePayment({
           orderNumber,
           amount: pkg.price,
-          customerEmail: user.email!,
+          customerEmail,
           userId: user.id,
           type: 'package',
           credits: pkg.credits,
@@ -101,7 +125,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Сохранить в БД
-      await supabase.from('payments').insert({
+      await getSupabaseAdmin().from('payments').insert({
         user_id: user.id,
         prodamus_order_id: orderNumber,
         type: 'package',

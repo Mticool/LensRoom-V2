@@ -37,6 +37,12 @@ export default function PricingPage() {
 
       if (!response.ok || data.error) {
         // Show user-friendly error messages
+        if (response.status === 401) {
+          setAuthDialogOpen(true);
+          toast.error('Сессия истекла. Войдите снова.');
+          setLoading(null);
+          return;
+        }
         if (response.status === 503) {
           toast.error('Payment system is temporarily unavailable. Please contact support.');
         } else {

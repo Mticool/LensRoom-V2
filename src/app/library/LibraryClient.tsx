@@ -12,6 +12,24 @@ type Generation = any;
 
 type UiStatus = "queued" | "generating" | "success" | "failed";
 
+function looksLikeVideoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const u = String(url).toLowerCase();
+  return u.includes(".mp4") || u.includes(".webm") || u.includes(".mov") || u.includes("video/");
+}
+
+function looksLikeImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const u = String(url).toLowerCase();
+  return (
+    u.includes(".png") ||
+    u.includes(".jpg") ||
+    u.includes(".jpeg") ||
+    u.includes(".webp") ||
+    u.startsWith("data:image/")
+  );
+}
+
 function normalizeStatus(s: any): UiStatus {
   const v = String(s || "").toLowerCase();
   if (v === "success") return "success";
@@ -245,7 +263,10 @@ export function LibraryClient() {
         const id = String(g?.id || "");
         if (!id) return false;
         if (posters[id]) return false;
-        const hasPreview = !!(g?.preview_url || g?.thumbnail_url);
+        // Some records set thumbnail_url/preview_url to the *video file* itself.
+        // Treat that as missing preview and generate a poster instead.
+        const previewCandidate = (g?.thumbnail_url || g?.preview_url) as any;
+        const hasPreview = !!previewCandidate && looksLikeImageUrl(String(previewCandidate));
         const hasAsset = typeof g?.asset_url === "string" && !!g.asset_url;
         return !hasPreview && hasAsset;
       })
@@ -321,7 +342,12 @@ export function LibraryClient() {
               {grid.map(({ g, st, url, isVideo }) => {
                 const hasError = imageError.has(String(g.id));
                 const videoSrc = isVideo ? (g?.asset_url || url) : null;
-                const poster = isVideo ? (posters[String(g.id)] || g?.thumbnail_url || g?.preview_url || undefined) : undefined;
+                const posterCandidate = isVideo ? (g?.thumbnail_url || g?.preview_url || undefined) : undefined;
+                const poster =
+                  isVideo
+                    ? posters[String(g.id)] ||
+                      (looksLikeImageUrl(String(posterCandidate || "")) ? String(posterCandidate) : undefined)
+                    : undefined;
                 return (
                   <div key={String(g.id)} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
                     <div className="relative aspect-square bg-black/20">
