@@ -6,9 +6,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
+import { usePreferencesStore } from '@/stores/preferences-store';
 import { 
   User, Calendar, CreditCard, Crown, LogOut, Loader2, 
-  Image, Video, RefreshCw, ExternalLink, Download, Users, Copy, Check
+  Image, Video, RefreshCw, ExternalLink, Download, Users, Copy, Check, Settings
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -28,6 +29,7 @@ interface Generation {
 export default function ProfilePage() {
   const { user, loading: authLoading, signOut } = useTelegramAuth();
   const { balance, fetchBalance } = useCreditsStore();
+  const { showSuccessNotifications, setShowSuccessNotifications } = usePreferencesStore();
   const router = useRouter();
   
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -269,6 +271,43 @@ export default function ProfilePage() {
                 <p className="mt-3 text-xs text-[var(--muted)]">
                   Бонус: +50⭐ вам и +50⭐ другу.
                 </p>
+              </Card>
+            </motion.div>
+
+            {/* Settings Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.28 }}
+            >
+              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[var(--text)]">Settings</h3>
+                  <Settings className="w-5 h-5 text-[var(--muted)]" />
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface2)]">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[var(--text)]">Success notifications</p>
+                      <p className="text-xs text-[var(--muted)]">Show when generation completes</p>
+                    </div>
+                    <button
+                      onClick={() => setShowSuccessNotifications(!showSuccessNotifications)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        showSuccessNotifications ? 'bg-[var(--gold)]' : 'bg-[var(--border)]'
+                      }`}
+                      role="switch"
+                      aria-checked={showSuccessNotifications}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          showSuccessNotifications ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
               </Card>
             </motion.div>
 

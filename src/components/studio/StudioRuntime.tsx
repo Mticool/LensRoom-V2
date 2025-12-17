@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
+import { invalidateCached } from "@/lib/client/generations-cache";
+import { usePreferencesStore } from "@/stores/preferences-store";
 
 import type { Aspect, Duration, Mode, Quality } from "@/config/studioModels";
 import { getStudioModelByKey, STUDIO_PHOTO_MODELS, STUDIO_VIDEO_MODELS } from "@/config/studioModels";
@@ -20,6 +23,19 @@ import { BottomActionBar } from "@/components/studio/BottomActionBar";
 import { StartEndUpload } from "@/components/studio/StartEndUpload";
 
 type RuntimeStatus = "idle" | "queued" | "generating" | "success" | "failed";
+
+type ActiveJob = {
+  jobId: string;
+  kind: "image" | "video";
+  provider?: string;
+  modelName: string;
+  createdAt: number;
+  status: RuntimeStatus;
+  progress: number;
+  resultUrls: string[];
+  error?: string | null;
+  opened?: boolean;
+};
 
 async function fileToDataUrl(file: File): Promise<string> {
   return await new Promise<string>((resolve, reject) => {
@@ -42,6 +58,8 @@ async function safeReadJson(response: Response): Promise<any> {
 
 export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { showSuccessNotifications } = usePreferencesStore();
 
   const requestedKind = (searchParams.get("kind") as "photo" | "video" | null) || null;
   const kind: "photo" | "video" = requestedKind || defaultKind;
@@ -68,6 +86,16 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const [progress, setProgress] = useState<number>(0);
   const [lastError, setLastError] = useState<string | null>(null);
   const [resultUrls, setResultUrls] = useState<string[]>([]);
+
+  // Allow multiple background jobs
+  const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
+  const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const focusedJobIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    focusedJobIdRef.current = focusedJobId;
+  }, [focusedJobId]);
 
   // Apply preset / query mapping (UI-only)
   useEffect(() => {
@@ -179,7 +207,14 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
       const res = await fetch(`/api/jobs/${jobId}?${qs.toString()}`);
       const data = await safeReadJson(res);
-      if (!res.ok) throw new Error(data?.error || `Job status error (${res.status})`);
+      if (!res.ok) {
+        if (res.status === 500 && (data?.error === "Integration is not configured" || data?.hint)) {
+          const base = "Интеграция не настроена. Обратитесь в поддержку.";
+          const tech = process.env.NODE_ENV !== "production" ? ` (${data?.hint || data?.error || "missing env"})` : "";
+          throw new Error(base + tech);
+        }
+        throw new Error(data?.error || `Job status error (${res.status})`);
+      }
 
       if (typeof data?.progress === "number") setProgress(Math.max(0, Math.min(100, data.progress)));
 
@@ -204,9 +239,103 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     throw new Error("Timeout");
   }, []);
 
+  const startPollingJob = useCallback(
+    (job: ActiveJob) => {
+      // Run polling in background per job; no global blocking.
+      (async () => {
+        try {
+          const maxAttempts = 180;
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const qs = new URLSearchParams();
+            qs.set("kind", job.kind);
+            if (job.provider) qs.set("provider", job.provider);
+
+            const res = await fetch(`/api/jobs/${job.jobId}?${qs.toString()}`);
+            const data = await safeReadJson(res);
+            if (!res.ok) throw new Error(data?.error || `Job status error (${res.status})`);
+
+            const p = typeof data?.progress === "number" ? Math.max(0, Math.min(100, data.progress)) : 0;
+            const st: RuntimeStatus =
+              data.status === "completed" ? "success" : data.status === "failed" ? "failed" : data.status === "queued" ? "queued" : "generating";
+
+            setActiveJobs((prev) =>
+              prev.map((j) => (j.jobId === job.jobId ? { ...j, status: st, progress: p } : j))
+            );
+
+            if (focusedJobIdRef.current === job.jobId) {
+              setStatus(st);
+              if (p) setProgress(p);
+            }
+
+            if (st === "success" && Array.isArray(data.results) && data.results[0]?.url) {
+              const urls = data.results.map((r: any) => r.url).filter(Boolean);
+              setActiveJobs((prev) =>
+                prev.map((j) => (j.jobId === job.jobId ? { ...j, status: "success", progress: 100, resultUrls: urls } : j))
+              );
+
+              // Refresh library cache so /library shows new item quickly.
+              invalidateCached("generations:");
+              try {
+                window.dispatchEvent(new CustomEvent("generations:refresh"));
+              } catch {}
+
+              if (focusedJobIdRef.current === job.jobId) {
+                setResultUrls(urls);
+                setStatus("success");
+                setProgress(100);
+              }
+
+              // Show success notification if enabled
+              if (showSuccessNotifications) {
+                const notificationText = job.kind === "video" ? "Video ready ✅" : "Photo ready ✅";
+                toast(notificationText, {
+                  action: {
+                    label: "Open in Library",
+                    onClick: () => {
+                      router.push("/library");
+                    },
+                  },
+                });
+              }
+              return;
+            }
+
+            if (st === "failed") {
+              const msg = data.error || "Generation failed";
+              setActiveJobs((prev) =>
+                prev.map((j) => (j.jobId === job.jobId ? { ...j, status: "failed", error: msg } : j))
+              );
+              if (focusedJobIdRef.current === job.jobId) {
+                setLastError(msg);
+                setStatus("failed");
+                setProgress(0);
+              }
+              return;
+            }
+
+            await new Promise((r) => setTimeout(r, 2000));
+          }
+          throw new Error("Timeout");
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Ошибка";
+          setActiveJobs((prev) =>
+            prev.map((j) => (j.jobId === job.jobId ? { ...j, status: "failed", error: msg } : j))
+          );
+          if (focusedJobId === job.jobId) {
+            setLastError(msg);
+            setStatus("failed");
+            setProgress(0);
+          }
+        }
+      })();
+    },
+    []
+  );
+
   const handleGenerate = useCallback(async () => {
     if (!modelInfo || !canGenerate) return;
 
+    setIsStarting(true);
     setStatus("generating");
     setProgress(0);
     setLastError(null);
@@ -236,10 +365,31 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
           body: JSON.stringify(payload),
         });
         const data = await safeReadJson(res);
-        if (!res.ok) throw new Error(data?.error || "Photo generation failed");
+        if (!res.ok) {
+          if (res.status === 500 && (data?.error === "Integration is not configured" || data?.hint)) {
+            const base = "Интеграция не настроена. Обратитесь в поддержку.";
+            const tech = process.env.NODE_ENV !== "production" ? ` (${data?.hint || data?.error || "missing env"})` : "";
+            throw new Error(base + tech);
+          }
+          throw new Error(data?.error || "Photo generation failed");
+        }
 
-        await pollJob(String(data.jobId), "image", data?.provider);
-        toast.success("Фото готово!");
+        const jobId = String(data.jobId);
+        const job: ActiveJob = {
+          jobId,
+          kind: "image",
+          provider: data?.provider,
+          modelName: modelInfo.name,
+          createdAt: Date.now(),
+          status: "generating",
+          progress: 0,
+          resultUrls: [],
+          opened: false,
+        };
+        setActiveJobs((prev) => [job, ...prev]);
+        setFocusedJobId(jobId);
+        setIsStarting(false);
+        startPollingJob(job);
         return;
       }
 
@@ -274,18 +424,44 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         body: JSON.stringify(payload),
       });
       const data = await safeReadJson(res);
-      if (!res.ok) throw new Error(data?.error || "Video generation failed");
+      if (!res.ok) {
+        if (res.status === 500 && (data?.error === "Integration is not configured" || data?.hint)) {
+          const base = "Интеграция не настроена. Обратитесь в поддержку.";
+          const tech = process.env.NODE_ENV !== "production" ? ` (${data?.hint || data?.error || "missing env"})` : "";
+          throw new Error(base + tech);
+        }
+        throw new Error(data?.error || "Video generation failed");
+      }
 
-      await pollJob(String(data.jobId), "video", data?.provider);
-      toast.success("Видео готово!");
+      const jobId = String(data.jobId);
+      const job: ActiveJob = {
+        jobId,
+        kind: "video",
+        provider: data?.provider,
+        modelName: modelInfo.name,
+        createdAt: Date.now(),
+        status: "generating",
+        progress: 0,
+        resultUrls: [],
+        opened: false,
+      };
+      setActiveJobs((prev) => [job, ...prev]);
+      setFocusedJobId(jobId);
+      setIsStarting(false);
+      startPollingJob(job);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Ошибка";
       setLastError(msg);
       setStatus("failed");
       setProgress(0);
       toast.error(msg);
+      setIsStarting(false);
     }
-  }, [modelInfo, canGenerate, quality, prompt, aspect, duration, mode, referenceImage, firstFrame, lastFrame, scenes, audio, isStoryboard, pollJob]);
+  }, [modelInfo, canGenerate, quality, prompt, aspect, duration, mode, referenceImage, firstFrame, lastFrame, scenes, audio, isStoryboard, startPollingJob]);
+
+  const newResultsCount = useMemo(() => {
+    return activeJobs.filter((j) => j.status === "success" && !j.opened).length;
+  }, [activeJobs]);
 
   const handleReset = useCallback(() => {
     setPrompt("");
@@ -390,11 +566,24 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         <BottomActionBar
           stars={price.stars}
           approxRub={price.approxRub}
-          canGenerate={canGenerate && status !== "queued" && status !== "generating"}
+          hint={
+            studioModel.kind === "video"
+              ? "Влияет на цену: режим • качество • длительность"
+              : "Влияет на цену: режим • качество"
+          }
+          canGenerate={canGenerate && !isStarting}
           onGenerate={handleGenerate}
           onReset={handleReset}
+          onOpenLibrary={() => {
+            // Mark all completed as opened once user visits history
+            setActiveJobs((prev) => prev.map((j) => (j.status === "success" ? { ...j, opened: true } : j)));
+            router.push("/library");
+          }}
+          newResultsCount={newResultsCount}
         />
       </div>
     </StudioShell>
   );
 }
+
+
