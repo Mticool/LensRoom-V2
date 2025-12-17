@@ -106,13 +106,23 @@ export function LibraryClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncEnabled]);
 
-  // Allow other parts of the app (Studio) to request a refresh after generation completes.
+  // Allow other parts of the app (Studio) to add a new generation without full page reload.
   useEffect(() => {
-    const onRefresh = () => {
+    const onRefresh = (event: CustomEvent) => {
       try {
         invalidateCached("generations:");
       } catch {}
-      fetchGenerations(0, false);
+      
+      // If event has newItem data, prepend it instead of full reload
+      if (event?.detail?.newItem) {
+        setItems((prev) => [event.detail.newItem, ...prev]);
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[library] prepended new generation", event.detail.newItem.id);
+        }
+      } else {
+        // Fallback: full reload (only when no newItem provided)
+        fetchGenerations(0, false);
+      }
     };
     window.addEventListener("generations:refresh", onRefresh as any);
     return () => window.removeEventListener("generations:refresh", onRefresh as any);
@@ -133,19 +143,8 @@ export function LibraryClient() {
     return grid.some(({ st }) => st === "generating" || st === "queued");
   }, [grid]);
 
-  // Poll every 2.5s only while there are generating/queued items.
-  useEffect(() => {
-    if (!hasActiveJobs) return;
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[library] polling active jobs");
-    }
-    const id = window.setInterval(() => {
-      invalidateCached("generations:");
-      fetchGenerations(0, false);
-    }, 2500);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasActiveJobs, syncEnabled]);
+  // REMOVED: Constant polling causes page flickering
+  // Instead, we only refresh when Studio explicitly triggers "generations:refresh" event
 
   // Toast on generating -> success transitions.
   useEffect(() => {

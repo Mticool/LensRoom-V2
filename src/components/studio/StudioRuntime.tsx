@@ -273,9 +273,10 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                 prev.map((j) => (j.jobId === job.jobId ? { ...j, status: "success", progress: 100, resultUrls: urls } : j))
               );
 
-              // Refresh library cache so /library shows new item quickly.
+              // Refresh library cache and trigger Library to reload (without constant polling).
               invalidateCached("generations:");
               try {
+                // Library will do a single refresh to get the new item
                 window.dispatchEvent(new CustomEvent("generations:refresh"));
               } catch {}
 
