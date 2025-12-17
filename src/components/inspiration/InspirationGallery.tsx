@@ -154,7 +154,10 @@ export function InspirationGallery() {
     async function loadContent() {
       setLoading(true);
       try {
-        const res = await fetch('/api/content?placement=inspiration&limit=100');
+        // Bypass browser/proxy cache so newly published cards appear immediately
+        const res = await fetch(`/api/content?placement=inspiration&limit=100&_t=${Date.now()}`, {
+          cache: 'no-store',
+        });
         if (!res.ok) throw new Error('Failed to load content');
         
         const data = await res.json();
