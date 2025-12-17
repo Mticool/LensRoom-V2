@@ -89,9 +89,13 @@ export async function GET(request: NextRequest) {
 
       for (const g of candidates) {
         try {
-          await syncKieTaskToDb({ supabase: supabaseAdmin, taskId: String(g.task_id) });
+          const result = await syncKieTaskToDb({ supabase: supabaseAdmin, taskId: String(g.task_id) });
+          if (result.ok && result.status === "success") {
+            console.log("[Generations API] Fallback sync success:", g.task_id, result.assetUrl);
+          }
         } catch (e) {
-          console.warn("[Generations API] Fallback sync failed:", g.task_id, e);
+          const msg = e instanceof Error ? e.message : String(e);
+          console.warn("[Generations API] Fallback sync error:", g.task_id, msg);
         }
       }
     }
