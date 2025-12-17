@@ -34,9 +34,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Получаем дополнительные данные из profiles
+    // Note: display_name is optional, fallback to email/full_name
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, display_name, avatar_url");
+      .select("id, full_name, email, avatar_url");
 
     if (profilesError) {
       console.error("[Admin Managers] Error fetching profiles:", profilesError);
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
         role: role?.role || "user",
         created_at: user.created_at,
-        display_name: profile?.display_name,
+        display_name: profile?.full_name || user.email || "User",
         avatar_url: profile?.avatar_url,
         last_sign_in_at: user.last_sign_in_at,
       };
