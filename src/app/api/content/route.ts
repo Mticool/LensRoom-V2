@@ -30,6 +30,14 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await query;
 
+    // Debug logging
+    console.log('[Content API] Query params:', { placement, category, limit });
+    console.log('[Content API] Result:', { 
+      dataCount: data?.length || 0, 
+      hasError: !!error,
+      errorDetails: error 
+    });
+
     if (error) {
       console.error('[Content API] Error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
