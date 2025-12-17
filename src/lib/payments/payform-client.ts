@@ -43,9 +43,12 @@ export class PayformClient {
     credits 
   }: CreatePaymentParams): string {
     
-    const subscriptionId = planId === 'pro' 
-      ? process.env.PAYFORM_SUBSCRIPTION_PRO 
-      : process.env.PAYFORM_SUBSCRIPTION_BUSINESS;
+    const subscriptionId =
+      planId === 'star'
+        ? process.env.PAYFORM_SUBSCRIPTION_STAR
+        : planId === 'pro'
+          ? process.env.PAYFORM_SUBSCRIPTION_PRO
+          : process.env.PAYFORM_SUBSCRIPTION_BUSINESS;
 
     if (!subscriptionId) {
       throw new Error(`Subscription ID not found for plan: ${planId}`);

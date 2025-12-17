@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     // if (!process.env.PAYFORM_MERCHANT_ID) missingEnv.push("PAYFORM_MERCHANT_ID");
     if (type === "subscription") {
       // Subscription requires provider-side subscription ids.
+      if (!process.env.PAYFORM_SUBSCRIPTION_STAR) missingEnv.push("PAYFORM_SUBSCRIPTION_STAR");
       if (!process.env.PAYFORM_SUBSCRIPTION_PRO) missingEnv.push("PAYFORM_SUBSCRIPTION_PRO");
       if (!process.env.PAYFORM_SUBSCRIPTION_BUSINESS) missingEnv.push("PAYFORM_SUBSCRIPTION_BUSINESS");
     }
