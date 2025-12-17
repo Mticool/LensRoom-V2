@@ -327,6 +327,9 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
             setStatus("failed");
             setProgress(0);
           }
+          
+          // Show error notification
+          toast.error(`❌ ${job.kind === "video" ? "Видео" : "Фото"}: ${msg}`);
         }
       })();
     },
@@ -341,6 +344,12 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     setProgress(0);
     setLastError(null);
     setResultUrls([]);
+
+    // Show start notification
+    const startText = modelInfo.type === "video" ? "🎬 Начинаем генерацию видео..." : "🎨 Начинаем генерацию фото...";
+    toast(startText, {
+      duration: 3000,
+    });
 
     try {
       if (modelInfo.type === "photo") {
