@@ -41,18 +41,6 @@ export type UsersMapping = {
   };
 };
 
-type ColumnRow = {
-  table_name: string;
-  column_name: string;
-  data_type: string;
-  udt_name: string;
-};
-
-type TableRow = {
-  table_name: string;
-  table_type: string;
-};
-
 const TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 let _schemaCache:
@@ -63,83 +51,112 @@ let _schemaCache:
   | null = null;
 let _schemaInFlight: Promise<Awaited<ReturnType<typeof computeAdminSchemaMapping>>> | null = null;
 
-let _tablesCache: { expiresAt: number; value: TableRow[] } | null = null;
-let _tablesInFlight: Promise<TableRow[]> | null = null;
-
 function uniq(arr: string[]) {
   return Array.from(new Set(arr));
 }
 
-function pick(cols: Set<string>, candidates: string[]): string | undefined {
-  for (const c of candidates) if (cols.has(c)) return c;
-  return undefined;
+function isMissingTableError(err: any) {
+  const msg = typeof err?.message === "string" ? err.message : "";
+  // PostgREST may return 42P01 or a message containing 'relation ... does not exist'
+  return err?.code === "42P01" || msg.includes("does not exist") && msg.includes("relation");
 }
 
-function hasAny(cols: Set<string>, candidates: string[]) {
-  return candidates.some((c) => cols.has(c));
+function isMissingColumnError(err: any) {
+  const msg = typeof err?.message === "string" ? err.message : "";
+  return err?.code === "42703" || (msg.includes("column") && msg.includes("does not exist"));
 }
 
-async function listPublicTables() {
-  const now = Date.now();
-  if (_tablesCache && _tablesCache.expiresAt > now) return _tablesCache.value;
-  if (_tablesInFlight) return _tablesInFlight;
-
-  _tablesInFlight = (async () => {
-    try {
-      const supabase = getSupabaseAdmin();
-      const { data, error } = await supabase
-        .schema("information_schema")
-        .from("tables")
-        .select("table_name, table_type")
-        .eq("table_schema", "public")
-        .eq("table_type", "BASE TABLE");
-
-      if (error) throw error;
-      const value = (data || []) as TableRow[];
-      _tablesCache = { value, expiresAt: Date.now() + TTL_MS };
-      return value;
-    } finally {
-      _tablesInFlight = null;
-    }
-  })();
-
-  return _tablesInFlight;
-}
-
-async function listPublicColumns() {
+async function tableExists(table: string): Promise<boolean> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .schema("information_schema")
-    .from("columns")
-    .select("table_name, column_name, data_type, udt_name")
-    .eq("table_schema", "public");
-
-  if (error) throw error;
-  return (data || []) as ColumnRow[];
+  const { error } = await supabase.from(table).select("*").limit(1);
+  if (!error) return true;
+  if (isMissingTableError(error)) return false;
+  // Any other error (RLS, permissions, etc) -> treat as exists.
+  return true;
 }
 
-function groupColumnsByTable(cols: ColumnRow[]) {
-  const m = new Map<string, ColumnRow[]>();
-  for (const c of cols) {
-    const arr = m.get(c.table_name) || [];
-    arr.push(c);
-    m.set(c.table_name, arr);
+async function validateSelect(table: string, columns: string[]): Promise<{ ok: boolean; missing: string[] }> {
+  const supabase = getSupabaseAdmin();
+  const select = columns.filter(Boolean).join(", ");
+  if (!select) return { ok: true, missing: [] };
+  const { error } = await supabase.from(table).select(select).limit(1);
+  if (!error) return { ok: true, missing: [] };
+  if (isMissingColumnError(error)) {
+    // We cannot reliably pinpoint which column; return the required set.
+    return { ok: false, missing: columns.map((c) => `${table}.${c}`) };
   }
-  return m;
+  return { ok: true, missing: [] };
 }
 
 async function computeAdminSchemaMapping() {
-  const [tables, columns] = await Promise.all([listPublicTables(), listPublicColumns()]);
-  const colsByTable = groupColumnsByTable(columns);
+  // NOTE: In production, PostgREST blocks access to information_schema (PGRST106).
+  // We therefore use a safe, explicit mapping for known project tables and validate via SELECT.
 
-  const users = findUsersTable(tables, colsByTable);
-  const payments = findPaymentsTable(tables, colsByTable);
-  const referrals = findReferralsTable(tables, colsByTable);
+  // Users table (prefer telegram_profiles)
+  const usersTable = (await tableExists("telegram_profiles")) ? "telegram_profiles" : (await tableExists("profiles")) ? "profiles" : null;
+  const users = usersTable
+    ? {
+        table: { schema: "public", name: usersTable },
+        columns: {
+          id: "id",
+          createdAt: "created_at",
+          authUserId: usersTable === "telegram_profiles" ? "auth_user_id" : undefined,
+          telegramId: usersTable === "telegram_profiles" ? "telegram_id" : undefined,
+          username: usersTable === "telegram_profiles" ? "telegram_username" : undefined,
+          firstName: usersTable === "telegram_profiles" ? "first_name" : undefined,
+          lastName: usersTable === "telegram_profiles" ? "last_name" : undefined,
+        },
+      } satisfies UsersMapping
+    : null;
+
+  // Payments table
+  const paymentsTable = (await tableExists("payments")) ? "payments" : null;
+  const paymentsMapping = paymentsTable
+    ? ({
+        table: { schema: "public", name: paymentsTable },
+        columns: {
+          id: "id",
+          userId: "user_id",
+          status: "status",
+          type: "type",
+          packId: "package_id",
+          amount: "amount",
+          credits: "credits",
+          metadata: "metadata",
+          createdAt: "created_at",
+        },
+      } satisfies PaymentsMapping)
+    : null;
+
+  // Referrals table
+  const referralsTable = (await tableExists("referrals")) ? "referrals" : null;
+  const referralsMapping = referralsTable
+    ? ({
+        table: { schema: "public", name: referralsTable },
+        columns: {
+          id: "id",
+          inviterUserId: "inviter_user_id",
+          inviteeUserId: "invitee_user_id",
+          createdAt: "created_at",
+        },
+      } satisfies ReferralsMapping)
+    : null;
+
+  // Validate required columns for each mapping (best-effort; avoids silent breakage)
+  const usersMissing =
+    users && users.table.name === "telegram_profiles"
+      ? (await validateSelect("telegram_profiles", ["id", "auth_user_id", "created_at"])).missing
+      : users && users.table.name === "profiles"
+        ? (await validateSelect("profiles", ["id"])).missing
+        : [];
+
+  const paymentsMissing = paymentsMapping ? (await validateSelect("payments", ["user_id", "amount", "created_at"])).missing : [];
+  const referralsMissing = referralsMapping ? (await validateSelect("referrals", ["inviter_user_id", "invitee_user_id", "created_at"])).missing : [];
 
   return {
     users,
-    payments,
-    referrals,
+    payments: paymentsMapping ? { mapping: paymentsMapping, missing: paymentsMissing } : null,
+    referrals: referralsMapping ? { mapping: referralsMapping, missing: referralsMissing } : null,
   };
 }
 
@@ -161,170 +178,13 @@ export async function getAdminSchemaMapping() {
   return _schemaInFlight;
 }
 
-export function findUsersTable(tables: TableRow[], colsByTable: Map<string, ColumnRow[]>) {
-  const candidates = ["telegram_profiles", "profiles"]; // prefer telegram_profiles in this project
-
-  for (const name of candidates) {
-    const cols = colsByTable.get(name);
-    if (!cols) continue;
-    const set = new Set(cols.map((c) => c.column_name));
-    const id = pick(set, ["id"]) || "id";
-
-    return {
-      table: { schema: "public", name },
-      columns: {
-        id,
-        createdAt: pick(set, ["created_at", "createdAt", "created"]) || undefined,
-        authUserId: pick(set, ["auth_user_id", "user_id"]) || undefined,
-        telegramId: pick(set, ["telegram_id"]) || undefined,
-        username: pick(set, ["telegram_username", "username"]) || undefined,
-        firstName: pick(set, ["first_name", "firstName"]) || undefined,
-        lastName: pick(set, ["last_name", "lastName"]) || undefined,
-      },
-    } satisfies UsersMapping;
-  }
-
-  // Fallback: any table with a created_at and an id column.
-  for (const t of tables) {
-    const cols = colsByTable.get(t.table_name);
-    if (!cols) continue;
-    const set = new Set(cols.map((c) => c.column_name));
-    if (set.has("id") && (set.has("created_at") || set.has("createdAt"))) {
-      return {
-        table: { schema: "public", name: t.table_name },
-        columns: { id: "id", createdAt: set.has("created_at") ? "created_at" : "createdAt" },
-      } as UsersMapping;
-    }
-  }
-
-  return null;
-}
-
-export function findPaymentsTable(tables: TableRow[], colsByTable: Map<string, ColumnRow[]>) {
-  // Prefer explicit names first.
-  const namePriority = ["payments", "orders", "purchases"];
-
-  const scored: Array<{ name: string; score: number; cols: Set<string> }> = [];
-
-  for (const t of tables) {
-    const colsArr = colsByTable.get(t.table_name);
-    if (!colsArr) continue;
-    const cols = new Set(colsArr.map((c) => c.column_name));
-
-    // Heuristic: must have user_id and amount-like.
-    const hasUser = hasAny(cols, ["user_id", "auth_user_id", "customer_extra"]);
-    const hasAmount = hasAny(cols, ["amount", "price", "rub_amount", "sum", "total", "total_amount"]);
-    if (!hasUser || !hasAmount) continue;
-
-    let score = 0;
-    if (namePriority.includes(t.table_name)) score += 50;
-    if (cols.has("status")) score += 5;
-    if (cols.has("created_at")) score += 5;
-    if (cols.has("metadata")) score += 3;
-    if (cols.has("type")) score += 2;
-    if (cols.has("credits") || cols.has("stars") || cols.has("coins")) score += 2;
-
-    scored.push({ name: t.table_name, score, cols });
-  }
-
-  scored.sort((a, b) => b.score - a.score);
-  const winner = scored[0];
-  if (!winner) return null;
-
-  return resolvePaymentsColumns({ schema: "public", name: winner.name }, winner.cols);
-}
-
-export function resolvePaymentsColumns(table: TableRef, cols: Set<string>) {
-  const userId = pick(cols, ["user_id", "auth_user_id"]) || "";
-  const amount = pick(cols, ["amount", "rub_amount", "price", "sum", "total", "total_amount"]) || "";
-  const createdAt = pick(cols, ["created_at", "createdAt", "created"]) || "";
-
-  const missing: string[] = [];
-  if (!userId) missing.push("payments.user_id");
-  if (!amount) missing.push("payments.amount");
-  if (!createdAt) missing.push("payments.created_at");
-
-  const mapping: PaymentsMapping = {
-    table,
-    columns: {
-      id: pick(cols, ["id"]) || undefined,
-      userId: userId || "user_id",
-      status: pick(cols, ["status", "payment_status"]) || undefined,
-      type: pick(cols, ["type", "product", "product_type", "kind"]) || undefined,
-      packId: pick(cols, ["pack_id", "package_id", "sku", "product_id"]) || undefined,
-      amount: amount || "amount",
-      credits: pick(cols, ["credits", "stars", "coins"]) || undefined,
-      metadata: pick(cols, ["metadata", "meta", "custom_fields", "payload"]) || undefined,
-      createdAt: createdAt || "created_at",
-    },
-  };
-
-  return { mapping, missing };
-}
-
-export function findReferralsTable(tables: TableRow[], colsByTable: Map<string, ColumnRow[]>) {
-  // Prefer explicit table name.
-  const preferred = ["referrals", "user_referrals", "invites"];
-
-  const candidates: Array<{ name: string; cols: Set<string> }> = [];
-
-  for (const t of tables) {
-    const colsArr = colsByTable.get(t.table_name);
-    if (!colsArr) continue;
-    const cols = new Set(colsArr.map((c) => c.column_name));
-
-    const hasInviter = hasAny(cols, ["inviter_user_id", "referrer_user_id", "inviter_id", "referrer_id"]);
-    const hasInvitee = hasAny(cols, ["invitee_user_id", "referred_user_id", "invitee_id", "referred_id"]);
-    if (!hasInviter || !hasInvitee) continue;
-
-    candidates.push({ name: t.table_name, cols });
-  }
-
-  candidates.sort((a, b) => {
-    const ap = preferred.includes(a.name) ? 1 : 0;
-    const bp = preferred.includes(b.name) ? 1 : 0;
-    return bp - ap;
-  });
-
-  const winner = candidates[0];
-  if (!winner) return null;
-
-  return resolveReferralsColumns({ schema: "public", name: winner.name }, winner.cols);
-}
-
-export function resolveReferralsColumns(table: TableRef, cols: Set<string>) {
-  const inviterUserId = pick(cols, ["inviter_user_id", "referrer_user_id", "inviter_id", "referrer_id"]) || "";
-  const inviteeUserId = pick(cols, ["invitee_user_id", "referred_user_id", "invitee_id", "referred_id"]) || "";
-  const createdAt = pick(cols, ["created_at", "createdAt", "created"]) || "";
-
-  const missing: string[] = [];
-  if (!inviterUserId) missing.push("referrals.inviter_user_id");
-  if (!inviteeUserId) missing.push("referrals.invitee_user_id");
-  if (!createdAt) missing.push("referrals.created_at");
-
-  const mapping: ReferralsMapping = {
-    table,
-    columns: {
-      id: pick(cols, ["id"]) || undefined,
-      inviterUserId: inviterUserId || "inviter_user_id",
-      inviteeUserId: inviteeUserId || "invitee_user_id",
-      createdAt: createdAt || "created_at",
-    },
-  };
-
-  return { mapping, missing };
-}
-
 export async function listContentTables(): Promise<{ effectsGallery: boolean; inspiration: string[] }> {
-  const tables = await listPublicTables();
-  const names = new Set(tables.map((t) => t.table_name));
-  const inspiration = tables
-    .map((t) => t.table_name)
-    .filter((n) => n.toLowerCase().startsWith("inspiration"));
+  const effectsGallery = await tableExists("effects_gallery");
 
   return {
-    effectsGallery: names.has("effects_gallery"),
-    inspiration: uniq(inspiration),
+    effectsGallery,
+    // We cannot enumerate tables without information_schema; keep empty for now.
+    inspiration: uniq([]),
   };
 }
 
