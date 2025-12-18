@@ -374,12 +374,24 @@ function StyleForm({
               />
               {formData.preview_image ? (
                 <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface2)]">
-                  <img
-                    src={String(formData.preview_image)}
-                    alt="Preview"
-                    className="w-full max-h-[220px] object-cover"
-                    loading="lazy"
-                  />
+                  {String(formData.preview_image).match(/\.(mp4|webm)(\?|#|$)/i) ? (
+                    <video
+                      src={String(formData.preview_image)}
+                      className="w-full max-h-[220px] object-cover"
+                      muted
+                      loop
+                      playsInline
+                      autoPlay
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      src={String(formData.preview_image)}
+                      alt="Preview"
+                      className="w-full max-h-[220px] object-cover"
+                      loading="lazy"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="mt-3 text-xs text-[var(--muted)]">
@@ -538,11 +550,11 @@ function StyleForm({
         open={genOpen}
         onClose={() => setGenOpen(false)}
         defaultPrompt={String(formData.template_prompt || formData.description || formData.title || "")}
-        onApplyPreviewUrl={(url) => {
+        onApplyPreview={({ posterUrl, videoPreviewUrl }) => {
           setFormData((prev) => ({
             ...prev,
-            preview_image: url,
-            thumbnail_url: url,
+            preview_image: posterUrl || prev.preview_image,
+            thumbnail_url: videoPreviewUrl || posterUrl || prev.thumbnail_url,
           }));
           setGenOpen(false);
         }}
@@ -555,18 +567,19 @@ function StyleGeneratorModal({
   open,
   onClose,
   defaultPrompt,
-  onApplyPreviewUrl,
+  onApplyPreview,
 }: {
   open: boolean;
   onClose: () => void;
   defaultPrompt: string;
-  onApplyPreviewUrl: (url: string) => void;
+  onApplyPreview: (data: { posterUrl: string; videoPreviewUrl?: string }) => void;
 }) {
   const [kind, setKind] = useState<"photo" | "video">("photo");
   const [prompt, setPrompt] = useState(defaultPrompt || "");
   const [model, setModel] = useState<string>(PHOTO_MODELS[0]?.id || "nano-banana-pro");
   const [aspectRatio, setAspectRatio] = useState<"1:1" | "9:16" | "16:9">("1:1");
   const [duration, setDuration] = useState<number>(5);
+  const [animatedPreview, setAnimatedPreview] = useState<boolean>(true);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<number>(0);
   const [resultUrl, setResultUrl] = useState<string>("");
@@ -582,6 +595,7 @@ function StyleGeneratorModal({
       setPrompt(defaultPrompt || "");
       setProgress(0);
       setResultUrl("");
+      setAnimatedPreview(true);
     }
   }, [open, defaultPrompt]);
 
@@ -612,6 +626,79 @@ function StyleGeneratorModal({
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || "Upload failed");
     return String(data.url || "");
+  };
+
+  const createShortWebmPreview = async (videoUrl: string, seconds: number) => {
+    // Fetch via admin proxy to avoid CORS problems
+    const proxyUrl = `/api/admin/proxy?url=${encodeURIComponent(videoUrl)}`;
+    const res = await fetch(proxyUrl, { credentials: "include" });
+    if (!res.ok) throw new Error("Proxy fetch failed");
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+      const video = document.createElement("video");
+      video.src = objectUrl;
+      video.crossOrigin = "anonymous";
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = "auto";
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = () => reject(new Error("Failed to load video"));
+      });
+
+      const capture =
+        (video as any).captureStream?.bind(video) ||
+        (video as any).mozCaptureStream?.bind(video);
+      if (!capture) throw new Error("captureStream not supported");
+
+      const stream: MediaStream = capture();
+      if (!(window as any).MediaRecorder) throw new Error("MediaRecorder not supported");
+
+      const preferredTypes = [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm",
+      ];
+      const mimeType =
+        preferredTypes.find((t) => (window as any).MediaRecorder?.isTypeSupported?.(t)) || "";
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      const stopped = new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+      });
+
+      recorder.start();
+      try {
+        video.currentTime = 0;
+      } catch {
+        // ignore
+      }
+      await video.play().catch(() => {});
+
+      await new Promise((r) => setTimeout(r, Math.max(500, seconds * 1000)));
+      recorder.stop();
+      try {
+        video.pause();
+      } catch {
+        // ignore
+      }
+      await stopped;
+
+      const outBlob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+      if (!outBlob || outBlob.size < 1024) throw new Error("Preview recording failed");
+      return new File([outBlob], `style-preview-${Date.now()}.webm`, { type: outBlob.type || "video/webm" });
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   };
 
   const generatePosterFromVideoUrl = async (videoUrl: string) => {
@@ -702,7 +789,7 @@ function StyleGeneratorModal({
 
       if (kind === "photo") {
         setResultUrl(url);
-        onApplyPreviewUrl(url);
+        onApplyPreview({ posterUrl: url });
         toast.success("Превью сгенерировано и подставлено ✅");
       } else {
         // Video: generate poster (image) and upload it, then apply poster URL as preview image.
@@ -710,14 +797,27 @@ function StyleGeneratorModal({
         try {
           const posterFile = await generatePosterFromVideoUrl(url);
           const posterUrl = await uploadPoster(posterFile);
-          if (posterUrl) {
-            onApplyPreviewUrl(posterUrl);
-            toast.success("Видео готово, постер подставлен ✅");
-          } else {
-            toast.error("Видео готово, но не удалось загрузить постер. Загрузите превью вручную.");
+          if (!posterUrl) throw new Error("Poster upload failed");
+
+          let videoPreviewUrl: string | undefined = undefined;
+          if (animatedPreview) {
+            try {
+              const clipFile = await createShortWebmPreview(url, 3);
+              const clipUrl = await uploadPoster(clipFile);
+              if (clipUrl) videoPreviewUrl = clipUrl;
+            } catch (e) {
+              console.warn("[Admin Styles] Failed to create animated preview:", e);
+            }
           }
+
+          onApplyPreview({ posterUrl, videoPreviewUrl });
+          toast.success(
+            videoPreviewUrl
+              ? "Видео готово, превью (видео) + постер подставлены ✅"
+              : "Видео готово, постер подставлен ✅"
+          );
         } catch (e) {
-          toast.error("Видео готово, но постер не удалось создать. Загрузите превью вручную.");
+          toast.error("Видео готово, но превью/постер не удалось создать. Загрузите превью вручную.");
         }
       }
     } catch (e) {
@@ -755,6 +855,18 @@ function StyleGeneratorModal({
               Видео
             </Button>
           </div>
+
+          {kind === "video" && (
+            <label className="flex items-center gap-2 text-sm text-[var(--text)] select-none">
+              <input
+                type="checkbox"
+                checked={animatedPreview}
+                onChange={(e) => setAnimatedPreview(e.target.checked)}
+                className="w-4 h-4 rounded border-[var(--border)] text-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]"
+              />
+              <span>Сделать живое превью (короткий WebM ~3 сек)</span>
+            </label>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

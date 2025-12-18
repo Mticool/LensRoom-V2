@@ -65,6 +65,7 @@ interface ContentCardProps {
 
 function ContentCardComponent({ card, onClick }: ContentCardProps) {
   const src = (card.preview_url || card.preview_image || '').trim();
+  const isVideo = /\.(mp4|webm)(\?|#|$)/i.test(src);
   return (
     <motion.div variants={item} className="break-inside-avoid mb-4">
       <button
@@ -81,12 +82,24 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
         {/* Image with aspect ratio */}
         <div className={`relative w-full ${getAspectClass(card.aspect || card.tile_ratio)} overflow-hidden`}>
           {src ? (
-            <img
-              src={src}
-              alt={card.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
-            />
+            isVideo ? (
+              <video
+                src={src}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                muted
+                loop
+                playsInline
+                autoPlay
+                preload="metadata"
+              />
+            ) : (
+              <img
+                src={src}
+                alt={card.title}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                loading="lazy"
+              />
+            )
           ) : (
             <div className="w-full h-full min-h-[220px] bg-[var(--surface2)] flex items-center justify-center">
               <div className="text-center px-6">
