@@ -103,6 +103,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     const presetId = searchParams.get("preset");
     const modelParam = searchParams.get("model");
     const modeParam = searchParams.get("mode");
+    const promptParam = searchParams.get("prompt");
 
     if (presetId) {
       const preset = getEffectById(presetId);
@@ -124,6 +125,11 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
     if (modeParam === "i2i") setMode("i2i");
     if (modeParam === "i2v") setMode("i2v");
+
+    // Direct prompt prefill (used by admin styles / DB-backed presets)
+    if (!presetId && promptParam && promptParam.trim()) {
+      setPrompt(promptParam);
+    }
   }, [searchParams]);
 
   const modelInfo: ModelConfig | undefined = useMemo(() => getModelById(selectedModelId), [selectedModelId]);

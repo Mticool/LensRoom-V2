@@ -35,6 +35,13 @@ export default function AdminStylesPage() {
   const [loading, setLoading] = useState(true);
   const [editingStyle, setEditingStyle] = useState<Style | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const categories = Array.from(
+    new Set(
+      styles
+        .map((s) => (s.category || "").trim())
+        .filter((c) => c.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b));
 
   const loadStyles = async () => {
     setLoading(true);
@@ -236,6 +243,7 @@ export default function AdminStylesPage() {
       {showForm && (
         <StyleForm
           style={editingStyle}
+          categories={categories}
           onSave={handleSave}
           onCancel={() => {
             setShowForm(false);
@@ -268,10 +276,12 @@ export default function AdminStylesPage() {
 
 function StyleForm({
   style,
+  categories,
   onSave,
   onCancel,
 }: {
   style: Style | null;
+  categories: string[];
   onSave: (style: Partial<Style>) => void;
   onCancel: () => void;
 }) {
@@ -398,8 +408,24 @@ function StyleForm({
                 value={formData.model_key}
                 onChange={(e) => setFormData({ ...formData, model_key: e.target.value })}
                 placeholder="flux-1.1-pro"
+                list="style-model-keys"
                 className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
+              <datalist id="style-model-keys">
+                {PHOTO_MODELS.map((m) => (
+                  <option key={`p:${m.id}`} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+                {VIDEO_MODELS.map((m) => (
+                  <option key={`v:${m.id}`} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </datalist>
+              <div className="mt-1 text-xs text-[var(--muted)]">
+                Это ID модели в системе (используется в URL как <span className="font-mono">?model=...</span>).
+              </div>
             </div>
 
             {/* Стоимость */}
@@ -443,8 +469,14 @@ function StyleForm({
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 placeholder="portrait, landscape, art..."
+                list="style-categories"
                 className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
+              <datalist id="style-categories">
+                {categories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
 
             {/* Template Prompt */}
