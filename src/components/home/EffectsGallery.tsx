@@ -19,6 +19,7 @@ interface EffectCardProps {
 }
 
 function EffectCard({ preset, onClick }: EffectCardProps) {
+  const src = (preset.previewImage || '').trim();
   return (
     <button
       onClick={onClick}
@@ -41,12 +42,21 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
     >
       {/* Image with aspect ratio */}
       <div className={`relative w-full ${getTileAspectClass(preset.tileRatio)} overflow-hidden`}>
-        <img
-          src={preset.previewImage}
-          alt={preset.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
-        />
+        {src ? (
+          <img
+            src={src}
+            alt={preset.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full min-h-[220px] bg-[var(--surface2)] flex items-center justify-center">
+            <div className="text-center px-6">
+              <div className="text-sm font-semibold text-[var(--text)]">{preset.title}</div>
+              <div className="text-xs text-[var(--muted)] mt-1">Нет превью (сгенерируй в /admin/styles)</div>
+            </div>
+          </div>
+        )}
         
         {/* Bottom gradient overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

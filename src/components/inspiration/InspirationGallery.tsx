@@ -64,6 +64,7 @@ interface ContentCardProps {
 }
 
 function ContentCardComponent({ card, onClick }: ContentCardProps) {
+  const src = (card.preview_url || card.preview_image || '').trim();
   return (
     <motion.div variants={item} className="break-inside-avoid mb-4">
       <button
@@ -79,12 +80,21 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
       >
         {/* Image with aspect ratio */}
         <div className={`relative w-full ${getAspectClass(card.aspect || card.tile_ratio)} overflow-hidden`}>
-          <img
-            src={card.preview_url || card.preview_image}
-            alt={card.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
+          {src ? (
+            <img
+              src={src}
+              alt={card.title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full min-h-[220px] bg-[var(--surface2)] flex items-center justify-center">
+              <div className="text-center px-6">
+                <div className="text-sm font-semibold text-[var(--text)]">{card.title}</div>
+                <div className="text-xs text-[var(--muted)] mt-1">Нет превью — нажми “Сгенерировать превью” в админке</div>
+              </div>
+            </div>
+          )}
           
           {/* Bottom gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
