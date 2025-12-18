@@ -701,6 +701,18 @@ function StyleGeneratorModal({
     }
   };
 
+  const createShortMp4PreviewServer = async (videoUrl: string, seconds: number) => {
+    const res = await fetch("/api/admin/video-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ videoUrl, seconds }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || "Server preview failed");
+    return String(data.url || "");
+  };
+
   const generatePosterFromVideoUrl = async (videoUrl: string) => {
     async function renderFromSrc(src: string) {
       const video = document.createElement("video");
@@ -806,7 +818,13 @@ function StyleGeneratorModal({
               const clipUrl = await uploadPoster(clipFile);
               if (clipUrl) videoPreviewUrl = clipUrl;
             } catch (e) {
-              console.warn("[Admin Styles] Failed to create animated preview:", e);
+              // Fallback to server-side MP4 (works on Safari too)
+              try {
+                const mp4Url = await createShortMp4PreviewServer(url, 3);
+                if (mp4Url) videoPreviewUrl = mp4Url;
+              } catch (e2) {
+                console.warn("[Admin Styles] Failed to create animated preview:", e, e2);
+              }
             }
           }
 
