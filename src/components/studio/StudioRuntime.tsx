@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { CheckCircle2, Film, Loader2 } from "lucide-react";
 
 import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
@@ -288,15 +289,52 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
               // Show success notification if enabled
               if (showSuccessNotifications) {
-                const notificationText = job.kind === "video" ? "Video ready ✅" : "Photo ready ✅";
-                toast(notificationText, {
-                  action: {
-                    label: "Open in Library",
-                    onClick: () => {
-                      router.push("/library");
+                if (job.kind === "video") {
+                  toast.custom(
+                    (t) => (
+                      <div className="w-[min(92vw,520px)] rounded-2xl border border-white/10 bg-[var(--surface)] shadow-[var(--shadow-lg)] p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/15">
+                            <CheckCircle2 className="h-6 w-6 text-green-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-lg font-bold text-[var(--text)]">Видео готово ✅</div>
+                            <div className="mt-1 text-sm text-[var(--text2)]">
+                              Мы добавили результат в «Мои результаты». Откройте библиотеку, чтобы посмотреть и скачать.
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                onClick={() => {
+                                  toast.dismiss(t);
+                                  router.push("/library");
+                                }}
+                                className="inline-flex items-center justify-center rounded-xl bg-[var(--gold)] px-4 py-2 text-sm font-semibold text-black hover:bg-[var(--gold-hover)]"
+                              >
+                                Открыть в библиотеке
+                              </button>
+                              <button
+                                onClick={() => toast.dismiss(t)}
+                                className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:border-white/30"
+                              >
+                                Закрыть
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ),
+                    { duration: 12000 }
+                  );
+                } else {
+                  toast("Photo ready ✅", {
+                    action: {
+                      label: "Open in Library",
+                      onClick: () => {
+                        router.push("/library");
+                      },
                     },
-                  },
-                });
+                  });
+                }
               }
               return;
             }
@@ -345,11 +383,50 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     setLastError(null);
     setResultUrls([]);
 
-    // Show start notification
-    const startText = modelInfo.type === "video" ? "🎬 Начинаем генерацию видео..." : "🎨 Начинаем генерацию фото...";
-    toast(startText, {
-      duration: 3000,
-    });
+    // Show start notification (bigger for video)
+    if (modelInfo.type === "video") {
+      toast.custom(
+        (t) => (
+          <div className="w-[min(92vw,520px)] rounded-2xl border border-white/10 bg-[var(--surface)] shadow-[var(--shadow-lg)] p-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--gold)]/15">
+                <Film className="h-6 w-6 text-[var(--gold)]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lg font-bold text-[var(--text)]">🎬 Видео создаётся…</div>
+                <div className="mt-1 text-sm text-[var(--text2)]">
+                  Обычно это занимает 1–3 минуты. Можно продолжать пользоваться сайтом — мы покажем уведомление, когда видео будет готово.
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-sm text-[var(--muted)]">
+                  <Loader2 className="h-4 w-4 animate-spin text-[var(--gold)]" />
+                  <span>Генерация запущена</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      toast.dismiss(t);
+                      router.push("/library");
+                    }}
+                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:border-white/30"
+                  >
+                    Открыть «Мои результаты»
+                  </button>
+                  <button
+                    onClick={() => toast.dismiss(t)}
+                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text2)] hover:text-[var(--text)]"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ),
+        { duration: 9000 }
+      );
+    } else {
+      toast("🎨 Начинаем генерацию фото...", { duration: 3000 });
+    }
 
     try {
       if (modelInfo.type === "photo") {
