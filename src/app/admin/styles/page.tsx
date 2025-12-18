@@ -710,7 +710,10 @@ function StyleGeneratorModal({
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || "Server preview failed");
-    return String(data.url || "");
+    return {
+      previewUrl: String(data.url || ""),
+      posterUrl: data.posterUrl ? String(data.posterUrl) : "",
+    };
   };
 
   const generatePosterFromVideoUrl = async (videoUrl: string) => {
@@ -807,9 +810,21 @@ function StyleGeneratorModal({
         // Video: generate poster (image) and upload it, then apply poster URL as preview image.
         setResultUrl(url);
         try {
-          const posterFile = await generatePosterFromVideoUrl(url);
-          const posterUrl = await uploadPoster(posterFile);
-          if (!posterUrl) throw new Error("Poster upload failed");
+          let posterUrl = "";
+          try {
+            const posterFile = await generatePosterFromVideoUrl(url);
+            posterUrl = await uploadPoster(posterFile);
+          } catch (e) {
+            // Fallback: server can extract poster too
+            try {
+              const server = await createShortMp4PreviewServer(url, 3);
+              if (server.posterUrl) posterUrl = server.posterUrl;
+            } catch {
+              // keep error below
+            }
+          }
+
+          if (!posterUrl) throw new Error("Poster creation failed");
 
           let videoPreviewUrl: string | undefined = undefined;
           if (animatedPreview) {
@@ -820,8 +835,9 @@ function StyleGeneratorModal({
             } catch (e) {
               // Fallback to server-side MP4 (works on Safari too)
               try {
-                const mp4Url = await createShortMp4PreviewServer(url, 3);
-                if (mp4Url) videoPreviewUrl = mp4Url;
+                const server = await createShortMp4PreviewServer(url, 3);
+                if (server.previewUrl) videoPreviewUrl = server.previewUrl;
+                if (!posterUrl && server.posterUrl) posterUrl = server.posterUrl;
               } catch (e2) {
                 console.warn("[Admin Styles] Failed to create animated preview:", e, e2);
               }

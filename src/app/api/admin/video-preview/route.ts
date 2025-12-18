@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     const id = randomUUID();
     const inputPath = join(tmpdir(), `lensroom-preview-in-${id}.mp4`);
     const outputPath = join(tmpdir(), `lensroom-preview-out-${id}.mp4`);
+    const posterPath = join(tmpdir(), `lensroom-preview-poster-${id}.jpg`);
 
     try {
       const upstream = await fetch(target.toString(), {
@@ -106,6 +107,23 @@ export async function POST(req: NextRequest) {
 
       // Write to tmp
       await pipeline(Readable.fromWeb(upstream.body as any), createWriteStream(inputPath));
+
+      // Extract poster frame (JPEG) for maximum compatibility
+      const posterArgs = [
+        '-y',
+        '-ss',
+        '0.10',
+        '-i',
+        inputPath,
+        '-frames:v',
+        '1',
+        '-vf',
+        'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+        '-q:v',
+        '4',
+        posterPath,
+      ];
+      await runFfmpeg(posterArgs, 45_000);
 
       // Create short MP4 preview (H.264) for broad compatibility
       // - ensure even dimensions for H.264 encoder
@@ -132,12 +150,14 @@ export async function POST(req: NextRequest) {
       await runFfmpeg(ffArgs, 90_000);
 
       const buf = await fs.readFile(outputPath);
+      const posterBuf = await fs.readFile(posterPath);
 
       const supabase = getSupabaseAdmin();
       const bucket = 'content';
-      const path = `styles/previews/${Date.now()}-${id}.mp4`;
+      const previewStoragePath = `styles/previews/${Date.now()}-${id}.mp4`;
+      const posterStoragePath = `styles/posters/${Date.now()}-${id}.jpg`;
 
-      const { error: uploadError, data: uploaded } = await supabase.storage.from(bucket).upload(path, buf, {
+      const { error: uploadError, data: uploaded } = await supabase.storage.from(bucket).upload(previewStoragePath, buf, {
         contentType: 'video/mp4',
         upsert: false,
       });
@@ -146,20 +166,34 @@ export async function POST(req: NextRequest) {
         // If bucket missing, try to create once
         if (uploadError.message.includes('not found')) {
           await supabase.storage.createBucket(bucket, { public: true, fileSizeLimit: 100 * 1024 * 1024 }).catch(() => null);
-          const retry = await supabase.storage.from(bucket).upload(path, buf, { contentType: 'video/mp4', upsert: false });
+          const retry = await supabase.storage.from(bucket).upload(previewStoragePath, buf, { contentType: 'video/mp4', upsert: false });
           if (retry.error) throw retry.error;
         } else {
           throw uploadError;
         }
       }
 
-      const finalPath = (uploaded?.path as string) || path;
-      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(finalPath);
+      // Upload poster too (best-effort)
+      const { error: posterUploadError, data: posterUploaded } = await supabase.storage.from(bucket).upload(posterStoragePath, posterBuf, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
 
-      return NextResponse.json({ url: publicData.publicUrl, seconds });
+      const finalPreviewPath = (uploaded?.path as string) || previewStoragePath;
+      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(finalPreviewPath);
+
+      let posterUrl: string | null = null;
+      if (!posterUploadError) {
+        const finalPosterPath = (posterUploaded?.path as string) || posterStoragePath;
+        const { data: posterPublic } = supabase.storage.from(bucket).getPublicUrl(finalPosterPath);
+        posterUrl = posterPublic.publicUrl;
+      }
+
+      return NextResponse.json({ url: publicData.publicUrl, seconds, posterUrl });
     } finally {
       await fs.unlink(inputPath).catch(() => null);
       await fs.unlink(outputPath).catch(() => null);
+      await fs.unlink(posterPath).catch(() => null);
     }
   } catch (error: any) {
     console.error('[Admin Video Preview] Error:', error);
