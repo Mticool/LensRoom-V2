@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminTable, Column } from "@/components/admin/AdminTable";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Loader2, Sparkles, Image as ImageIcon, Film, X } from "lucide-react";
+import { PHOTO_MODELS, VIDEO_MODELS } from "@/config/models";
 
 interface Style {
   id: string;
@@ -285,6 +288,7 @@ function StyleForm({
       tags: [],
     }
   );
+  const [genOpen, setGenOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -292,12 +296,13 @@ function StyleForm({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{style ? "Редактировать стиль" : "Новый стиль"}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>{style ? "Редактировать стиль" : "Новый стиль"}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Название */}
             <div>
@@ -357,6 +362,15 @@ function StyleForm({
                 }
                 className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
+              <div className="mt-2 flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => setGenOpen(true)}>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Сгенерировать превью
+                </Button>
+                <span className="text-xs text-[var(--muted)]">
+                  Фото/Видео → подставим превью автоматически
+                </span>
+              </div>
             </div>
 
             {/* Model Key */}
@@ -470,8 +484,287 @@ function StyleForm({
             </Button>
             <Button type="submit">Сохранить</Button>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+          </form>
+        </CardContent>
+      </Card>
+
+      <StyleGeneratorModal
+        open={genOpen}
+        onClose={() => setGenOpen(false)}
+        defaultPrompt={String(formData.template_prompt || formData.description || formData.title || "")}
+        onApplyPreviewUrl={(url) => {
+          setFormData((prev) => ({
+            ...prev,
+            preview_image: url,
+            thumbnail_url: url,
+          }));
+          setGenOpen(false);
+        }}
+      />
+    </>
+  );
+}
+
+function StyleGeneratorModal({
+  open,
+  onClose,
+  defaultPrompt,
+  onApplyPreviewUrl,
+}: {
+  open: boolean;
+  onClose: () => void;
+  defaultPrompt: string;
+  onApplyPreviewUrl: (url: string) => void;
+}) {
+  const [kind, setKind] = useState<"photo" | "video">("photo");
+  const [prompt, setPrompt] = useState(defaultPrompt || "");
+  const [model, setModel] = useState<string>(PHOTO_MODELS[0]?.id || "nano-banana-pro");
+  const [aspectRatio, setAspectRatio] = useState<"1:1" | "9:16" | "16:9">("1:1");
+  const [duration, setDuration] = useState<number>(5);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<number>(0);
+  const [resultUrl, setResultUrl] = useState<string>("");
+
+  // Keep model list in sync with kind
+  useEffect(() => {
+    if (kind === "photo") setModel(PHOTO_MODELS[0]?.id || "nano-banana-pro");
+    else setModel(VIDEO_MODELS[0]?.id || "kling-2.6");
+  }, [kind]);
+
+  useEffect(() => {
+    if (open) {
+      setPrompt(defaultPrompt || "");
+      setProgress(0);
+      setResultUrl("");
+    }
+  }, [open, defaultPrompt]);
+
+  const pollJob = async (jobId: string, provider?: string) => {
+    const maxAttempts = 180;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const qs = new URLSearchParams();
+      qs.set("kind", kind === "video" ? "video" : "image");
+      if (provider) qs.set("provider", provider);
+      const res = await fetch(`/api/jobs/${jobId}?${qs.toString()}`, { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Job status error (${res.status})`);
+      if (typeof data?.progress === "number") setProgress(Math.max(0, Math.min(100, data.progress)));
+      if (data.status === "completed" && Array.isArray(data.results) && data.results[0]?.url) {
+        return String(data.results[0].url);
+      }
+      if (data.status === "failed") throw new Error(data.error || "Generation failed");
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    throw new Error("Timeout");
+  };
+
+  const uploadPoster = async (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", "styles");
+    const res = await fetch("/api/admin/content/upload", { method: "POST", body: fd, credentials: "include" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || "Upload failed");
+    return String(data.url || "");
+  };
+
+  const generatePosterFromVideoUrl = async (videoUrl: string) => {
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.playsInline = true;
+
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve();
+      video.onerror = () => reject(new Error("Failed to load video"));
+    });
+    try {
+      video.currentTime = Math.min(0.1, video.duration || 0.1);
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+      });
+    } catch {
+      // ignore
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, video.videoWidth || 1);
+    canvas.height = Math.max(1, video.videoHeight || 1);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas not supported");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/webp", 0.82));
+    if (!blob) throw new Error("Failed to render poster");
+    return new File([blob], `style-poster-${Date.now()}.webp`, { type: "image/webp" });
+  };
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) {
+      toast.error("Введите промпт");
+      return;
+    }
+    setLoading(true);
+    setProgress(0);
+    setResultUrl("");
+    try {
+      const endpoint = kind === "video" ? "/api/generate/video" : "/api/generate/photo";
+      const payload =
+        kind === "video"
+          ? { prompt, model, duration, mode: "t2v", aspectRatio, variants: 1 }
+          : { prompt, model, aspectRatio, variants: 1, mode: "t2i" };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || `Generate failed (${res.status})`);
+      }
+
+      const jobId = String(data.jobId || "");
+      const provider = data.provider ? String(data.provider) : undefined;
+      if (!jobId) throw new Error("No jobId returned");
+
+      const url = await pollJob(jobId, provider);
+
+      if (kind === "photo") {
+        setResultUrl(url);
+        onApplyPreviewUrl(url);
+        toast.success("Превью сгенерировано и подставлено ✅");
+      } else {
+        // Video: generate poster (image) and upload it, then apply poster URL as preview image.
+        setResultUrl(url);
+        try {
+          const posterFile = await generatePosterFromVideoUrl(url);
+          const posterUrl = await uploadPoster(posterFile);
+          if (posterUrl) {
+            onApplyPreviewUrl(posterUrl);
+            toast.success("Видео готово, постер подставлен ✅");
+          } else {
+            toast.error("Видео готово, но не удалось загрузить постер. Загрузите превью вручную.");
+          }
+        } catch (e) {
+          toast.error("Видео готово, но постер не удалось создать. Загрузите превью вручную.");
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Ошибка генерации";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+          <div>
+            <div className="text-lg font-bold text-[var(--text)]">Генератор превью</div>
+            <div className="text-xs text-[var(--muted)]">Сгенерируйте картинку/видео и вставьте превью в стиль</div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-[var(--surface)]">
+            <X className="w-5 h-5 text-[var(--muted)]" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant={kind === "photo" ? "default" : "outline"} onClick={() => setKind("photo")}>
+              <ImageIcon className="w-4 h-4 mr-2" />
+              Фото
+            </Button>
+            <Button type="button" variant={kind === "video" ? "default" : "outline"} onClick={() => setKind("video")}>
+              <Film className="w-4 h-4 mr-2" />
+              Видео
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-[var(--text)] mb-1">Модель</label>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+              >
+                {(kind === "photo" ? PHOTO_MODELS : VIDEO_MODELS).map((m: any) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[var(--text)] mb-1">Соотношение</label>
+              <select
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value as any)}
+                className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+              >
+                <option value="1:1">1:1</option>
+                <option value="9:16">9:16</option>
+                <option value="16:9">16:9</option>
+              </select>
+            </div>
+
+            {kind === "video" && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1">Длительность</label>
+                <select
+                  value={String(duration)}
+                  onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+                  className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+                >
+                  <option value="5">5 сек</option>
+                  <option value="10">10 сек</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--text)] mb-1">Промпт</label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={4}
+              className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+              placeholder="Например: Cinematic portrait, dramatic lighting..."
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button type="button" onClick={handleGenerate} disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              Сгенерировать
+            </Button>
+            {loading && (
+              <div className="text-sm text-[var(--muted)]">
+                Прогресс: {progress ? `${progress}%` : "в процессе…"}
+              </div>
+            )}
+          </div>
+
+          {resultUrl && (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div className="text-sm font-medium text-[var(--text)] mb-2">Результат</div>
+              <a href={resultUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-400 break-all">
+                {resultUrl}
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
