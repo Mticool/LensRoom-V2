@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from "@/lib/env";
 import { STAR_PACKS, packTotalStars } from "@/config/pricing";
+import crypto from "crypto";
 
 function getWebhookSupabase() {
   const url = env.required("NEXT_PUBLIC_SUPABASE_URL", "Supabase URL for webhooks");
@@ -38,6 +39,23 @@ interface PayformWebhook {
   payment_init: string;
 }
 
+function computePayformSignature(payload: Record<string, any>, secretKey: string): string {
+  const toSortedDeep = (v: any): any => {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+    if (Array.isArray(v)) return v.map(toSortedDeep);
+    if (typeof v === "object") {
+      const out: Record<string, any> = {};
+      for (const k of Object.keys(v).sort()) out[k] = toSortedDeep(v[k]);
+      return out;
+    }
+    return String(v);
+  };
+  const sorted = toSortedDeep(payload);
+  const json = JSON.stringify(sorted).replace(/\//g, "\\/");
+  return crypto.createHmac("sha256", secretKey).update(json).digest("hex");
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = getWebhookSupabase();
@@ -64,6 +82,24 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('📥 Payform webhook received:', JSON.stringify(body, null, 2));
+
+    // Verify signature if provided (Payform/Prodamus docs use header: Sign)
+    const signHeader =
+      request.headers.get("Sign") ||
+      request.headers.get("sign") ||
+      request.headers.get("x-prodamus-signature") ||
+      "";
+    const secretKey = process.env.PAYFORM_SECRET_KEY || "";
+    if (secretKey && signHeader) {
+      const payloadForSign: any = { ...(body as any) };
+      // Some providers include signature inside body as well; remove to avoid recursion.
+      delete payloadForSign.signature;
+      const calc = computePayformSignature(payloadForSign, secretKey);
+      if (calc !== signHeader) {
+        console.error("❌ Payform webhook invalid signature");
+        return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+      }
+    }
 
     // Проверка статуса платежа
     if (body.payment_status !== 'success') {

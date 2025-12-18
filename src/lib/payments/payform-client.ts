@@ -11,6 +11,26 @@ interface CreatePaymentParams {
   description: string;
 }
 
+type PayformProduct = {
+  name: string;
+  price: string | number;
+  quantity: string | number;
+  sku?: string;
+};
+
+type PayformData = Record<string, any> & {
+  do: 'pay' | 'link';
+  order_id: string;
+  customer_email?: string;
+  customer_extra?: string;
+  urlReturn?: string;
+  urlSuccess?: string;
+  urlNotification?: string;
+  currency?: string;
+  products?: PayformProduct[];
+  subscription?: string | number;
+};
+
 export class PayformClient {
   private secretKey: string;
   private merchantId: string;
@@ -22,16 +42,58 @@ export class PayformClient {
     this.baseUrl = 'https://ozoncheck.payform.ru';
   }
 
-  // Генерация подписи для Prodamus
-  private generateSignature(data: Record<string, string>): string {
-    // Сортируем по ключам и формируем строку
-    const sorted = Object.keys(data).sort();
-    const str = sorted.map(k => data[k]).join('');
-    
-    return crypto
-      .createHmac('sha256', this.secretKey)
-      .update(str)
-      .digest('hex');
+  /**
+   * Генерация подписи Payform/Prodamus согласно документации:
+   * 1) привести все значения к строкам
+   * 2) отсортировать по ключам вглубь
+   * 3) перевести в JSON строку
+   * 4) экранировать /
+   * 5) подписать sha256 секретным ключом
+   *
+   * ref: https://help.prodamus.ru/payform/integracii/rest-api/instrukcii-dlya-samostoyatelnaya-integracii-servisov
+   */
+  private generateSignature(data: PayformData): string {
+    const toSortedDeep = (v: any): any => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
+      if (Array.isArray(v)) return v.map(toSortedDeep);
+      if (typeof v === 'object') {
+        const out: Record<string, any> = {};
+        for (const k of Object.keys(v).sort()) {
+          out[k] = toSortedDeep(v[k]);
+        }
+        return out;
+      }
+      return String(v);
+    };
+
+    const sorted = toSortedDeep(data);
+    // Escape forward slashes as required by Prodamus docs.
+    const json = JSON.stringify(sorted).replace(/\//g, '\\/');
+    return crypto.createHmac('sha256', this.secretKey).update(json).digest('hex');
+  }
+
+  private buildQueryParams(data: PayformData & { signature: string }): URLSearchParams {
+    const params = new URLSearchParams();
+    const { products, ...rest } = data;
+
+    // Root-level scalars
+    for (const [k, v] of Object.entries(rest)) {
+      if (v === undefined || v === null || v === '') continue;
+      params.append(k, String(v));
+    }
+
+    // Flatten products array
+    if (Array.isArray(products)) {
+      products.forEach((p, idx) => {
+        params.append(`products[${idx}][name]`, String(p.name));
+        params.append(`products[${idx}][price]`, String(p.price));
+        params.append(`products[${idx}][quantity]`, String(p.quantity));
+        if (p.sku) params.append(`products[${idx}][sku]`, String(p.sku));
+      });
+    }
+
+    return params;
   }
 
   // Создать платеж для подписки
@@ -58,38 +120,28 @@ export class PayformClient {
 
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://lensroom.ru').replace(/\/$/, '');
 
-    const params = new URLSearchParams();
-    // Make amount auto-filled on provider form (so user doesn't type anything).
-    params.append('do', 'pay');
-    params.append('sum', amount.toString());
-    params.append('currency', 'rub');
-    params.append('order_id', orderNumber);
-    params.append('subscription_id', subscriptionId);
-    params.append('customer_email', customerEmail);
-    params.append('products[0][name]', description || `Подписка ${planId}`);
-    params.append('products[0][price]', amount.toString());
-    params.append('products[0][quantity]', '1');
-    params.append('customer_extra', JSON.stringify({
+    const payload: PayformData = {
+      do: 'pay',
+      order_id: orderNumber,
+      currency: 'rub',
+      // Prodamus/Payform docs use `subscription` (not subscription_id)
+      subscription: String(subscriptionId),
+      customer_email: customerEmail,
+      customer_extra: JSON.stringify({
       user_id: userId,
       order_id: orderNumber,
       type: 'subscription',
       plan_id: planId,
       credits: credits,
-    }));
-    params.append('urlSuccess', `${appUrl}/payment/success?type=subscription&plan=${planId}&credits=${credits}`);
-    params.append('urlReturn', `${appUrl}/pricing`);
-    params.append('urlNotification', `${appUrl}/api/webhooks/payform`);
-
-    // Sign like packages (helps Payform accept prefilled sum/order_id)
-    const signData = {
-      sum: amount.toString(),
-      order_id: orderNumber,
-      customer_email: customerEmail,
+      }),
+      urlSuccess: `${appUrl}/payment/success?type=subscription&plan=${planId}&credits=${credits}`,
+      urlReturn: `${appUrl}/pricing`,
+      urlNotification: `${appUrl}/api/webhooks/payform`,
     };
-    const signature = this.generateSignature(signData);
-    params.append('signature', signature);
 
-    return `${this.baseUrl}?${params.toString()}`;
+    const signature = this.generateSignature(payload);
+    const query = this.buildQueryParams({ ...payload, signature });
+    return `${this.baseUrl}?${query.toString()}`;
   }
 
   // Создать разовый платеж с динамической суммой
@@ -104,46 +156,35 @@ export class PayformClient {
     
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://lensroom.ru').replace(/\/$/, '');
 
-    // Prodamus/Payform параметры для динамического платежа
-    const params = new URLSearchParams();
-    
-    // Обязательные параметры
-    params.append('do', 'pay');
-    params.append('sum', amount.toString());
-    params.append('currency', 'rub');
-    
-    // Информация о товаре
-    params.append('products[0][name]', description);
-    params.append('products[0][price]', amount.toString());
-    params.append('products[0][quantity]', '1');
-    
-    // Информация о покупателе
-    params.append('customer_email', customerEmail);
-    params.append('order_id', orderNumber);
-    
-    // Дополнительные данные для webhook
-    params.append('customer_extra', JSON.stringify({
+    const payload: PayformData = {
+      do: 'pay',
+      order_id: orderNumber,
+      currency: 'rub',
+      // Some Payform forms use order_sum for prefill; also keep products price.
+      order_sum: String(amount),
+      customer_email: customerEmail,
+      customer_extra: JSON.stringify({
       user_id: userId,
       order_id: orderNumber,
       type: 'package',
       credits: credits,
-    }));
-    
-    // URL callbacks
-    params.append('urlSuccess', `${appUrl}/payment/success?type=package&credits=${credits}`);
-    params.append('urlReturn', `${appUrl}/pricing`);
-    params.append('urlNotification', `${appUrl}/api/webhooks/payform`);
-    
-    // Подпись (если требуется)
-    const signData = {
-      sum: amount.toString(),
-      order_id: orderNumber,
-      customer_email: customerEmail,
+      }),
+      products: [
+        {
+          name: description,
+          price: String(amount),
+          quantity: '1',
+          sku: credits ? `credits-${credits}` : undefined,
+        },
+      ],
+      urlSuccess: `${appUrl}/payment/success?type=package&credits=${credits}`,
+      urlReturn: `${appUrl}/pricing`,
+      urlNotification: `${appUrl}/api/webhooks/payform`,
     };
-    const signature = this.generateSignature(signData);
-    params.append('signature', signature);
 
-    return `${this.baseUrl}?${params.toString()}`;
+    const signature = this.generateSignature(payload);
+    const query = this.buildQueryParams({ ...payload, signature });
+    return `${this.baseUrl}?${query.toString()}`;
   }
 
   // Универсальный метод
