@@ -615,35 +615,57 @@ function StyleGeneratorModal({
   };
 
   const generatePosterFromVideoUrl = async (videoUrl: string) => {
-    const video = document.createElement("video");
-    video.src = videoUrl;
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.playsInline = true;
+    async function renderFromSrc(src: string) {
+      const video = document.createElement("video");
+      video.src = src;
+      video.crossOrigin = "anonymous";
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = "auto";
 
-    await new Promise<void>((resolve, reject) => {
-      video.onloadeddata = () => resolve();
-      video.onerror = () => reject(new Error("Failed to load video"));
-    });
-    try {
-      video.currentTime = Math.min(0.1, video.duration || 0.1);
-      await new Promise<void>((resolve) => {
-        video.onseeked = () => resolve();
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = () => reject(new Error("Failed to load video"));
       });
-    } catch {
-      // ignore
+      try {
+        video.currentTime = Math.min(0.1, video.duration || 0.1);
+        await new Promise<void>((resolve) => {
+          video.onseeked = () => resolve();
+        });
+      } catch {
+        // ignore
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, video.videoWidth || 1);
+      canvas.height = Math.max(1, video.videoHeight || 1);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas not supported");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/webp", 0.82)
+      );
+      if (!blob) throw new Error("Failed to render poster");
+      return new File([blob], `style-poster-${Date.now()}.webp`, { type: "image/webp" });
     }
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, video.videoWidth || 1);
-    canvas.height = Math.max(1, video.videoHeight || 1);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas not supported");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/webp", 0.82));
-    if (!blob) throw new Error("Failed to render poster");
-    return new File([blob], `style-poster-${Date.now()}.webp`, { type: "image/webp" });
+    // 1) Try direct (fast path)
+    try {
+      return await renderFromSrc(videoUrl);
+    } catch {
+      // 2) Fallback: fetch via admin proxy to avoid CORS-tainted canvas
+      const proxyUrl = `/api/admin/proxy?url=${encodeURIComponent(videoUrl)}`;
+      const res = await fetch(proxyUrl, { credentials: "include" });
+      if (!res.ok) throw new Error("Proxy fetch failed");
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        return await renderFromSrc(objectUrl);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }
   };
 
   const handleGenerate = async () => {
