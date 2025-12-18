@@ -154,14 +154,33 @@ export function InspirationGallery() {
     async function loadContent() {
       setLoading(true);
       try {
-        // Bypass browser/proxy cache so newly published cards appear immediately
-        const res = await fetch(`/api/content?placement=inspiration&limit=100&_t=${Date.now()}`, {
-          cache: 'no-store',
-        });
-        if (!res.ok) throw new Error('Failed to load content');
-        
+        // Load published styles from inspiration_styles (managed in /admin/styles)
+        const res = await fetch(`/api/styles?placement=inspiration&limit=100&_t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to load styles');
         const data = await res.json();
-        setContent(data.content || []);
+        const styles = Array.isArray((data as any)?.styles) ? (data as any).styles : [];
+
+        const mapped: ContentCard[] = styles.map((s: any) => ({
+          id: String(s.id),
+          preset_id: String(s.preset_id || s.id),
+          title: String(s.title || ''),
+          // inspiration_styles currently describes mostly photo styles
+          content_type: 'photo',
+          model_key: String(s.model_key || 'nano-banana-pro'),
+          tile_ratio: '1:1',
+          cost_stars: Number(s.cost_stars ?? 0),
+          mode: 't2i',
+          preview_image: String(s.preview_image || s.thumbnail_url || ''),
+          preview_url: String(s.thumbnail_url || s.preview_image || ''),
+          template_prompt: String(s.template_prompt || ''),
+          featured: !!s.featured,
+          category: String(s.category || ''),
+          priority: Number(s.display_order ?? 0),
+          aspect: '1:1',
+          short_description: String(s.description || ''),
+        }));
+
+        setContent(mapped);
       } catch (error) {
         console.error('Failed to load inspiration content:', error);
         toast.error('Не удалось загрузить контент');
@@ -212,9 +231,9 @@ export function InspirationGallery() {
     return (
       <div className="text-center py-20">
         <Sparkles className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
-        <p className="text-[var(--muted)] mb-4">Нет контента для вдохновения</p>
+        <p className="text-[var(--muted)] mb-4">Нет стилей для вдохновения</p>
         <p className="text-sm text-[var(--muted)]">
-          Администратор еще не добавил карточки в раздел Inspiration
+          Администратор еще не добавил стили в /admin/styles
         </p>
       </div>
     );

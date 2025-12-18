@@ -130,10 +130,35 @@ export function EffectsGallery() {
     let cancelled = false;
     (async () => {
       try {
+        // 1) Prefer styles from /admin/styles (inspiration_styles)
+        const stylesRes = await fetch(`/api/styles?placement=home&limit=100&_t=${Date.now()}`, { cache: 'no-store' });
+        if (stylesRes.ok) {
+          const sData = await stylesRes.json().catch(() => ({}));
+          const styles = Array.isArray((sData as any)?.styles) ? (sData as any).styles : [];
+          if (!cancelled && styles.length) {
+            const mapped: EffectPreset[] = styles.map((s: any) => ({
+              presetId: String(s.preset_id || s.id || ''),
+              title: String(s.title || ''),
+              contentType: 'photo' as any,
+              modelKey: String(s.model_key || 'nano-banana-pro'),
+              tileRatio: '1:1' as any,
+              costStars: Number(s.cost_stars ?? 0),
+              mode: 't2i',
+              variantId: String(s.preset_id || 'default'),
+              previewImage: String(s.thumbnail_url || s.preview_image || ''),
+              templatePrompt: String(s.template_prompt || ''),
+              featured: !!s.featured,
+            }));
+            setPresets(mapped);
+            return;
+          }
+        }
+
+        // 2) Fallback: Content Constructor (effects_gallery)
         const res = await fetch('/api/content?placement=home&limit=100', { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json().catch(() => ({}));
-        const list = Array.isArray(data?.content) ? data.content : [];
+        const list = Array.isArray((data as any)?.content) ? (data as any).content : [];
         if (cancelled) return;
         if (list.length) {
           const mapped: EffectPreset[] = list.map((row: any) => ({

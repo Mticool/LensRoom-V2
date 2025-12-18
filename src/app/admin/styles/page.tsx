@@ -362,6 +362,20 @@ function StyleForm({
                 }
                 className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
+              {formData.preview_image ? (
+                <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface2)]">
+                  <img
+                    src={String(formData.preview_image)}
+                    alt="Preview"
+                    className="w-full max-h-[220px] object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ) : (
+                <div className="mt-3 text-xs text-[var(--muted)]">
+                  Предпросмотр появится после вставки URL или генерации.
+                </div>
+              )}
               <div className="mt-2 flex items-center gap-2">
                 <Button type="button" variant="outline" onClick={() => setGenOpen(true)}>
                   <Sparkles className="w-4 h-4 mr-2" />

@@ -357,6 +357,11 @@ export function buildPresetUrl(preset: EffectPreset): string {
   if (preset.tileRatio) {
     params.set('aspect', preset.tileRatio);
   }
+
+  // Pass prompt directly so dynamic presets (DB-backed) still prefill without config lookup.
+  if (preset.templatePrompt && preset.templatePrompt.trim()) {
+    params.set('prompt', preset.templatePrompt);
+  }
   
   return `${basePath}?${params.toString()}`;
 }
