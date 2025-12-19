@@ -31,6 +31,16 @@ const QUALITY_LABELS: Record<string, string> = {
   "2k": "2K",
   "4k": "4K",
   "8k": "8K",
+  // Ideogram Character packs
+  a_12cred: "A • 12c",
+  a_18cred: "A • 18c",
+  a_24cred: "A • 24c",
+  b_36cred: "B • 36c",
+  b_45cred: "B • 45c",
+  b_54cred: "B • 54c",
+  c_48cred: "C • 48c",
+  c_60cred: "C • 60c",
+  c_72cred: "C • 72c",
   "480p": "480p",
   "720p": "720p",
   "1080p": "1080p",
@@ -42,6 +52,8 @@ interface SettingsPanelProps {
   onModeChange: (m: Mode) => void;
   quality: Quality;
   onQualityChange: (q: Quality) => void;
+  outputFormat?: "png" | "jpg";
+  onOutputFormatChange?: (f: "png" | "jpg") => void;
   aspect: Aspect;
   onAspectChange: (a: Aspect) => void;
   duration?: Duration;
@@ -58,6 +70,8 @@ export const SettingsPanel = memo(function SettingsPanel({
   onModeChange,
   quality,
   onQualityChange,
+  outputFormat,
+  onOutputFormatChange,
   aspect,
   onAspectChange,
   duration,
@@ -72,6 +86,7 @@ export const SettingsPanel = memo(function SettingsPanel({
   const showDuration = model.kind === "video" && !!model.durationOptions?.length && mode !== "storyboard";
   const showAudio = model.kind === "video" && !!model.supportsAudio && mode !== "storyboard";
   const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v");
+  const showFormat = model.kind === "photo" && !!onOutputFormatChange;
 
   return (
     <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
@@ -122,6 +137,29 @@ export const SettingsPanel = memo(function SettingsPanel({
             ))}
           </div>
         </div>
+
+        {showFormat && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Формат</div>
+            <div className="flex gap-2 flex-wrap">
+              {(["png", "jpg"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => onOutputFormatChange?.(f)}
+                  className={cn(
+                    "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                    "motion-reduce:transition-none",
+                    f === (outputFormat || "png")
+                      ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                      : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
+                  )}
+                >
+                  {f.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Соотношение</div>

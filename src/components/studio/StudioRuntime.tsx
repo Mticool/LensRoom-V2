@@ -71,6 +71,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   // Common UI state
   const [mode, setMode] = useState<Mode>(kind === "photo" ? "t2i" : "t2v");
   const [quality, setQuality] = useState<Quality>("" as Quality);
+  const [outputFormat, setOutputFormat] = useState<"png" | "jpg">("png");
   const [aspect, setAspect] = useState<Aspect>("1:1" as Aspect);
   const [duration, setDuration] = useState<Duration>(5 as Duration);
   const [audio, setAudio] = useState<boolean>(true);
@@ -152,6 +153,11 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       setQuality((prev) => (studioModel.qualityTiers.includes(prev) ? prev : studioModel.qualityTiers[0]));
     } else {
       setQuality("" as Quality);
+    }
+
+    // Reset format on model switch (photo only)
+    if (studioModel.kind === "photo") {
+      setOutputFormat("png");
     }
 
     setAudio(!!studioModel.supportsAudio);
@@ -445,6 +451,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
           mode: mode === "i2i" ? "i2i" : "t2i",
           quality: isResolution ? undefined : String(quality || ""),
           resolution: isResolution ? String(quality) : undefined,
+          outputFormat,
         };
 
         if (mode === "i2i") {
@@ -643,6 +650,8 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
               onModeChange={setMode}
               quality={quality}
               onQualityChange={setQuality}
+              outputFormat={studioModel.kind === "photo" ? outputFormat : undefined}
+              onOutputFormatChange={studioModel.kind === "photo" ? setOutputFormat : undefined}
               aspect={aspect}
               onAspectChange={setAspect}
               duration={studioModel.kind === "video" ? (duration as any) : undefined}
@@ -679,5 +688,6 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     </StudioShell>
   );
 }
+
 
 

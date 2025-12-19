@@ -11,7 +11,7 @@ import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { model, prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage } = body;
+    const { model, prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, outputFormat } = body;
 
     // Validate required fields
     if (!model || !prompt) {
@@ -218,17 +218,20 @@ export async function POST(request: NextRequest) {
     }
 
     const fixed = (modelInfo as any)?.fixedResolution as string | undefined;
+    const q = String(quality || '').toLowerCase();
     const resolutionForKie =
       fixed ||
       (typeof resolution === 'string'
         ? (resolution as any)
-        : quality === '8k'
+        : q === '8k'
           ? '8K'
-          : quality === '4k'
+          : q === '4k'
             ? '4K'
-            : quality === '2k'
+            : q === '2k'
               ? '2K'
-              : '1K');
+              : q === '1k'
+                ? '1K'
+                : '1K');
 
     let kieClient: any;
     try {
@@ -246,7 +249,7 @@ export async function POST(request: NextRequest) {
       prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
       aspectRatio: aspectRatioMap[aspectRatio] || "1:1",
       resolution: resolutionForKie,
-      outputFormat: "png",
+      outputFormat: outputFormat === "jpg" || outputFormat === "png" ? outputFormat : "png",
       quality,
       imageInputs,
     });
