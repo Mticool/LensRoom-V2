@@ -40,8 +40,8 @@ export const VIDEO_GENERATOR_MODELS: VideoModelConfig[] = [
     fixedDuration: 8,
     aspectRatios: ['16:9', '9:16'],
     variants: [
-      { id: 'veo-3.1-fast-8s-audio', duration: 8, quality: 'fast', audio: true, starsCost: 80 },
-      { id: 'veo-3.1-quality-8s-audio', duration: 8, quality: 'quality', audio: true, starsCost: 400 },
+      { id: 'veo-3.1-fast-8s-audio', duration: 8, quality: 'fast', audio: true, starsCost: 110 },
+      { id: 'veo-3.1-quality-8s-audio', duration: 8, quality: 'quality', audio: true, starsCost: 450 },
     ],
   },
 
@@ -56,10 +56,10 @@ export const VIDEO_GENERATOR_MODELS: VideoModelConfig[] = [
     supportsAudio: true,
     aspectRatios: ['16:9', '9:16'],
     variants: [
-      { id: 'kling-2.6-5s', duration: 5, audio: false, starsCost: 55 },
-      { id: 'kling-2.6-10s', duration: 10, audio: false, starsCost: 110 },
-      { id: 'kling-2.6-5s-audio', duration: 5, audio: true, starsCost: 110 },
-      { id: 'kling-2.6-10s-audio', duration: 10, audio: true, starsCost: 220 },
+      { id: 'kling-2.6-5s', duration: 5, audio: false, starsCost: 80 },
+      { id: 'kling-2.6-10s', duration: 10, audio: false, starsCost: 160 },
+      { id: 'kling-2.6-5s-audio', duration: 5, audio: true, starsCost: 160 },
+      { id: 'kling-2.6-10s-audio', duration: 10, audio: true, starsCost: 320 },
     ],
   },
 
@@ -110,10 +110,10 @@ export const VIDEO_GENERATOR_MODELS: VideoModelConfig[] = [
     qualityOptions: ['720p', '1080p'],
     aspectRatios: ['16:9', '9:16'],
     variants: [
-      { id: 'sora-2-pro-720p-10s', duration: 10, quality: '720p', starsCost: 150 },
-      { id: 'sora-2-pro-720p-15s', duration: 15, quality: '720p', starsCost: 270 },
-      { id: 'sora-2-pro-1080p-10s', duration: 10, quality: '1080p', starsCost: 330 },
-      { id: 'sora-2-pro-1080p-15s', duration: 15, quality: '1080p', starsCost: 630 },
+      { id: 'sora-2-pro-720p-10s', duration: 10, quality: '720p', starsCost: 220 },
+      { id: 'sora-2-pro-720p-15s', duration: 15, quality: '720p', starsCost: 400 },
+      { id: 'sora-2-pro-1080p-10s', duration: 10, quality: '1080p', starsCost: 500 },
+      { id: 'sora-2-pro-1080p-15s', duration: 15, quality: '1080p', starsCost: 940 },
     ],
   },
 
@@ -127,8 +127,8 @@ export const VIDEO_GENERATOR_MODELS: VideoModelConfig[] = [
     durationOptions: [10, '15-25'],
     aspectRatios: ['16:9', '9:16'],
     variants: [
-      { id: 'sora-storyboard-10s', duration: 10, starsCost: 150 },
-      { id: 'sora-storyboard-15-25s', duration: '15-25', starsCost: 270 },
+      { id: 'sora-storyboard-10s', duration: 10, starsCost: 220 },
+      { id: 'sora-storyboard-15-25s', duration: '15-25', starsCost: 400 },
     ],
   },
 ];
