@@ -76,6 +76,11 @@ function parseNameParams(name: string): Partial<Record<ParamKey, string>> {
 }
 
 function baseTitleFromName(name: string): string {
+  // Special case: keep "Nano Banana Pro" as separate from "Nano Banana"
+  if (/nano\s+banana\s+pro/i.test(name)) {
+    return "Nano Banana Pro";
+  }
+
   // Remove bracketed parts and known suffix tokens
   let t = name;
   t = t.replace(/\([^)]*\)/g, " ").trim();
@@ -294,7 +299,12 @@ export function buildPhotoVariantModels(models: PhotoModelConfig[] = PHOTO_MODEL
   }
 
   // Stable sort: featured first is handled elsewhere; here alphabetical
-  return baseModels.sort((a, b) => a.title.localeCompare(b.title));
+  // Special case: ensure "Nano Banana" comes before "Nano Banana Pro"
+  return baseModels.sort((a, b) => {
+    if (a.title === "Nano Banana" && b.title === "Nano Banana Pro") return -1;
+    if (a.title === "Nano Banana Pro" && b.title === "Nano Banana") return 1;
+    return a.title.localeCompare(b.title);
+  });
 }
 
 export const PHOTO_VARIANT_MODELS: PhotoModel[] = buildPhotoVariantModels();
