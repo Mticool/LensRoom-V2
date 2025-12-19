@@ -39,6 +39,42 @@ interface ComingSoonInterest {
 
 // ===== CONSTANTS =====
 
+interface ComingSoonTool {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  waitlistType: WaitlistType;
+  previewImage?: string;
+}
+
+const COMING_SOON_TOOLS: ComingSoonTool[] = [
+  {
+    id: "video-ads",
+    title: "Видео-реклама для WB/Ozon",
+    description: "Короткие ролики 5-15 сек для карточек товара. Автоматическая анимация, текст, музыка.",
+    icon: <Video className="w-6 h-6" />,
+    waitlistType: "feature_video_ads",
+    previewImage: "/images/marketplace/video-ads-preview.jpg",
+  },
+  {
+    id: "lifestyle",
+    title: "Lifestyle сцены",
+    description: "Товар в красивом интерьере/сцене. Фото для главной карточки и дополнительных слайдов.",
+    icon: <Camera className="w-6 h-6" />,
+    waitlistType: "feature_lifestyle",
+    previewImage: "/images/marketplace/lifestyle-preview.jpg",
+  },
+  {
+    id: "ab-test",
+    title: "A/B тест обложек",
+    description: "Генерация 5-10 вариантов главного фото. Автотесты на модель/цвет/фон — выбор лучшей.",
+    icon: <FlaskConical className="w-6 h-6" />,
+    waitlistType: "feature_ab_covers",
+    previewImage: "/images/marketplace/ab-test-preview.jpg",
+  },
+];
+
 const COMING_SOON_FEATURES: ComingSoonFeature[] = [
   {
     id: "video-ads",
@@ -134,36 +170,78 @@ export function MarketplaceHub() {
         </div>
       </button>
 
-      {/* Coming Soon Strip */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-[var(--muted)] shrink-0">Скоро:</span>
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-          {COMING_SOON_FEATURES.map((feature) => {
-            const registered = hasInterest(feature.id);
+      {/* Coming Soon Tools - Big Banner Grid */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-[var(--gold)]" />
+          <h3 className="text-sm font-semibold text-[var(--text)]">Скоро в LensRoom</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {COMING_SOON_TOOLS.map((tool) => {
+            const registered = hasInterest(tool.id);
             return (
               <button
-                key={feature.id}
-                onClick={() => setModalFeature(feature)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs whitespace-nowrap transition-all shrink-0",
-                  "bg-[var(--surface)] border-[var(--border)] text-[var(--text2)]",
-                  "hover:border-[var(--gold)]/50 hover:text-[var(--text)]",
-                  registered && "border-green-500/30"
-                )}
+                key={tool.id}
+                onClick={() => setModalFeature({ 
+                  id: tool.id, 
+                  title: tool.title, 
+                  icon: tool.icon, 
+                  waitlistType: tool.waitlistType 
+                })}
+                className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gold)]/50 transition-all text-left"
               >
-                {feature.icon}
-                <span>{feature.title}</span>
-                <Badge 
-                  variant="outline" 
-                  className={cn(
-                    "text-[8px] px-1 py-0 ml-1",
-                    registered 
-                      ? "border-green-500/50 text-green-400" 
-                      : "border-[var(--gold)]/30 text-[var(--gold)]"
-                  )}
-                >
-                  {registered ? "✓" : "Скоро"}
-                </Badge>
+                {/* Preview Background */}
+                <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[var(--gold)]/5 to-[var(--gold)]/10">
+                  {/* Icon centered as placeholder */}
+                  <div className="absolute inset-0 flex items-center justify-center text-[var(--gold)]/20">
+                    <div className="w-24 h-24">
+                      {tool.icon}
+                    </div>
+                  </div>
+                  
+                  {/* "Скоро" Overlay */}
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
+                    <div className="text-center px-4">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--gold)]/20 border border-[var(--gold)]/50 backdrop-blur-sm mb-3">
+                        <Sparkles className="w-4 h-4 text-[var(--gold)]" />
+                        <span className="text-sm font-bold text-white uppercase tracking-wide">
+                          Скоро
+                        </span>
+                      </div>
+                      {registered && (
+                        <div className="text-xs text-green-400 flex items-center justify-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Подписка оформлена</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-4">
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--gold)]/10 flex items-center justify-center shrink-0 text-[var(--gold)]">
+                      {tool.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-[var(--text)] text-sm mb-1">
+                        {tool.title}
+                      </h4>
+                      <p className="text-xs text-[var(--muted)] line-clamp-2">
+                        {tool.description}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mt-3">
+                    <Bell className="w-3.5 h-3.5 text-[var(--muted)]" />
+                    <span className="text-xs text-[var(--muted)]">
+                      {registered ? "Вы в листе ожидания" : "Узнать первым"}
+                    </span>
+                  </div>
+                </div>
               </button>
             );
           })}
@@ -324,6 +402,7 @@ function ComingSoonModal({ feature, onClose }: { feature: ComingSoonFeature; onC
     </div>
   );
 }
+
 
 
 
