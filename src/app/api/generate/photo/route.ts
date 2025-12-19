@@ -7,22 +7,59 @@ import { PHOTO_MODELS, getModelById } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
+import { getPhotoVariantByIds } from "@/config/photoVariantRegistry";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { model, prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, outputFormat } = body;
+    const { prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, outputFormat } = body;
+    const legacyModel = body?.model;
+    const baseModelId = body?.modelId;
+    const variantId = body?.variantId;
+    const clientParams = body?.params;
 
     // Validate required fields
-    if (!model || !prompt) {
+    if ((!legacyModel && !(baseModelId && variantId)) || !prompt) {
       return NextResponse.json(
-        { error: "Model and prompt are required" },
+        { error: "Model (or modelId+variantId) and prompt are required" },
         { status: 400 }
       );
     }
 
+    // Resolve new variant-based payload to an internal model id
+    let effectiveModelId: string = String(legacyModel || "");
+    let resolvedParams: any = null;
+    let baseTitle: string | null = null;
+    let resolvedVariantId: string | null = null;
+    let resolvedVariantStars: number | null = null;
+
+    if (baseModelId && variantId) {
+      // This generator currently only supports 1 image per request for variant pricing.
+      if (Number(variants || 1) !== 1) {
+        return NextResponse.json({ error: "variants must be 1 for variant-based photo generation" }, { status: 400 });
+      }
+
+      const resolved = getPhotoVariantByIds(String(baseModelId), String(variantId));
+      if (!resolved) {
+        return NextResponse.json({ error: "Invalid modelId/variantId" }, { status: 400 });
+      }
+      const { base, variant } = resolved;
+      if (!variant.enabled) {
+        return NextResponse.json({ error: "Selected variant is disabled" }, { status: 400 });
+      }
+
+      effectiveModelId = variant.sourceModelId;
+      resolvedParams = variant.params || {};
+      baseTitle = base.title || null;
+      resolvedVariantId = variant.id;
+      resolvedVariantStars = Number(variant.stars || 0);
+
+      // Optional: ignore clientParams for pricing/selection safety (we keep it only for logging)
+      void clientParams;
+    }
+
     // Find model info
-    const modelInfo = getModelById(model);
+    const modelInfo = getModelById(effectiveModelId);
     if (!modelInfo || modelInfo.type !== 'photo') {
       return NextResponse.json(
         { error: "Invalid model", availableModels: PHOTO_MODELS.map(m => m.id) },
@@ -31,13 +68,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate credit cost using new pricing system
-    const { quality, resolution } = body;
-    const price = computePrice(model, {
-      quality,
-      resolution,
-      variants,
-    });
-    const creditCost = price.stars; // Use stars (which is ceil(credits))
+    const { quality: legacyQuality, resolution: legacyResolution } = body;
+    const quality =
+      resolvedParams?.quality && resolvedParams.quality !== "default"
+        ? String(resolvedParams.quality)
+        : legacyQuality;
+    const resolution =
+      resolvedParams?.resolution && resolvedParams.resolution !== "default"
+        ? String(resolvedParams.resolution)
+        : legacyResolution;
+
+    // If variant payload was used, enforce stars from variant registry (server-side).
+    // Otherwise fall back to computePrice for legacy payload.
+    const creditCost = resolvedVariantStars !== null ? resolvedVariantStars : computePrice(effectiveModelId, { quality, resolution, variants }).stars;
+    if (!Number.isFinite(creditCost) || creditCost <= 0) {
+      return NextResponse.json({ error: "Invalid price for selected model/variant" }, { status: 400 });
+    }
 
     // Check Telegram auth first
     const telegramSession = await getSession();
@@ -114,7 +160,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save generation to history (admin client bypasses RLS; FK can still fail if profile row missing)
-    console.log("[API] Creating generation for user:", userId, "model:", model);
+    console.log("[API] Creating generation for user:", userId, "model:", effectiveModelId);
     let generation: any = null;
     let genError: any = null;
 
@@ -124,8 +170,8 @@ export async function POST(request: NextRequest) {
         .insert({
           user_id: userId,
           type: "photo",
-          model_id: model,
-          model_name: modelInfo.name,
+          model_id: effectiveModelId,
+          model_name: baseTitle || modelInfo.name,
           prompt: prompt,
           negative_prompt: negativePrompt,
           credits_used: creditCost,
@@ -156,7 +202,7 @@ export async function POST(request: NextRequest) {
 
     if (genError) {
       console.error("[API] Failed to save generation:", JSON.stringify(genError, null, 2));
-      console.error("[API] Generation data:", { userId, model, prompt: prompt.substring(0, 50) });
+      console.error("[API] Generation data:", { userId, model: effectiveModelId, prompt: prompt.substring(0, 50) });
       return NextResponse.json(
         {
           error: "Failed to create generation record",
@@ -175,7 +221,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         amount: -creditCost, // Negative for deduction
         type: 'deduction',
-        description: `Генерация фото: ${modelInfo.name} (${variants} вариант${variants > 1 ? 'а' : ''})`,
+        description: `Генерация фото: ${(baseTitle || modelInfo.name)}${resolvedVariantId ? ` • ${resolvedVariantId}` : ""}`,
         generation_id: generation?.id,
       });
     } catch (e) {
@@ -247,7 +293,7 @@ export async function POST(request: NextRequest) {
     const response = await kieClient.generateImage({
       model: modelInfo.apiId,
       prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
-      aspectRatio: aspectRatioMap[aspectRatio] || "1:1",
+      aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1") as any),
       resolution: resolutionForKie,
       outputFormat: outputFormat === "jpg" || outputFormat === "png" ? outputFormat : "png",
       quality,

@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface PreferencesState {
   // Notification preferences
@@ -11,8 +12,15 @@ interface PreferencesState {
   setShowSuccessNotifications: (value: boolean) => void;
 }
 
-export const usePreferencesStore = create<PreferencesState>((set) => ({
-  // Default: show success notifications
-  showSuccessNotifications: true,
-  setShowSuccessNotifications: (value) => set({ showSuccessNotifications: value }),
-}));
+export const usePreferencesStore = create<PreferencesState>()(
+  persist(
+    (set) => ({
+      // Default: show success notifications
+      showSuccessNotifications: true,
+      setShowSuccessNotifications: (value) => set({ showSuccessNotifications: value }),
+    }),
+    {
+      name: 'lensroom-preferences',
+    }
+  )
+);

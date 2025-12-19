@@ -8,17 +8,21 @@ import { CheckCircle2, Film, Loader2 } from "lucide-react";
 
 import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
+import { approxRubFromStars } from "@/config/pricing";
 import { computePrice } from "@/lib/pricing/compute-price";
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { usePreferencesStore } from "@/stores/preferences-store";
 
 import type { Aspect, Duration, Mode, Quality } from "@/config/studioModels";
 import { getStudioModelByKey, STUDIO_PHOTO_MODELS, STUDIO_VIDEO_MODELS } from "@/config/studioModels";
+import { PHOTO_VARIANT_MODELS, type ParamKey } from "@/config/photoVariantRegistry";
 
 import { StudioShell } from "@/components/studio/StudioShell";
 import { ModelSidebar, MobileModelSelector } from "@/components/studio/ModelSidebar";
+import { PhotoModelSidebar, MobilePhotoModelSelector } from "@/components/studio/PhotoModelSidebar";
 import { GeneratorPreview } from "@/components/studio/GeneratorPreview";
 import { SettingsPanel } from "@/components/studio/SettingsPanel";
+import { PhotoSettingsPanel } from "@/components/studio/PhotoSettingsPanel";
 import { PromptBox } from "@/components/studio/PromptBox";
 import { BottomActionBar } from "@/components/studio/BottomActionBar";
 import { StartEndUpload } from "@/components/studio/StartEndUpload";
@@ -66,7 +70,18 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const kind: "photo" | "video" = requestedKind || defaultKind;
 
   const models = kind === "photo" ? STUDIO_PHOTO_MODELS : STUDIO_VIDEO_MODELS;
-  const [selectedModelId, setSelectedModelId] = useState<string>(models[0]?.key || "");
+  const photoBaseModels = PHOTO_VARIANT_MODELS;
+  const currentPlan: "free" | "pro" | "agency" = "free";
+  const initialPhotoBaseId = photoBaseModels[0]?.id || "";
+  const initialPhotoLegacyId =
+    photoBaseModels[0]?.variants?.[0]?.sourceModelId || STUDIO_PHOTO_MODELS[0]?.key || "";
+  const initialPhotoParams = photoBaseModels[0]?.variants?.find((v) => v.enabled)?.params || photoBaseModels[0]?.variants?.[0]?.params || {};
+
+  const [selectedPhotoBaseId, setSelectedPhotoBaseId] = useState<string>(initialPhotoBaseId);
+  const [selectedParams, setSelectedParams] = useState<Partial<Record<ParamKey, string>>>(initialPhotoParams);
+  const [selectedModelId, setSelectedModelId] = useState<string>(
+    kind === "photo" ? initialPhotoLegacyId : (models[0]?.key || "")
+  );
 
   // Common UI state
   const [mode, setMode] = useState<Mode>(kind === "photo" ? "t2i" : "t2v");
@@ -133,8 +148,95 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     }
   }, [searchParams]);
 
-  const modelInfo: ModelConfig | undefined = useMemo(() => getModelById(selectedModelId), [selectedModelId]);
-  const studioModel = useMemo(() => getStudioModelByKey(selectedModelId) || models[0], [selectedModelId, models]);
+  // When kind switches, reset base selection safely
+  useEffect(() => {
+    if (kind === "photo") {
+      setSelectedPhotoBaseId((prev) => prev || initialPhotoBaseId);
+      setSelectedModelId((prev) => prev || initialPhotoLegacyId);
+      setMode("t2i");
+    } else {
+      setSelectedModelId(models[0]?.key || "");
+      setMode("t2v");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind]);
+
+  const activePhotoBase = useMemo(() => {
+    if (kind !== "photo") return null;
+    return photoBaseModels.find((m) => m.id === selectedPhotoBaseId) || photoBaseModels[0] || null;
+  }, [kind, photoBaseModels, selectedPhotoBaseId]);
+
+  const selectedVariant = useMemo(() => {
+    if (kind !== "photo" || !activePhotoBase) return null;
+    const planRank = (p: any) => (p === "agency" ? 30 : p === "pro" ? 20 : 10);
+    const isAllowedByPlan = (v: any) => planRank(currentPlan) >= planRank(v.planGate || "free");
+    const enabled = activePhotoBase.variants.filter((v) => v.enabled && isAllowedByPlan(v));
+    if (!enabled.length) return null;
+
+    const entries = Object.entries(selectedParams).filter(([, val]) => !!val) as Array<[string, string]>;
+    const isExact = (v: any) => {
+      if (!entries.length) return true;
+      for (const [k, val] of entries) {
+        const key = k as ParamKey;
+        if (!v.params[key]) return false;
+        if (v.params[key] !== val) return false;
+      }
+      return true;
+    };
+    const score = (v: any) => {
+      let s = 0;
+      for (const [k, val] of entries) {
+        const key = k as ParamKey;
+        const pv = v.params[key];
+        if (!pv) continue; // wildcard ok
+        if (pv !== val) return -1; // conflict
+        s += 1;
+      }
+      return s;
+    };
+
+    // 1) exact match
+    const exact = enabled.filter(isExact);
+    if (exact.length) return exact.slice().sort((a, b) => a.stars - b.stars)[0];
+
+    // 2) closest enabled (max matches, no conflicts), tie-breaker: cheaper
+    const scored = enabled
+      .map((v) => ({ v, s: score(v) }))
+      .filter((x) => x.s >= 0)
+      .sort((a, b) => (b.s - a.s) || (a.v.stars - b.v.stars));
+    if (!scored.length) return null;
+    return scored[0]!.v;
+  }, [kind, activePhotoBase, selectedParams, currentPlan]);
+
+  // Keep photo base/params in sync when selectedModelId changes (deep links / presets)
+  useEffect(() => {
+    if (kind !== "photo") return;
+    const foundBase = photoBaseModels.find((m) => m.variants.some((v) => v.sourceModelId === selectedModelId));
+    if (!foundBase) return;
+    const foundVariant = foundBase.variants.find((v) => v.sourceModelId === selectedModelId) || foundBase.variants[0];
+    if (foundBase.id !== selectedPhotoBaseId) setSelectedPhotoBaseId(foundBase.id);
+    if (foundVariant?.params) setSelectedParams(foundVariant.params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, selectedModelId]);
+
+  // Apply resolved variant to legacy selection + quality/aspect
+  useEffect(() => {
+    if (kind !== "photo") return;
+    if (!selectedVariant) return;
+    setSelectedModelId(selectedVariant.sourceModelId);
+    const rawQ = (selectedVariant.params.quality || selectedVariant.params.resolution || "") as any;
+    const q = rawQ === "default" ? "" : rawQ;
+    setQuality(q as Quality);
+    if (selectedVariant.params.format && selectedVariant.params.format !== "default") {
+      setAspect(selectedVariant.params.format as any);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, selectedVariant?.sourceModelId, JSON.stringify(selectedVariant?.params || {})]);
+
+  const effectiveModelId = kind === "photo" ? (selectedVariant?.sourceModelId || "") : selectedModelId;
+  const modelInfo: ModelConfig | undefined = useMemo(() => (effectiveModelId ? getModelById(effectiveModelId) : undefined), [effectiveModelId]);
+  const studioModelKey = effectiveModelId || selectedModelId;
+  const studioModel = useMemo(() => getStudioModelByKey(studioModelKey) || models[0], [studioModelKey, models]);
 
   // Keep selections valid when model changes
   useEffect(() => {
@@ -180,16 +282,27 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
   const canGenerate = useMemo(() => {
     if (!modelInfo) return false;
+    if (kind === "photo" && !selectedVariant) return false;
     if (needsReference && !referenceImage) return false;
     if (needsStartEnd && (!firstFrame || !lastFrame)) return false;
     if (isStoryboard) return scenes.some((s) => s.trim().length > 0);
     return prompt.trim().length > 0;
-  }, [modelInfo, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, isStoryboard, scenes, prompt]);
+  }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, isStoryboard, scenes, prompt]);
 
   const price = useMemo(() => {
     if (!modelInfo) return { stars: 0, approxRub: 0, credits: 0 };
 
     if (modelInfo.type === "photo") {
+      // ⭐ price for photo ALWAYS comes from resolved selectedVariant
+      if (kind === "photo") {
+        if (!selectedVariant) return { stars: 0, approxRub: 0, credits: 0 };
+        const stars = selectedVariant.stars;
+        return {
+          credits: stars, // UI only (raw credits may differ); backend computes final credits.
+          stars,
+          approxRub: approxRubFromStars(stars),
+        };
+      }
       const isResolution = typeof quality === "string" && String(quality).includes("x");
       return computePrice(modelInfo.id, {
         quality: isResolution ? undefined : (quality as any),
@@ -209,7 +322,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       audio: !!v.supportsAudio,
       variants: 1,
     });
-  }, [modelInfo, quality, mode, duration]);
+  }, [modelInfo, kind, selectedVariant, quality, mode, duration]);
 
   const pollJob = useCallback(async (jobId: string, kind: "image" | "video", provider?: string) => {
     const maxAttempts = 180;
@@ -442,15 +555,17 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
     try {
       if (modelInfo.type === "photo") {
-        const isResolution = typeof quality === "string" && String(quality).includes("x");
+        if (!activePhotoBase || !selectedVariant) {
+          throw new Error("Недоступно: выберите доступную комбинацию");
+        }
         const payload: any = {
-          model: modelInfo.id,
+          modelId: activePhotoBase.id,
+          variantId: selectedVariant.id,
+          params: selectedParams,
           prompt,
           aspectRatio: String(aspect),
           variants: 1,
           mode: mode === "i2i" ? "i2i" : "t2i",
-          quality: isResolution ? undefined : String(quality || ""),
-          resolution: isResolution ? String(quality) : undefined,
           outputFormat,
         };
 
@@ -479,7 +594,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
           jobId,
           kind: "image",
           provider: data?.provider,
-          modelName: modelInfo.name,
+          modelName: activePhotoBase.title || modelInfo.name,
           createdAt: Date.now(),
           status: "generating",
           progress: 0,
@@ -589,8 +704,38 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
   return (
     <StudioShell
-      sidebar={<ModelSidebar models={models} selectedKey={selectedModelId} onSelect={(key) => setSelectedModelId(key)} />}
-      mobileModelSelector={<MobileModelSelector models={models} selectedKey={selectedModelId} onSelect={(key) => setSelectedModelId(key)} />}
+      sidebar={
+        kind === "photo" ? (
+          <PhotoModelSidebar
+            models={photoBaseModels}
+            selectedId={selectedPhotoBaseId}
+            onSelect={(id) => {
+              setSelectedPhotoBaseId(id);
+              const base = photoBaseModels.find((m) => m.id === id);
+              const v = base?.variants?.find((vv) => vv.enabled) || base?.variants?.[0] || null;
+              setSelectedParams(v?.params || {});
+            }}
+          />
+        ) : (
+          <ModelSidebar models={models} selectedKey={selectedModelId} onSelect={(key) => setSelectedModelId(key)} />
+        )
+      }
+      mobileModelSelector={
+        kind === "photo" ? (
+          <MobilePhotoModelSelector
+            models={photoBaseModels}
+            selectedId={selectedPhotoBaseId}
+            onSelect={(id) => {
+              setSelectedPhotoBaseId(id);
+              const base = photoBaseModels.find((m) => m.id === id);
+              const v = base?.variants?.find((vv) => vv.enabled) || base?.variants?.[0] || null;
+              setSelectedParams(v?.params || {});
+            }}
+          />
+        ) : (
+          <MobileModelSelector models={models} selectedKey={selectedModelId} onSelect={(key) => setSelectedModelId(key)} />
+        )
+      }
     >
       <div className="space-y-6">
         <div className="grid xl:grid-cols-[1.1fr_0.9fr] gap-6">
@@ -644,23 +789,41 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
           </div>
 
           <div className="space-y-6">
-            <SettingsPanel
-              model={studioModel}
-              mode={mode}
-              onModeChange={setMode}
-              quality={quality}
-              onQualityChange={setQuality}
-              outputFormat={studioModel.kind === "photo" ? outputFormat : undefined}
-              onOutputFormatChange={studioModel.kind === "photo" ? setOutputFormat : undefined}
-              aspect={aspect}
-              onAspectChange={setAspect}
-              duration={studioModel.kind === "video" ? (duration as any) : undefined}
-              onDurationChange={studioModel.kind === "video" ? (setDuration as any) : undefined}
-              audio={studioModel.kind === "video" && studioModel.supportsAudio ? audio : undefined}
-              onAudioChange={studioModel.kind === "video" && studioModel.supportsAudio ? setAudio : undefined}
-              referenceImage={referenceImage}
-              onReferenceImageChange={setReferenceImage}
-            />
+            {kind === "photo" && activePhotoBase ? (
+              <PhotoSettingsPanel
+                model={activePhotoBase}
+                selection={selectedParams}
+                onSelectionChange={setSelectedParams}
+                mode={mode as any}
+                onModeChange={(m) => setMode(m as any)}
+                aspect={aspect as any}
+                onAspectChange={(a) => setAspect(a as any)}
+                aspectOptions={studioModel?.aspectRatios || ["1:1"]}
+                outputFormat={outputFormat}
+                onOutputFormatChange={setOutputFormat}
+                referenceImage={referenceImage}
+                onReferenceImageChange={setReferenceImage}
+                currentPlan={currentPlan}
+              />
+            ) : (
+              <SettingsPanel
+                model={studioModel}
+                mode={mode}
+                onModeChange={setMode}
+                quality={quality}
+                onQualityChange={setQuality}
+                outputFormat={studioModel.kind === "photo" ? outputFormat : undefined}
+                onOutputFormatChange={studioModel.kind === "photo" ? setOutputFormat : undefined}
+                aspect={aspect}
+                onAspectChange={setAspect}
+                duration={studioModel.kind === "video" ? (duration as any) : undefined}
+                onDurationChange={studioModel.kind === "video" ? (setDuration as any) : undefined}
+                audio={studioModel.kind === "video" && studioModel.supportsAudio ? audio : undefined}
+                onAudioChange={studioModel.kind === "video" && studioModel.supportsAudio ? setAudio : undefined}
+                referenceImage={referenceImage}
+                onReferenceImageChange={setReferenceImage}
+              />
+            )}
 
             <PromptBox mode={mode} prompt={prompt} onPromptChange={setPrompt} scenes={scenes} onScenesChange={setScenes} />
           </div>
