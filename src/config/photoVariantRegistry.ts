@@ -19,6 +19,7 @@ export type PhotoModel = {
   type: "photo";
   shortDescription: string; // краткое описание для списка (до 60 символов)
   description: string; // развёрнутое описание для генератора
+  rank: number; // порядок отображения (из исходных моделей)
   paramSchema: Array<{
     key: ParamKey;
     label: string;
@@ -286,6 +287,8 @@ export function buildPhotoVariantModels(models: PhotoModelConfig[] = PHOTO_MODEL
       .slice(0, 60)
       .replace(/\s+$/, "")
       .replace(/\.$/, "") || fullDescription.slice(0, 60).trim();
+    // Use minimum rank from group items (lower rank = higher priority)
+    const minRank = Math.min(...group.items.map((m) => m.rank || 999));
 
     baseModels.push({
       id,
@@ -293,14 +296,16 @@ export function buildPhotoVariantModels(models: PhotoModelConfig[] = PHOTO_MODEL
       type: "photo",
       shortDescription: shortDesc,
       description: fullDescription,
+      rank: minRank,
       paramSchema: buildParamSchema(unique),
       variants: unique.sort((a, b) => a.stars - b.stars),
     });
   }
 
-  // Stable sort: featured first is handled elsewhere; here alphabetical
-  // Special case: ensure "Nano Banana" comes before "Nano Banana Pro"
+  // Sort by rank (lower rank = higher priority), then alphabetically for same rank
   return baseModels.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    // Special case: ensure "Nano Banana" comes before "Nano Banana Pro"
     if (a.title === "Nano Banana" && b.title === "Nano Banana Pro") return -1;
     if (a.title === "Nano Banana Pro" && b.title === "Nano Banana") return 1;
     return a.title.localeCompare(b.title);

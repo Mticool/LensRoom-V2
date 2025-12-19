@@ -66,7 +66,13 @@ const ModelButton = memo(function ModelButton({
 });
 
 export const PhotoModelSidebar = memo(function PhotoModelSidebar({ models, selectedId, onSelect }: PhotoModelSidebarProps) {
-  const sorted = useMemo(() => models.slice().sort((a, b) => a.title.localeCompare(b.title)), [models]);
+  const sorted = useMemo(() => models.slice().sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    // Special case: ensure "Nano Banana" comes before "Nano Banana Pro"
+    if (a.title === "Nano Banana" && b.title === "Nano Banana Pro") return -1;
+    if (a.title === "Nano Banana Pro" && b.title === "Nano Banana") return 1;
+    return a.title.localeCompare(b.title);
+  }), [models]);
   return (
     <div className="hidden lg:block rounded-[20px] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
       <div className="px-4 py-4 border-b border-[var(--border)]">
@@ -115,7 +121,13 @@ export const MobilePhotoModelSelector = memo(function MobilePhotoModelSelector({
         <div className="space-y-2">
           {models
             .slice()
-            .sort((a, b) => a.title.localeCompare(b.title))
+            .sort((a, b) => {
+              if (a.rank !== b.rank) return a.rank - b.rank;
+              // Special case: ensure "Nano Banana" comes before "Nano Banana Pro"
+              if (a.title === "Nano Banana" && b.title === "Nano Banana Pro") return -1;
+              if (a.title === "Nano Banana Pro" && b.title === "Nano Banana") return 1;
+              return a.title.localeCompare(b.title);
+            })
             .map((m) => (
               <ModelButton
                 key={m.id}
