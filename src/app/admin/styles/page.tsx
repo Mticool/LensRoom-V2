@@ -166,12 +166,6 @@ export default function AdminStylesPage() {
       },
     },
     {
-      key: "cost_stars",
-      label: "Стоимость",
-      mobileLabel: "⭐",
-      render: (item) => `${item.cost_stars} ⭐`,
-    },
-    {
       key: "status",
       label: "Статус",
       mobileLabel: "📊",
@@ -312,6 +306,8 @@ function StyleForm({
     }
   );
   const [genOpen, setGenOpen] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -430,15 +426,15 @@ function StyleForm({
             {/* Model Key */}
             <div>
               <label className="block text-sm font-medium text-[var(--text)] mb-1">
-                Model Key *
+                Model Key
               </label>
               <input
                 type="text"
-                required
                 value={formData.model_key}
                 onChange={(e) => setFormData({ ...formData, model_key: e.target.value })}
                 placeholder="flux-1.1-pro"
                 list="style-model-keys"
+                disabled
                 className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
               <datalist id="style-model-keys">
@@ -454,24 +450,8 @@ function StyleForm({
                 ))}
               </datalist>
               <div className="mt-1 text-xs text-[var(--muted)]">
-                Это ID модели в системе (используется в URL как <span className="font-mono">?model=...</span>).
+                Заполняется автоматически из “Сгенерировать превью” (используется в URL как <span className="font-mono">?model=...</span>).
               </div>
-            </div>
-
-            {/* Стоимость */}
-            <div>
-              <label className="block text-sm font-medium text-[var(--text)] mb-1">
-                Стоимость (⭐)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.cost_stars}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_stars: parseInt(e.target.value) })
-                }
-                className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              />
             </div>
 
             {/* Порядок */}
@@ -487,6 +467,9 @@ function StyleForm({
                 }
                 className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
+              <div className="mt-1 text-xs text-[var(--muted)]">
+                Чем меньше число — тем выше карточка в списке (сортировка по <span className="font-mono">display_order</span>).
+              </div>
             </div>
 
             {/* Категория */}
@@ -494,19 +477,54 @@ function StyleForm({
               <label className="block text-sm font-medium text-[var(--text)] mb-1">
                 Категория
               </label>
-              <input
-                type="text"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder="portrait, landscape, art..."
-                list="style-categories"
-                className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              />
-              <datalist id="style-categories">
-                {categories.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
+              <div className="flex gap-2">
+                <select
+                  value={isCreatingCategory ? "__new__" : String(formData.category || "")}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "__new__") {
+                      setIsCreatingCategory(true);
+                      setNewCategory("");
+                      setFormData({ ...formData, category: "" });
+                      return;
+                    }
+                    setIsCreatingCategory(false);
+                    setFormData({ ...formData, category: v });
+                  }}
+                  className="flex-1 px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                >
+                  <option value="">Без категории</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                  <option value="__new__">+ Создать новую…</option>
+                </select>
+              </div>
+              {isCreatingCategory && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="Новая категория"
+                    className="flex-1 px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const v = newCategory.trim();
+                      if (!v) return;
+                      setFormData({ ...formData, category: v });
+                      setIsCreatingCategory(false);
+                    }}
+                  >
+                    Создать
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Template Prompt */}
@@ -568,11 +586,13 @@ function StyleForm({
         open={genOpen}
         onClose={() => setGenOpen(false)}
         defaultPrompt={String(formData.template_prompt || formData.description || formData.title || "")}
-        onApplyPreview={({ posterUrl, videoPreviewUrl }) => {
+        onApplyPreview={({ posterUrl, videoPreviewUrl, modelKey, prompt }) => {
           setFormData((prev) => ({
             ...prev,
             preview_image: posterUrl || prev.preview_image,
             thumbnail_url: videoPreviewUrl || posterUrl || prev.thumbnail_url,
+            model_key: modelKey || prev.model_key,
+            template_prompt: prompt || prev.template_prompt,
           }));
           setGenOpen(false);
         }}
@@ -590,7 +610,7 @@ function StyleGeneratorModal({
   open: boolean;
   onClose: () => void;
   defaultPrompt: string;
-  onApplyPreview: (data: { posterUrl: string; videoPreviewUrl?: string }) => void;
+  onApplyPreview: (data: { posterUrl: string; videoPreviewUrl?: string; modelKey: string; prompt: string }) => void;
 }) {
   const [kind, setKind] = useState<"photo" | "video">("photo");
   const [prompt, setPrompt] = useState(defaultPrompt || "");
@@ -822,7 +842,7 @@ function StyleGeneratorModal({
 
       if (kind === "photo") {
         setResultUrl(url);
-        onApplyPreview({ posterUrl: url });
+        onApplyPreview({ posterUrl: url, modelKey: model, prompt });
         toast.success("Превью сгенерировано и подставлено ✅");
       } else {
         // Video: generate poster (image) and upload it, then apply poster URL as preview image.
@@ -865,7 +885,7 @@ function StyleGeneratorModal({
 
           // Last resort: use the original generated video URL as thumbnail_url
           const finalVideoPreviewUrl = videoPreviewUrl || url;
-          onApplyPreview({ posterUrl, videoPreviewUrl: finalVideoPreviewUrl });
+          onApplyPreview({ posterUrl, videoPreviewUrl: finalVideoPreviewUrl, modelKey: model, prompt });
           if (posterUrl) {
             toast.success(
               finalVideoPreviewUrl

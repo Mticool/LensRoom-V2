@@ -113,12 +113,16 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           
           {/* Cost pill - top right */}
-          <div className="absolute top-3 right-3 px-2 py-1 rounded-full 
+          {card.cost_stars > 0 && (
+            <div
+              className="absolute top-3 right-3 px-2 py-1 rounded-full 
                           bg-black/50 backdrop-blur-sm
                           text-[11px] font-semibold text-white
-                          flex items-center gap-1">
-            ⭐{card.cost_stars}
-          </div>
+                          flex items-center gap-1"
+            >
+              ⭐{card.cost_stars}
+            </div>
+          )}
           
           {/* Title - bottom left */}
           <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -191,7 +195,7 @@ export function InspirationGallery() {
           content_type: 'photo',
           model_key: String(s.model_key || 'nano-banana-pro'),
           tile_ratio: '1:1',
-          cost_stars: Number(s.cost_stars ?? 0),
+          cost_stars: 0,
           mode: 't2i',
           preview_image: String(s.preview_image || s.thumbnail_url || ''),
           preview_url: String(s.thumbnail_url || s.preview_image || ''),
@@ -292,3 +296,4 @@ export function InspirationGallery() {
     </div>
   );
 }
+
