@@ -21,31 +21,34 @@ const ModelButton = memo(
         "w-full text-left px-4 py-3 rounded-2xl border transition-all",
         "motion-reduce:transition-none relative",
         isActive
-          ? "bg-[var(--gold)]/10 border-[var(--gold)]/50 text-[var(--text)] shadow-sm"
+          ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--text)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
           : "bg-transparent border-transparent hover:bg-[var(--surface)] hover:border-white/10 text-[var(--text)]"
       )}
     >
       {isActive && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[var(--gold)] rounded-r-full" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-10 bg-[var(--gold)] rounded-r-full shadow-lg shadow-[var(--gold)]/50" />
       )}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className={cn(
-            "font-medium text-sm truncate flex items-center gap-2",
-            isActive && "text-[var(--gold)]"
+            "text-sm truncate flex items-center gap-2",
+            isActive ? "font-bold text-[var(--gold)]" : "font-medium"
           )}>
             {model.name}
             {isActive && (
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--gold)] text-black text-[10px] font-bold">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--gold)] text-black text-[10px] font-extrabold shadow-md">
                 ✓
               </span>
             )}
           </div>
-          <div className="text-xs text-[var(--muted)] mt-0.5 truncate">{model.subtitle}</div>
+          <div className={cn(
+            "text-xs mt-0.5 truncate",
+            isActive ? "text-[var(--text)]/90 font-medium" : "text-[var(--muted)]"
+          )}>{model.subtitle}</div>
         </div>
         <div className={cn(
-          "text-xs shrink-0 font-medium",
-          isActive ? "text-[var(--gold)]" : "text-[var(--muted)]"
+          "text-xs shrink-0",
+          isActive ? "text-[var(--gold)] font-bold" : "text-[var(--muted)] font-medium"
         )}>
           {model.baseStars > 0 ? `от ${model.baseStars} ⭐` : "—"}
         </div>
