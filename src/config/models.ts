@@ -185,7 +185,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     apiId: 'seedream/4.5-text-to-image',
     type: 'photo',
     provider: 'kie_market',
-    description: 'Премиальный фотореал. В KIE требуется quality: basic(2K)/high(4K).',
+    description: 'Премиальный фотореал. Требуется quality: basic(2K)/high(4K).',
     rank: 6,
     featured: true,
     speed: 'medium',
@@ -310,7 +310,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     apiId: 'z-image',
     type: 'photo',
     provider: 'kie_market',
-    description: 'Универсальный генератор. По докам KIE используется model: "z-image".',
+    description: 'Универсальный генератор изображений.',
     rank: 1,
     featured: true,
     speed: 'fast',
@@ -558,7 +558,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     },
     modes: ['i2v'], // Only i2v supported
     durationOptions: [10, 15],
-    aspectRatios: ['portrait', 'landscape'], // KIE uses portrait/landscape
+    aspectRatios: ['portrait', 'landscape'],
     shortLabel: '10/15s',
   },
 
