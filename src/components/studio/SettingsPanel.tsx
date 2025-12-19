@@ -104,10 +104,10 @@ export const SettingsPanel = memo(function SettingsPanel({
                 key={m}
                 onClick={() => onModeChange(m)}
                 className={cn(
-                  "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                   "motion-reduce:transition-none",
                   m === mode
-                    ? "bg-white text-black border-white"
+                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                     : "bg-transparent text-[var(--text)] border-white/10 hover:border-white/20 hover:bg-[var(--surface2)]"
                 )}
               >
@@ -125,10 +125,10 @@ export const SettingsPanel = memo(function SettingsPanel({
                 key={q}
                 onClick={() => onQualityChange(q)}
                 className={cn(
-                  "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                   "motion-reduce:transition-none",
                   q === quality
-                    ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                     : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
                 )}
               >
@@ -147,10 +147,10 @@ export const SettingsPanel = memo(function SettingsPanel({
                   key={f}
                   onClick={() => onOutputFormatChange?.(f)}
                   className={cn(
-                    "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                    "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                     "motion-reduce:transition-none",
                     f === (outputFormat || "png")
-                      ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                      ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                       : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
                   )}
                 >
@@ -169,10 +169,10 @@ export const SettingsPanel = memo(function SettingsPanel({
                 key={a}
                 onClick={() => onAspectChange(a)}
                 className={cn(
-                  "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                   "motion-reduce:transition-none",
                   a === aspect
-                    ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                     : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
                 )}
               >
@@ -191,10 +191,10 @@ export const SettingsPanel = memo(function SettingsPanel({
                   key={d}
                   onClick={() => onDurationChange(d)}
                   className={cn(
-                    "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                    "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                     "motion-reduce:transition-none",
                     d === duration
-                      ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                      ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                       : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
                   )}
                 >

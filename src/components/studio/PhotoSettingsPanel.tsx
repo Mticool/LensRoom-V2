@@ -233,10 +233,10 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
                 key={m}
                 onClick={() => onModeChange(m)}
                 className={cn(
-                  "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                   "motion-reduce:transition-none",
                   m === mode
-                    ? "bg-white text-black border-white"
+                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                     : "bg-transparent text-[var(--text)] border-white/10 hover:border-white/20 hover:bg-[var(--surface2)]"
                 )}
               >
@@ -290,10 +290,10 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
                       disabled={!enabled}
                       title={!enabled && gateTitle ? gateTitle : undefined}
                       className={cn(
-                        "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                        "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                         "motion-reduce:transition-none",
                         active
-                          ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                          ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                           : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]",
                         !enabled && "opacity-40 cursor-not-allowed hover:bg-transparent hover:border-white/10"
                       )}
@@ -330,10 +330,10 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
                 key={f}
                 onClick={() => onOutputFormatChange(f)}
                 className={cn(
-                  "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                   "motion-reduce:transition-none",
                   f === outputFormat
-                    ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                     : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
                 )}
               >
@@ -352,10 +352,10 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
                   key={a}
                   onClick={() => onAspectChange(a)}
                   className={cn(
-                    "h-9 px-3 rounded-2xl border text-sm transition-colors",
+                    "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
                     "motion-reduce:transition-none",
                     a === aspect
-                      ? "bg-[var(--surface2)] border-white/20 text-[var(--text)]"
+                      ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
                       : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
                   )}
                 >
