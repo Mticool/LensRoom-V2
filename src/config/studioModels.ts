@@ -32,9 +32,7 @@ function photoModes(model: PhotoModelConfig): Mode[] {
     model.id === "qwen-image" ||
     model.id === "recraft-crisp-upscale" ||
     model.id === "recraft-remove-background" ||
-    model.id === "topaz-image-upscale-2k" ||
-    model.id === "topaz-image-upscale-4k" ||
-    model.id === "topaz-image-upscale-8k"
+    model.id === "topaz-image-upscale"
   ) {
     return ["i2i"];
   }
@@ -90,9 +88,7 @@ function toStudioModel(model: ModelConfig): StudioModel {
     "veo-3.1": "Кинореал • fast по умолчанию",
     "sora-2": "Стабильное i2v-видео для большинства задач",
     "sora-2-pro": "Премиум качество (i2v / start_end)",
-    "topaz-image-upscale-2k": "Апскейл до ≤2K (нужен референс)",
-    "topaz-image-upscale-4k": "Апскейл до 4K (нужен референс)",
-    "topaz-image-upscale-8k": "Апскейл до 8K (нужен референс)",
+    "topaz-image-upscale": "Апскейл (≤2K/4K/8K) • нужен референс",
     "recraft-remove-background": "Удаление фона (нужен референс)",
     "recraft-crisp-upscale": "Апскейл (нужен референс)",
   };
