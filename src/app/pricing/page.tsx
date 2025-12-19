@@ -137,12 +137,12 @@ export default function PricingPage() {
                   className={cn(
                     "relative p-6 rounded-2xl transition-all motion-reduce:transition-none h-full",
                     isPopular
-                      ? 'bg-[var(--surface)] border-2 border-[var(--gold)] shadow-lg shadow-[var(--gold)]/20'
+                      ? 'bg-[var(--surface)] border-2 border-[#FFD700] shadow-lg shadow-[#FFD700]/20'
                       : 'bg-[var(--surface)] border-2 border-white/20 hover:border-white/40'
                   )}
                 >
                   {isPopular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-white text-black text-xs font-bold rounded-full">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#FFD700] text-black text-xs font-bold rounded-full shadow-md">
                       Лучший выбор
                     </div>
                   )}
@@ -177,7 +177,7 @@ export default function PricingPage() {
                     className={cn(
                       "w-full font-semibold",
                       isPopular
-                        ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] shadow-lg'
+                        ? 'bg-[#FFD700] text-black hover:bg-[#FFC700] shadow-lg shadow-[#FFD700]/30'
                         : 'bg-white text-black hover:bg-white/90 shadow-md'
                     )}
                     onClick={() => handlePurchase('subscription', plan.id)}
@@ -234,12 +234,12 @@ export default function PricingPage() {
                     className={cn(
                       "relative p-6 rounded-2xl transition-all motion-reduce:transition-none text-center",
                       pkg.popular
-                        ? 'bg-[var(--surface)] border-2 border-[var(--gold)] shadow-lg shadow-[var(--gold)]/20'
+                        ? 'bg-[var(--surface)] border-2 border-[#FFD700] shadow-lg shadow-[#FFD700]/20'
                         : 'bg-[var(--surface)] border-2 border-white/20 hover:border-white/40'
                     )}
                   >
                     {pkg.bonusPercent > 0 && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black text-xs font-bold rounded-full">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#FFD700] text-black text-xs font-bold rounded-full shadow-md">
                         +{pkg.bonusPercent}% бонус
                       </div>
                     )}
@@ -262,7 +262,7 @@ export default function PricingPage() {
                       className={cn(
                         "w-full font-semibold",
                         pkg.popular
-                          ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] shadow-lg'
+                          ? 'bg-[#FFD700] text-black hover:bg-[#FFC700] shadow-lg shadow-[#FFD700]/30'
                           : 'bg-white text-black hover:bg-white/90 shadow-md'
                       )}
                       onClick={() => handlePurchase('package', pkg.id)}
