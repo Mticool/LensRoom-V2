@@ -97,4 +97,3 @@ try {
   console.error('❌ Ошибка при применении миграции:', error.message);
   process.exit(1);
 }
-

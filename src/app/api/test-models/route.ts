@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 
-// Try different model ID formats
+// Try different model ID formats from KIE.ai
 const MODELS_TO_TEST = [
   // Known working
   { id: "nano-banana-pro", category: "photo" as const, name: "Nano Banana Pro" },

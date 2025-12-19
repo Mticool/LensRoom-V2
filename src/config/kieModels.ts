@@ -1,7 +1,8 @@
 /**
- * Models Configuration
+ * KIE.AI Models Configuration
  * 
- * Source of truth for all AI models
+ * Source of truth for all KIE.ai models
+ * Docs: https://docs.kie.ai
  */
 
 // ===== TYPES =====
@@ -168,5 +169,4 @@ export const KIE_DEFAULTS = {
   maxPollingAttempts: 60, // 3 minutes
   callbackTimeout: 300000, // 5 minutes
 } as const;
-
 

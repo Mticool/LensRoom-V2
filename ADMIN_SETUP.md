@@ -64,4 +64,3 @@ curl -i http://localhost:3000/api/admin/referrals  # 401
 # - /api/admin/audit -> 200
 ```
 
-

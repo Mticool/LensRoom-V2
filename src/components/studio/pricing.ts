@@ -41,4 +41,3 @@ export function calcRub(stars: number): number {
 }
 
 
-

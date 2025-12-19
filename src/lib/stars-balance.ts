@@ -70,4 +70,3 @@ export function formatStars(amount: number): string {
 
 
 
-

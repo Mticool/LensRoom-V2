@@ -1,6 +1,6 @@
 ## LensRoom V2
 
-Next.js + TypeScript + Supabase + Telegram Bot
+Next.js + TypeScript + Supabase + KIE.ai + Telegram Bot
 
 ### Setup
 

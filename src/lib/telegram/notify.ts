@@ -127,4 +127,3 @@ export async function notifyGenerationStatus(params: {
   await sendMessage({ chatId: telegramId, text, keyboard: kb, disablePreview: true });
 }
 
-

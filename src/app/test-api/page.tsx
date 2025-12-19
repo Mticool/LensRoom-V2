@@ -89,7 +89,7 @@ export default function TestAPIPage() {
           API Testing Dashboard
         </h1>
         <p className="text-[rgba(255,255,255,0.55)] mb-8">
-          Тестирование подключения к API
+          Тестирование подключения к kie.ai API
         </p>
 
         {/* Connection Tests */}
@@ -307,7 +307,7 @@ export default function TestAPIPage() {
           <div className="mt-4 p-4 bg-[rgba(255,255,255,0.04)] rounded-lg">
             <h4 className="text-sm font-semibold text-white mb-2">Environment Variables:</h4>
             <code className="text-xs text-[rgba(255,255,255,0.55)] block">
-              NEXT_PUBLIC_KIE_API_URL=...<br />
+              NEXT_PUBLIC_KIE_API_URL=https://api.kie.ai<br />
               KIE_API_KEY=your_api_key_here<br />
               NEXT_PUBLIC_MOCK_MODE=false
             </code>

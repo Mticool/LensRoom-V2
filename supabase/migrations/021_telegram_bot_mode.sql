@@ -15,4 +15,3 @@ BEGIN
     COMMENT ON COLUMN public.telegram_user_settings.bot_mode IS 'Current bot interaction mode (gen_photo, gen_video, etc.)';
   END IF;
 END $$;
-

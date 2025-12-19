@@ -188,4 +188,3 @@ export async function listContentTables(): Promise<{ effectsGallery: boolean; in
   };
 }
 
-

@@ -29,4 +29,3 @@ export async function ensureProfileExists(supabase: SupabaseClient, userId: stri
   throw error;
 }
 
-

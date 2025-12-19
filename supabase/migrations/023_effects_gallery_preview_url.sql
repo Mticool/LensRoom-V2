@@ -14,4 +14,3 @@ where (preview_url is null or preview_url = '')
   and preview_image <> '';
 
 commit;
-

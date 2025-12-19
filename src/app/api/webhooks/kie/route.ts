@@ -5,7 +5,7 @@ import { syncKieTaskToDb } from "@/lib/kie/sync-task";
 
 /**
  * POST /api/webhooks/kie
- * Receives callbacks when generation completes
+ * Receives callbacks from KIE.ai when generation completes
  */
 export async function POST(request: NextRequest) {
   try {
@@ -64,5 +64,4 @@ export async function GET() {
     message: "KIE webhook endpoint is active" 
   });
 }
-
 

@@ -72,4 +72,3 @@ npm run start
 - Vercel: rollback до предыдущего deployment.
 - DB: миграции 015/016 безопасны (idempotent), но для отката нужен manual rollback (drop policies/indexes) — только при крайней необходимости.
 
-

@@ -175,4 +175,3 @@ async function checkTable() {
   console.log('📄 Или скопируйте SQL напрямую из:');
   console.log('   supabase/migrations/020_inspiration_styles.sql\n');
 })();
-

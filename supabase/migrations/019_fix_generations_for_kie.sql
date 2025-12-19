@@ -33,4 +33,3 @@ create index if not exists idx_generations_user_created on public.generations(us
 
 commit;
 
-

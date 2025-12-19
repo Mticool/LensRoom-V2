@@ -23,23 +23,23 @@ export function StudioShell({
         <div className="px-4 py-3">
           {/* Mobile model selector - replaces "Studio" text */}
           {mobileModelSelector || (
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
                   className="w-full justify-between border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)]"
-              >
+                >
                   <span className="text-sm font-semibold">Studio</span>
                   <ChevronDown className="w-4 h-4 ml-2 shrink-0" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent
+                </Button>
+              </SheetTrigger>
+              <SheetContent
                 side="bottom"
                 className="max-h-[80vh] overflow-y-auto bg-[var(--bg)] text-[var(--text)] border-t border-[var(--border)]"
-            >
+              >
                 <div className="h-full">{sidebar}</div>
-            </SheetContent>
-          </Sheet>
+              </SheetContent>
+            </Sheet>
           )}
         </div>
       </div>

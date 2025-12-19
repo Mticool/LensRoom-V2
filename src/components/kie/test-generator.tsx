@@ -217,7 +217,7 @@ export function TestGenerator({ kind }: TestGeneratorProps) {
   return (
     <div className="p-6 border-2 border-dashed border-[var(--border)] rounded-lg bg-[var(--surface)]">
       <h3 className="text-lg font-semibold text-[var(--text)] mb-4">
-        🧪 Test Generator ({kind})
+        🧪 KIE.ai Test Generator ({kind})
       </h3>
 
       <div className="space-y-4 mb-6">
@@ -323,7 +323,7 @@ export function TestGenerator({ kind }: TestGeneratorProps) {
       )}
 
       <div className="mt-6 text-xs text-[var(--muted)] space-y-1">
-        <p>📌 This is a test UI to verify API integration.</p>
+        <p>📌 This is a test UI to verify KIE.ai integration.</p>
         <p>• Creates a task with test prompt</p>
         <p>• Polls every 3s for up to 3 minutes</p>
         <p>• Shows result URLs when ready</p>
@@ -332,5 +332,4 @@ export function TestGenerator({ kind }: TestGeneratorProps) {
     </div>
   );
 }
-
 

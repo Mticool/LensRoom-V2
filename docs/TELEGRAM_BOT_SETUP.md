@@ -25,4 +25,3 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=<SITE_URL>/api/telegram
 curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 ```
 
-
