@@ -106,18 +106,31 @@ export default function AdminStylesPage() {
       key: "preview_image",
       label: "Превью",
       mobileLabel: "📷",
-      render: (item) =>
-        item.preview_image ? (
-          <img
-            src={item.preview_image}
-            alt={item.title}
-            className="w-16 h-16 object-cover rounded-lg"
-          />
-        ) : (
-          <div className="w-16 h-16 bg-[var(--surface2)] rounded-lg flex items-center justify-center text-xs text-[var(--muted)]">
-            Нет
-          </div>
-        ),
+      render: (item) => {
+        const src = String(item.thumbnail_url || item.preview_image || "").trim();
+        const isVideo = /\.(mp4|webm)(\?|#|$)/i.test(src);
+        if (!src) {
+          return (
+            <div className="w-16 h-16 bg-[var(--surface2)] rounded-lg flex items-center justify-center text-xs text-[var(--muted)]">
+              Нет
+            </div>
+          );
+        }
+        if (isVideo) {
+          return (
+            <video
+              src={src}
+              className="w-16 h-16 object-cover rounded-lg"
+              muted
+              loop
+              playsInline
+              autoPlay
+              preload="metadata"
+            />
+          );
+        }
+        return <img src={src} alt={item.title} className="w-16 h-16 object-cover rounded-lg" />;
+      },
     },
     {
       key: "title",
@@ -372,6 +385,11 @@ function StyleForm({
                 }
                 className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
+              {formData.thumbnail_url ? (
+                <div className="mt-2 text-xs text-[var(--muted)]">
+                  Живое превью: <a href={String(formData.thumbnail_url)} target="_blank" rel="noreferrer" className="text-blue-400 break-all">{String(formData.thumbnail_url)}</a>
+                </div>
+              ) : null}
               {formData.preview_image ? (
                 <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface2)]">
                   {String(formData.preview_image).match(/\.(mp4|webm)(\?|#|$)/i) ? (
@@ -972,6 +990,26 @@ function StyleGeneratorModal({
           {resultUrl && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
               <div className="text-sm font-medium text-[var(--text)] mb-2">Результат</div>
+              {/\.(mp4|webm)(\?|#|$)/i.test(String(resultUrl)) ? (
+                <div className="mb-3 overflow-hidden rounded-lg border border-[var(--border)] bg-black">
+                  <video
+                    src={String(resultUrl)}
+                    className="w-full max-h-[260px] object-contain"
+                    controls
+                    playsInline
+                    preload="metadata"
+                  />
+                </div>
+              ) : (
+                <div className="mb-3 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface2)]">
+                  <img
+                    src={String(resultUrl)}
+                    alt="Result"
+                    className="w-full max-h-[260px] object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              )}
               <a href={resultUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-400 break-all">
                 {resultUrl}
               </a>
@@ -982,3 +1020,4 @@ function StyleGeneratorModal({
     </div>
   );
 }
+
