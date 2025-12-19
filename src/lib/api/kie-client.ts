@@ -415,7 +415,10 @@ export class KieAIClient {
       } else if (params.model.startsWith('seedream/4.5')) {
         // Seedream requires `quality`: basic (2K) / high (4K)
         input.aspect_ratio = params.aspectRatio || '1:1';
-        input.quality = params.quality === 'ultra' ? 'high' : 'basic';
+        // In our UI we use Turbo/Balanced/Quality tiers. Map them to Seedream basic/high.
+        // - quality -> high (best)
+        // - turbo/balanced/other -> basic
+        input.quality = params.quality === 'quality' || params.quality === 'ultra' ? 'high' : 'basic';
       } else if (params.model === 'z-image') {
         // Z-image: per docs only prompt + aspect_ratio are required
         input.aspect_ratio = params.aspectRatio || '1:1';

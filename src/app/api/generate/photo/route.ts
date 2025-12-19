@@ -217,12 +217,18 @@ export async function POST(request: NextRequest) {
       imageInputs = [url];
     }
 
+    const fixed = (modelInfo as any)?.fixedResolution as string | undefined;
     const resolutionForKie =
-      typeof resolution === 'string'
+      fixed ||
+      (typeof resolution === 'string'
         ? (resolution as any)
-        : quality === '2k'
-          ? '2K'
-          : '1K';
+        : quality === '8k'
+          ? '8K'
+          : quality === '4k'
+            ? '4K'
+            : quality === '2k'
+              ? '2K'
+              : '1K');
 
     let kieClient: any;
     try {

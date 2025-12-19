@@ -27,7 +27,17 @@ export interface StudioModel {
 }
 
 function photoModes(model: PhotoModelConfig): Mode[] {
-  if (model.id === "qwen-image") return ["i2i"]; // edit-only
+  // edit-only / tools that require an input image
+  if (
+    model.id === "qwen-image" ||
+    model.id === "recraft-crisp-upscale" ||
+    model.id === "recraft-remove-background" ||
+    model.id === "topaz-image-upscale-2k" ||
+    model.id === "topaz-image-upscale-4k" ||
+    model.id === "topaz-image-upscale-8k"
+  ) {
+    return ["i2i"];
+  }
   return model.supportsI2i ? ["t2i", "i2i"] : ["t2i"];
 }
 
@@ -80,6 +90,11 @@ function toStudioModel(model: ModelConfig): StudioModel {
     "veo-3.1": "Кинореал • fast по умолчанию",
     "sora-2": "Стабильное i2v-видео для большинства задач",
     "sora-2-pro": "Премиум качество (i2v / start_end)",
+    "topaz-image-upscale-2k": "Апскейл до ≤2K (нужен референс)",
+    "topaz-image-upscale-4k": "Апскейл до 4K (нужен референс)",
+    "topaz-image-upscale-8k": "Апскейл до 8K (нужен референс)",
+    "recraft-remove-background": "Удаление фона (нужен референс)",
+    "recraft-crisp-upscale": "Апскейл (нужен референс)",
   };
   const subtitle =
     subtitleOverride[model.id] ||

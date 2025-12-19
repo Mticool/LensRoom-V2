@@ -30,6 +30,7 @@ const QUALITY_LABELS: Record<string, string> = {
   "1k": "1K",
   "2k": "2K",
   "4k": "4K",
+  "8k": "8K",
   "480p": "480p",
   "720p": "720p",
   "1080p": "1080p",
