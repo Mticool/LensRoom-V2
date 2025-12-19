@@ -1,10 +1,10 @@
 /**
  * Unified Model Configuration
- * Single source of truth for all AI models with pricing in Kie credits
+ * Single source of truth for all AI models with pricing in credits
  * 
- * KIE.ai API Documentation: https://docs.kie.ai
- * - Market API: POST https://api.kie.ai/api/v1/jobs/createTask
- * - Veo 3.1 API: POST https://api.kie.ai/api/v1/veo/generate
+ * API endpoints:
+ * - Market API: POST /api/v1/jobs/createTask
+ * - Veo 3.1 API: POST /api/v1/veo/generate
  */
 
 export type ModelType = 'photo' | 'video';
@@ -482,7 +482,6 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
 ];
 
 // ===== VIDEO MODELS =====
-// KIE.ai Video API Documentation: https://docs.kie.ai
 // - Market API: POST /api/v1/jobs/createTask (kling, sora, bytedance)
 // - Veo 3.1 API: POST /api/v1/veo/generate (separate endpoint)
 

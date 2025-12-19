@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 /**
  * GET /api/debug/kie?taskId=xxx
  * 
- * Debug endpoint for KIE.ai integration
+ * Debug endpoint for API integration
  * Returns detailed info about a specific generation or recent generations
  * 
  * Usage:
@@ -243,4 +243,5 @@ function diagnose(dbRecord: any, kieStatus: any): string[] {
 
   return issues;
 }
+
 

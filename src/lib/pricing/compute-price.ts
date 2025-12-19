@@ -96,9 +96,16 @@ function computeVideoPrice(
     // Price per second
     const seconds = typeof duration === 'number' ? duration : 5; // Default to 5 for ranges
     creditsPerVideo = model.pricing * seconds;
-  } else if (options.videoQuality && model.pricing[options.videoQuality as keyof typeof model.pricing]) {
-    const qualityPricing = model.pricing[options.videoQuality as keyof typeof model.pricing] as { [key: string]: number };
-    creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;
+  } else if (options.videoQuality && (model.pricing as any)[options.videoQuality as any] !== undefined) {
+    const qp = (model.pricing as any)[options.videoQuality as any] as any;
+    // Allow per-second rates keyed by quality (e.g., 720p: 6⭐/sec)
+    if (typeof qp === 'number') {
+      const seconds = typeof duration === 'number' ? duration : 5;
+      creditsPerVideo = qp * seconds;
+    } else {
+      const qualityPricing = qp as { [key: string]: number };
+      creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;
+    }
   } else if (options.mode && model.pricing[options.mode as keyof typeof model.pricing]) {
     // Pricing keyed by mode (e.g. storyboard)
     const modePricing = model.pricing[options.mode as keyof typeof model.pricing] as { [key: string]: number };
@@ -184,5 +191,6 @@ export function calcStars(modelId: string, options: PriceOptions = {}): number {
 export function calcApproxRub(modelId: string, options: PriceOptions = {}): number {
   return computePrice(modelId, options).approxRub;
 }
+
 
 

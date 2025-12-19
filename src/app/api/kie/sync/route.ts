@@ -53,3 +53,4 @@ export async function GET() {
     usage: "POST /api/kie/sync?taskId=xxx",
   });
 }
+

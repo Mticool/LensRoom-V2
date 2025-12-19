@@ -1,9 +1,7 @@
-// ===== KIE.AI API CLIENT =====
-// Documentation: https://docs.kie.ai
-// 
+// ===== API CLIENT =====
 // Two API endpoints:
-// 1. Market API: POST https://api.kie.ai/api/v1/jobs/createTask
-// 2. Veo 3.1 API: POST https://api.kie.ai/api/v1/veo/generate
+// 1. Market API: POST /api/v1/jobs/createTask
+// 2. Veo 3.1 API: POST /api/v1/veo/generate
 
 import type { KieProvider } from '@/config/models';
 import { env } from "@/lib/env";
@@ -436,7 +434,13 @@ export class KieAIClient {
       }
 
       if (params.outputFormat) input.output_format = params.outputFormat;
-      if (params.quality && params.model !== 'qwen/image-edit' && !params.model.startsWith('seedream/4.5')) {
+      // Many models accept `quality`, but FLUX uses `resolution` instead (and can break if we send unknown `quality`).
+      if (
+        params.quality &&
+        params.model !== 'qwen/image-edit' &&
+        !params.model.startsWith('seedream/4.5') &&
+        !params.model.includes('flux-2')
+      ) {
         input.quality = params.quality;
       }
       if (params.imageInputs && params.imageInputs.length > 0 && params.model !== 'qwen/image-edit') {

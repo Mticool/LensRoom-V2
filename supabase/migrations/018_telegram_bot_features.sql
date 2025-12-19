@@ -60,3 +60,4 @@ alter table public.support_tickets enable row level security;
 
 commit;
 
+

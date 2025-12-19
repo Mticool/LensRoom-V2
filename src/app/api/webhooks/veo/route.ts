@@ -7,7 +7,7 @@ import { notifyGenerationStatus } from "@/lib/telegram/notify";
  * Veo 3.1 Callback Webhook
  * POST /api/webhooks/veo
  * 
- * Called by KIE.ai when Veo video generation completes
+ * Called when Veo video generation completes
  */
 export async function POST(request: NextRequest) {
   try {
@@ -141,4 +141,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 

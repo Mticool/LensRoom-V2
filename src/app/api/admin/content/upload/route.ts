@@ -100,3 +100,4 @@ export async function POST(request: NextRequest) {
     return respondAuthError(error);
   }
 }
+
