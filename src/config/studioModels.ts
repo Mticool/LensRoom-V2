@@ -136,5 +136,26 @@ export const STUDIO_PHOTO_MODELS: StudioModel[] = STUDIO_MODELS.filter((m) => m.
 export const STUDIO_VIDEO_MODELS: StudioModel[] = STUDIO_MODELS.filter((m) => m.kind === "video");
 
 export function getStudioModelByKey(key: string): StudioModel | undefined {
-  return STUDIO_MODELS.find((m) => m.key === key);
+  const direct = STUDIO_MODELS.find((m) => m.key === key);
+  if (direct) return direct;
+
+  // Backward-compatible aliases for consolidated models
+  const aliasMap: Record<string, string> = {
+    "flux-2-pro-2k": "flux-2-pro",
+    "flux-2-flex-1k": "flux-2-flex",
+    "flux-2-flex-2k": "flux-2-flex",
+    "topaz-image-upscale-2k": "topaz-image-upscale",
+    "topaz-image-upscale-4k": "topaz-image-upscale",
+    "topaz-image-upscale-8k": "topaz-image-upscale",
+    "ideogram-v3-a": "ideogram-v3",
+    "ideogram-v3-b": "ideogram-v3",
+    "ideogram-v3-c": "ideogram-v3",
+    "ideogram-character-a": "ideogram-character",
+    "ideogram-character-b": "ideogram-character",
+    "ideogram-character-c": "ideogram-character",
+  };
+
+  const mapped = aliasMap[key];
+  if (!mapped) return undefined;
+  return STUDIO_MODELS.find((m) => m.key === mapped);
 }

@@ -8,7 +8,27 @@
  */
 
 export type ModelType = 'photo' | 'video';
-export type PhotoQuality = '1k' | '2k' | '4k' | '8k' | '1k_2k' | 'turbo' | 'balanced' | 'quality' | 'fast' | 'ultra';
+export type PhotoQuality =
+  | '1k'
+  | '2k'
+  | '4k'
+  | '8k'
+  | '1k_2k'
+  | 'turbo'
+  | 'balanced'
+  | 'quality'
+  | 'fast'
+  | 'ultra'
+  // Ideogram Character packs
+  | 'a_12cred'
+  | 'a_18cred'
+  | 'a_24cred'
+  | 'b_36cred'
+  | 'b_45cred'
+  | 'b_54cred'
+  | 'c_48cred'
+  | 'c_60cred'
+  | 'c_72cred';
 export type VideoQuality = '720p' | '1080p' | '480p' | 'fast' | 'quality' | 'standard' | 'high';
 export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard';
 export type PhotoMode = 't2i' | 'i2i';
@@ -349,16 +369,16 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     shortLabel: 'Edit',
   },
   {
-    id: 'ideogram-v3-a',
-    name: 'Ideogram V3 (A)',
+    id: 'ideogram-v3',
+    name: 'Ideogram V3',
     apiId: 'ideogram/v3',
     type: 'photo',
     provider: 'kie_market',
-    description: 'Ideogram V3 — пакет A (базовый).',
+    description: 'Ideogram V3 — дизайн/постеры/текст в картинке. Выбор Turbo/Balanced/Quality.',
     rank: 15,
     featured: false,
-    speed: 'fast',
-    quality: 'high',
+    speed: 'medium',
+    quality: 'ultra',
     supportsI2i: false,
     pricing: {
       turbo: 7,
@@ -367,112 +387,34 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: 'V3 A',
+    shortLabel: 'V3',
   },
   {
-    id: 'ideogram-v3-b',
-    name: 'Ideogram V3 (B)',
-    apiId: 'ideogram/v3',
+    id: 'ideogram-character',
+    name: 'Ideogram Character',
+    apiId: 'ideogram/character',
     type: 'photo',
     provider: 'kie_market',
-    description: 'Ideogram V3 — пакет B (средний).',
+    description: 'Ideogram Character — пакеты по credits (выберите нужный пакет).',
     rank: 16,
     featured: false,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2i: false,
-    pricing: {
-      turbo: 7,
-      balanced: 14,
-      quality: 19,
-    },
-    qualityOptions: ['turbo', 'balanced', 'quality'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: 'V3 B',
-  },
-  {
-    id: 'ideogram-v3-c',
-    name: 'Ideogram V3 (C)',
-    apiId: 'ideogram/v3',
-    type: 'photo',
-    provider: 'kie_market',
-    description: 'Ideogram V3 — пакет C (максимум).',
-    rank: 17,
-    featured: false,
     speed: 'slow',
     quality: 'ultra',
     supportsI2i: false,
     pricing: {
-      turbo: 7,
-      balanced: 14,
-      quality: 19,
+      a_12cred: 15,
+      a_18cred: 25,
+      a_24cred: 35,
+      b_36cred: 60,
+      b_45cred: 75,
+      b_54cred: 90,
+      c_48cred: 80,
+      c_60cred: 100,
+      c_72cred: 120,
     },
-    qualityOptions: ['turbo', 'balanced', 'quality'],
+    qualityOptions: ['a_12cred', 'a_18cred', 'a_24cred', 'b_36cred', 'b_45cred', 'b_54cred', 'c_48cred', 'c_60cred', 'c_72cred'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: 'V3 C',
-  },
-  {
-    id: 'ideogram-character-a',
-    name: 'Ideogram Character (A)',
-    apiId: 'ideogram/character',
-    type: 'photo',
-    provider: 'kie_market',
-    description: 'Ideogram Character — пакет A.',
-    rank: 18,
-    featured: false,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2i: false,
-    pricing: {
-      turbo: 15,
-      balanced: 25,
-      quality: 35,
-    },
-    qualityOptions: ['turbo', 'balanced', 'quality'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: 'Char A',
-  },
-  {
-    id: 'ideogram-character-b',
-    name: 'Ideogram Character (B)',
-    apiId: 'ideogram/character',
-    type: 'photo',
-    provider: 'kie_market',
-    description: 'Ideogram Character — пакет B.',
-    rank: 19,
-    featured: false,
-    speed: 'slow',
-    quality: 'ultra',
-    supportsI2i: false,
-    pricing: {
-      turbo: 36,
-      balanced: 45,
-      quality: 54,
-    },
-    qualityOptions: ['turbo', 'balanced', 'quality'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: 'Char B',
-  },
-  {
-    id: 'ideogram-character-c',
-    name: 'Ideogram Character (C)',
-    apiId: 'ideogram/character',
-    type: 'photo',
-    provider: 'kie_market',
-    description: 'Ideogram Character — пакет C.',
-    rank: 20,
-    featured: false,
-    speed: 'slow',
-    quality: 'ultra',
-    supportsI2i: false,
-    pricing: {
-      turbo: 48,
-      balanced: 60,
-      quality: 72,
-    },
-    qualityOptions: ['turbo', 'balanced', 'quality'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: 'Char C',
+    shortLabel: 'Character',
   },
   {
     id: 'recraft-crisp-upscale',
@@ -727,6 +669,13 @@ export function getModelById(id: string): ModelConfig | undefined {
   }
   if (id === 'topaz-image-upscale-2k' || id === 'topaz-image-upscale-4k' || id === 'topaz-image-upscale-8k') {
     id = 'topaz-image-upscale';
+  }
+  // Merge legacy Ideogram variants into unified models
+  if (id === 'ideogram-v3-a' || id === 'ideogram-v3-b' || id === 'ideogram-v3-c') {
+    id = 'ideogram-v3';
+  }
+  if (id === 'ideogram-character-a' || id === 'ideogram-character-b' || id === 'ideogram-character-c') {
+    id = 'ideogram-character';
   }
   return ALL_MODELS.find(m => m.id === id);
 }
