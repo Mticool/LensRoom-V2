@@ -279,8 +279,8 @@ export function buildPhotoVariantModels(models: PhotoModelConfig[] = PHOTO_MODEL
     // Extract description from first model in group (or merge if needed)
     const firstModel = group.items[0];
     const fullDescription = firstModel?.description || "";
-    // Short description: first sentence or first 60 chars
-    const shortDesc = fullDescription
+    // Short description: use shortDescription if available, otherwise generate from description
+    const shortDesc = firstModel?.shortDescription || fullDescription
       .split(/[.!?]/)[0]
       .trim()
       .slice(0, 60)
