@@ -390,11 +390,11 @@ function StyleForm({
                   Живое превью: <a href={String(formData.thumbnail_url)} target="_blank" rel="noreferrer" className="text-blue-400 break-all">{String(formData.thumbnail_url)}</a>
                 </div>
               ) : null}
-              {formData.preview_image ? (
+              {String(formData.preview_image || formData.thumbnail_url || "") ? (
                 <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface2)]">
-                  {String(formData.preview_image).match(/\.(mp4|webm)(\?|#|$)/i) ? (
+                  {String(formData.preview_image || formData.thumbnail_url || "").match(/\.(mp4|webm)(\?|#|$)/i) ? (
                     <video
-                      src={String(formData.preview_image)}
+                      src={String(formData.preview_image || formData.thumbnail_url || "")}
                       className="w-full max-h-[220px] object-cover"
                       muted
                       loop
@@ -404,7 +404,7 @@ function StyleForm({
                     />
                   ) : (
                     <img
-                      src={String(formData.preview_image)}
+                      src={String(formData.preview_image || formData.thumbnail_url || "")}
                       alt="Preview"
                       className="w-full max-h-[220px] object-cover"
                       loading="lazy"
@@ -842,7 +842,8 @@ function StyleGeneratorModal({
             }
           }
 
-          if (!posterUrl) throw new Error("Poster creation failed");
+          // If poster still not available, we can still use the raw video as a preview
+          // to avoid "no preview" states.
 
           let videoPreviewUrl: string | undefined = undefined;
           if (animatedPreview) {
@@ -862,12 +863,18 @@ function StyleGeneratorModal({
             }
           }
 
-          onApplyPreview({ posterUrl, videoPreviewUrl });
-          toast.success(
-            videoPreviewUrl
-              ? "Видео готово, превью (видео) + постер подставлены ✅"
-              : "Видео готово, постер подставлен ✅"
-          );
+          // Last resort: use the original generated video URL as thumbnail_url
+          const finalVideoPreviewUrl = videoPreviewUrl || url;
+          onApplyPreview({ posterUrl, videoPreviewUrl: finalVideoPreviewUrl });
+          if (posterUrl) {
+            toast.success(
+              finalVideoPreviewUrl
+                ? "Видео готово, превью подставлено ✅"
+                : "Видео готово ✅"
+            );
+          } else {
+            toast.error("Видео готово. Используем видео как превью (постер можно добавить позже).");
+          }
         } catch (e) {
           toast.error("Видео готово, но превью/постер не удалось создать. Загрузите превью вручную.");
         }
