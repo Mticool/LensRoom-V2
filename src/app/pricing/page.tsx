@@ -137,8 +137,8 @@ export default function PricingPage() {
                   className={cn(
                     "relative p-6 rounded-2xl transition-all motion-reduce:transition-none h-full",
                     isPopular
-                      ? 'bg-[var(--surface)] border-2 border-white/20 shadow-[var(--shadow-md)]'
-                      : 'bg-[var(--surface)] border border-[var(--border)]'
+                      ? 'bg-[var(--surface)] border-2 border-[var(--gold)] shadow-lg shadow-[var(--gold)]/20'
+                      : 'bg-[var(--surface)] border-2 border-white/20 hover:border-white/40'
                   )}
                 >
                   {isPopular && (
@@ -175,10 +175,10 @@ export default function PricingPage() {
 
                   <Button
                     className={cn(
-                      "w-full",
+                      "w-full font-semibold",
                       isPopular
-                        ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)]'
-                        : 'bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--border)]'
+                        ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] shadow-lg'
+                        : 'bg-white text-black hover:bg-white/90 shadow-md'
                     )}
                     onClick={() => handlePurchase('subscription', plan.id)}
                     disabled={isLoading}
@@ -234,8 +234,8 @@ export default function PricingPage() {
                     className={cn(
                       "relative p-6 rounded-2xl transition-all motion-reduce:transition-none text-center",
                       pkg.popular
-                        ? 'bg-[var(--surface)] border-2 border-white/20 shadow-[var(--shadow-md)]'
-                        : 'bg-[var(--surface)] border border-[var(--border)]'
+                        ? 'bg-[var(--surface)] border-2 border-[var(--gold)] shadow-lg shadow-[var(--gold)]/20'
+                        : 'bg-[var(--surface)] border-2 border-white/20 hover:border-white/40'
                     )}
                   >
                     {pkg.bonusPercent > 0 && (
@@ -260,10 +260,10 @@ export default function PricingPage() {
                     
                     <Button
                       className={cn(
-                        "w-full",
+                        "w-full font-semibold",
                         pkg.popular
-                          ? 'bg-white text-black hover:bg-white/90'
-                          : 'bg-[var(--surface2)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--surface)] hover:border-white/20'
+                          ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] shadow-lg'
+                          : 'bg-white text-black hover:bg-white/90 shadow-md'
                       )}
                       onClick={() => handlePurchase('package', pkg.id)}
                       disabled={isLoading}
@@ -326,7 +326,7 @@ export default function PricingPage() {
             ].map((faq, i) => (
               <div
                 key={i}
-                className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-white/20 transition-colors motion-reduce:transition-none"
+                className="p-6 rounded-2xl bg-[var(--surface)] border-2 border-white/15 hover:border-white/30 transition-colors motion-reduce:transition-none"
               >
                 <h3 className="text-lg font-semibold text-[var(--text)] mb-2">{faq.q}</h3>
                 <p className="text-[var(--text2)]">{faq.a}</p>
