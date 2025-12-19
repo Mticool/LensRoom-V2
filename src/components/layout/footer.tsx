@@ -15,8 +15,8 @@ const footerLinks = {
     { label: "Тарифы", href: "/pricing" },
   ],
   company: [
-    { label: "О нас", href: "/" },
-    { label: "Поддержка", href: "mailto:support@lensroom.ru" },
+    { label: "О нас", href: "/about" },
+    { label: "Поддержка", href: "mailto:mti2324@gmail.com" },
     { label: "Telegram", href: "https://t.me/LensRoom_bot" },
   ],
 };
