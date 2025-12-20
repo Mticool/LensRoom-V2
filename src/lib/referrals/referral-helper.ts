@@ -173,11 +173,21 @@ export async function recordReferralEventAndReward(
   
   const eventId = eventData.id;
   
+  // Check if referrer is an affiliate partner
+  const { data: affiliateTier } = await supabase
+    .from('affiliate_tiers')
+    .select('tier')
+    .eq('user_id', referrerId)
+    .single();
+  
+  const isAffiliate = !!affiliateTier;
+  
   // Get reward amounts
   const rewards = REFERRAL_REWARDS[eventType];
   
-  // Reward referrer
-  if (rewards.referrer > 0) {
+  // Reward referrer (ONLY if NOT an affiliate partner)
+  // Affiliates get % from sales, not stars
+  if (rewards.referrer > 0 && !isAffiliate) {
     await supabase.from('referral_rewards').insert({
       user_id: referrerId,
       reward_type: 'stars',
@@ -193,7 +203,7 @@ export async function recordReferralEventAndReward(
     });
   }
   
-  // Reward invitee (welcome bonus)
+  // Reward invitee (welcome bonus) - always give stars to new users
   if (rewards.invitee > 0) {
     await supabase.from('referral_rewards').insert({
       user_id: inviteeUserId,
@@ -210,7 +220,11 @@ export async function recordReferralEventAndReward(
     });
   }
   
-  return { success: true, eventId, message: 'Event recorded and rewards granted' };
+  const message = isAffiliate 
+    ? `Event recorded (affiliate partner - no stars bonus)`
+    : 'Event recorded and rewards granted';
+  
+  return { success: true, eventId, message };
 }
 
 /**

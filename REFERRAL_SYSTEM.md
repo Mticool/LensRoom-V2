@@ -131,13 +131,17 @@ export const REFERRAL_REWARDS = {
 # - eventsByType (signup: N, first_generation: M)
 ```
 
-## Интеграция платежей (Robokassa) - TODO
+## Интеграция платежей (Robokassa) - ГОТОВО
 
-Для будущей интеграции:
-1. Webhook от Robokassa -> сохраняем payment event
-2. Проверяем affiliate_tiers для покупателя
-3. Если покупатель был приглашён (есть referrer_user_id), начисляем % комиссию
-4. Комиссия рассчитывается через новый event type "purchase" в `referral_events`
+Реализовано в `AFFILIATE_COMMISSIONS.md`:
+1. Webhook от Robokassa -> /api/webhooks/robokassa
+2. Проверяем affiliate_tiers для referrer
+3. Если referrer является партнёром, начисляем % комиссию в рублях
+4. Комиссия сохраняется в таблице `affiliate_earnings` (status=pending)
+5. Админ выплачивает вручную через UI
+
+**Важно:** Партнёры НЕ получают звёзды ⭐ (signup/first_generation).
+Они получают ТОЛЬКО % от продаж рефералов.
 
 ## Идемпотентность
 
