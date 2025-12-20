@@ -157,8 +157,6 @@ export interface PhotoSettingsPanelProps {
   onAspectChange: (a: string) => void;
   aspectOptions: string[];
 
-  outputFormat: "png" | "jpg";
-  onOutputFormatChange: (f: "png" | "jpg") => void;
 
   referenceImage: File | null;
   onReferenceImageChange: (f: File | null) => void;
@@ -175,8 +173,6 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
   aspect,
   onAspectChange,
   aspectOptions,
-  outputFormat,
-  onOutputFormatChange,
   referenceImage,
   onReferenceImageChange,
   currentPlan = "free",
@@ -321,27 +317,6 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
             )}
           </div>
         ))}
-
-        <div>
-          <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Формат файла</div>
-          <div className="flex gap-2 flex-wrap">
-            {(["png", "jpg"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => onOutputFormatChange(f)}
-                className={cn(
-                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
-                  "motion-reduce:transition-none",
-                  f === outputFormat
-                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
-                    : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
-                )}
-              >
-                {f.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {!schemaHasFormat && (
           <div>

@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
       prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
       aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1") as any),
       resolution: resolutionForKie,
-      outputFormat: outputFormat === "jpg" || outputFormat === "png" ? outputFormat : "png",
+      outputFormat: "png", // Always PNG for photos
       quality,
       imageInputs,
     });

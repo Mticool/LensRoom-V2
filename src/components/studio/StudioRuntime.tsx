@@ -586,7 +586,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
           aspectRatio: String(aspect),
           variants: 1,
           mode: mode === "i2i" ? "i2i" : "t2i",
-          outputFormat,
+          outputFormat: "png", // Always PNG for photos
         };
 
         if (mode === "i2i") {
@@ -821,8 +821,6 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                 aspect={aspect as any}
                 onAspectChange={(a) => setAspect(a as any)}
                 aspectOptions={studioModel?.aspectRatios || ["1:1"]}
-                outputFormat={outputFormat}
-                onOutputFormatChange={setOutputFormat}
                 referenceImage={referenceImage}
                 onReferenceImageChange={setReferenceImage}
                 currentPlan={currentPlan}
@@ -834,8 +832,6 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                 onModeChange={setMode}
                 quality={quality}
                 onQualityChange={setQuality}
-                outputFormat={studioModel.kind === "photo" ? outputFormat : undefined}
-                onOutputFormatChange={studioModel.kind === "photo" ? setOutputFormat : undefined}
                 aspect={aspect}
                 onAspectChange={setAspect}
                 duration={studioModel.kind === "video" ? (duration as any) : undefined}

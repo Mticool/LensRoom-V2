@@ -53,8 +53,6 @@ interface SettingsPanelProps {
   onModeChange: (m: Mode) => void;
   quality: Quality;
   onQualityChange: (q: Quality) => void;
-  outputFormat?: "png" | "jpg";
-  onOutputFormatChange?: (f: "png" | "jpg") => void;
   aspect: Aspect;
   onAspectChange: (a: Aspect) => void;
   duration?: Duration;
@@ -75,8 +73,6 @@ export const SettingsPanel = memo(function SettingsPanel({
   onModeChange,
   quality,
   onQualityChange,
-  outputFormat,
-  onOutputFormatChange,
   aspect,
   onAspectChange,
   duration,
@@ -95,7 +91,6 @@ export const SettingsPanel = memo(function SettingsPanel({
   const showDuration = model.kind === "video" && !!model.durationOptions?.length && mode !== "storyboard";
   const showAudio = model.kind === "video" && !!model.supportsAudio && mode !== "storyboard";
   const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v");
-  const showFormat = model.kind === "photo" && !!onOutputFormatChange;
   
   // Check if model has variants (like Kling)
   const modelConfig = getModelById(model.key);
@@ -172,28 +167,6 @@ export const SettingsPanel = memo(function SettingsPanel({
           </div>
         </div>
 
-        {showFormat && (
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Формат</div>
-            <div className="flex gap-2 flex-wrap">
-              {(["png", "jpg"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => onOutputFormatChange?.(f)}
-                  className={cn(
-                    "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
-                    "motion-reduce:transition-none",
-                    f === (outputFormat || "png")
-                      ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
-                      : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
-                  )}
-                >
-                  {f.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Соотношение</div>
