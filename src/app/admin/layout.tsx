@@ -32,10 +32,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 <NavLink href="/admin">Обзор</NavLink>
                 <NavLink href="/admin/styles">Стили</NavLink>
                 <NavLink href="/admin/content">Контент</NavLink>
-                <NavLink href="/admin/managers">Менеджеры</NavLink>
                 <NavLink href="/admin/users">Пользователи</NavLink>
                 <NavLink href="/admin/sales">Продажи</NavLink>
                 <NavLink href="/admin/referrals">Рефералы</NavLink>
+                <NavLink href="/admin/partners">Партнёры</NavLink>
+                <NavLink href="/admin/affiliate-earnings">Комиссии</NavLink>
               </div>
             </div>
             <Link

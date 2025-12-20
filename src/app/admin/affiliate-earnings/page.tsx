@@ -106,27 +106,16 @@ export default function AffiliateEarningsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] p-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Комиссии партнёров</h1>
-          <div className="text-[var(--muted)]">Загрузка...</div>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold mb-8">Комиссии партнёров</h1>
+        <div className="text-[var(--muted)]">Загрузка...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Комиссии партнёров</h1>
-          <button
-            onClick={() => router.push('/admin/partners')}
-            className="px-4 py-2 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border)]"
-          >
-            ← К партнёрам
-          </button>
-        </div>
+    <div>
+      <h1 className="text-3xl font-bold mb-8">Комиссии партнёров</h1>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -250,7 +239,6 @@ export default function AffiliateEarningsPage() {
             ))}
           </div>
         </div>
-      </div>
     </div>
   );
 }

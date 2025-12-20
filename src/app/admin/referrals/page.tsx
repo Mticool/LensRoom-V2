@@ -61,22 +61,18 @@ export default function AdminReferralsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] p-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Реферальная система</h1>
-          <div className="text-[var(--muted)]">Загрузка...</div>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold mb-8">Реферальная система</h1>
+        <div className="text-[var(--muted)]">Загрузка...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] p-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Реферальная система</h1>
-          <div className="text-red-500">{error}</div>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold mb-8">Реферальная система</h1>
+        <div className="text-red-500">{error}</div>
       </div>
     );
   }
@@ -84,17 +80,8 @@ export default function AdminReferralsPage() {
   if (!stats) return null;
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Реферальная система</h1>
-          <button
-            onClick={() => router.push('/admin')}
-            className="px-4 py-2 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border)]"
-          >
-            Назад в админку
-          </button>
-        </div>
+    <div>
+      <h1 className="text-3xl font-bold mb-8">Реферальная система</h1>
 
         {/* Referral Stats */}
         <div className="mb-8">
@@ -193,7 +180,6 @@ export default function AdminReferralsPage() {
             </button>
           </div>
         </div>
-      </div>
     </div>
   );
 }

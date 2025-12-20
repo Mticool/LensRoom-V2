@@ -92,27 +92,16 @@ export default function AdminPartnersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] p-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Партнёрские заявки</h1>
-          <div className="text-[var(--muted)]">Загрузка...</div>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold mb-8">Партнёрские заявки</h1>
+        <div className="text-[var(--muted)]">Загрузка...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Партнёрские заявки</h1>
-          <button
-            onClick={() => router.push('/admin/referrals')}
-            className="px-4 py-2 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border)]"
-          >
-            ← К статистике
-          </button>
-        </div>
+    <div>
+      <h1 className="text-3xl font-bold mb-8">Партнёрские заявки</h1>
 
         {/* Filters */}
         <div className="flex gap-2 mb-6">
@@ -223,7 +212,6 @@ export default function AdminPartnersPage() {
             ))
           )}
         </div>
-      </div>
     </div>
   );
 }
