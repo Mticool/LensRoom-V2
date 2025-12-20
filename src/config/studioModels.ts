@@ -77,14 +77,30 @@ function defaultPriceOptions(model: ModelConfig): any {
 }
 
 function toStudioModel(model: ModelConfig): StudioModel {
-  // For models with variants (like Kling), calculate minimum price across all variants
+  // For models with variants (like Kling/WAN), calculate minimum price across all variants
   let computed = computePrice(model.id, defaultPriceOptions(model)).stars;
   if (model.type === "video" && (model as VideoModelConfig).modelVariants?.length) {
     const variants = (model as VideoModelConfig).modelVariants!;
     const durations = (model as VideoModelConfig).durationOptions || [5, 10];
-    const minPrices = variants.flatMap(v => 
-      durations.map(d => computePrice(model.id, { modelVariant: v.id, duration: d, variants: 1 }).stars)
-    );
+    const resolutions = (model as VideoModelConfig).resolutionOptions || [];
+    
+    // Calculate minimum price across all combinations
+    const minPrices: number[] = [];
+    for (const v of variants) {
+      for (const d of durations) {
+        if (resolutions.length > 0) {
+          // For models with resolution (like WAN), check all resolutions
+          for (const r of resolutions) {
+            const price = computePrice(model.id, { modelVariant: v.id, duration: d, resolution: r, variants: 1 }).stars;
+            if (price > 0) minPrices.push(price);
+          }
+        } else {
+          // For models without resolution (like Kling)
+          const price = computePrice(model.id, { modelVariant: v.id, duration: d, variants: 1 }).stars;
+          if (price > 0) minPrices.push(price);
+        }
+      }
+    }
     computed = minPrices.length > 0 ? Math.min(...minPrices) : computed;
   }
   
@@ -92,6 +108,7 @@ function toStudioModel(model: ModelConfig): StudioModel {
     // Ensure we never show "—" for Sora 2 in sidebar, even if pricing config changes.
     "sora-2": 40,
     "kling": 65, // Minimum price (2.5 Turbo 5s)
+    "wan": 90, // Minimum price (WAN 2.5 720p 5s)
   };
   const baseStars = computed > 0 ? computed : (baseStarsOverride[model.id] || 0);
 
@@ -99,6 +116,7 @@ function toStudioModel(model: ModelConfig): StudioModel {
     "nano-banana": "Быстро и дёшево для тестов/черновиков",
     "veo-3.1": "Кинореал • fast по умолчанию",
     "kling": "Сильный универсал: динамика, эффектность",
+    "wan": "Универсальная модель с выбором версии и разрешения",
     "sora-2": "Стабильное i2v-видео для большинства задач",
     "sora-2-pro": "Премиум качество (i2v / start_end)",
     "topaz-image-upscale": "Апскейл (≤2K/4K/8K) • нужен референс",

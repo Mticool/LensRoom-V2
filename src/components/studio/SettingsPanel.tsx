@@ -63,6 +63,8 @@ interface SettingsPanelProps {
   onAudioChange?: (v: boolean) => void;
   modelVariant?: string;
   onModelVariantChange?: (v: string) => void;
+  resolution?: string; // For models with resolution selection (e.g., WAN)
+  onResolutionChange?: (r: string) => void;
   referenceImage: File | null;
   onReferenceImageChange: (f: File | null) => void;
 }
@@ -83,6 +85,8 @@ export const SettingsPanel = memo(function SettingsPanel({
   onAudioChange,
   modelVariant,
   onModelVariantChange,
+  resolution,
+  onResolutionChange,
   referenceImage,
   onReferenceImageChange,
 }: SettingsPanelProps) {
@@ -211,6 +215,30 @@ export const SettingsPanel = memo(function SettingsPanel({
             ))}
           </div>
         </div>
+
+        {/* Resolution selector for models with resolutionOptions (e.g., WAN) */}
+        {model.kind === "video" && modelConfig?.type === "video" && (modelConfig as VideoModelConfig).resolutionOptions?.length && onResolutionChange && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Разрешение</div>
+            <div className="flex gap-2 flex-wrap">
+              {(modelConfig as VideoModelConfig).resolutionOptions!.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => onResolutionChange(r)}
+                  className={cn(
+                    "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
+                    "motion-reduce:transition-none",
+                    r === resolution
+                      ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
+                      : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
+                  )}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showDuration && model.durationOptions && onDurationChange && (
           <div>

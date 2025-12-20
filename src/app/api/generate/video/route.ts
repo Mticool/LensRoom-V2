@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       mode,
       duration: duration || modelInfo.fixedDuration || 5,
       videoQuality: quality,
+      resolution: resolution || undefined, // For WAN per-second pricing
       audio: alwaysSound,
       modelVariant: modelVariant || undefined,
       variants,

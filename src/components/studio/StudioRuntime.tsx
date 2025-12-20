@@ -90,7 +90,8 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const [aspect, setAspect] = useState<Aspect>("1:1" as Aspect);
   const [duration, setDuration] = useState<Duration>(5 as Duration);
   const [audio, setAudio] = useState<boolean>(true);
-  const [modelVariant, setModelVariant] = useState<string>(""); // For unified models like Kling
+  const [modelVariant, setModelVariant] = useState<string>(""); // For unified models like Kling/WAN
+  const [resolution, setResolution] = useState<string>(""); // For models with resolution selection (e.g., WAN)
 
   const [prompt, setPrompt] = useState<string>("");
   const [scenes, setScenes] = useState<string[]>(["", "", ""]);
@@ -265,12 +266,17 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
     setAudio(!!studioModel.supportsAudio);
     
-    // Reset modelVariant when model changes (for unified models like Kling)
+    // Reset modelVariant and resolution when model changes (for unified models like Kling/WAN)
     const model = getModelById(studioModel.key);
     if (model?.type === "video" && (model as VideoModelConfig).modelVariants?.length) {
       setModelVariant((model as VideoModelConfig).modelVariants![0].id);
+      // Set default resolution for WAN
+      if ((model as VideoModelConfig).resolutionOptions?.length) {
+        setResolution((model as VideoModelConfig).resolutionOptions![0]);
+      }
     } else {
       setModelVariant("");
+      setResolution("");
     }
 
     // Clear incompatible uploads
@@ -322,17 +328,21 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
     const v = modelInfo as VideoModelConfig;
     const isResolution = typeof quality === "string" && String(quality).endsWith("p");
+    
+    // For WAN model, use resolution from state if available, otherwise from quality
+    const effectiveResolution = resolution || (isResolution ? String(quality) : undefined);
 
     return computePrice(v.id, {
       mode: mode as any,
       duration: duration as any,
       // bytedance uses resolutionOptions; computePrice expects videoQuality to key into pricing
       videoQuality: String(quality || "") as any,
+      resolution: effectiveResolution as any, // For WAN per-second pricing
       audio: !!v.supportsAudio,
       modelVariant: modelVariant || undefined,
       variants: 1,
     });
-  }, [modelInfo, kind, selectedVariant, quality, mode, duration, modelVariant]);
+  }, [modelInfo, kind, selectedVariant, quality, mode, duration, modelVariant, resolution]);
 
   const pollJob = useCallback(async (jobId: string, kind: "image" | "video", provider?: string) => {
     const maxAttempts = 180;
@@ -620,16 +630,17 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
       const v = modelInfo as VideoModelConfig;
       const isResolution = typeof quality === "string" && String(quality).endsWith("p");
+      const effectiveResolution = resolution || (isResolution ? String(quality) : undefined);
       const payload: any = {
         model: v.id,
-        modelVariant: modelVariant || undefined, // For unified models like Kling
+        modelVariant: modelVariant || undefined, // For unified models like Kling/WAN
         mode,
         prompt: isStoryboard ? undefined : prompt,
         shots: isStoryboard ? scenes.filter((s) => s.trim()).map((s) => ({ prompt: s.trim() })) : undefined,
         duration,
         aspectRatio: String(aspect),
         quality: isResolution ? undefined : String(quality || ""),
-        resolution: isResolution ? String(quality) : undefined,
+        resolution: effectiveResolution || undefined, // For WAN per-second pricing
         audio: v.supportsAudio ? audio : undefined,
       };
 
@@ -833,6 +844,8 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                 onAudioChange={studioModel.kind === "video" && studioModel.supportsAudio ? setAudio : undefined}
                 modelVariant={modelVariant}
                 onModelVariantChange={setModelVariant}
+                resolution={resolution}
+                onResolutionChange={setResolution}
                 referenceImage={referenceImage}
                 onReferenceImageChange={setReferenceImage}
               />

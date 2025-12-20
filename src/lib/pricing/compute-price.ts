@@ -9,14 +9,14 @@ import { STAR_PACKS, packTotalStars } from '@/config/pricing';
 export interface PriceOptions {
   // Photo options
   quality?: string; // '1k', '2k', '4k', 'turbo', 'balanced', 'quality', 'fast', 'ultra', '1k_2k'
-  resolution?: string; // '512x512', '1024x1024', '480p', '720p', '1080p' etc.
+  resolution?: string; // '512x512', '1024x1024', '480p', '720p', '1080p' etc. (for video: '720p', '1080p')
   
   // Video options
   mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard';
   duration?: number | string; // 5, 10, 15, or '15-25'
   videoQuality?: string; // '720p', '1080p', '480p', 'fast', 'quality', 'standard', 'high'
   audio?: boolean;
-  modelVariant?: string; // For unified models like Kling: 'kling-2.5-turbo', 'kling-2.6', 'kling-2.1'
+  modelVariant?: string; // For unified models like Kling/WAN: 'kling-2.5-turbo', 'wan-2.5', etc.
   
   // Common
   variants?: number; // Number of variants to generate
@@ -96,31 +96,50 @@ function computeVideoPrice(
   if (model.modelVariants && options.modelVariant) {
     const variant = model.modelVariants.find(v => v.id === options.modelVariant);
     if (variant) {
-      const variantPricing = variant.pricing;
-      if (typeof variantPricing === 'number') {
-        const seconds = typeof duration === 'number' ? duration : 5;
-        creditsPerVideo = variantPricing * seconds;
-      } else if (variantPricing[durationKey as keyof typeof variantPricing]) {
-        const durationPricing = variantPricing[durationKey as keyof typeof variantPricing];
-        if (typeof durationPricing === 'number') {
-          creditsPerVideo = durationPricing;
-        } else if (typeof durationPricing === 'object') {
-          if (options.audio !== undefined) {
-            creditsPerVideo = durationPricing[options.audio ? 'audio' : 'no_audio'] || 0;
-          } else {
-            creditsPerVideo = durationPricing['no_audio'] || Object.values(durationPricing)[0] as number || 0;
-          }
+      // Check for per-second pricing (e.g., WAN 2.5)
+      if (variant.perSecondPricing && options.resolution) {
+        const perSecond = variant.perSecondPricing[options.resolution as keyof typeof variant.perSecondPricing];
+        if (typeof perSecond === 'number') {
+          const seconds = typeof duration === 'number' ? duration : 5;
+          creditsPerVideo = perSecond * seconds;
         }
       } else {
-        // Fallback to first available price
-        const firstKey = Object.keys(variantPricing)[0];
-        if (firstKey && variantPricing[firstKey as keyof typeof variantPricing]) {
-          const firstPrice = variantPricing[firstKey as keyof typeof variantPricing];
-          if (typeof firstPrice === 'number') {
-            creditsPerVideo = firstPrice;
-          } else if (typeof firstPrice === 'object' && firstPrice !== null) {
-            const values = Object.values(firstPrice);
-            creditsPerVideo = (values[0] as number) || 0;
+        // Use fixed pricing structure
+        const variantPricing = variant.pricing;
+        if (typeof variantPricing === 'number') {
+          const seconds = typeof duration === 'number' ? duration : 5;
+          creditsPerVideo = variantPricing * seconds;
+        } else if (options.resolution && variantPricing[options.resolution as keyof typeof variantPricing]) {
+          // Resolution-based pricing (e.g., WAN 2.6: { "720p": { "5": 100, ... }, "1080p": { "5": 160, ... } })
+          const resolutionPricing = variantPricing[options.resolution as keyof typeof variantPricing];
+          if (typeof resolutionPricing === 'object' && resolutionPricing !== null) {
+            const durationPrice = resolutionPricing[durationKey as keyof typeof resolutionPricing];
+            if (typeof durationPrice === 'number') {
+              creditsPerVideo = durationPrice;
+            }
+          }
+        } else if (variantPricing[durationKey as keyof typeof variantPricing]) {
+          const durationPricing = variantPricing[durationKey as keyof typeof variantPricing];
+          if (typeof durationPricing === 'number') {
+            creditsPerVideo = durationPricing;
+          } else if (typeof durationPricing === 'object') {
+            if (options.audio !== undefined) {
+              creditsPerVideo = durationPricing[options.audio ? 'audio' : 'no_audio'] || 0;
+            } else {
+              creditsPerVideo = durationPricing['no_audio'] || Object.values(durationPricing)[0] as number || 0;
+            }
+          }
+        } else {
+          // Fallback to first available price
+          const firstKey = Object.keys(variantPricing)[0];
+          if (firstKey && variantPricing[firstKey as keyof typeof variantPricing]) {
+            const firstPrice = variantPricing[firstKey as keyof typeof variantPricing];
+            if (typeof firstPrice === 'number') {
+              creditsPerVideo = firstPrice;
+            } else if (typeof firstPrice === 'object' && firstPrice !== null) {
+              const values = Object.values(firstPrice);
+              creditsPerVideo = (values[0] as number) || 0;
+            }
           }
         }
       }

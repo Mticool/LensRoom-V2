@@ -78,11 +78,12 @@ export interface PhotoModelConfig {
 }
 
 export interface VideoModelVariant {
-  id: string; // e.g., "kling-2.5-turbo", "kling-2.6", "kling-2.1"
+  id: string; // e.g., "kling-2.5-turbo", "kling-2.6", "kling-2.1", "wan-2.5", "wan-2.6", "wan-2.2"
   name: string; // Display name
   apiId: string; // For t2v mode
   apiIdI2v?: string; // For i2v mode
   pricing: VideoPricing; // Pricing for this variant (same structure as VideoModelConfig.pricing)
+  perSecondPricing?: { [resolution: string]: number }; // For per-second pricing (e.g., WAN 2.5: { "720p": 18, "1080p": 30 })
 }
 
 export interface VideoModelConfig {
@@ -488,6 +489,79 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     durationOptions: [10, '15-25'],
     aspectRatios: ['16:9', '9:16'],
     shortLabel: '10-25s',
+  },
+
+  // === WAN - Unified model with variants (2.2/2.5/2.6) ===
+  {
+    id: 'wan',
+    name: 'WAN',
+    apiId: 'wan-2.6/text-to-video', // Default (will be overridden by variant)
+    apiIdI2v: 'wan-2.6/image-to-video', // Default
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Универсальная модель для генерации видео с выбором версии и разрешения.',
+    rank: 8,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: true,
+    supportsAudio: false,
+    pricing: {
+      '5': { no_audio: 90 }, // Minimum price (WAN 2.5 720p 5s)
+      '10': { no_audio: 180 }, // Minimum price (WAN 2.5 720p 10s)
+      '15': { no_audio: 270 }, // Minimum price (WAN 2.5 720p 15s)
+    },
+    modelVariants: [
+      {
+        id: 'wan-2.5',
+        name: 'WAN 2.5',
+        apiId: 'wan-2.5/text-to-video', // TODO: verify actual API ID
+        apiIdI2v: 'wan-2.5/image-to-video', // TODO: verify actual API ID
+        pricing: {
+          '5': { no_audio: 90 }, // 720p 5s = 18⭐/sec * 5 = 90⭐
+          '10': { no_audio: 180 }, // 720p 10s = 18⭐/sec * 10 = 180⭐
+          '15': { no_audio: 270 }, // 720p 15s = 18⭐/sec * 15 = 270⭐
+        },
+        perSecondPricing: {
+          '720p': 18, // 12 cred/sec -> 18⭐/sec
+          '1080p': 30, // 20 cred/sec -> 30⭐/sec
+        },
+      },
+      {
+        id: 'wan-2.6',
+        name: 'WAN 2.6',
+        apiId: 'wan-2.6/text-to-video', // TODO: verify actual API ID
+        apiIdI2v: 'wan-2.6/image-to-video', // TODO: verify actual API ID
+        pricing: {
+          '720p': {
+            '5': 100,
+            '10': 210,
+            '15': 310,
+          },
+          '1080p': {
+            '5': 160,
+            '10': 310,
+            '15': 470,
+          },
+        },
+      },
+      {
+        id: 'wan-2.2',
+        name: 'WAN 2.2',
+        apiId: 'wan-2.2/text-to-video', // TODO: verify actual API ID and add credits
+        apiIdI2v: 'wan-2.2/image-to-video', // TODO: verify actual API ID
+        pricing: {
+          '5': { no_audio: 0 }, // TODO: add pricing
+          '10': { no_audio: 0 }, // TODO: add pricing
+          '15': { no_audio: 0 }, // TODO: add pricing
+        },
+      },
+    ],
+    modes: ['t2v', 'i2v'],
+    durationOptions: [5, 10, 15],
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16'],
+    shortLabel: 'от 90⭐',
   },
 
   // === BYTEDANCE (Seedance) - Market API (i2v only) ===
