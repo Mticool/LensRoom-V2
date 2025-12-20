@@ -17,16 +17,59 @@ interface AffiliateApplication {
   };
 }
 
+interface AffiliateTier {
+  user_id: string;
+  tier: 'classic' | 'pro';
+  percent: number;
+  updated_at: string;
+  profiles?: {
+    display_name?: string;
+    username?: string;
+  };
+}
+
 export default function AdminPartnersPage() {
   const router = useRouter();
   const [applications, setApplications] = useState<AffiliateApplication[]>([]);
+  const [partners, setPartners] = useState<AffiliateTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [activeTab, setActiveTab] = useState<'applications' | 'partners'>('applications');
+  
+  // Manual partner form
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualUserId, setManualUserId] = useState('');
+  const [manualPercent, setManualPercent] = useState(30);
 
   useEffect(() => {
-    fetchApplications();
-  }, [filter]);
+    if (activeTab === 'applications') {
+      fetchApplications();
+    } else {
+      fetchPartners();
+    }
+  }, [filter, activeTab]);
+  
+  const fetchPartners = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/partners/tiers', { credentials: 'include' });
+      const data = await res.json();
+      
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+      
+      setPartners(data.tiers || []);
+    } catch (err) {
+      setError('Failed to load partners');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchApplications = async () => {
     try {
@@ -99,12 +142,199 @@ export default function AdminPartnersPage() {
     );
   }
 
+  const addManualPartner = async () => {
+    if (!manualUserId.trim()) {
+      alert('Введите User ID');
+      return;
+    }
+    
+    try {
+      const res = await fetch('/api/admin/partners/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: manualUserId.trim(),
+          percent: manualPercent,
+          tier: manualPercent >= 50 ? 'pro' : 'classic',
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.error) {
+        alert(`Error: ${data.error}`);
+        return;
+      }
+      
+      alert(data.message);
+      setShowManualForm(false);
+      setManualUserId('');
+      setManualPercent(30);
+      fetchPartners();
+    } catch (err) {
+      alert('Failed to add partner');
+      console.error(err);
+    }
+  };
+  
+  const updatePartnerPercent = async (userId: string, newPercent: number) => {
+    if (!confirm(`Изменить процент на ${newPercent}%?`)) return;
+    
+    try {
+      const res = await fetch('/api/admin/partners/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId,
+          percent: newPercent,
+          tier: newPercent >= 50 ? 'pro' : 'classic',
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.error) {
+        alert(`Error: ${data.error}`);
+        return;
+      }
+      
+      alert(data.message);
+      fetchPartners();
+    } catch (err) {
+      alert('Failed to update partner');
+      console.error(err);
+    }
+  };
+  
+  const removePartner = async (userId: string) => {
+    if (!confirm('Удалить партнера? Он вернется к обычной реферальной программе (звёзды).')) return;
+    
+    try {
+      const res = await fetch('/api/admin/partners/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.error) {
+        alert(`Error: ${data.error}`);
+        return;
+      }
+      
+      alert(data.message);
+      fetchPartners();
+    } catch (err) {
+      alert('Failed to remove partner');
+      console.error(err);
+    }
+  };
+
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Партнёрские заявки</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Партнёрская программа</h1>
+        {activeTab === 'partners' && (
+          <button
+            onClick={() => setShowManualForm(true)}
+            className="px-4 py-2 rounded-lg bg-[var(--gold)] text-black font-medium hover:opacity-90 transition"
+          >
+            + Добавить партнера вручную
+          </button>
+        )}
+      </div>
 
-        {/* Filters */}
-        <div className="flex gap-2 mb-6">
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-[var(--border)]">
+        <button
+          onClick={() => setActiveTab('applications')}
+          className={`px-6 py-3 font-medium transition border-b-2 ${
+            activeTab === 'applications'
+              ? 'text-[var(--gold)] border-[var(--gold)]'
+              : 'text-[var(--muted)] border-transparent hover:text-[var(--text)]'
+          }`}
+        >
+          Заявки
+        </button>
+        <button
+          onClick={() => setActiveTab('partners')}
+          className={`px-6 py-3 font-medium transition border-b-2 ${
+            activeTab === 'partners'
+              ? 'text-[var(--gold)] border-[var(--gold)]'
+              : 'text-[var(--muted)] border-transparent hover:text-[var(--text)]'
+          }`}
+        >
+          Активные партнёры
+        </button>
+      </div>
+
+      {/* Manual Partner Form */}
+      {showManualForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+            <h3 className="text-xl font-bold mb-4">Добавить партнера вручную</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-[var(--muted)] mb-2">User ID</label>
+                <input
+                  type="text"
+                  value={manualUserId}
+                  onChange={(e) => setManualUserId(e.target.value)}
+                  placeholder="UUID пользователя"
+                  className="w-full px-4 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--muted)] mb-2">
+                  Процент комиссии: {manualPercent}%
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="70"
+                  step="5"
+                  value={manualPercent}
+                  onChange={(e) => setManualPercent(Number(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-[var(--muted)] mt-1">
+                  <span>10%</span>
+                  <span>30% (classic)</span>
+                  <span>50% (pro)</span>
+                  <span>70%</span>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={addManualPartner}
+                  className="flex-1 px-4 py-2 rounded-lg bg-[var(--gold)] text-black font-medium hover:opacity-90"
+                >
+                  Добавить
+                </button>
+                <button
+                  onClick={() => {
+                    setShowManualForm(false);
+                    setManualUserId('');
+                    setManualPercent(30);
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--surface)]"
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'applications' && (
+        <>
+          {/* Filters */}
+          <div className="flex gap-2 mb-6">
           {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
             <button
               key={f}
@@ -212,6 +442,86 @@ export default function AdminPartnersPage() {
             ))
           )}
         </div>
+        </>
+      )}
+
+      {activeTab === 'partners' && (
+        <>
+          {error && (
+            <div className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500">
+              {error}
+            </div>
+          )}
+
+          {/* Partners List */}
+          <div className="space-y-4">
+            {partners.length === 0 ? (
+              <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-center text-[var(--muted)]">
+                Нет активных партнёров
+              </div>
+            ) : (
+              partners.map((partner) => (
+                <div
+                  key={partner.user_id}
+                  className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="font-semibold text-lg mb-1">
+                        {partner.profiles?.display_name || partner.profiles?.username || 'Без имени'}
+                      </div>
+                      <div className="text-sm text-[var(--muted)]">
+                        User ID: {partner.user_id}
+                      </div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      partner.tier === 'pro' 
+                        ? 'bg-purple-500/20 text-purple-400' 
+                        : 'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {partner.tier === 'pro' ? 'Pro Partner' : 'Classic Partner'}
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <div className="text-3xl font-bold text-[var(--gold)] mb-1">
+                      {partner.percent}%
+                    </div>
+                    <div className="text-sm text-[var(--muted)]">
+                      Комиссия от продаж
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const newPercent = prompt(`Текущий процент: ${partner.percent}%\nВведите новый процент (10-70):`, String(partner.percent));
+                        if (newPercent) {
+                          const num = parseInt(newPercent);
+                          if (num >= 10 && num <= 70) {
+                            updatePartnerPercent(partner.user_id, num);
+                          } else {
+                            alert('Процент должен быть от 10 до 70');
+                          }
+                        }
+                      }}
+                      className="px-4 py-2 rounded-lg bg-[var(--gold)] text-black text-sm font-medium hover:opacity-90"
+                    >
+                      Изменить %
+                    </button>
+                    <button
+                      onClick={() => removePartner(partner.user_id)}
+                      className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30"
+                    >
+                      Удалить партнера
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
