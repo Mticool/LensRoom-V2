@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { Header, Footer } from "@/components/layout";
 import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ReferralHandler } from "@/components/referrals/ReferralHandler";
 
 export const metadata: Metadata = {
   title: {
@@ -141,6 +143,9 @@ export default function RootLayout({
       <body className="antialiased">
         <ErrorBoundary>
           <Providers>
+            <Suspense fallback={null}>
+              <ReferralHandler />
+            </Suspense>
             <Header />
             <div className="min-h-screen">{children}</div>
             <Footer />

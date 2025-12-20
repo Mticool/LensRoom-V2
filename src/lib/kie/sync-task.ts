@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { notifyGenerationStatus } from "@/lib/telegram/notify";
 import { getKieClient } from "@/lib/api/kie-client";
 import { getModelById } from "@/config/models";
+import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generation";
 
 function getKieMarketConfig() {
   const apiKey = env.required("KIE_API_KEY", "KIE Market API key");
@@ -206,6 +207,11 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
         });
       } catch {}
 
+      // Track first_generation referral event
+      try {
+        await trackFirstGenerationEvent(String(generation.user_id), String(generation.id));
+      } catch {}
+
       return { ok: true, status: "success" as const, assetUrl, resultUrls: [sourceUrl] };
     }
 
@@ -284,6 +290,11 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     } catch {
       // ignore
     }
+
+    // Track first_generation referral event
+    try {
+      await trackFirstGenerationEvent(String(generation.user_id), String(generation.id));
+    } catch {}
 
     return { ok: true, status: "success" as const, assetUrl, resultUrls: urls };
   }

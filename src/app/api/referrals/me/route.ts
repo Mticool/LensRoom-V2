@@ -1,71 +1,59 @@
-import { NextResponse } from "next/server";
-import { getSession, getAuthUserId } from "@/lib/telegram/auth";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { env } from "@/lib/env";
+import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/telegram/auth';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { getReferralStats } from '@/lib/referrals/referral-helper';
 
-export async function GET() {
+/**
+ * GET /api/referrals/me
+ * 
+ * Get current user's referral info (code, stats, attribution)
+ */
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
+    
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = await getAuthUserId(session);
-    if (!userId) {
-      return NextResponse.json({ error: "User account not found" }, { status: 404 });
-    }
-
-    const supabase = getSupabaseAdmin();
-
-    // Ensure code exists (DB function from migration 012)
-    let code: string | null = null;
-    try {
-      const { data, error } = await supabase.rpc("ensure_referral_code", { p_user_id: userId });
-      if (error) throw error;
-      code = (data as any) || null;
-    } catch (e) {
-      // If migrations not applied yet, fall back to direct lookup (best-effort).
-      const { data } = await supabase
-        .from("referral_codes")
-        .select("code")
-        .eq("user_id", userId)
-        .maybeSingle();
-      code = (data as any)?.code || null;
-      if (!code) {
-        return NextResponse.json(
-          { error: "Referrals not configured (run DB migration 012_referrals.sql)" },
-          { status: 501 }
-        );
-      }
-    }
-
-    const { count } = await supabase
-      .from("referrals")
-      .select("id", { count: "exact", head: true })
-      .eq("inviter_user_id", userId);
-
-    if (!code) {
       return NextResponse.json(
-        { error: "Referrals not configured (run DB migration 012_referrals.sql)" },
-        { status: 501 }
+        { error: 'Unauthorized. Please log in.' },
+        { status: 401 }
       );
     }
-
-    const baseUrl = (env.optional("SITE_URL") || env.optional("NEXT_PUBLIC_APP_URL") || "https://lensroom.ru").replace(/\/$/, "");
-    const link = `${baseUrl}/?ref=${encodeURIComponent(code)}`;
-
+    
+    const userId = session.profileId;
+    const supabase = getSupabaseAdmin();
+    
+    // Get user's referral code
+    const { data: codeData } = await supabase
+      .from('referral_codes')
+      .select('code, created_at')
+      .eq('user_id', userId)
+      .single();
+    
+    // Get user's referral stats (as referrer)
+    const stats = await getReferralStats(userId);
+    
+    // Get user's attribution (who referred them)
+    const { data: attributionData } = await supabase
+      .from('referral_attributions')
+      .select('referrer_user_id, code, created_at')
+      .eq('invitee_user_id', userId)
+      .single();
+    
     return NextResponse.json({
-      code,
-      link,
-      bonusTotal: 100,
-      inviterBonus: 50,
-      inviteeBonus: 50,
-      invitedCount: count || 0,
+      code: codeData?.code || null,
+      stats,
+      referredBy: attributionData ? {
+        referrerId: attributionData.referrer_user_id,
+        code: attributionData.code,
+        claimedAt: attributionData.created_at,
+      } : null,
     });
+    
   } catch (error) {
-    console.error("[Referrals] /me error:", error);
-    return NextResponse.json({ error: "Failed to load referral info" }, { status: 500 });
+    console.error('[/api/referrals/me] Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get referral info' },
+      { status: 500 }
+    );
   }
 }
-
-

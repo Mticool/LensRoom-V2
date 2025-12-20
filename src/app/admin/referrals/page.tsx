@@ -1,192 +1,199 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AdminTable, Column } from "@/components/admin/AdminTable";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-interface InviteeInfo {
-  invitee_user_id: string;
-  invitee: {
-    telegram_id: number;
-    username: string | null;
-    name: string;
-  } | null;
-  purchases: number;
-  revenue_rub: number;
-}
-
-interface ReferralRow {
-  inviter_user_id: string;
-  inviter: {
-    telegram_id: number;
-    username: string | null;
-    name: string;
-  } | null;
-  invited_count: number;
-  earned_stars: number;
-  invitees: InviteeInfo[];
-  purchases_count: number;
-  revenue_rub: number;
-}
-
-interface ReferralsData {
-  inviter_bonus_stars: number;
-  total_referrals: number;
-  rows: ReferralRow[];
+interface OverviewStats {
+  overview: {
+    totalCodes: number;
+    totalAttributions: number;
+    totalEvents: number;
+    totalStarsRewarded: number;
+    eventsByType: Record<string, number>;
+    topReferrers: Array<{
+      userId: string;
+      displayName: string;
+      referralsCount: number;
+    }>;
+  };
+  affiliate: {
+    totalApplications: number;
+    pendingApplications: number;
+    approvedAffiliates: number;
+  };
 }
 
 export default function AdminReferralsPage() {
-  const [data, setData] = useState<ReferralsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const router = useRouter();
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch("/api/admin/referrals", { credentials: "include" })
-      .then((r) => r.json())
-      .then(setData)
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
+    fetchStats();
   }, []);
 
-  const columns: Column<ReferralRow>[] = [
-    {
-      key: "inviter",
-      label: "Реферер",
-      mobileLabel: "Реферер",
-      render: (item) => {
-        if (item.inviter?.username) return `@${item.inviter.username}`;
-        if (item.inviter?.name) return item.inviter.name;
-        if (item.inviter?.telegram_id) return `TG ${item.inviter.telegram_id}`;
-        return item.inviter_user_id;
-      },
-    },
-    {
-      key: "invited_count",
-      label: "Приглашено",
-      mobileLabel: "Приглашено",
-    },
-    {
-      key: "earned_stars",
-      label: "Заработано",
-      mobileLabel: "⭐",
-      render: (item) => `${item.earned_stars.toLocaleString("ru")} ⭐`,
-    },
-    {
-      key: "purchases_count",
-      label: "Покупок",
-      mobileLabel: "Покупок",
-      render: (item) => item.purchases_count || 0,
-    },
-    {
-      key: "revenue_rub",
-      label: "Выручка от рефов",
-      mobileLabel: "₽ от рефов",
-      render: (item) => `${item.revenue_rub.toLocaleString("ru")} ₽`,
-    },
-  ];
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/referrals/overview');
+      
+      if (res.status === 401 || res.status === 403) {
+        router.push('/');
+        return;
+      }
+      
+      const data = await res.json();
+      
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+      
+      setStats(data);
+    } catch (err) {
+      setError('Failed to fetch stats');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalInviters = data?.rows.length || 0;
-  const totalStarsEarned =
-    data?.rows.reduce((sum, r) => sum + r.earned_stars, 0) || 0;
-  const totalRevenue =
-    data?.rows.reduce((sum, r) => sum + r.revenue_rub, 0) || 0;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] p-8">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Реферальная система</h1>
+          <div className="text-[var(--muted)]">Загрузка...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] p-8">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Реферальная система</h1>
+          <div className="text-red-500">{error}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) return null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-[var(--text)] mb-2">Рефералы</h1>
-        <p className="text-[var(--muted)]">
-          Всего рефералов: {data?.total_referrals || 0}
-        </p>
-      </div>
-
-      {/* Summary */}
-      {data && !isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-[var(--muted)] mb-2">Бонус за реферала</p>
-              <p className="text-2xl font-bold text-[var(--text)]">
-                {data.inviter_bonus_stars} ⭐
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-[var(--muted)] mb-2">Активных рефереров</p>
-              <p className="text-2xl font-bold text-[var(--text)]">
-                {totalInviters}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-[var(--muted)] mb-2">Выдано звёзд</p>
-              <p className="text-2xl font-bold text-[var(--text)]">
-                {totalStarsEarned.toLocaleString("ru")} ⭐
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-[var(--muted)] mb-2">Выручка от рефералов</p>
-              <p className="text-2xl font-bold text-[var(--text)]">
-                {totalRevenue.toLocaleString("ru")} ₽
-              </p>
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-[var(--bg)] p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Реферальная система</h1>
+          <button
+            onClick={() => router.push('/admin')}
+            className="px-4 py-2 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border)]"
+          >
+            Назад в админку
+          </button>
         </div>
-      )}
 
-      {/* Table */}
-      <Card padding="none">
-        <CardHeader>
-          <CardTitle>Рефереры</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AdminTable
-            columns={columns}
-            data={data?.rows || []}
-            isLoading={isLoading}
-            getRowKey={(item) => item.inviter_user_id}
-            emptyMessage="Нет рефералов"
-          />
-        </CardContent>
-      </Card>
+        {/* Referral Stats */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Статистика рефералов</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-sm text-[var(--muted)] mb-1">Всего кодов</div>
+              <div className="text-3xl font-bold">{stats.overview.totalCodes}</div>
+            </div>
+            <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-sm text-[var(--muted)] mb-1">Активировано</div>
+              <div className="text-3xl font-bold">{stats.overview.totalAttributions}</div>
+            </div>
+            <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-sm text-[var(--muted)] mb-1">Событий</div>
+              <div className="text-3xl font-bold">{stats.overview.totalEvents}</div>
+            </div>
+            <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-sm text-[var(--muted)] mb-1">Начислено ⭐</div>
+              <div className="text-3xl font-bold">{stats.overview.totalStarsRewarded}</div>
+            </div>
+          </div>
+        </div>
 
-      {/* Expandable details for invitees (optional enhancement) */}
-      {data && !isLoading && expandedRow && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Детали приглашённых</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {data.rows
-                .find((r) => r.inviter_user_id === expandedRow)
-                ?.invitees.map((invitee, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center p-3 rounded-lg bg-[var(--surface2)]"
-                  >
-                    <span className="text-sm text-[var(--text)]">
-                      {invitee.invitee?.username
-                        ? `@${invitee.invitee.username}`
-                        : invitee.invitee?.name || invitee.invitee_user_id}
-                    </span>
-                    <div className="flex gap-4 text-sm text-[var(--muted)]">
-                      <span>Покупок: {invitee.purchases}</span>
-                      <span>
-                        {invitee.revenue_rub.toLocaleString("ru")} ₽
-                      </span>
+        {/* Events by Type */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">События по типам</h2>
+          <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+            {Object.entries(stats.overview.eventsByType).length > 0 ? (
+              <div className="space-y-2">
+                {Object.entries(stats.overview.eventsByType).map(([type, count]) => (
+                  <div key={type} className="flex justify-between items-center">
+                    <div className="font-medium">{type}</div>
+                    <div className="text-[var(--muted)]">{count}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-[var(--muted)]">Нет событий</div>
+            )}
+          </div>
+        </div>
+
+        {/* Top Referrers */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Топ рефереров</h2>
+          <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+            {stats.overview.topReferrers.length > 0 ? (
+              <div className="space-y-3">
+                {stats.overview.topReferrers.map((referrer, idx) => (
+                  <div key={referrer.userId} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-sm font-medium">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <div className="font-medium">{referrer.displayName}</div>
+                        <div className="text-xs text-[var(--muted)]">{referrer.userId}</div>
+                      </div>
+                    </div>
+                    <div className="text-[var(--gold)] font-semibold">
+                      {referrer.referralsCount} реф.
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="text-[var(--muted)]">Нет данных</div>
+            )}
+          </div>
+        </div>
+
+        {/* Affiliate Stats */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Партнёрская программа</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-sm text-[var(--muted)] mb-1">Всего заявок</div>
+              <div className="text-3xl font-bold">{stats.affiliate.totalApplications}</div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-sm text-[var(--muted)] mb-1">На рассмотрении</div>
+              <div className="text-3xl font-bold">{stats.affiliate.pendingApplications}</div>
+            </div>
+            <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <div className="text-sm text-[var(--muted)] mb-1">Одобрено</div>
+              <div className="text-3xl font-bold">{stats.affiliate.approvedAffiliates}</div>
+            </div>
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={() => router.push('/admin/partners')}
+              className="px-6 py-3 rounded-xl bg-[var(--gold)] text-black font-medium hover:opacity-90 transition"
+            >
+              Управление партнёрами →
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
