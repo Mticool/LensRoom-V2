@@ -39,7 +39,7 @@ export const BottomActionBar = memo(function BottomActionBar({
               Стоимость
             </div>
             <div className="text-sm font-semibold text-[var(--text)]">
-              {stars}⭐ <span className="text-[var(--muted)] font-medium">≈ {approxRub}₽</span>
+              {stars}⭐
             </div>
           </div>
 

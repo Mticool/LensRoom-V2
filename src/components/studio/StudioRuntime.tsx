@@ -570,7 +570,46 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         { duration: 9000 }
       );
     } else {
-      toast("🎨 Начинаем генерацию фото...", { duration: 3000 });
+      // Photo generation notification (same style as video)
+      toast.custom(
+        (t) => (
+          <div className="w-[min(92vw,520px)] rounded-2xl border border-white/10 bg-[var(--surface)] shadow-[var(--shadow-lg)] p-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--gold)]/15">
+                <CheckCircle2 className="h-6 w-6 text-[var(--gold)]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lg font-bold text-[var(--text)]">🎨 Фото создаётся…</div>
+                <div className="mt-1 text-sm text-[var(--text2)]">
+                  Обычно это занимает 10–30 секунд. Можно продолжать пользоваться сайтом — мы покажем уведомление, когда фото будет готово.
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-sm text-[var(--muted)]">
+                  <Loader2 className="h-4 w-4 animate-spin text-[var(--gold)]" />
+                  <span>Генерация запущена</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      toast.dismiss(t);
+                      router.push("/library");
+                    }}
+                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:border-white/30"
+                  >
+                    Открыть «Мои результаты»
+                  </button>
+                  <button
+                    onClick={() => toast.dismiss(t)}
+                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text2)] hover:text-[var(--text)]"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ),
+        { duration: 9000 }
+      );
     }
 
     try {
