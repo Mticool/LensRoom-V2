@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const { 
       prompt, 
       model, 
+      modelVariant, // For unified models like Kling
       duration, 
       mode = 't2v',
       quality,
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
       duration: duration || modelInfo.fixedDuration || 5,
       videoQuality: quality,
       audio: alwaysSound,
+      modelVariant: modelVariant || undefined,
       variants,
     });
     const creditCost = price.stars;
@@ -229,10 +231,19 @@ export async function POST(request: NextRequest) {
       if (endImage) lastFrameUrl = await uploadDataUrlToStorage(endImage, 'end');
     }
 
-    // Select correct API model ID based on mode
-    // Some models have different endpoints for t2v and i2v
+    // Select correct API model ID based on mode and variant
+    // If modelVariant is specified (for unified models like Kling), use variant's apiId
     let apiModelId = modelInfo.apiId;
-    if ((mode === 'i2v' || mode === 'start_end') && modelInfo.apiIdI2v) {
+    if (modelVariant && modelInfo.modelVariants) {
+      const variant = modelInfo.modelVariants.find(v => v.id === modelVariant);
+      if (variant) {
+        if ((mode === 'i2v' || mode === 'start_end') && variant.apiIdI2v) {
+          apiModelId = variant.apiIdI2v;
+        } else {
+          apiModelId = variant.apiId;
+        }
+      }
+    } else if ((mode === 'i2v' || mode === 'start_end') && modelInfo.apiIdI2v) {
       apiModelId = modelInfo.apiIdI2v;
     }
 

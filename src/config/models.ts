@@ -45,7 +45,8 @@ export type PhotoPricing =
 export type VideoPricing = 
   | number // Fixed price per second
   | { [key in VideoQuality]?: { [duration: string]: number } } // Price by quality and duration
-  | { [mode: string]: { [duration: string]: number } }; // Price by mode and duration
+  | { [mode: string]: { [duration: string]: number } } // Price by mode and duration
+  | { [duration: string]: number | { audio?: number; no_audio?: number } }; // Price by duration (with optional audio/no_audio)
 
 export interface PhotoModelConfig {
   id: string;
@@ -76,11 +77,19 @@ export interface PhotoModelConfig {
   shortLabel?: string;
 }
 
+export interface VideoModelVariant {
+  id: string; // e.g., "kling-2.5-turbo", "kling-2.6", "kling-2.1"
+  name: string; // Display name
+  apiId: string; // For t2v mode
+  apiIdI2v?: string; // For i2v mode
+  pricing: VideoPricing; // Pricing for this variant (same structure as VideoModelConfig.pricing)
+}
+
 export interface VideoModelConfig {
   id: string;
   name: string;
-  apiId: string; // For t2v mode
-  apiIdI2v?: string; // For i2v mode (some models have different endpoints)
+  apiId: string; // For t2v mode (default, used if no variants)
+  apiIdI2v?: string; // For i2v mode (default, used if no variants)
   type: 'video';
   provider: KieProvider;
   description: string;
@@ -95,8 +104,11 @@ export interface VideoModelConfig {
   supportsStartEnd?: boolean;
   supportsStoryboard?: boolean;
   
-  // Pricing in Kie credits
+  // Pricing in Kie credits (used if no variants)
   pricing: VideoPricing;
+  
+  // Model variants (for unified models like Kling)
+  modelVariants?: VideoModelVariant[];
   
   // Available options
   modes: VideoMode[];
@@ -349,12 +361,12 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: '8s • Fast',
   },
   
-  // === KLING 2.6 - Market API ===
+  // === KLING - Unified model with variants (2.5 Turbo, 2.6, 2.1) ===
   {
-    id: 'kling-2.6',
-    name: 'Kling 2.6',
-    apiId: 'kling-2.6/text-to-video', // For t2v mode
-    apiIdI2v: 'kling-2.6/image-to-video', // For i2v mode
+    id: 'kling',
+    name: 'Kling',
+    apiId: 'kling-2.6/text-to-video', // Default (will be overridden by variant)
+    apiIdI2v: 'kling-2.6/image-to-video', // Default
     type: 'video',
     provider: 'kie_market',
     description: 'Сильный универсал: динамика, эффектность, часто лучший «первый результат».',
@@ -363,15 +375,45 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     speed: 'medium',
     quality: 'ultra',
     supportsI2v: true,
-    supportsAudio: true,
+    supportsAudio: false, // Audio only for 2.6, but we use no_audio pricing
     pricing: {
-      '5': { no_audio: 80, audio: 160 },
-      '10': { no_audio: 160, audio: 320 },
+      '5': { no_audio: 65 }, // Minimum price (2.5 Turbo 5s)
+      '10': { no_audio: 130 }, // Minimum price (2.5 Turbo 10s)
     },
+    modelVariants: [
+      {
+        id: 'kling-2.5-turbo',
+        name: 'Kling 2.5 Turbo',
+        apiId: 'kling-2.5/text-to-video',
+        pricing: {
+          '5': { no_audio: 65 },
+          '10': { no_audio: 130 },
+        },
+      },
+      {
+        id: 'kling-2.6',
+        name: 'Kling 2.6',
+        apiId: 'kling-2.6/text-to-video',
+        apiIdI2v: 'kling-2.6/image-to-video',
+        pricing: {
+          '5': { no_audio: 80 },
+          '10': { no_audio: 160 },
+        },
+      },
+      {
+        id: 'kling-2.1',
+        name: 'Kling 2.1',
+        apiId: 'kling/v2-1',
+        pricing: {
+          '5': { no_audio: 275 },
+          '10': { no_audio: 550 },
+        },
+      },
+    ],
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
     aspectRatios: ['1:1', '16:9', '9:16'],
-    shortLabel: '5/10s • Audio',
+    shortLabel: 'от 65⭐',
   },
 
   // === SORA 2 - Market API (i2v only) ===

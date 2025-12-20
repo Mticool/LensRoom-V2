@@ -16,6 +16,7 @@ export interface PriceOptions {
   duration?: number | string; // 5, 10, 15, or '15-25'
   videoQuality?: string; // '720p', '1080p', '480p', 'fast', 'quality', 'standard', 'high'
   audio?: boolean;
+  modelVariant?: string; // For unified models like Kling: 'kling-2.5-turbo', 'kling-2.6', 'kling-2.1'
   
   // Common
   variants?: number; // Number of variants to generate
@@ -91,37 +92,75 @@ function computeVideoPrice(
   const duration = options.duration || model.fixedDuration || 5;
   const durationKey = String(duration);
   
-  // Extract pricing
-  if (typeof model.pricing === 'number') {
-    // Price per second
-    const seconds = typeof duration === 'number' ? duration : 5; // Default to 5 for ranges
-    creditsPerVideo = model.pricing * seconds;
-  } else if (options.videoQuality && model.pricing[options.videoQuality as keyof typeof model.pricing]) {
-    const qualityPricing = model.pricing[options.videoQuality as keyof typeof model.pricing] as { [key: string]: number };
-    creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;
-  } else if (options.mode && model.pricing[options.mode as keyof typeof model.pricing]) {
-    // Pricing keyed by mode (e.g. storyboard)
-    const modePricing = model.pricing[options.mode as keyof typeof model.pricing] as { [key: string]: number };
-    creditsPerVideo = modePricing[durationKey] || modePricing[String(model.fixedDuration || 5)] || 0;
-  } else if (model.pricing[durationKey as keyof typeof model.pricing]) {
-    const durationPricing = model.pricing[durationKey as keyof typeof model.pricing];
-    if (typeof durationPricing === 'number') {
-      creditsPerVideo = durationPricing;
-    } else if (typeof durationPricing === 'object') {
-      // Handle audio/no_audio options (e.g., Kling)
-      if (options.audio !== undefined) {
-        creditsPerVideo = durationPricing[options.audio ? 'audio' : 'no_audio'] || 0;
+  // If model has variants and modelVariant is specified, use variant pricing
+  if (model.modelVariants && options.modelVariant) {
+    const variant = model.modelVariants.find(v => v.id === options.modelVariant);
+    if (variant) {
+      const variantPricing = variant.pricing;
+      if (typeof variantPricing === 'number') {
+        const seconds = typeof duration === 'number' ? duration : 5;
+        creditsPerVideo = variantPricing * seconds;
+      } else if (variantPricing[durationKey as keyof typeof variantPricing]) {
+        const durationPricing = variantPricing[durationKey as keyof typeof variantPricing];
+        if (typeof durationPricing === 'number') {
+          creditsPerVideo = durationPricing;
+        } else if (typeof durationPricing === 'object') {
+          if (options.audio !== undefined) {
+            creditsPerVideo = durationPricing[options.audio ? 'audio' : 'no_audio'] || 0;
+          } else {
+            creditsPerVideo = durationPricing['no_audio'] || Object.values(durationPricing)[0] as number || 0;
+          }
+        }
       } else {
-        // Default to no_audio
-        creditsPerVideo = durationPricing['no_audio'] || Object.values(durationPricing)[0] as number || 0;
+        // Fallback to first available price
+        const firstKey = Object.keys(variantPricing)[0];
+        if (firstKey && variantPricing[firstKey as keyof typeof variantPricing]) {
+          const firstPrice = variantPricing[firstKey as keyof typeof variantPricing];
+          if (typeof firstPrice === 'number') {
+            creditsPerVideo = firstPrice;
+          } else if (typeof firstPrice === 'object' && firstPrice !== null) {
+            const values = Object.values(firstPrice);
+            creditsPerVideo = (values[0] as number) || 0;
+          }
+        }
       }
     }
-  } else {
-    // Fallback to first available price
-    const firstQuality = Object.keys(model.pricing)[0];
-    if (firstQuality && model.pricing[firstQuality as keyof typeof model.pricing]) {
-      const qualityPricing = model.pricing[firstQuality as keyof typeof model.pricing] as { [key: string]: number };
-      creditsPerVideo = Object.values(qualityPricing)[0] as number || 0;
+  }
+  
+  // If no variant pricing found, use model pricing
+  if (creditsPerVideo === 0) {
+    // Extract pricing
+    if (typeof model.pricing === 'number') {
+      // Price per second
+      const seconds = typeof duration === 'number' ? duration : 5; // Default to 5 for ranges
+      creditsPerVideo = model.pricing * seconds;
+    } else if (options.videoQuality && model.pricing[options.videoQuality as keyof typeof model.pricing]) {
+      const qualityPricing = model.pricing[options.videoQuality as keyof typeof model.pricing] as { [key: string]: number };
+      creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;
+    } else if (options.mode && model.pricing[options.mode as keyof typeof model.pricing]) {
+      // Pricing keyed by mode (e.g. storyboard)
+      const modePricing = model.pricing[options.mode as keyof typeof model.pricing] as { [key: string]: number };
+      creditsPerVideo = modePricing[durationKey] || modePricing[String(model.fixedDuration || 5)] || 0;
+    } else if (model.pricing[durationKey as keyof typeof model.pricing]) {
+      const durationPricing = model.pricing[durationKey as keyof typeof model.pricing];
+      if (typeof durationPricing === 'number') {
+        creditsPerVideo = durationPricing;
+      } else if (typeof durationPricing === 'object') {
+        // Handle audio/no_audio options (e.g., Kling)
+        if (options.audio !== undefined) {
+          creditsPerVideo = durationPricing[options.audio ? 'audio' : 'no_audio'] || 0;
+        } else {
+          // Default to no_audio
+          creditsPerVideo = durationPricing['no_audio'] || Object.values(durationPricing)[0] as number || 0;
+        }
+      }
+    } else {
+      // Fallback to first available price
+      const firstQuality = Object.keys(model.pricing)[0];
+      if (firstQuality && model.pricing[firstQuality as keyof typeof model.pricing]) {
+        const qualityPricing = model.pricing[firstQuality as keyof typeof model.pricing] as { [key: string]: number };
+        creditsPerVideo = Object.values(qualityPricing)[0] as number || 0;
+      }
     }
   }
   

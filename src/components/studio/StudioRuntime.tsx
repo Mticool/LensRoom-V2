@@ -90,6 +90,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const [aspect, setAspect] = useState<Aspect>("1:1" as Aspect);
   const [duration, setDuration] = useState<Duration>(5 as Duration);
   const [audio, setAudio] = useState<boolean>(true);
+  const [modelVariant, setModelVariant] = useState<string>(""); // For unified models like Kling
 
   const [prompt, setPrompt] = useState<string>("");
   const [scenes, setScenes] = useState<string[]>(["", "", ""]);
@@ -263,6 +264,14 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     }
 
     setAudio(!!studioModel.supportsAudio);
+    
+    // Reset modelVariant when model changes (for unified models like Kling)
+    const model = getModelById(studioModel.key);
+    if (model?.type === "video" && (model as VideoModelConfig).modelVariants?.length) {
+      setModelVariant((model as VideoModelConfig).modelVariants![0].id);
+    } else {
+      setModelVariant("");
+    }
 
     // Clear incompatible uploads
     setReferenceImage(null);
@@ -320,9 +329,10 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       // bytedance uses resolutionOptions; computePrice expects videoQuality to key into pricing
       videoQuality: String(quality || "") as any,
       audio: !!v.supportsAudio,
+      modelVariant: modelVariant || undefined,
       variants: 1,
     });
-  }, [modelInfo, kind, selectedVariant, quality, mode, duration]);
+  }, [modelInfo, kind, selectedVariant, quality, mode, duration, modelVariant]);
 
   const pollJob = useCallback(async (jobId: string, kind: "image" | "video", provider?: string) => {
     const maxAttempts = 180;
@@ -612,6 +622,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       const isResolution = typeof quality === "string" && String(quality).endsWith("p");
       const payload: any = {
         model: v.id,
+        modelVariant: modelVariant || undefined, // For unified models like Kling
         mode,
         prompt: isStoryboard ? undefined : prompt,
         shots: isStoryboard ? scenes.filter((s) => s.trim()).map((s) => ({ prompt: s.trim() })) : undefined,
@@ -820,6 +831,8 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                 onDurationChange={studioModel.kind === "video" ? (setDuration as any) : undefined}
                 audio={studioModel.kind === "video" && studioModel.supportsAudio ? audio : undefined}
                 onAudioChange={studioModel.kind === "video" && studioModel.supportsAudio ? setAudio : undefined}
+                modelVariant={modelVariant}
+                onModelVariantChange={setModelVariant}
                 referenceImage={referenceImage}
                 onReferenceImageChange={setReferenceImage}
               />

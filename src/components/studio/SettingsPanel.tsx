@@ -2,6 +2,7 @@
 
 import { memo, useId } from "react";
 import type { Aspect, Duration, Mode, Quality, StudioModel } from "@/config/studioModels";
+import { getModelById, type VideoModelConfig } from "@/config/models";
 import { cn } from "@/lib/utils";
 import { Upload, Volume2 } from "lucide-react";
 
@@ -60,6 +61,8 @@ interface SettingsPanelProps {
   onDurationChange?: (d: Duration) => void;
   audio?: boolean;
   onAudioChange?: (v: boolean) => void;
+  modelVariant?: string;
+  onModelVariantChange?: (v: string) => void;
   referenceImage: File | null;
   onReferenceImageChange: (f: File | null) => void;
 }
@@ -78,6 +81,8 @@ export const SettingsPanel = memo(function SettingsPanel({
   onDurationChange,
   audio,
   onAudioChange,
+  modelVariant,
+  onModelVariantChange,
   referenceImage,
   onReferenceImageChange,
 }: SettingsPanelProps) {
@@ -87,6 +92,11 @@ export const SettingsPanel = memo(function SettingsPanel({
   const showAudio = model.kind === "video" && !!model.supportsAudio && mode !== "storyboard";
   const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v");
   const showFormat = model.kind === "photo" && !!onOutputFormatChange;
+  
+  // Check if model has variants (like Kling)
+  const modelConfig = getModelById(model.key);
+  const hasModelVariants = modelConfig?.type === "video" && (modelConfig as VideoModelConfig).modelVariants?.length;
+  const modelVariants = hasModelVariants ? (modelConfig as VideoModelConfig).modelVariants! : [];
 
   return (
     <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
@@ -96,6 +106,26 @@ export const SettingsPanel = memo(function SettingsPanel({
       </div>
 
       <div className="p-5 space-y-5">
+        {hasModelVariants && onModelVariantChange && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Модель</div>
+            <select
+              value={modelVariant || modelVariants[0]?.id || ""}
+              onChange={(e) => onModelVariantChange(e.target.value)}
+              className={cn(
+                "w-full h-10 rounded-2xl border bg-[var(--surface2)] px-3 text-sm text-[var(--text)]",
+                "border-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--gold)]/20"
+              )}
+            >
+              {modelVariants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variant.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        
         <div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Режим</div>
           <div className="flex flex-wrap gap-2">

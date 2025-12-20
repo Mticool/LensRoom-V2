@@ -1,5 +1,6 @@
 import { PHOTO_MODELS, VIDEO_MODELS, type ModelConfig, type PhotoModelConfig, type VideoModelConfig } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
+import type { PriceOptions } from "@/lib/pricing/compute-price";
 
 export type ModelKind = "photo" | "video";
 export type Mode = "t2i" | "i2i" | "t2v" | "i2v" | "start_end" | "storyboard";
@@ -76,16 +77,28 @@ function defaultPriceOptions(model: ModelConfig): any {
 }
 
 function toStudioModel(model: ModelConfig): StudioModel {
-  const computed = computePrice(model.id, defaultPriceOptions(model)).stars;
+  // For models with variants (like Kling), calculate minimum price across all variants
+  let computed = computePrice(model.id, defaultPriceOptions(model)).stars;
+  if (model.type === "video" && (model as VideoModelConfig).modelVariants?.length) {
+    const variants = (model as VideoModelConfig).modelVariants!;
+    const durations = (model as VideoModelConfig).durationOptions || [5, 10];
+    const minPrices = variants.flatMap(v => 
+      durations.map(d => computePrice(model.id, { modelVariant: v.id, duration: d, variants: 1 }).stars)
+    );
+    computed = minPrices.length > 0 ? Math.min(...minPrices) : computed;
+  }
+  
   const baseStarsOverride: Record<string, number> = {
     // Ensure we never show "—" for Sora 2 in sidebar, even if pricing config changes.
     "sora-2": 40,
+    "kling": 65, // Minimum price (2.5 Turbo 5s)
   };
   const baseStars = computed > 0 ? computed : (baseStarsOverride[model.id] || 0);
 
   const subtitleOverride: Record<string, string> = {
     "nano-banana": "Быстро и дёшево для тестов/черновиков",
     "veo-3.1": "Кинореал • fast по умолчанию",
+    "kling": "Сильный универсал: динамика, эффектность",
     "sora-2": "Стабильное i2v-видео для большинства задач",
     "sora-2-pro": "Премиум качество (i2v / start_end)",
     "topaz-image-upscale": "Апскейл (≤2K/4K/8K) • нужен референс",
