@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { Button } from '@/components/ui/button';
 import { 
   Users, 
@@ -47,20 +46,12 @@ const WAITLIST_TYPES = [
 ];
 
 export default function AdminWaitlistPage() {
-  const { user, loading: authLoading } = useTelegramAuth();
   const [stats, setStats] = useState<WaitlistStats | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<string>('academy');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [sending, setSending] = useState(false);
-
-  // Check admin access
-  useEffect(() => {
-    if (!authLoading && (!user || !user.isAdmin)) {
-      window.location.href = '/';
-    }
-  }, [user, authLoading]);
 
   // Fetch stats
   const fetchStats = async () => {
@@ -92,11 +83,9 @@ export default function AdminWaitlistPage() {
   };
 
   useEffect(() => {
-    if (user?.isAdmin) {
-      fetchStats();
-      fetchSubscriptions();
-    }
-  }, [user, selectedType]);
+    fetchStats();
+    fetchSubscriptions();
+  }, [selectedType]);
 
   // Send broadcast
   const handleBroadcast = async () => {
@@ -133,25 +122,12 @@ export default function AdminWaitlistPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
-      </div>
-    );
-  }
-
-  if (!user?.isAdmin) {
-    return null;
-  }
-
   const selectedTypeInfo = WAITLIST_TYPES.find(t => t.id === selectedType);
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] py-8">
-      <div className="container mx-auto px-6">
-        {/* Header */}
-        <div className="mb-8">
+    <div>
+      {/* Header */}
+      <div className="mb-8">
           <h1 className="text-3xl font-bold text-[var(--text)] mb-2">
             Управление Waitlist
           </h1>
@@ -310,8 +286,7 @@ export default function AdminWaitlistPage() {
             </div>
           )}
         </div>
-      </div>
-    </main>
+    </div>
   );
 }
 
