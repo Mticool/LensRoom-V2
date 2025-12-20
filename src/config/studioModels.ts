@@ -108,7 +108,7 @@ function toStudioModel(model: ModelConfig): StudioModel {
     // Ensure we never show "—" for Sora 2 in sidebar, even if pricing config changes.
     "sora-2": 40,
     "kling": 65, // Minimum price (2.5 Turbo 5s)
-    "wan": 90, // Minimum price (WAN 2.5 720p 5s)
+    "wan": 60, // Minimum price (WAN 2.2 Turbo 480p 5s)
   };
   const baseStars = computed > 0 ? computed : (baseStarsOverride[model.id] || 0);
 
