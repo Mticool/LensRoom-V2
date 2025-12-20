@@ -8,7 +8,7 @@ import { CheckCircle2, Film, Loader2 } from "lucide-react";
 
 import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
-import { approxRubFromStars } from "@/config/pricing";
+// Removed: import { approxRubFromStars } from "@/config/pricing";
 import { computePrice } from "@/lib/pricing/compute-price";
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { usePreferencesStore } from "@/stores/preferences-store";
@@ -305,17 +305,16 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, isStoryboard, scenes, prompt]);
 
   const price = useMemo(() => {
-    if (!modelInfo) return { stars: 0, approxRub: 0, credits: 0 };
+    if (!modelInfo) return { stars: 0, credits: 0 };
 
     if (modelInfo.type === "photo") {
       // ⭐ price for photo ALWAYS comes from resolved selectedVariant
       if (kind === "photo") {
-        if (!selectedVariant) return { stars: 0, approxRub: 0, credits: 0 };
+        if (!selectedVariant) return { stars: 0, credits: 0 };
         const stars = selectedVariant.stars;
         return {
           credits: stars, // UI only (raw credits may differ); backend computes final credits.
           stars,
-          approxRub: approxRubFromStars(stars),
         };
       }
       const isResolution = typeof quality === "string" && String(quality).includes("x");
@@ -892,7 +891,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
         <BottomActionBar
           stars={price.stars}
-          approxRub={price.approxRub}
+          approxRub={0}
           hint={
             studioModel.kind === "video"
               ? "Влияет на цену: режим • качество • длительность"

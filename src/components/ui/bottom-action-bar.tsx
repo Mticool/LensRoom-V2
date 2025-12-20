@@ -59,7 +59,6 @@ export function BottomActionBar({
               <span className="text-sm text-[var(--muted)]">{priceLabel}:</span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-bold text-[var(--text)]">{stars}⭐</span>
-                <span className="text-sm text-[var(--muted)]">≈ {approxRub}₽</span>
               </div>
             </div>
             {warningText && (
