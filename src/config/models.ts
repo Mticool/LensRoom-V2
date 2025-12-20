@@ -342,7 +342,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiId: 'veo3', // actual selection is via `qualityOptions` fast/quality in API client
     type: 'video',
     provider: 'kie_veo', // Separate Veo API
-    description: 'Премиальный «кинореал» + синхро-аудио, топ под рекламу/вау-ролики.',
+    description: 'Самая быстрая модель для видео (8 сек за ~1 минуту). Отличное качество, стабильная физика, хорошо держит движение камеры и объекты.',
     rank: 1,
     featured: true,
     speed: 'slow',
@@ -370,7 +370,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'kling-2.6/image-to-video', // Default
     type: 'video',
     provider: 'kie_market',
-    description: 'Сильный универсал: динамика, эффектность, часто лучший «первый результат».',
+    description: 'Сильный универсал для эффектных видео: отличная динамика, стабильные объекты, хорошо работает с людьми и экшеном. Три версии на выбор.',
     rank: 3,
     featured: true,
     speed: 'medium',
@@ -424,7 +424,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiId: 'sora-2-image-to-video', // i2v only
     type: 'video',
     provider: 'kie_market',
-    description: 'Универсальная генерация видео: сцены, движение, стабильность.',
+    description: 'OpenAI Sora 2: универсальная генерация с балансом качества и скорости. Подходит для большинства задач.',
     rank: 4,
     featured: true,
     speed: 'medium',
@@ -447,7 +447,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiId: 'sora-2-pro-image-to-video', // i2v
     type: 'video',
     provider: 'kie_market',
-    description: 'Максимум качества/стабильности сцены, когда важна «киношность».',
+    description: 'OpenAI Sora 2 Pro: максимальное качество и стабильность сцены. Когда важна "киношность" и чистота кадра.',
     rank: 5,
     featured: true,
     speed: 'slow',
@@ -499,7 +499,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'wan-2.5/image-to-video', // Default
     type: 'video',
     provider: 'kie_market',
-    description: 'Универсальная модель для генерации видео с выбором версии и разрешения.',
+    description: 'Бюджетная универсальная модель: хорошее качество за адекватную цену. Выбор версии (2.2/2.5) и разрешения (до 1080p).',
     rank: 8,
     featured: true,
     speed: 'medium',
