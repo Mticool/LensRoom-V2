@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface FavoritesState {
   favorites: Set<string>;
+  _hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
   addFavorite: (id: string) => Promise<void>;
   removeFavorite: (id: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
@@ -14,13 +16,58 @@ interface FavoritesState {
 const setToArray = (set: Set<string>) => Array.from(set);
 const arrayToSet = (arr: string[]) => new Set(arr);
 
+// Safe localStorage wrapper for SSR
+const safeStorage = {
+  getItem: (name: string) => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const str = localStorage.getItem(name);
+      if (!str) return null;
+      const data = JSON.parse(str);
+      return JSON.stringify({
+        ...data,
+        state: {
+          ...data.state,
+          favorites: data.state?.favorites || [],
+        },
+      });
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const parsed = JSON.parse(value);
+      const data = {
+        ...parsed,
+        state: {
+          ...parsed.state,
+          favorites: parsed.state?.favorites ? setToArray(parsed.state.favorites) : [],
+        },
+      };
+      localStorage.setItem(name, JSON.stringify(data));
+    } catch {
+      // Ignore errors
+    }
+  },
+  removeItem: (name: string) => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(name);
+  },
+};
+
 export const useFavoritesStore = create<FavoritesState>()(
   persist(
     (set, get) => ({
       favorites: new Set<string>(),
+      _hasHydrated: false,
+      
+      setHasHydrated: (state) => {
+        set({ _hasHydrated: state });
+      },
 
       addFavorite: async (id: string) => {
-        // Optimistic update
         set((state) => ({
           favorites: new Set([...state.favorites, id]),
         }));
@@ -33,7 +80,6 @@ export const useFavoritesStore = create<FavoritesState>()(
             body: JSON.stringify({ is_favorite: true }),
           });
         } catch (error) {
-          // Rollback on error
           set((state) => {
             const newFavorites = new Set(state.favorites);
             newFavorites.delete(id);
@@ -44,7 +90,6 @@ export const useFavoritesStore = create<FavoritesState>()(
       },
 
       removeFavorite: async (id: string) => {
-        // Optimistic update
         set((state) => {
           const newFavorites = new Set(state.favorites);
           newFavorites.delete(id);
@@ -59,7 +104,6 @@ export const useFavoritesStore = create<FavoritesState>()(
             body: JSON.stringify({ is_favorite: false }),
           });
         } catch (error) {
-          // Rollback on error
           set((state) => ({
             favorites: new Set([...state.favorites, id]),
           }));
@@ -97,32 +141,17 @@ export const useFavoritesStore = create<FavoritesState>()(
     }),
     {
       name: 'lensroom-favorites',
-      // Custom serialization for Set
-      storage: {
-        getItem: (name) => {
-          const str = localStorage.getItem(name);
-          if (!str) return null;
-          const data = JSON.parse(str);
-          return {
-            ...data,
-            state: {
-              ...data.state,
-              favorites: arrayToSet(data.state.favorites || []),
-            },
-          };
-        },
-        setItem: (name, value) => {
-          const data = {
-            ...value,
-            state: {
-              ...value.state,
-              favorites: setToArray(value.state.favorites),
-            },
-          };
-          localStorage.setItem(name, JSON.stringify(data));
-        },
-        removeItem: (name) => localStorage.removeItem(name),
+      storage: createJSONStorage(() => safeStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+        // Convert array back to Set after hydration
+        if (state && Array.isArray(state.favorites)) {
+          state.favorites = new Set(state.favorites as unknown as string[]);
+        }
       },
+      partialize: (state) => ({ 
+        favorites: setToArray(state.favorites),
+      }),
     }
   )
 );

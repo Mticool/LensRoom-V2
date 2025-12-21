@@ -9,22 +9,34 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export function LowBalanceAlert() {
   const router = useRouter();
-  const { balance, checkLowBalance, shouldShowLowBalanceNotification, markLowBalanceNotified } = useCreditsStore();
+  const [mounted, setMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [severity, setSeverity] = useState<'critical' | 'low' | 'medium' | null>(null);
+  
+  // Get store values only after mount to avoid hydration mismatch
+  const balance = useCreditsStore((state) => state.balance);
+  const checkLowBalance = useCreditsStore((state) => state.checkLowBalance);
+  const shouldShowLowBalanceNotification = useCreditsStore((state) => state.shouldShowLowBalanceNotification);
+  const markLowBalanceNotified = useCreditsStore((state) => state.markLowBalanceNotified);
+
+  // Handle SSR - only render after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+    
     const level = checkLowBalance();
     setSeverity(level);
     
     if (level && shouldShowLowBalanceNotification()) {
-      // Small delay to not interrupt initial page load
       const timer = setTimeout(() => {
         setIsVisible(true);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [balance, checkLowBalance, shouldShowLowBalanceNotification]);
+  }, [mounted, balance, checkLowBalance, shouldShowLowBalanceNotification]);
 
   const handleDismiss = () => {
     setIsVisible(false);
@@ -37,7 +49,8 @@ export function LowBalanceAlert() {
     router.push('/pricing');
   };
 
-  if (!severity || !isVisible) return null;
+  // Don't render until mounted and visible
+  if (!mounted || !severity || !isVisible) return null;
 
   const config = {
     critical: {
