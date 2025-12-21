@@ -26,6 +26,7 @@ import { PhotoSettingsPanel } from "@/components/studio/PhotoSettingsPanel";
 import { PromptBox } from "@/components/studio/PromptBox";
 import { BottomActionBar } from "@/components/studio/BottomActionBar";
 import { StartEndUpload } from "@/components/studio/StartEndUpload";
+import { GenerationQueue } from "@/components/studio/GenerationQueue";
 
 type RuntimeStatus = "idle" | "queued" | "generating" | "success" | "failed";
 
@@ -842,6 +843,23 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                 <div className="text-sm text-white/90">Статус: failed</div>
                 <div className="text-xs text-[var(--muted)] mt-1">{lastError}</div>
               </div>
+            )}
+
+            {/* Generation Queue */}
+            {activeJobs.length > 0 && (
+              <GenerationQueue
+                jobs={activeJobs}
+                onJobClick={(job) => {
+                  if (job.status === 'success' && job.resultUrls.length > 0) {
+                    setResultUrls(job.resultUrls);
+                    setStatus('success');
+                    setFocusedJobId(job.jobId);
+                  }
+                }}
+                onClearCompleted={() => {
+                  setActiveJobs((prev) => prev.filter((j) => j.status === 'generating' || j.status === 'queued'));
+                }}
+              />
             )}
 
             {/* If some providers return multiple image URLs, show extra variants below preview */}

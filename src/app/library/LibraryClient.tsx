@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Loader2, ExternalLink, X, Globe, Download, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, ExternalLink, X, Globe, Download, RefreshCw, Heart, Repeat, Edit3, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { detectWebView, openExternal } from "@/lib/telegram/webview";
 import { invalidateCached } from "@/lib/client/generations-cache";
+import { useFavoritesStore } from "@/stores/favorites-store";
 import { toast } from "sonner";
 
 /**
@@ -58,17 +60,29 @@ function getAgeSeconds(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
 }
 
+// Estimated generation times by type (seconds)
+const ESTIMATED_TIMES = {
+  photo: { min: 10, max: 30 },
+  video: { min: 60, max: 180 },
+};
+
 export function LibraryClient() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'favorites'>('all');
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<LibraryItem | null>(null);
   const [imageError, setImageError] = useState<Set<string>>(new Set());
+  const [editPromptOpen, setEditPromptOpen] = useState(false);
+  const [editedPrompt, setEditedPrompt] = useState("");
+
+  const { favorites, toggleFavorite, isFavorite, fetchFavorites } = useFavoritesStore();
 
   const prevStatusRef = useRef<Record<string, UiStatus>>({});
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,6 +91,11 @@ export function LibraryClient() {
   const isWebView = useMemo(() => detectWebView(), []);
 
   const LIMIT = 24;
+
+  // Fetch favorites on mount
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
 
   // Fetch generations from API
   const fetchGenerations = useCallback(async (
@@ -152,16 +171,29 @@ export function LibraryClient() {
     return () => window.removeEventListener("generations:refresh", onRefresh as any);
   }, [fetchGenerations]);
 
-  // Build grid items
+  // Build grid items with filter
   const grid = useMemo(() => {
-    return items.map((item) => {
+    let filtered = items;
+    
+    // Apply favorites filter
+    if (filter === 'favorites') {
+      filtered = items.filter(item => favorites.has(item.id));
+    }
+    
+    return filtered.map((item) => {
       const st = normalizeStatus(item.status);
       const isVideo = String(item?.type || "").toLowerCase() === "video";
       const ageSeconds = getAgeSeconds(item.created_at);
       const needsPreview = st === "success" && item.preview_status !== "ready";
-      return { item, st, isVideo, ageSeconds, needsPreview };
+      const progress = st === "generating" || st === "queued" 
+        ? calculateProgress(item.created_at, item.type) 
+        : 0;
+      const timeRemaining = st === "generating" || st === "queued"
+        ? formatTimeRemaining(item.created_at, item.type)
+        : null;
+      return { item, st, isVideo, ageSeconds, needsPreview, progress, timeRemaining };
     });
-  }, [items]);
+  }, [items, filter, favorites]);
 
   // Determine if we need polling and at what interval
   const pollingConfig = useMemo(() => {
@@ -280,6 +312,79 @@ export function LibraryClient() {
     setImageError((prev) => new Set([...prev, id]));
   };
 
+  // Navigate to create page with same settings
+  const handleRegenerateSimilar = (item: LibraryItem) => {
+    const isVideo = String(item.type || "").toLowerCase() === "video";
+    const params = new URLSearchParams();
+    
+    if (item.prompt) {
+      params.set("prompt", item.prompt);
+    }
+    if (item.model_name) {
+      params.set("model", item.model_name);
+    }
+    
+    const path = isVideo ? "/create/video" : "/create";
+    router.push(`${path}?${params.toString()}`);
+    toast.success("Настройки применены! Можете редактировать промпт.");
+  };
+
+  // Open edit prompt dialog
+  const handleEditPrompt = (item: LibraryItem) => {
+    setEditedPrompt(item.prompt || "");
+    setEditPromptOpen(true);
+  };
+
+  // Navigate to create with edited prompt
+  const handleRegenerateWithNewPrompt = () => {
+    if (!selected || !editedPrompt.trim()) return;
+    
+    const isVideo = String(selected.type || "").toLowerCase() === "video";
+    const params = new URLSearchParams();
+    params.set("prompt", editedPrompt.trim());
+    if (selected.model_name) {
+      params.set("model", selected.model_name);
+    }
+    
+    const path = isVideo ? "/create/video" : "/create";
+    router.push(`${path}?${params.toString()}`);
+    setEditPromptOpen(false);
+    setOpen(false);
+    toast.success("Создайте новую генерацию с изменённым промптом!");
+  };
+
+  // Toggle favorite
+  const handleToggleFavorite = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    await toggleFavorite(id);
+    toast.success(isFavorite(id) ? "Удалено из избранного" : "Добавлено в избранное");
+  };
+
+  // Format estimated time remaining
+  const formatTimeRemaining = (createdAt: string, type: string): string => {
+    const ageSeconds = getAgeSeconds(createdAt);
+    const isVideo = type.toLowerCase() === "video";
+    const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
+    
+    const avgTime = (min + max) / 2;
+    const remaining = Math.max(0, avgTime - ageSeconds);
+    
+    if (remaining <= 0) return "Скоро...";
+    if (remaining < 60) return `~${Math.ceil(remaining)} сек`;
+    return `~${Math.ceil(remaining / 60)} мин`;
+  };
+
+  // Calculate progress percentage based on time
+  const calculateProgress = (createdAt: string, type: string): number => {
+    const ageSeconds = getAgeSeconds(createdAt);
+    const isVideo = type.toLowerCase() === "video";
+    const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
+    
+    const avgTime = (min + max) / 2;
+    const progress = Math.min(95, (ageSeconds / avgTime) * 100);
+    return Math.round(progress);
+  };
+
   const handleDownload = async (generationId: string, kind: 'original' | 'preview' | 'poster' = 'original') => {
     try {
       const downloadUrl = `/api/generations/${generationId}/download?kind=${kind}`;
@@ -316,15 +421,41 @@ export function LibraryClient() {
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--text)]">Мои результаты</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">История фото и видео генераций</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing || loading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Обновить
-          </Button>
+          <div className="flex gap-2">
+            {/* Filter tabs */}
+            <div className="flex bg-[var(--surface)] rounded-xl p-1 border border-[var(--border)]">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  filter === 'all' 
+                    ? 'bg-white text-black font-medium' 
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                Все
+              </button>
+              <button
+                onClick={() => setFilter('favorites')}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-1 ${
+                  filter === 'favorites' 
+                    ? 'bg-white text-black font-medium' 
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                <Heart className="w-3.5 h-3.5" />
+                Избранное
+              </button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Обновить
+            </Button>
+          </div>
         </div>
 
         {loading && (
@@ -352,18 +483,17 @@ export function LibraryClient() {
         {!loading && !error && grid.length > 0 && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {grid.map(({ item, st, isVideo, needsPreview }) => {
+              {grid.map(({ item, st, isVideo, needsPreview, progress, timeRemaining }) => {
                 const hasError = imageError.has(String(item.id));
                 const displayUrl = getCardDisplayUrl(item, isVideo);
                 const canDisplay = !!displayUrl && !hasError;
+                const isFav = isFavorite(item.id);
                 
                 // Determine if we should show the card as "ready"
-                // For photos: show if we have originalUrl (even without preview)
-                // For videos: show placeholder if no poster yet
                 const hasContent = st === "success" && (item.originalUrl || item.previewUrl || item.posterUrl);
 
                 return (
-                  <div key={String(item.id)} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                  <div key={String(item.id)} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden group">
                     <div className="relative aspect-square bg-black/20">
                       {canDisplay ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -376,7 +506,7 @@ export function LibraryClient() {
                           onError={() => handleImageError(String(item.id))}
                         />
                       ) : isVideo && st === "success" ? (
-                        // Video without poster: show placeholder
+                        // Video without poster
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                           <div className="text-center">
                             <div className="text-6xl mb-2">▶️</div>
@@ -389,7 +519,6 @@ export function LibraryClient() {
                           </div>
                         </div>
                       ) : st === "success" && !displayUrl ? (
-                        // Photo without any URL (rare edge case)
                         <div className="w-full h-full flex items-center justify-center">
                           <div className="text-center">
                             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-white/40" />
@@ -397,17 +526,30 @@ export function LibraryClient() {
                           </div>
                         </div>
                       ) : st === "generating" || st === "queued" ? (
-                        // Generating/queued state
+                        // Enhanced generating state with progress
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
-                          <div className="text-center">
+                          <div className="text-center px-4">
                             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-white/60" />
-                            <div className="text-sm text-white/80">
+                            <div className="text-sm text-white/80 mb-2">
                               {st === "queued" ? "В очереди..." : "Генерация..."}
                             </div>
+                            {/* Progress bar */}
+                            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
+                              <div 
+                                className="h-full bg-[var(--gold)] transition-all duration-500"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            {/* Time remaining */}
+                            {timeRemaining && (
+                              <div className="flex items-center justify-center gap-1 text-xs text-white/50">
+                                <Clock className="w-3 h-3" />
+                                {timeRemaining}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ) : (
-                        // Error or unknown state
                         <div className="w-full h-full flex items-center justify-center text-xs text-[var(--muted)]">
                           {hasError ? "Ошибка загрузки" : st === "failed" ? "Ошибка генерации" : "—"}
                         </div>
@@ -418,8 +560,23 @@ export function LibraryClient() {
                         <Badge variant={statusBadgeVariant(st)}>{st}</Badge>
                       </div>
                       
+                      {/* Favorite button (always visible on hover) */}
+                      {st === "success" && (
+                        <button
+                          onClick={(e) => handleToggleFavorite(item.id, e)}
+                          className={`absolute top-3 right-3 p-2 rounded-xl transition-all ${
+                            isFav 
+                              ? 'bg-red-500/90 text-white' 
+                              : 'bg-black/50 text-white/70 opacity-0 group-hover:opacity-100 hover:bg-black/70 hover:text-white'
+                          }`}
+                          title={isFav ? "Убрать из избранного" : "Добавить в избранное"}
+                        >
+                          <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
+                        </button>
+                      )}
+                      
                       {/* Preview status indicator */}
-                      {st === "success" && needsPreview && (
+                      {st === "success" && needsPreview && !isFav && (
                         <div className="absolute top-3 right-3">
                           <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Превью генерируется" />
                         </div>
@@ -443,14 +600,24 @@ export function LibraryClient() {
                           Открыть
                         </Button>
                         {hasContent && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDownload(item.id, 'original')}
-                            title="Скачать"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRegenerateSimilar(item)}
+                              title="Сгенерировать похожее"
+                            >
+                              <Repeat className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownload(item.id, 'original')}
+                              title="Скачать"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -498,11 +665,38 @@ export function LibraryClient() {
                 {selected.model_name || "Результат"}
               </div>
               <div className="flex items-center gap-2">
+                {/* Favorite button */}
+                <button
+                  className={`p-2 rounded-xl transition-colors ${
+                    isFavorite(selected.id) 
+                      ? 'bg-red-500/20 text-red-400' 
+                      : 'hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)]'
+                  }`}
+                  onClick={() => handleToggleFavorite(selected.id)}
+                  title={isFavorite(selected.id) ? "Убрать из избранного" : "Добавить в избранное"}
+                >
+                  <Heart className={`w-5 h-5 ${isFavorite(selected.id) ? 'fill-current' : ''}`} />
+                </button>
+                {/* Regenerate similar */}
+                <button
+                  className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                  onClick={() => handleRegenerateSimilar(selected)}
+                  title="Сгенерировать похожее"
+                >
+                  <Repeat className="w-5 h-5" />
+                </button>
+                {/* Edit and regenerate */}
+                <button
+                  className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                  onClick={() => handleEditPrompt(selected)}
+                  title="Редактировать и пересоздать"
+                >
+                  <Edit3 className="w-5 h-5" />
+                </button>
                 {selected.originalUrl && (
                   <button
                     className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
                     onClick={() => handleDownload(selected.id, 'original')}
-                    aria-label="Download original"
                     title="Скачать оригинал"
                   >
                     <Download className="w-5 h-5" />
@@ -512,7 +706,6 @@ export function LibraryClient() {
                   <button
                     className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
                     onClick={() => handleOpenExternal(selected.originalUrl!)}
-                    aria-label="Open in browser"
                     title="Открыть в браузере"
                   >
                     <Globe className="w-5 h-5" />
@@ -521,7 +714,6 @@ export function LibraryClient() {
                 <button
                   className="p-2 rounded-xl hover:bg-white/5"
                   onClick={() => setOpen(false)}
-                  aria-label="Close"
                 >
                   <X className="w-5 h-5 text-white/80" />
                 </button>
@@ -560,7 +752,16 @@ export function LibraryClient() {
                 />
               )}
             </div>
-            {/* Fallback message */}
+            
+            {/* Prompt section */}
+            {selected.prompt && (
+              <div className="px-4 py-3 border-t border-[var(--border)]">
+                <p className="text-xs text-[var(--muted)] mb-1">Промпт:</p>
+                <p className="text-sm text-[var(--text)]">{selected.prompt}</p>
+              </div>
+            )}
+            
+            {/* WebView fallback */}
             {isWebView && selected.originalUrl && (
               <div className="px-4 py-3 border-t border-[var(--border)] text-center">
                 <button
@@ -572,6 +773,53 @@ export function LibraryClient() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Prompt Modal */}
+      {editPromptOpen && selected && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
+          onClick={() => setEditPromptOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-[var(--surface)] rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+              <h3 className="font-semibold text-[var(--text)]">Редактировать промпт</h3>
+              <button
+                className="p-2 rounded-xl hover:bg-white/5"
+                onClick={() => setEditPromptOpen(false)}
+              >
+                <X className="w-5 h-5 text-white/80" />
+              </button>
+            </div>
+            <div className="p-4">
+              <textarea
+                value={editedPrompt}
+                onChange={(e) => setEditedPrompt(e.target.value)}
+                className="w-full h-32 p-3 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder:text-[var(--muted)] resize-none focus:outline-none focus:border-[var(--gold)]/50"
+                placeholder="Введите новый промпт..."
+              />
+              <div className="mt-4 flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditPromptOpen(false)}
+                >
+                  Отмена
+                </Button>
+                <Button
+                  onClick={handleRegenerateWithNewPrompt}
+                  disabled={!editedPrompt.trim()}
+                  className="bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+                >
+                  <Repeat className="w-4 h-4 mr-2" />
+                  Создать
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

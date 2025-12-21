@@ -1,14 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getSession } from "@/lib/telegram/auth";
 
 interface GenerationUpdate {
   status?: "pending" | "processing" | "completed" | "failed";
   results?: { url: string; thumbnail?: string }[];
   thumbnailUrl?: string;
   creditsUsed?: number;
-  isFavorite?: boolean;
+  is_favorite?: boolean;
   isPublic?: boolean;
   tags?: string[];
+}
+
+// Helper to get user ID from either Telegram or Supabase auth
+async function getUserId(): Promise<string | null> {
+  // Try Telegram auth first
+  const session = await getSession();
+  if (session) {
+    const supabase = getSupabaseAdmin();
+    const { data } = await supabase
+      .from("telegram_profiles")
+      .select("auth_user_id")
+      .eq("telegram_id", session.telegramId)
+      .single();
+    if (data?.auth_user_id) return data.auth_user_id;
+  }
+  
+  // Fallback to Supabase auth
+  const supabaseClient = await createServerSupabaseClient();
+  if (supabaseClient) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user?.id) return user.id;
+  }
+  
+  return null;
 }
 
 // GET - Fetch single generation
@@ -59,16 +85,13 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
-    }
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const userId = await getUserId();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const supabase = getSupabaseAdmin();
     const body: GenerationUpdate = await request.json();
     const updateData: Record<string, unknown> = {};
 
@@ -94,8 +117,8 @@ export async function PATCH(
       updateData.credits_used = body.creditsUsed;
     }
 
-    if (body.isFavorite !== undefined) {
-      updateData.is_favorite = body.isFavorite;
+    if (body.is_favorite !== undefined) {
+      updateData.is_favorite = body.is_favorite;
     }
 
     if (body.isPublic !== undefined) {
@@ -110,7 +133,7 @@ export async function PATCH(
       .from("generations")
       .update(updateData)
       .eq("id", id)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .select()
       .single();
 

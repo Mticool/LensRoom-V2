@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { ReferralHandler } from "@/components/referrals/ReferralHandler";
 import { ServiceWorkerRegistration } from "@/components/service-worker/ServiceWorkerRegistration";
 import { CriticalResources } from "@/components/performance/CriticalResources";
+import { LowBalanceAlert } from "@/components/ui/low-balance-alert";
 
 // Optimized font loading with next/font
 const inter = Inter({
@@ -189,6 +190,7 @@ export default function RootLayout({
               <ReferralHandler />
             </Suspense>
             <Header />
+            <LowBalanceAlert />
             <div className="min-h-screen">{children}</div>
             <Footer />
           </Providers>
