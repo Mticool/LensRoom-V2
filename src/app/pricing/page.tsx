@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Crown, Zap, Loader2, Star, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Crown, Zap, Loader2, Star, CheckCircle2, Tag, X, Check, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -12,10 +12,110 @@ import { SUBSCRIPTION_TIERS, STAR_PACKS, formatPrice, packBonusPercent, packTota
 import { toast } from 'sonner';
 import { LoginDialog } from '@/components/auth/login-dialog';
 
+// Promocode types
+interface PromocodeResult {
+  valid: boolean;
+  error?: string;
+  promocode_id?: string;
+  bonus_type?: string;
+  bonus_value?: number;
+  description?: string;
+}
+
 export default function PricingPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  
+  // Promocode state
+  const [promoCode, setPromoCode] = useState('');
+  const [promoExpanded, setPromoExpanded] = useState(false);
+  const [promoValidating, setPromoValidating] = useState(false);
+  const [promoApplying, setPromoApplying] = useState(false);
+  const [promoResult, setPromoResult] = useState<PromocodeResult | null>(null);
+
+  const validatePromocode = useCallback(async () => {
+    if (!promoCode.trim()) {
+      toast.error('Введите промокод');
+      return;
+    }
+
+    setPromoValidating(true);
+    setPromoResult(null);
+
+    try {
+      const res = await fetch('/api/promocodes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: promoCode.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Ошибка проверки');
+      }
+
+      setPromoResult(data);
+
+      if (data.valid) {
+        toast.success('Промокод применён!');
+      } else {
+        toast.error(data.error || 'Промокод недействителен');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Ошибка проверки промокода');
+      setPromoResult({ valid: false, error: error.message });
+    } finally {
+      setPromoValidating(false);
+    }
+  }, [promoCode]);
+
+  const applyBonusStars = useCallback(async () => {
+    if (!promoCode.trim()) return;
+
+    setPromoApplying(true);
+
+    try {
+      const res = await fetch('/api/promocodes/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: promoCode.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Ошибка применения');
+      }
+
+      setPromoResult({ valid: true, ...data });
+      toast.success(data.message || `Получено +${data.bonus_value} ⭐`);
+      setPromoCode('');
+    } catch (error: any) {
+      toast.error(error.message || 'Ошибка применения промокода');
+    } finally {
+      setPromoApplying(false);
+    }
+  }, [promoCode]);
+
+  const clearPromocode = () => {
+    setPromoResult(null);
+    setPromoCode('');
+    setPromoExpanded(false);
+  };
+
+  const formatBonusValue = (type: string, value: number) => {
+    switch (type) {
+      case 'bonus_stars': return `+${value} ⭐`;
+      case 'percent_discount': return `-${value}%`;
+      case 'fixed_discount': return `-${value} ₽`;
+      case 'multiplier': return `x${value}`;
+      default: return value;
+    }
+  };
 
   const handlePurchase = async (type: 'subscription' | 'package', itemId: string) => {
     setLoading(itemId);
@@ -288,6 +388,82 @@ export default function PricingPage() {
               Стоимость зависит от модели и режима (фото/видео/длина/качество).
             </p>
           </div>
+
+          {/* Promocode Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-16 max-w-md mx-auto"
+          >
+            <div className="p-6 rounded-2xl bg-[var(--surface)] border-2 border-white/15">
+              <div className="flex items-center gap-2 mb-4">
+                <Gift className="w-5 h-5 text-[var(--gold)]" />
+                <h3 className="font-semibold text-[var(--text)]">Есть промокод?</h3>
+              </div>
+
+              {promoResult?.valid ? (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                  <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-emerald-400">{promoCode}</span>
+                      <span className="text-sm text-emerald-300">
+                        {promoResult.bonus_type && promoResult.bonus_value
+                          ? formatBonusValue(promoResult.bonus_type, promoResult.bonus_value)
+                          : ''}
+                      </span>
+                    </div>
+                    {promoResult.description && (
+                      <p className="text-xs text-emerald-300/70 truncate">{promoResult.description}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={clearPromocode}
+                    className="p-1 text-emerald-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => e.key === 'Enter' && applyBonusStars()}
+                        placeholder="WELCOME50"
+                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)]/50 font-mono uppercase"
+                      />
+                    </div>
+                    <Button
+                      onClick={applyBonusStars}
+                      disabled={promoValidating || promoApplying || !promoCode.trim()}
+                      className="shrink-0 bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+                    >
+                      {promoValidating || promoApplying ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Активировать'
+                      )}
+                    </Button>
+                  </div>
+                  {promoResult && !promoResult.valid && promoResult.error && (
+                    <p className="text-sm text-red-400 flex items-center gap-1">
+                      <X className="w-3 h-3" />
+                      {promoResult.error}
+                    </p>
+                  )}
+                  <p className="text-xs text-[var(--muted)]">
+                    Введите промокод для получения бонусных звёзд или скидки
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
         </div>
 
         {/* FAQ Section */}

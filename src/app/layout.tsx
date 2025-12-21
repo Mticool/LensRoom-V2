@@ -1,10 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header, Footer } from "@/components/layout";
 import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ReferralHandler } from "@/components/referrals/ReferralHandler";
+import { ServiceWorkerRegistration } from "@/components/service-worker/ServiceWorkerRegistration";
+import { CriticalResources } from "@/components/performance/CriticalResources";
+
+// Optimized font loading with next/font
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
+  variable: "--font-inter",
+  preload: true,
+});
 
 export const metadata: Metadata = {
   title: {
@@ -135,14 +146,45 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" data-theme="dark" suppressHydrationWarning>
+    <html lang="ru" data-theme="dark" suppressHydrationWarning className={inter.variable}>
       <head>
+        {/* Preconnect to critical origins */}
+        <link rel="preconnect" href="https://ndhykojwzazgmgvjaqgt.supabase.co" />
+        <link rel="dns-prefetch" href="https://ndhykojwzazgmgvjaqgt.supabase.co" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        
+        {/* PWA iOS Support */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="LensRoom" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="167x167" href="/icon-152x152.png" />
+        
+        {/* Splash screens for iOS (optional - добавить позже) */}
+        {/* <link rel="apple-touch-startup-image" href="/splash.png" /> */}
+        
+        {/* Preload critical resources */}
+        <link 
+          rel="preload" 
+          href="/og-image.png" 
+          as="image" 
+          type="image/png"
+        />
+        
+        {/* Scripts */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
-      <body className="antialiased">
+      <body className={`${inter.className} antialiased`}>
         <ErrorBoundary>
           <Providers>
+            {/* Performance optimizations */}
+            <ServiceWorkerRegistration />
+            <CriticalResources />
+            
             <Suspense fallback={null}>
               <ReferralHandler />
             </Suspense>

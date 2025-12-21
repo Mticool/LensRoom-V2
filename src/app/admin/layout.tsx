@@ -1,67 +1,264 @@
+"use client";
+
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { requireRole } from "@/lib/auth/requireRole";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Palette,
+  FileImage,
+  FileText,
+  Tag,
+  Users,
+  CreditCard,
+  Share2,
+  Handshake,
+  Coins,
+  Clock,
+  FolderOpen,
+  Sparkles,
+  Settings,
+  ChevronDown,
+  Menu,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 
-async function checkAdminAccess() {
-  // Allow both admin and manager into the panel; routes will enforce stricter access.
-  try {
-    const ctx = await requireRole("manager");
-    return ctx.session;
-  } catch {
-    return null;
-  }
-}
+// Группы навигации
+const NAV_GROUPS = [
+  {
+    title: "Обзор",
+    items: [
+      { href: "/admin", label: "Дашборд", icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: "Контент",
+    items: [
+      { href: "/admin/styles", label: "Стили", icon: Palette },
+      { href: "/admin/content", label: "Галерея", icon: FileImage },
+      { href: "/admin/categories", label: "Категории", icon: FolderOpen },
+      { href: "/admin/generator", label: "Генератор", icon: Sparkles, badge: "AI" },
+      { href: "/admin/articles", label: "Статьи", icon: FileText },
+    ],
+  },
+  {
+    title: "Маркетинг",
+    items: [
+      { href: "/admin/promocodes", label: "Промокоды", icon: Tag },
+      { href: "/admin/referrals", label: "Рефералы", icon: Share2 },
+      { href: "/admin/partners", label: "Партнёры", icon: Handshake },
+      { href: "/admin/affiliate-earnings", label: "Комиссии", icon: Coins },
+    ],
+  },
+  {
+    title: "Пользователи",
+    items: [
+      { href: "/admin/users", label: "Все пользователи", icon: Users },
+      { href: "/admin/sales", label: "Продажи", icon: CreditCard },
+      { href: "/admin/waitlist", label: "Waitlist", icon: Clock },
+    ],
+  },
+];
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await checkAdminAccess();
-
-  if (!session) {
-    redirect("/");
-  }
-
-  return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-xl">
-        <div className="container mx-auto px-6">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-8">
-              <Link href="/admin" className="text-lg font-semibold text-[var(--text)]">
-                Admin
-              </Link>
-              <div className="flex gap-1">
-                <NavLink href="/admin">Обзор</NavLink>
-                <NavLink href="/admin/styles">Стили</NavLink>
-                <NavLink href="/admin/content">Контент</NavLink>
-                <NavLink href="/admin/users">Пользователи</NavLink>
-                <NavLink href="/admin/sales">Продажи</NavLink>
-                <NavLink href="/admin/referrals">Рефералы</NavLink>
-                <NavLink href="/admin/partners">Партнёры</NavLink>
-                <NavLink href="/admin/affiliate-earnings">Комиссии</NavLink>
-                <NavLink href="/admin/waitlist">Waitlist</NavLink>
-              </div>
-            </div>
-            <Link
-              href="/"
-              className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-            >
-              ← На сайт
-            </Link>
-          </div>
-        </div>
-      </nav>
-      <main className="container mx-auto px-6 py-8">{children}</main>
-    </div>
-  );
-}
-
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+function NavItem({
+  href,
+  label,
+  icon: Icon,
+  badge,
+  isActive,
+  collapsed,
+}: {
+  href: string;
+  label: string;
+  icon: any;
+  badge?: string;
+  isActive: boolean;
+  collapsed: boolean;
+}) {
   return (
     <Link
       href={href}
-      className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+      className={cn(
+        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+        isActive
+          ? "bg-[var(--gold)]/10 text-[var(--gold)]"
+          : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]",
+        collapsed && "justify-center px-2"
+      )}
+      title={collapsed ? label : undefined}
     >
-      {children}
+      <Icon className="w-4 h-4 shrink-0" />
+      {!collapsed && (
+        <>
+          <span className="flex-1">{label}</span>
+          {badge && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--gold)]/20 text-[var(--gold)] rounded">
+              {badge}
+            </span>
+          )}
+        </>
+      )}
     </Link>
   );
 }
 
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const pathname = usePathname();
+
+  return (
+    <aside
+      className={cn(
+        "fixed left-0 top-0 h-full bg-[var(--surface)] border-r border-[var(--border)] z-40 transition-all duration-300",
+        collapsed ? "w-16" : "w-64"
+      )}
+    >
+      {/* Header */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--border)]">
+        {!collapsed && (
+          <Link href="/admin" className="text-lg font-bold text-[var(--text)]">
+            Admin
+          </Link>
+        )}
+        <button
+          onClick={onToggle}
+          className="p-2 rounded-lg text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+        >
+          {collapsed ? <Menu className="w-5 h-5" /> : <X className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="p-3 space-y-6 overflow-y-auto h-[calc(100%-4rem)]">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.title}>
+            {!collapsed && (
+              <div className="px-3 mb-2 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                {group.title}
+              </div>
+            )}
+            <div className="space-y-1">
+              {group.items.map((item) => (
+                <NavItem
+                  key={item.href}
+                  {...item}
+                  isActive={
+                    item.href === "/admin"
+                      ? pathname === "/admin"
+                      : pathname.startsWith(item.href)
+                  }
+                  collapsed={collapsed}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-[var(--border)]">
+        <Link
+          href="/"
+          className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors",
+            collapsed && "justify-center"
+          )}
+        >
+          {!collapsed && "← На сайт"}
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
+function MobileNav() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      {/* Mobile header */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-[var(--surface)] border-b border-[var(--border)] z-50 flex items-center justify-between px-4 lg:hidden">
+        <Link href="/admin" className="text-lg font-bold text-[var(--text)]">
+          Admin
+        </Link>
+        <button
+          onClick={() => setOpen(!open)}
+          className="p-2 rounded-lg text-[var(--muted)] hover:text-[var(--text)]"
+        >
+          {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </header>
+
+      {/* Mobile menu */}
+      {open && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setOpen(false)}>
+          <div
+            className="absolute left-0 top-14 bottom-0 w-72 bg-[var(--surface)] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <nav className="p-3 space-y-4">
+              {NAV_GROUPS.map((group) => (
+                <div key={group.title}>
+                  <div className="px-3 mb-2 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                    {group.title}
+                  </div>
+                  <div className="space-y-1">
+                    {group.items.map((item) => (
+                      <NavItem
+                        key={item.href}
+                        {...item}
+                        isActive={
+                          item.href === "/admin"
+                            ? pathname === "/admin"
+                            : pathname.startsWith(item.href)
+                        }
+                        collapsed={false}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+            <div className="p-3 border-t border-[var(--border)]">
+              <Link
+                href="/"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+              >
+                ← На сайт
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-[var(--bg)]">
+      {/* Desktop sidebar */}
+      <div className="hidden lg:block">
+        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      </div>
+
+      {/* Mobile nav */}
+      <MobileNav />
+
+      {/* Main content */}
+      <main
+        className={cn(
+          "min-h-screen transition-all duration-300",
+          "pt-14 lg:pt-0", // Mobile header offset
+          collapsed ? "lg:ml-16" : "lg:ml-64"
+        )}
+      >
+        <div className="p-6 lg:p-8">{children}</div>
+      </main>
+    </div>
+  );
+}

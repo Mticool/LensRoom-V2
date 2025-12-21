@@ -5,7 +5,7 @@ type CacheEntry<T> = {
   value: T;
 };
 
-const TTL_MS = 45 * 1000; // 30–60s
+const TTL_MS = 5 * 1000; // 5 seconds (short TTL for fast preview updates)
 
 const cache = new Map<CacheKey, CacheEntry<any>>();
 const inFlight = new Map<CacheKey, Promise<any>>();

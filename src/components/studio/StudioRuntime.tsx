@@ -748,6 +748,17 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     setProgress(0);
     setLastError(null);
     setResultUrls([]);
+    
+    // Clear persisted results from localStorage
+    try {
+      localStorage.removeItem("lensroom_last_photo_result");
+      localStorage.removeItem("lensroom_last_video_result");
+    } catch {
+      // Ignore storage errors
+    }
+    
+    // Dispatch event so GeneratorPreview clears its state
+    window.dispatchEvent(new CustomEvent("lensroom:clear-preview"));
   }, []);
 
   const referencePreviewUrl = useMemo(() => {
@@ -806,6 +817,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
               aspect={aspect}
               referencePreviewUrl={referencePreviewUrl}
               resultUrl={resultUrls[0] || null}
+              isGenerating={status === "generating" || status === "queued" || isStarting}
             />
 
             {mode === "start_end" && (

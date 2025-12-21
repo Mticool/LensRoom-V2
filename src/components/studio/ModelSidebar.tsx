@@ -18,11 +18,11 @@ const ModelButton = memo(
     <button
       onClick={onClick}
       className={cn(
-        "w-full text-left px-4 py-3 rounded-2xl border transition-all",
+        "w-full text-left px-4 py-3.5 rounded-2xl border transition-all",
         "motion-reduce:transition-none relative",
         isActive
           ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--text)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
-          : "bg-transparent border-transparent hover:bg-[var(--surface)] hover:border-white/10 text-[var(--text)]"
+          : "bg-[var(--surface2)]/50 border-white/5 hover:bg-[var(--surface2)] hover:border-white/15 text-[var(--text)]"
       )}
     >
       {isActive && (
@@ -32,7 +32,7 @@ const ModelButton = memo(
         <div className="min-w-0 flex-1">
           <div className={cn(
             "text-sm truncate flex items-center gap-2",
-            isActive ? "font-bold text-[var(--gold)]" : "font-medium"
+            isActive ? "font-bold text-[var(--gold)]" : "font-semibold text-white/90"
           )}>
             {model.name}
             {isActive && (
@@ -42,13 +42,13 @@ const ModelButton = memo(
             )}
           </div>
           <div className={cn(
-            "text-xs mt-0.5 truncate",
-            isActive ? "text-[var(--text)]/90 font-medium" : "text-[var(--muted)]"
+            "text-xs mt-1 truncate",
+            isActive ? "text-white/80 font-medium" : "text-white/60"
           )}>{model.subtitle}</div>
         </div>
         <div className={cn(
-          "text-xs shrink-0",
-          isActive ? "text-[var(--gold)] font-bold" : "text-[var(--muted)] font-medium"
+          "text-xs shrink-0 font-semibold",
+          isActive ? "text-[var(--gold)]" : "text-white/70"
         )}>
           {model.baseStars > 0 ? `от ${model.baseStars} ⭐` : "—"}
         </div>

@@ -4,6 +4,18 @@ import { notifyGenerationStatus } from "@/lib/telegram/notify";
 import { getKieClient } from "@/lib/api/kie-client";
 import { getModelById } from "@/config/models";
 import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generation";
+import { generateImagePreview, generateVideoPoster } from "@/lib/previews";
+import { getSourceAssetUrl, validateAssetUrl } from "@/lib/previews/asset-url";
+
+/**
+ * INSTANT PREVIEWS VERSION
+ * 
+ * Changes:
+ * - Saves original_path for storage-backed assets
+ * - Sets preview_status='none' immediately on success
+ * - Triggers async preview generation without blocking
+ * - Library shows content immediately (original if no preview)
+ */
 
 function getKieMarketConfig() {
   const apiKey = env.required("KIE_API_KEY", "KIE Market API key");
@@ -45,7 +57,6 @@ async function fetchRecordInfo(taskId: string): Promise<{ state: KieTaskState; r
     throw new Error(`KIE recordInfo invalid JSON: ${text.slice(0, 200)}`);
   }
 
-  // KIE Market API may return either { code: 0, ... } or { code: 200, ... } for success.
   const okCode = json?.code === 0 || json?.code === 200 || json?.code === "0" || json?.code === "200";
   if (!okCode) {
     const code = typeof json?.code !== "undefined" ? String(json.code) : "unknown";
@@ -76,13 +87,109 @@ async function safeUpdateGeneration(supabase: SupabaseClient, generationId: stri
   }
 }
 
+/**
+ * Extract storage path from Supabase URL
+ * https://<project>.supabase.co/storage/v1/object/public/generations/<path>
+ */
+function extractStoragePath(url: string): string | null {
+  const match = url.match(/\/storage\/v1\/object\/public\/generations\/(.+)$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Generate preview/poster for a generation (non-blocking, marks status)
+ * IDEMPOTENT: Skip if preview_path/poster_path already exists
+ */
+async function generatePreviewAsync(params: {
+  supabase: SupabaseClient;
+  generationId: string;
+  userId: string;
+  type: "photo" | "video";
+  sourceUrl: string;
+}): Promise<void> {
+  const previewsEnabled = env.optional("PREVIEWS_ENABLED");
+  if (previewsEnabled === "0" || previewsEnabled === "false") {
+    console.log(`[Preview] Skipped (PREVIEWS_ENABLED=false): ${params.generationId}`);
+    return;
+  }
+
+  const { supabase, generationId, userId, type, sourceUrl } = params;
+
+  // Check if already has preview (idempotent)
+  const { data: existing } = await supabase
+    .from("generations")
+    .select("preview_path, poster_path, preview_status")
+    .eq("id", generationId)
+    .single();
+
+  if (existing) {
+    if (type === "photo" && existing.preview_path) {
+      console.log(`[Preview] Already exists: ${generationId} (photo)`);
+      return;
+    }
+    if (type === "video" && existing.poster_path) {
+      console.log(`[Preview] Already exists: ${generationId} (video)`);
+      return;
+    }
+    if (existing.preview_status === "processing") {
+      console.log(`[Preview] Already processing: ${generationId}`);
+      return;
+    }
+  }
+
+  try {
+    // Mark as processing
+    await safeUpdateGeneration(supabase, generationId, {
+      preview_status: "processing",
+    });
+
+    if (type === "photo") {
+      const { path } = await generateImagePreview({
+        sourceUrl,
+        userId,
+        generationId,
+        supabase,
+      });
+
+      await safeUpdateGeneration(supabase, generationId, {
+        preview_path: path,
+        preview_status: "ready",
+      });
+
+      console.log(`[Preview] Ready generationId=${generationId} type=photo path=${path}`);
+    } else if (type === "video") {
+      const { path } = await generateVideoPoster({
+        videoUrl: sourceUrl,
+        userId,
+        generationId,
+        supabase,
+      });
+
+      await safeUpdateGeneration(supabase, generationId, {
+        poster_path: path,
+        preview_status: "ready",
+      });
+
+      console.log(`[Preview] Ready generationId=${generationId} type=video path=${path}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[Preview] Generation failed:", { generationId, type, error: message });
+
+    await safeUpdateGeneration(supabase, generationId, {
+      preview_status: "failed",
+      error: message,
+    }).catch(() => {});
+  }
+}
+
 async function downloadAndStoreAsset(params: {
   supabase: SupabaseClient;
   generationId: string;
   userId: string;
   kind: "image" | "video";
   sourceUrl: string;
-}): Promise<string> {
+}): Promise<{ publicUrl: string; storagePath: string }> {
   const { supabase, generationId, userId, kind, sourceUrl } = params;
 
   const downloadResponse = await fetch(sourceUrl);
@@ -110,15 +217,14 @@ async function downloadAndStoreAsset(params: {
   if (uploadError) throw uploadError;
 
   const { data } = supabase.storage.from("generations").getPublicUrl(storagePath);
-  console.log("[KIE sync-task] stored", { generationId, publicUrl: data.publicUrl });
-  return data.publicUrl;
+  console.log("[KIE sync-task] stored", { generationId, publicUrl: data.publicUrl, storagePath });
+  
+  return { publicUrl: data.publicUrl, storagePath };
 }
 
 export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId: string }) {
   const { supabase, taskId } = params;
 
-  // There can be duplicate rows with the same task_id (e.g., retries).
-  // Always pick the most recent record instead of using `.single()`.
   const { data: generation, error: fetchError } = await supabase
     .from("generations")
     .select("*")
@@ -131,12 +237,63 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     return { ok: false, reason: "generation_not_found" as const };
   }
 
+  const sourceAssetUrl = getSourceAssetUrl(generation);
+  console.log(`[Sync ENTRY] taskId=${taskId}, genId=${generation.id}, status=${generation.status}, type=${generation.type}, sourceAsset=${sourceAssetUrl ? 'found' : 'MISSING'}, preview_path=${generation.preview_path}, preview_status=${generation.preview_status}`);
+
   const st = String(generation.status || "").toLowerCase();
-  if (st === "completed" || st === "failed") {
-    return { ok: true, status: st as "completed" | "failed", assetUrl: generation.asset_url || null };
-  }
-  if (st === "success") {
-    return { ok: true, status: "completed" as const, assetUrl: generation.asset_url || null };
+  
+  // Check if preview/poster needed for already-completed generations
+  const isTerminalStatus = st === "completed" || st === "success" || st === "failed";
+  
+  if (isTerminalStatus) {
+    const isPhoto = String(generation.type || "").toLowerCase() === "photo";
+    const isVideo = String(generation.type || "").toLowerCase() === "video";
+    const previewStatus = String(generation.preview_status || "none");
+    
+    const needsPreview = 
+      isPhoto && 
+      !generation.preview_path && 
+      previewStatus !== "ready" && 
+      previewStatus !== "processing";
+    
+    const needsPoster = 
+      isVideo && 
+      !generation.poster_path && 
+      previewStatus !== "ready" && 
+      previewStatus !== "processing";
+    
+    console.log(`[Sync DEBUG] status=${st}, type=${generation.type}, preview_status=${previewStatus}, needsPreview=${needsPreview}, needsPoster=${needsPoster}, sourceAsset=${sourceAssetUrl ? 'found' : 'none'}`);
+    
+    if ((needsPreview || needsPoster) && st !== "failed") {
+      if (!sourceAssetUrl) {
+        console.warn(`[Preview] ⚠️ generationId=${generation.id} needs preview but no asset URL found`);
+        await safeUpdateGeneration(supabase, generation.id, {
+          preview_status: "failed",
+          error: "No asset URL found (checked asset_url, result_url, result_urls, thumbnail_url)",
+        }).catch(() => {});
+      } else {
+        console.log(`[Preview] Queued generationId=${generation.id} reason=needsPreview type=${generation.type} status=${st} asset=${sourceAssetUrl.substring(0, 50)}...`);
+        
+        // Trigger preview generation asynchronously (INSTANT - don't block return)
+        setImmediate(() => {
+          generatePreviewAsync({
+            supabase,
+            generationId: generation.id,
+            userId: generation.user_id,
+            type: isVideo ? "video" : "photo",
+            sourceUrl: sourceAssetUrl,
+          }).catch((err) => {
+            console.error(`[Preview] ❌ Failed for ${generation.id}:`, err);
+          });
+        });
+      }
+    }
+    
+    return { 
+      ok: true, 
+      status: st === "failed" ? "failed" : "completed", 
+      assetUrl: sourceAssetUrl || null 
+    };
   }
 
   // ---- VIDEO SYNC (including Veo) ----
@@ -152,7 +309,6 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
         status = await kieClient.getVideoGenerationStatus(String(taskId), provider);
       } catch (e1) {
         lastErr = e1;
-        // Retry without provider, then force Veo
         try {
           status = await kieClient.getVideoGenerationStatus(String(taskId));
         } catch (e2) {
@@ -174,28 +330,47 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     if (mapped === "success" && Array.isArray(status.outputs) && status.outputs[0]?.url) {
       const sourceUrl = String(status.outputs[0].url);
       let assetUrl: string | null = null;
+      let originalPath: string | null = null;
+      
       try {
-        assetUrl = await downloadAndStoreAsset({
+        const stored = await downloadAndStoreAsset({
           supabase,
           generationId: generation.id,
           userId: generation.user_id,
           kind: "video",
           sourceUrl,
         });
+        assetUrl = stored.publicUrl;
+        originalPath = stored.storagePath;
       } catch (e) {
         console.warn("[KIE sync-task] video storage failed, using source url", { taskId, err: e });
         assetUrl = sourceUrl;
       }
 
+      // Update with original_path and preview_status='none' for instant trigger
       await safeUpdateGeneration(supabase, generation.id, {
         status: "success",
         result_urls: [sourceUrl],
         asset_url: assetUrl,
-        // Keep preview/thumbnail null so client can generate poster from first frame.
+        original_path: originalPath, // NEW: save storage path
+        preview_status: "none",      // NEW: ready for instant preview
         preview_url: null,
         thumbnail_url: null,
         error: null,
         updated_at: new Date().toISOString(),
+      });
+
+      // Generate video poster (INSTANT - non-blocking)
+      setImmediate(() => {
+        generatePreviewAsync({
+          supabase,
+          generationId: generation.id,
+          userId: generation.user_id,
+          type: "video",
+          sourceUrl: assetUrl || sourceUrl,
+        }).catch((err) => {
+          console.error("[Sync] Video poster generation failed:", err);
+        });
       });
 
       try {
@@ -207,7 +382,6 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
         });
       } catch {}
 
-      // Track first_generation referral event
       try {
         await trackFirstGenerationEvent(String(generation.user_id), String(generation.id));
       } catch {}
@@ -240,6 +414,7 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     return { ok: true, status: mapped as "queued" | "generating", state: status.status };
   }
 
+  // ---- IMAGE SYNC ----
   const info = await fetchRecordInfo(taskId);
   console.log("[KIE sync-task] recordInfo", { taskId, state: info.state, hasResultJson: !!info.resultJson, failCode: info.failCode });
 
@@ -257,41 +432,59 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     const kind: "image" | "video" = String(generation.type || "").toLowerCase() === "video" ? "video" : "image";
 
     let assetUrl: string | null = null;
+    let originalPath: string | null = null;
+    
     try {
-      assetUrl = await downloadAndStoreAsset({
+      const stored = await downloadAndStoreAsset({
         supabase,
         generationId: generation.id,
         userId: generation.user_id,
         kind,
         sourceUrl: urls[0],
       });
+      assetUrl = stored.publicUrl;
+      originalPath = stored.storagePath;
     } catch (e) {
       console.warn("[KIE sync-task] storage failed, using source url", { taskId, err: e });
       assetUrl = urls[0];
     }
 
-    // For videos: asset_url is the video file. preview/thumbnail should be an image poster (generated client-side),
-    // so don't set them to the video URL.
     const isVideo = kind === "video";
+    
+    // Update with original_path and preview_status='none' for instant trigger
     await safeUpdateGeneration(supabase, generation.id, {
       status: "success",
       result_urls: urls,
       asset_url: assetUrl,
+      original_path: originalPath, // NEW: save storage path
+      preview_status: "none",      // NEW: ready for instant preview
       preview_url: isVideo ? null : assetUrl,
       thumbnail_url: isVideo ? null : assetUrl,
       error: null,
       updated_at: new Date().toISOString(),
     });
 
-    // Telegram notification (idempotent in DB)
+    // Generate preview/poster (INSTANT - non-blocking)
+    const genType = isVideo ? "video" : "photo";
+    setImmediate(() => {
+      generatePreviewAsync({
+        supabase,
+        generationId: generation.id,
+        userId: generation.user_id,
+        type: genType,
+        sourceUrl: assetUrl || urls[0],
+      }).catch((err) => {
+        console.error(`[Sync] ${genType} preview generation failed:`, err);
+      });
+    });
+
+    // Telegram notification
     try {
       const kind = String(generation.type || "").toLowerCase() === "video" ? "video" : "photo";
       await notifyGenerationStatus({ userId: String(generation.user_id), generationId: String(generation.id), kind, status: "success" });
-    } catch {
-      // ignore
-    }
+    } catch {}
 
-    // Track first_generation referral event
+    // Track referral event
     try {
       await trackFirstGenerationEvent(String(generation.user_id), String(generation.id));
     } catch {}
@@ -307,13 +500,10 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
       updated_at: new Date().toISOString(),
     });
 
-    // Telegram notification (idempotent in DB)
     try {
       const kind = String(generation.type || "").toLowerCase() === "video" ? "video" : "photo";
       await notifyGenerationStatus({ userId: String(generation.user_id), generationId: String(generation.id), kind, status: "failed" });
-    } catch {
-      // ignore
-    }
+    } catch {}
     return { ok: true, status: "failed" as const, error: msg };
   }
 

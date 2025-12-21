@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSessionToken, setSessionCookie } from '@/lib/telegram/auth';
 
+function tgEmail(telegramId: number) {
+  // Deterministic pseudo-email so we can create a Supabase auth user for Telegram logins.
+  // This is NOT used for email login; it's only an internal identifier.
+  return `tg_${telegramId}@lensroom.local`;
+}
+
+function cryptoRandomString(len: number) {
+  // Avoid adding deps; password is never used for login.
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let out = '';
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
 /**
  * GET /api/auth/telegram/status?code=xxx
  * Check if a login code has been used and create session if so
@@ -61,6 +75,59 @@ export async function GET(request: NextRequest) {
         .select('can_notify')
         .eq('telegram_id', loginCode.telegram_id)
         .single();
+
+      // Ensure auth.users entry exists for this Telegram user so generations/credits work.
+      // Bot-login flow previously did NOT create auth user, which caused:
+      // - /api/generate/photo|video -> "User account not found"
+      let authUserId: string | null = null;
+      try {
+        // Fast path: read mapping if present (migration 013)
+        authUserId = (profile as any)?.auth_user_id || null;
+
+        if (!authUserId) {
+          const email = tgEmail(Number(loginCode.telegram_id));
+          const { data: users } = await supabase.auth.admin.listUsers();
+          const found = users?.users?.find(
+            (u: any) => u.user_metadata?.telegram_id === loginCode.telegram_id || u.email === email
+          );
+          authUserId = found?.id || null;
+
+          if (!authUserId) {
+            const randomPassword = cryptoRandomString(32);
+            const { data: created, error: createError } = await supabase.auth.admin.createUser({
+              email,
+              password: randomPassword,
+              email_confirm: true,
+              user_metadata: {
+                telegram_id: loginCode.telegram_id,
+                telegram_username: (profile as any)?.telegram_username || null,
+                first_name: (profile as any)?.first_name || null,
+                last_name: (profile as any)?.last_name || null,
+                photo_url: (profile as any)?.photo_url || null,
+              },
+            });
+            if (!createError) authUserId = created.user?.id || null;
+          }
+        }
+
+        // Best-effort: persist mapping for fast future lookups
+        if (authUserId) {
+          try {
+            await supabase.from('telegram_profiles').update({ auth_user_id: authUserId } as any).eq('id', profile.id);
+          } catch {
+            // ignore if column missing
+          }
+
+          // Ensure credits row exists
+          try {
+            await supabase.from('credits').upsert({ user_id: authUserId, amount: 0 }, { onConflict: 'user_id' });
+          } catch {
+            // ignore
+          }
+        }
+      } catch (e) {
+        console.warn('[Telegram Status] Ensure auth user failed (ignored):', e);
+      }
 
       // Apply referral bonus (best-effort, idempotent)
       if (referralCode && referralCode.trim()) {
