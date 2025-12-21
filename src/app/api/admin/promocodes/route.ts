@@ -13,7 +13,7 @@ async function isAdmin(): Promise<{ isAdmin: boolean; userId?: string }> {
   const { data } = await supabase
     .from("telegram_profiles")
     .select("role, auth_user_id")
-    .eq("telegram_id", session.id)
+    .eq("telegram_id", session.telegramId)
     .single();
 
   const isAdminRole = data?.role === "admin" || data?.role === "manager";

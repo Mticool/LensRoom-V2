@@ -2,7 +2,8 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import { Calendar, Clock, ArrowLeft, Share2 } from "lucide-react";
+import { Calendar, Clock, ArrowLeft } from "lucide-react";
+import { ShareButton } from "@/components/blog/ShareButton";
 
 type Article = {
   id: string;
@@ -308,20 +309,10 @@ export default async function ArticlePage({
             <span className="text-sm text-[var(--muted)]">
               Понравилась статья? Поделитесь!
             </span>
-            <button
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({
-                    title: article.title,
-                    url: `${baseUrl}/blog/${article.slug}`,
-                  });
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-[var(--surface2)] rounded-xl hover:bg-white/10 transition-colors"
-            >
-              <Share2 className="w-4 h-4" />
-              Поделиться
-            </button>
+            <ShareButton
+              title={article.title}
+              url={`${baseUrl}/blog/${article.slug}`}
+            />
           </div>
         </div>
 

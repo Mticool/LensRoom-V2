@@ -1,7 +1,7 @@
+"use client";
+
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
-
-export const revalidate = 0;
 
 // Lazy load heavy studio component
 const StudioRuntime = dynamic(

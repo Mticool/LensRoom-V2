@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await supabase
       .from("telegram_profiles")
       .select("auth_user_id")
-      .eq("telegram_id", session.id)
+      .eq("telegram_id", session.telegramId)
       .single();
 
     if (!profile?.auth_user_id) {

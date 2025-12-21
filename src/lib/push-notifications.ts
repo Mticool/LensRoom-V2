@@ -59,9 +59,10 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
 
     if (!subscription) {
       // Создаём новую подписку
+      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
       });
 
       console.log("[Push] New subscription created");
@@ -134,7 +135,6 @@ export async function showLocalNotification(
     await registration.showNotification(title, {
       icon: "/icon-192x192.png",
       badge: "/badge-72x72.png",
-      vibrate: [100, 50, 100],
       ...options,
     });
   } catch (error) {

@@ -12,7 +12,7 @@ async function isAdmin(): Promise<boolean> {
   const { data } = await supabase
     .from("telegram_profiles")
     .select("role")
-    .eq("telegram_id", session.id)
+    .eq("telegram_id", session.telegramId)
     .single();
 
   return data?.role === "admin" || data?.role === "manager";
@@ -40,7 +40,7 @@ export async function GET() {
     // Aggregate categories with counts
     const categoryMap: Record<string, { name: string; count: number; placements: Set<string> }> = {};
 
-    (effects || []).forEach((e) => {
+    (effects || []).forEach((e: { category?: string | null; placement?: string | null }) => {
       const cat = (e.category || "").trim();
       if (!cat) return;
 

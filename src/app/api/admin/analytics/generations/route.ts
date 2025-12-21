@@ -12,7 +12,7 @@ async function isAdmin(): Promise<boolean> {
   const { data } = await supabase
     .from("telegram_profiles")
     .select("role")
-    .eq("telegram_id", session.id)
+    .eq("telegram_id", session.telegramId)
     .single();
 
   return data?.role === "admin" || data?.role === "manager";
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Count by model
     const modelCounts: Record<string, number> = {};
-    (generations || []).forEach((g) => {
+    (generations || []).forEach((g: { model_name?: string | null }) => {
       const model = g.model_name || "Unknown";
       modelCounts[model] = (modelCounts[model] || 0) + 1;
     });
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       .gte("created_at", thirtyDaysAgo.toISOString());
 
     const statusCounts: Record<string, number> = {};
-    (statusData || []).forEach((g) => {
+    (statusData || []).forEach((g: { status?: string | null }) => {
       const status = g.status || "unknown";
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     });
