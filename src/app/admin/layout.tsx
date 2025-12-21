@@ -81,20 +81,20 @@ function NavItem({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[15px] font-medium transition-colors",
         isActive
-          ? "bg-[var(--gold)]/10 text-[var(--gold)]"
-          : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]",
+          ? "bg-[var(--gold)]/15 text-[var(--gold)]"
+          : "text-white/75 hover:text-white hover:bg-[var(--surface2)]",
         collapsed && "justify-center px-2"
       )}
       title={collapsed ? label : undefined}
     >
-      <Icon className="w-4 h-4 shrink-0" />
+      <Icon className="w-5 h-5 shrink-0" />
       {!collapsed && (
         <>
           <span className="flex-1">{label}</span>
           {badge && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--gold)]/20 text-[var(--gold)] rounded">
+            <span className="px-1.5 py-0.5 text-[11px] font-bold bg-[var(--gold)]/20 text-[var(--gold)] rounded">
               {badge}
             </span>
           )}
@@ -117,13 +117,13 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--border)]">
         {!collapsed && (
-          <Link href="/admin" className="text-lg font-bold text-[var(--text)]">
+          <Link href="/admin" className="text-xl font-bold text-white">
             Admin
           </Link>
         )}
         <button
           onClick={onToggle}
-          className="p-2 rounded-lg text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-[var(--surface2)]"
         >
           {collapsed ? <Menu className="w-5 h-5" /> : <X className="w-5 h-5" />}
         </button>
@@ -134,7 +134,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
         {NAV_GROUPS.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <div className="px-3 mb-2 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+              <div className="px-3 mb-2.5 text-[13px] font-semibold text-white/60 uppercase tracking-wider">
                 {group.title}
               </div>
             )}
@@ -240,7 +240,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
+    <div className="min-h-screen bg-[var(--bg)] admin-panel">
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
@@ -259,6 +259,49 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         <div className="p-6 lg:p-8">{children}</div>
       </main>
+
+      {/* Admin panel styles for better readability */}
+      <style jsx global>{`
+        .admin-panel {
+          --text: rgba(255, 255, 255, 0.95);
+          --text2: rgba(255, 255, 255, 0.85);
+          --muted: rgba(255, 255, 255, 0.72);
+          font-size: 15px;
+        }
+        .admin-panel h1 {
+          font-size: 2rem !important;
+          font-weight: 700 !important;
+        }
+        .admin-panel h2, .admin-panel [class*="CardTitle"] {
+          font-size: 1.25rem !important;
+          font-weight: 600 !important;
+        }
+        .admin-panel p, .admin-panel span, .admin-panel label {
+          font-size: 0.938rem;
+        }
+        .admin-panel .text-sm {
+          font-size: 0.875rem !important;
+        }
+        .admin-panel .text-xs {
+          font-size: 0.8125rem !important;
+        }
+        .admin-panel input, .admin-panel textarea, .admin-panel select {
+          font-size: 0.938rem !important;
+        }
+        .admin-panel button {
+          font-size: 0.938rem !important;
+        }
+        .admin-panel table {
+          font-size: 0.938rem;
+        }
+        .admin-panel th {
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.85);
+        }
+        .admin-panel td {
+          color: rgba(255, 255, 255, 0.9);
+        }
+      `}</style>
     </div>
   );
 }
