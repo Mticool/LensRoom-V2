@@ -19,47 +19,47 @@ export default function AdminStylesPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] p-6">
-      <Card className="max-w-2xl w-full bg-[var(--surface)] border-[var(--border)]">
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--bg)' }}>
+      <Card className="max-w-2xl w-full" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
         <CardHeader>
           <div className="flex items-center justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-[var(--gold)]/10 flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-[var(--gold)]" />
+            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)' }}>
+              <Sparkles className="w-8 h-8" style={{ color: 'var(--gold)' }} />
             </div>
           </div>
-          <CardTitle className="text-center text-2xl">
+          <CardTitle className="text-center text-2xl" style={{ color: 'var(--text)' }}>
             Страница "Стили" перенесена
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center space-y-4">
-            <p className="text-[var(--text2)] text-lg">
+            <p className="text-lg" style={{ color: 'var(--text2)' }}>
               Управление контентом теперь находится в новом разделе:
             </p>
             
-            <div className="p-6 rounded-xl bg-[var(--surface2)] border border-[var(--border)]">
-              <h3 className="font-semibold text-[var(--text)] mb-3 text-lg">
+            <div className="p-6 rounded-xl border" style={{ backgroundColor: 'var(--surface2)', borderColor: 'var(--border)' }}>
+              <h3 className="font-semibold mb-3 text-lg" style={{ color: 'var(--text)' }}>
                 Контент-конструктор
               </h3>
-              <p className="text-sm text-[var(--muted)] mb-4">
+              <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>
                 Единое место для управления контентом главной страницы и раздела Inspiration.
                 С улучшенным интерфейсом и новыми возможностями:
               </p>
-              <ul className="text-sm text-[var(--text2)] space-y-2 text-left">
+              <ul className="text-sm space-y-2 text-left" style={{ color: 'var(--text2)' }}>
                 <li className="flex items-start gap-2">
-                  <span className="text-[var(--gold)]">✓</span>
+                  <span style={{ color: 'var(--gold)' }}>✓</span>
                   <span>Вкладки: Главная / Inspiration</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[var(--gold)]">✓</span>
+                  <span style={{ color: 'var(--gold)' }}>✓</span>
                   <span>Drag & drop сортировка</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[var(--gold)]">✓</span>
+                  <span style={{ color: 'var(--gold)' }}>✓</span>
                   <span>Категории и фильтры</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[var(--gold)]">✓</span>
+                  <span style={{ color: 'var(--gold)' }}>✓</span>
                   <span>Редактирование прямо в интерфейсе</span>
                 </li>
               </ul>
@@ -68,7 +68,8 @@ export default function AdminStylesPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
               <Button
                 onClick={() => router.push("/admin/content")}
-                className="bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90 font-semibold"
+                className="font-semibold"
+                style={{ backgroundColor: 'var(--gold)', color: '#000' }}
               >
                 <ArrowRight className="w-4 h-4 mr-2" />
                 Перейти в Контент-конструктор
@@ -77,14 +78,15 @@ export default function AdminStylesPage() {
               <Button
                 onClick={() => router.push("/admin/generator")}
                 variant="outline"
-                className="border-[var(--border)] text-[var(--text)]"
+                className="border"
+                style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Генератор контента
               </Button>
             </div>
 
-            <p className="text-xs text-[var(--muted)] pt-4">
+            <p className="text-xs pt-4" style={{ color: 'var(--muted)' }}>
               Автоматический переход через несколько секунд...
             </p>
           </div>
