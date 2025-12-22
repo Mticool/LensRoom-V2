@@ -96,3 +96,4 @@ export function trackSubscription(tier: string, price: number) {
   trackGAEvent('subscribe', 'subscription', tier, price);
   trackYMEvent('subscription', { tier, price });
 }
+

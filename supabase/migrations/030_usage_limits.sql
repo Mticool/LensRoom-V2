@@ -134,3 +134,4 @@ WHERE created_at >= CURRENT_DATE;
 COMMENT ON FUNCTION get_daily_usage IS 'Получить количество генераций пользователя за сегодня';
 COMMENT ON FUNCTION check_user_limits IS 'Проверить лимиты пользователя и определить нужен ли upsell';
 
+

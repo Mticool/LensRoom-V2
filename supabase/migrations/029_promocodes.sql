@@ -262,3 +262,4 @@ VALUES
   ('SAVE20', 'Скидка 20% на любой пакет', 'percent_discount', 20, 500, now() + interval '6 months'),
   ('DOUBLE', 'Двойные звёзды при покупке', 'multiplier', 2, 100, now() + interval '1 month')
 ON CONFLICT (code) DO NOTHING;
+

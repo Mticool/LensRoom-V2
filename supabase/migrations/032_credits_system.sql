@@ -156,3 +156,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Готово
 SELECT '✅ Credits system ready!' as status;
 
+

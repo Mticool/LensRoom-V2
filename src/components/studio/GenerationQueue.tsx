@@ -230,3 +230,4 @@ export function GenerationQueue({ jobs, onJobClick, onClearCompleted }: Generati
     </div>
   );
 }
+

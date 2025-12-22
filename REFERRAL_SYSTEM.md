@@ -166,3 +166,4 @@ export const REFERRAL_REWARDS = {
 - Average rewards per referrer
 - Top referrers (потенциальные партнёры)
 - Affiliate applications pending/approved ratio
+

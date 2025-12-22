@@ -193,3 +193,4 @@ EXECUTE FUNCTION public.create_referral_code_for_user();
 
 COMMENT ON FUNCTION public.generate_referral_code IS 'Генерирует уникальный 8-символьный реферальный код';
 COMMENT ON FUNCTION public.create_referral_code_for_user IS 'Автоматически создаёт реферальный код при создании профиля';
+

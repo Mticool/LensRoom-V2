@@ -450,3 +450,4 @@ async function getCacheSize() {
 }
 
 console.log('[SW] Service Worker v2 loaded');
+

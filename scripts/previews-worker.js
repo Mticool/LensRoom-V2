@@ -493,3 +493,4 @@ main().catch(err => {
   console.error('[PreviewWorker] ❌ Fatal error:', err);
   process.exit(1);
 });
+

@@ -17,3 +17,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE generations;
 
 -- Test query to verify policy exists:
 -- SELECT * FROM pg_policies WHERE tablename = 'generations' AND cmd = 'SELECT';
+

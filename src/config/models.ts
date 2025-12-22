@@ -29,8 +29,8 @@ export type PhotoQuality =
   | 'c_48cred'
   | 'c_60cred'
   | 'c_72cred';
-export type VideoQuality = '720p' | '1080p' | '480p' | 'fast' | 'quality' | 'standard' | 'high';
-export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard';
+export type VideoQuality = '720p' | '1080p' | '480p' | '580p' | 'fast' | 'quality' | 'standard' | 'high';
+export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference' | 'v2v';
 export type PhotoMode = 't2i' | 'i2i';
 
 // KIE API Provider type
@@ -144,11 +144,14 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      // Speed-based pricing: relaxed = 5⭐, fast = 10⭐, turbo = 20⭐
-      fast: 10, // Default
+      // NEW PRICING: Grid = 4 images per call
+      // t2i_fast (8 credits): 14⭐
+      // t2i_turbo (16 credits): 27⭐
+      // i2i (16 credits): 27⭐
+      fast: 14, // t2i_fast (8 credits)
+      turbo: 27, // t2i_turbo (16 credits)
     },
-    // MJ doesn't use standard quality options - it uses speed
-    qualityOptions: ['fast'],
+    qualityOptions: ['fast', 'turbo'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '5:6', '6:5', '2:1', '1:2'],
     shortLabel: 'V7 • Art',
   },
@@ -166,9 +169,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'high',
     supportsI2i: true,
     pricing: {
-      turbo: 6,
-      balanced: 6,
-      quality: 6,
+      // NEW PRICING: 4 credits = 7⭐
+      turbo: 7,
+      balanced: 7,
+      quality: 7,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
@@ -188,13 +192,13 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      turbo: 35,
-      balanced: 35,
-      quality: 35,
+      // NEW PRICING: 1k_2k (18 credits) = 30⭐, 4k (24 credits) = 40⭐
+      '1k_2k': 30,
+      '4k': 40,
     },
-    qualityOptions: ['turbo', 'balanced', 'quality'],
+    qualityOptions: ['1k_2k', '4k'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
-    shortLabel: 'Pro',
+    shortLabel: 'Pro • 1K-4K',
   },
   // Seedream 4.5: requires `quality` (basic/high), NOT `resolution`
   {
@@ -211,9 +215,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      turbo: 10,
-      balanced: 10,
-      quality: 10,
+      // NEW PRICING: 6.5 credits = 11⭐
+      turbo: 11,
+      balanced: 11,
+      quality: 11,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '21:9'],
@@ -222,7 +227,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'flux-2-pro',
     name: 'FLUX.2 Pro',
-    apiId: 'flux-2/pro-text-to-image', // Correct API ID - WORKING!
+    apiId: 'flux-2/pro-text-to-image',
     type: 'photo',
     provider: 'kie_market',
     shortDescription: 'Резко, детально, "дорого" выглядит.',
@@ -233,7 +238,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      '1k': 10,
+      // NEW PRICING: 1k (5 credits) = 9⭐, 2k (7 credits) = 12⭐
+      '1k': 9,
       '2k': 12,
     },
     qualityOptions: ['1k', '2k'],
@@ -254,8 +260,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      '1k': 20,
-      '2k': 35,
+      // NEW PRICING: 1k (14 credits) = 24⭐, 2k (24 credits) = 41⭐
+      '1k': 24,
+      '2k': 41,
     },
     qualityOptions: ['1k', '2k'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
@@ -276,13 +283,14 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'high',
     supportsI2i: true,
     pricing: {
-      turbo: 3,
-      balanced: 3,
-      quality: 3,
+      // NEW PRICING: 0.8 credit = 2⭐
+      turbo: 2,
+      balanced: 2,
+      quality: 2,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
-    shortLabel: '2-3⭐',
+    shortLabel: '2⭐',
   },
   {
     id: 'ideogram-v3',
@@ -298,9 +306,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: false,
     pricing: {
-      turbo: 7,
-      balanced: 14,
-      quality: 19,
+      // NEW PRICING: turbo (3.5 credits) = 6⭐, balanced (7 credits) = 12⭐, quality (10 credits) = 17⭐
+      turbo: 6,
+      balanced: 12,
+      quality: 17,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
@@ -320,9 +329,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'standard',
     supportsI2i: true,
     pricing: {
-      turbo: 3,
-      balanced: 3,
-      quality: 3,
+      // NEW PRICING: 1 credit = 2⭐
+      turbo: 2,
+      balanced: 2,
+      quality: 2,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
@@ -342,9 +352,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      '2k': 20,
-      '4k': 35,
-      '8k': 75,
+      // NEW PRICING: 2k (10 credits) = 17⭐, 4k (20 credits) = 34⭐, 8k (40 credits) = 67⭐
+      '2k': 17,
+      '4k': 34,
+      '8k': 67,
     },
     qualityOptions: ['2k', '4k', '8k'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
@@ -374,10 +385,12 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudio: true,
     supportsStartEnd: true, // First & last frame support
     pricing: {
-      quality: { '8': 450 },
-      fast: { '8': 110 },
+      // NEW PRICING: fast (60 credits) = 100⭐, quality (250 credits) = 420⭐
+      // Same price for all modes: t2v, i2v, reference
+      quality: { '8': 420 },
+      fast: { '8': 100 },
     },
-    modes: ['t2v', 'i2v', 'start_end'],
+    modes: ['t2v', 'i2v', 'start_end', 'reference'], // Added reference mode
     durationOptions: [8],
     // Default to fast (per UX requirement); can be switched to quality in UI.
     qualityOptions: ['fast', 'quality'],
@@ -400,19 +413,20 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     speed: 'medium',
     quality: 'ultra',
     supportsI2v: true,
-    supportsAudio: false, // Audio only for 2.6, but we use no_audio pricing
+    supportsAudio: true, // Audio only for 2.6
     pricing: {
-      '5': { no_audio: 65 }, // Minimum price (2.5 Turbo 5s)
-      '10': { no_audio: 130 }, // Minimum price (2.5 Turbo 10s)
+      '5': { no_audio: 70 }, // Minimum price (2.5 Turbo 5s)
+      '10': { no_audio: 140 }, // Minimum price (2.5 Turbo 10s)
     },
     modelVariants: [
       {
         id: 'kling-2.5-turbo',
         name: 'Kling 2.5 Turbo',
-        apiId: 'kling-2.5-turbo/text-to-video', // Updated API ID
+        apiId: 'kling-2.5-turbo/text-to-video',
         pricing: {
-          '5': { no_audio: 65 },
-          '10': { no_audio: 130 },
+          // NEW PRICING: 5s (42 credits) = 70⭐, 10s (84 credits) = 140⭐
+          '5': { no_audio: 70 },
+          '10': { no_audio: 140 },
         },
       },
       {
@@ -421,8 +435,10 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
         apiId: 'kling-2.6/text-to-video',
         apiIdI2v: 'kling-2.6/image-to-video',
         pricing: {
-          '5': { no_audio: 80 },
-          '10': { no_audio: 160 },
+          // NEW PRICING: no_audio: 5s (55 credits) = 92⭐; 10s (110) = 184⭐
+          // with_audio: 5s (110) = 184⭐; 10s (220) = 368⭐
+          '5': { no_audio: 92, audio: 184 },
+          '10': { no_audio: 184, audio: 368 },
         },
       },
       {
@@ -430,15 +446,16 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
         name: 'Kling 2.1 Pro',
         apiId: 'kling/v2-1-pro',
         pricing: {
-          '5': { no_audio: 275 },
-          '10': { no_audio: 550 },
+          // NEW PRICING: 5s (160 credits) = 268⭐, 10s (320) = 536⭐
+          '5': { no_audio: 268 },
+          '10': { no_audio: 536 },
         },
       },
     ],
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
     aspectRatios: ['1:1', '16:9', '9:16'],
-    shortLabel: 'от 65⭐',
+    shortLabel: 'от 70⭐',
   },
 
   // === SORA 2 - Market API (i2v only) ===
@@ -455,8 +472,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     quality: 'high',
     supportsI2v: true,
     pricing: {
-      '10': { standard: 150 },
-      '15': { standard: 270 },
+      // NEW PRICING: 10s (30 credits) = 50⭐, 15s (30 credits) = 50⭐
+      '10': { standard: 50 },
+      '15': { standard: 50 },
     },
     modes: ['i2v'], // Only i2v supported
     durationOptions: [10, 15],
@@ -478,8 +496,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     quality: 'ultra',
     supportsI2v: true,
     pricing: {
-      'standard': { '10': 220, '15': 400 },
-      'high': { '10': 500, '15': 940 },
+      // NEW PRICING: standard: 10s = 250⭐; 15s = 450⭐; high: 10s = 550⭐; 15s = 1050⭐
+      'standard': { '10': 250, '15': 450 },
+      'high': { '10': 550, '15': 1050 },
     },
     modes: ['i2v'], // Only i2v, start_end is Veo feature
     durationOptions: [10, 15],
@@ -514,7 +533,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: '10-25s',
   },
 
-  // === WAN - Unified model with variants (2.2 / 2.6) ===
+  // === WAN - Unified model with variants (2.2 A14B Turbo / 2.5 / 2.6) ===
   {
     id: 'wan',
     name: 'WAN',
@@ -522,7 +541,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'wan/2-6-image-to-video', // Default
     type: 'video',
     provider: 'kie_market',
-    description: 'Бюджетная универсальная модель: хорошее качество за адекватную цену. Выбор версии (2.2/2.5) и разрешения (до 1080p).',
+    description: 'Бюджетная универсальная модель: хорошее качество за адекватную цену. Выбор версии (2.2/2.5/2.6) и разрешения (до 1080p). Поддержка T2V, I2V, V2V.',
     rank: 8,
     featured: true,
     speed: 'medium',
@@ -530,25 +549,37 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: false,
     pricing: {
-      '5': { no_audio: 60 }, // Minimum price (WAN 2.2 Turbo 480p 5s)
-      '10': { no_audio: 120 }, // Minimum price (WAN 2.2 Turbo 480p 10s)
-      '15': { no_audio: 180 }, // Minimum price (WAN 2.2 Turbo 480p 15s)
+      '5': { no_audio: 67 }, // Minimum price (WAN 2.2 480p 5s)
+      '10': { no_audio: 134 }, // Minimum price (WAN 2.2 480p 10s)
+      '15': { no_audio: 200 }, // Minimum price (WAN 2.2 480p 15s)
     },
     modelVariants: [
       {
         id: 'wan-2.2',
-        name: 'WAN 2.2',
+        name: 'WAN 2.2 A14B Turbo',
         apiId: 'wan/2-2-text-to-video',
         apiIdI2v: 'wan/2-2-image-to-video',
         pricing: {
-          '5': { no_audio: 60 }, // 480p 5s = 12⭐/sec * 5 = 60⭐
-          '10': { no_audio: 120 }, // 480p 10s = 12⭐/sec * 10 = 120⭐
-          '15': { no_audio: 180 }, // 480p 15s = 12⭐/sec * 15 = 180⭐
+          // NEW PRICING (credits/sec):
+          // 720p (16/sec): 5s=134⭐, 10s=268⭐, 15s=402⭐
+          // 580p (12/sec): 5s=100⭐, 10s=200⭐, 15s=300⭐
+          // 480p (8/sec): 5s=67⭐, 10s=134⭐, 15s=200⭐
+          '720p': { '5': 134, '10': 268, '15': 402 },
+          '580p': { '5': 100, '10': 200, '15': 300 },
+          '480p': { '5': 67, '10': 134, '15': 200 },
         },
-        perSecondPricing: {
-          '480p': 12, // 12⭐/sec
-          '580p': 18, // 18⭐/sec
-          '720p': 24, // 24⭐/sec
+      },
+      {
+        id: 'wan-2.5',
+        name: 'WAN 2.5',
+        apiId: 'wan/2-5-text-to-video',
+        apiIdI2v: 'wan/2-5-image-to-video',
+        pricing: {
+          // NEW PRICING (credits/sec):
+          // 720p (12/sec): 5s=100⭐, 10s=200⭐, 15s=300⭐
+          // 1080p (20/sec): 5s=168⭐, 10s=335⭐, 15s=500⭐
+          '720p': { '5': 100, '10': 200, '15': 300 },
+          '1080p': { '5': 168, '10': 335, '15': 500 },
         },
       },
       {
@@ -557,24 +588,22 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
         apiId: 'wan/2-6-text-to-video',
         apiIdI2v: 'wan/2-6-image-to-video',
         pricing: {
-          '5': { no_audio: 90 }, // 720p 5s = 18⭐/sec * 5 = 90⭐
-          '10': { no_audio: 180 }, // 720p 10s = 18⭐/sec * 10 = 180⭐
-          '15': { no_audio: 270 }, // 720p 15s = 18⭐/sec * 15 = 270⭐
-        },
-        perSecondPricing: {
-          '720p': 18, // 18⭐/sec
-          '1080p': 30, // 30⭐/sec
+          // NEW PRICING:
+          // 720p: 5s=118⭐, 10s=235⭐, 15s=351⭐
+          // 1080p: 5s=175⭐, 10s=351⭐, 15s=528⭐
+          '720p': { '5': 118, '10': 235, '15': 351 },
+          '1080p': { '5': 175, '10': 351, '15': 528 },
         },
       },
     ],
-    modes: ['t2v', 'i2v'],
+    modes: ['t2v', 'i2v', 'v2v'], // Added v2v (reference-guided)
     durationOptions: [5, 10, 15],
-    resolutionOptions: ['480p', '580p', '720p', '1080p'], // Support all resolutions from both variants
+    resolutionOptions: ['480p', '580p', '720p', '1080p'], // Support all resolutions from all variants
     aspectRatios: ['16:9', '9:16'],
-    shortLabel: 'от 60⭐',
+    shortLabel: 'от 67⭐',
   },
 
-  // === BYTEDANCE (Seedance) - Market API (i2v only) ===
+  // === BYTEDANCE (Seedance 1.0 Pro) - Market API (i2v only) ===
   {
     id: 'bytedance-pro',
     name: 'Bytedance Pro',
@@ -588,15 +617,67 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     quality: 'standard',
     supportsI2v: true,
     pricing: {
-      '480p': { '5': 12, '10': 24 },
-      '720p': { '5': 16, '10': 36 },
-      '1080p': { '5': 24, '10': 48 },
+      // NEW PRICING: 720p: 5s=27⭐, 10s=61⭐; 1080p: 5s=61⭐, 10s=121⭐
+      '720p': { '5': 27, '10': 61 },
+      '1080p': { '5': 61, '10': 121 },
     },
     modes: ['i2v'], // i2v only
     durationOptions: [5, 10],
-    resolutionOptions: ['480p', '720p', '1080p'],
+    resolutionOptions: ['720p', '1080p'],
     aspectRatios: ['16:9', '9:16'],
     shortLabel: '5/10s • Fast',
+  },
+
+  // === KLING AI AVATAR - NEW MODEL ===
+  {
+    id: 'kling-ai-avatar',
+    name: 'Kling AI Avatar',
+    apiId: 'kling/v1-avatar-standard', // Default to standard
+    type: 'video',
+    provider: 'kie_market',
+    description: 'AI Avatar генерация: создавайте говорящие аватары из фото. Два режима качества: Standard (720p) и Pro (1080p).',
+    rank: 9,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: true,
+    supportsAudio: false,
+    pricing: {
+      // NEW PRICING (credits per second):
+      // standard 720p (14/sec): 5s=70⭐, 10s=140⭐, 15s=210⭐
+      // pro 1080p (27/sec): 5s=135⭐, 10s=270⭐, 15s=405⭐
+      '720p': { '5': 70, '10': 140, '15': 210 },
+      '1080p': { '5': 135, '10': 270, '15': 405 },
+    },
+    modelVariants: [
+      {
+        id: 'kling-ai-avatar-standard',
+        name: 'Kling AI Avatar Standard',
+        apiId: 'kling/v1-avatar-standard',
+        pricing: {
+          // 720p pricing per duration
+          '5': 70,
+          '10': 140,
+          '15': 210,
+        },
+      },
+      {
+        id: 'kling-ai-avatar-pro',
+        name: 'Kling AI Avatar Pro',
+        apiId: 'kling/ai-avatar-v1-pro',
+        pricing: {
+          // 1080p pricing per duration
+          '5': 135,
+          '10': 270,
+          '15': 405,
+        },
+      },
+    ],
+    modes: ['i2v'], // Image to avatar video
+    durationOptions: [5, 10, 15],
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: 'Avatar • 5-15s',
   },
 ];
 

@@ -378,3 +378,4 @@ bash -n /opt/lensroom/sync-cron.sh
 tail -20 /var/log/lensroom-sync.log
 ```
 
+

@@ -50,3 +50,4 @@ export async function trackFirstGenerationEvent(
     console.error('[trackFirstGenerationEvent] Error:', error);
   }
 }
+

@@ -60,3 +60,4 @@ CREATE INDEX IF NOT EXISTS idx_generations_original_path
   WHERE original_path IS NOT NULL;
 
 COMMIT;
+

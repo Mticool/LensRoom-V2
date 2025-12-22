@@ -313,3 +313,4 @@ export function PromocodeRedeemBox({ className }: { className?: string }) {
     </div>
   );
 }
+

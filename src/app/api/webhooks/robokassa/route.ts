@@ -109,3 +109,4 @@ export async function GET() {
     note: 'Use POST method for actual webhooks',
   });
 }
+

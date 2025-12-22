@@ -244,3 +244,4 @@ function diagnose(dbRecord: any, kieStatus: any): string[] {
   return issues;
 }
 
+

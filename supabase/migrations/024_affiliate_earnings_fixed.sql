@@ -80,3 +80,4 @@ LEFT JOIN public.affiliate_tiers at ON at.user_id = ae.affiliate_user_id
 GROUP BY ae.affiliate_user_id, p.display_name, p.username, at.tier, at.percent;
 
 COMMENT ON VIEW public.affiliate_earnings_summary IS 'Сводка по заработку партнёров для админа';
+

@@ -153,6 +153,15 @@ function computeVideoPrice(
       // Price per second
       const seconds = typeof duration === 'number' ? duration : 5; // Default to 5 for ranges
       creditsPerVideo = model.pricing * seconds;
+    } else if (options.resolution && model.pricing[options.resolution as keyof typeof model.pricing]) {
+      // Resolution-based pricing (e.g., Bytedance, Kling AI Avatar)
+      const resolutionPricing = model.pricing[options.resolution as keyof typeof model.pricing];
+      if (typeof resolutionPricing === 'object' && resolutionPricing !== null) {
+        const durationPrice = resolutionPricing[durationKey as keyof typeof resolutionPricing];
+        if (typeof durationPrice === 'number') {
+          creditsPerVideo = durationPrice;
+        }
+      }
     } else if (options.videoQuality && model.pricing[options.videoQuality as keyof typeof model.pricing]) {
       const qualityPricing = model.pricing[options.videoQuality as keyof typeof model.pricing] as { [key: string]: number };
       creditsPerVideo = qualityPricing[durationKey] || qualityPricing[String(model.fixedDuration || 5)] || 0;

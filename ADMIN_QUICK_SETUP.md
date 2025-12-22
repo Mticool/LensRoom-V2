@@ -136,3 +136,4 @@ ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
 1. Открой Supabase Dashboard → SQL Editor
 2. Скопируй и выполни SQL запросы по порядку
 3. Если ошибка - напиши какую именно
+

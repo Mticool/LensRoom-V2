@@ -82,3 +82,4 @@ COMMENT ON COLUMN public.payments.credits IS 'Количество начисл�
 COMMENT ON COLUMN public.payments.status IS 'Статус: pending, completed, failed, refunded';
 COMMENT ON COLUMN public.payments.provider IS 'Платёжная система: robokassa, payform, telegram_stars, prodamus';
 
+

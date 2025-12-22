@@ -79,3 +79,4 @@ export function ReferralHandler() {
   
   return null; // This component renders nothing
 }
+

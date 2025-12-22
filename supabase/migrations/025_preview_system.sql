@@ -57,3 +57,4 @@ COMMENT ON COLUMN public.generations.preview_status IS 'Preview generation statu
 
 COMMIT;
 
+

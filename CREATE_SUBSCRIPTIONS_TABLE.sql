@@ -110,3 +110,4 @@ ON CONFLICT (id) DO UPDATE SET
 COMMENT ON TABLE subscription_tiers IS 'Тарифы подписок (опционально, данные также в src/config/pricing-new.ts)';
 COMMENT ON TABLE star_packs IS 'Пакеты звёзд (опционально, данные также в src/config/pricing-new.ts)';
 
+

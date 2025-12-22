@@ -5,10 +5,12 @@
 
 const FORBIDDEN_WORDS = [
   'violence', 'violent', 'weapon', 'gun', 'knife', 'sword', 'blood', 'bloody',
+  'fight', 'fighter', 'fighting', 'punch', 'punches', 'kick', 'kicks',
+  'strike', 'strikes', 'attack', 'attacks', 'combat', 'battle',
   'nude', 'naked', 'sex', 'sexual', 'porn', 'explicit',
   'hate', 'racist', 'discrimination',
   'drug', 'cocaine', 'heroin', 'marijuana',
-  'suicide', 'self-harm', 'kill yourself',
+  'suicide', 'self-harm', 'kill yourself', 'murder', 'shoot', 'shooting',
 ];
 
 export function containsForbiddenContent(prompt: string): boolean {
@@ -77,3 +79,4 @@ export function getSafePrompt(prompt: string): string {
   const result = preparePromptForVeo(prompt, { strict: false, autoFix: true });
   return result.cleaned || result.original;
 }
+

@@ -265,3 +265,4 @@ curl -X POST https://lensroom.ru/api/admin/affiliate/earnings \
 | Robokassa | ⏳ 90% | Готов к подключению (осталось env + раскомментировать) |
 
 **Заглушек нет. Всё работает на 100% с реальной базой данных!**
+

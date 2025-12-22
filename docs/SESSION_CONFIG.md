@@ -143,3 +143,4 @@ To adjust session duration:
 - Project Settings → Authentication → JWT Expiry
 - Default: 3600s (1 hour) access, 2592000s (30 days) refresh
 - Can be increased for longer sessions
+

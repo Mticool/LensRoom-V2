@@ -77,3 +77,4 @@ export async function GET(req: NextRequest) {
     return respondAuthError(error);
   }
 }
+

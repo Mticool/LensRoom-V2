@@ -171,25 +171,6 @@ export default function PricingPage() {
     business: Zap,
   };
 
-  const plans = SUBSCRIPTION_TIERS.map((t) => ({
-    id: t.id,
-    name: t.name,
-    price: t.price,
-    credits: t.stars,
-    features: t.features,
-    popular: !!t.popular,
-  }));
-
-  const packs = STAR_PACKS.map((p) => ({
-    id: p.id,
-    name: p.id === 'mini' ? 'Mini' : p.id === 'plus' ? 'Plus' : p.id === 'max' ? 'Max' : 'Ultra',
-    price: p.price,
-    starsBase: p.stars,
-    starsTotal: packTotalStars(p),
-    bonusPercent: packBonusPercent(p),
-    popular: !!p.popular,
-  }));
-
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       <div className="container mx-auto px-6 py-20 lg:py-24">
@@ -213,15 +194,15 @@ export default function PricingPage() {
           <div className="max-w-md mx-auto">
             <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
               <p className="text-sm text-white font-medium">
-                Оплата только за генерации. Начните с {plans[0]?.name} — от {formatPrice(plans[0]?.price || 0)}.
+                Оплата только за генерации. Начните с {SUBSCRIPTION_TIERS[0]?.name} — от {formatPrice(SUBSCRIPTION_TIERS[0]?.price || 0)}.
               </p>
             </div>
           </div>
         </motion.div>
 
         {/* Subscription Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 max-w-5xl mx-auto">
-          {plans.map((plan, index) => {
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 max-w-6xl mx-auto">
+          {SUBSCRIPTION_TIERS.map((plan, index) => {
             const Icon = planIcons[plan.id as keyof typeof planIcons] || Sparkles;
             const isPopular = !!plan.popular;
             const isLoading = loading === plan.id;
@@ -235,9 +216,9 @@ export default function PricingPage() {
               >
                 <div
                   className={cn(
-                    "relative p-6 rounded-2xl transition-all motion-reduce:transition-none h-full",
+                    "relative p-6 rounded-2xl transition-all motion-reduce:transition-none h-full flex flex-col",
                     isPopular
-                      ? 'bg-[var(--surface)] border-2 border-[#FFD700] shadow-lg shadow-[#FFD700]/20'
+                      ? 'bg-[var(--surface)] border-2 border-[#FFD700] shadow-2xl shadow-[#FFD700]/30'
                       : 'bg-[var(--surface)] border-2 border-white/20 hover:border-white/40'
                   )}
                 >
@@ -247,55 +228,94 @@ export default function PricingPage() {
                     </div>
                   )}
 
-                  <div className={cn("text-center mb-6", isPopular && "pt-2")}>
-                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+                  <div className={cn("text-center mb-4", isPopular && "pt-2")}>
+                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-3">
                       <Icon className="w-6 h-6 text-white" />
                     </div>
-                    <h3 className="font-bold text-[var(--text)] text-xl mb-1">{plan.name}</h3>
-                    <div className="flex items-baseline justify-center gap-1">
+                    <h3 className="font-bold text-[var(--text)] text-2xl mb-1">{plan.name}</h3>
+                    <div className="flex items-baseline justify-center gap-1 mb-2">
                       <span className="text-4xl font-bold text-[var(--text)]">
                         {plan.price.toLocaleString()}
                       </span>
                       <span className="text-[var(--muted)]">₽/мес</span>
                     </div>
-                    <div className="flex items-center justify-center gap-2 mt-2">
-                      <Star className="w-4 h-4 text-white fill-white" />
-                      <span className="text-sm font-semibold text-white">{plan.credits} ⭐</span>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                      <Star className="w-3.5 h-3.5 text-[#FFD700] fill-[#FFD700]" />
+                      <span className="text-sm font-bold text-white">{plan.stars} ⭐</span>
                     </div>
                   </div>
 
-                  <ul className="space-y-3 mb-6">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-[var(--text2)]">
-                        <CheckCircle2 className="w-4 h-4 text-white/80 mt-0.5 shrink-0" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Subtitle */}
+                  {plan.subtitle && (
+                    <p className="text-sm text-[var(--text2)] leading-relaxed mb-5 text-center">
+                      {plan.subtitle}
+                    </p>
+                  )}
 
-                  <Button
-                    className={cn(
-                      "w-full font-semibold",
-                      isPopular
-                        ? 'bg-[#FFD700] text-black hover:bg-[#FFC700] shadow-lg shadow-[#FFD700]/30'
-                        : 'bg-white text-black hover:bg-white/90 shadow-md'
-                    )}
-                    onClick={() => handlePurchase('subscription', plan.id)}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Загрузка...
-                      </>
-                    ) : plan.id === 'star' ? (
-                      'Оформить Star'
-                    ) : plan.id === 'pro' ? (
-                      'Выбрать Pro'
-                    ) : (
-                      'Выбрать Business'
-                    )}
-                  </Button>
+                  {/* Benefits */}
+                  {plan.benefits && plan.benefits.length > 0 && (
+                    <div className="mb-5">
+                      <h4 className="text-xs font-bold uppercase tracking-wide text-[var(--muted)] mb-3">
+                        Что вы выигрываете:
+                      </h4>
+                      <ul className="space-y-2.5">
+                        {plan.benefits.map((benefit, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-[var(--text)]">
+                            <div className="shrink-0 w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center mt-0.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            </div>
+                            <span className="leading-snug">{benefit}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Capacity */}
+                  {plan.capacity && plan.capacity.length > 0 && (
+                    <div className="mb-6 p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                      <h4 className="text-xs font-bold uppercase tracking-wide text-[var(--muted)] mb-2">
+                        Хватит примерно на:
+                      </h4>
+                      <ul className="space-y-1.5">
+                        {plan.capacity.map((item, i) => {
+                          // Выделяем числа жирным
+                          const formatted = item.replace(/(\d+)/g, '<strong class="text-white font-bold">$1</strong>');
+                          return (
+                            <li key={i} className="text-xs text-[var(--text2)] leading-relaxed">
+                              <span dangerouslySetInnerHTML={{ __html: formatted }} />
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="mt-auto">
+                    <Button
+                      className={cn(
+                        "w-full font-semibold",
+                        isPopular
+                          ? 'bg-[#FFD700] text-black hover:bg-[#FFC700] shadow-lg shadow-[#FFD700]/40'
+                          : 'bg-white text-black hover:bg-white/90 shadow-md'
+                      )}
+                      onClick={() => handlePurchase('subscription', plan.id)}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Загрузка...
+                        </>
+                      ) : plan.id === 'star' ? (
+                        'Оформить Star'
+                      ) : plan.id === 'pro' ? (
+                        'Выбрать Pro ⭐'
+                      ) : (
+                        'Выбрать Business'
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             );
@@ -318,9 +338,11 @@ export default function PricingPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {packs.map((pkg, index) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {STAR_PACKS.map((pkg, index) => {
               const isLoading = loading === pkg.id;
+              const totalStars = packTotalStars(pkg);
+              const bonusPercent = packBonusPercent(pkg);
               
               return (
                 <motion.div
@@ -332,35 +354,56 @@ export default function PricingPage() {
                 >
                   <div
                     className={cn(
-                      "relative p-6 rounded-2xl transition-all motion-reduce:transition-none text-center",
+                      "relative p-5 rounded-2xl transition-all motion-reduce:transition-none text-center h-full flex flex-col",
                       pkg.popular
-                        ? 'bg-[var(--surface)] border-2 border-[#FFD700] shadow-lg shadow-[#FFD700]/20'
+                        ? 'bg-[var(--surface)] border-2 border-[#FFD700] shadow-lg shadow-[#FFD700]/30'
                         : 'bg-[var(--surface)] border-2 border-white/20 hover:border-white/40'
                     )}
                   >
-                    {pkg.bonusPercent > 0 && (
+                    {bonusPercent > 0 && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#FFD700] text-black text-xs font-bold rounded-full shadow-md">
-                        +{pkg.bonusPercent}% бонус
+                        +{bonusPercent}% бонус
                       </div>
                     )}
                     
                     <div className="text-center mb-4">
-                      <h3 className="font-bold text-[var(--text)] text-lg mb-2">{pkg.name}</h3>
-                      <div className="text-4xl font-bold text-[var(--text)] mb-1">
-                        {pkg.starsTotal}
+                      <h3 className="font-bold text-[var(--text)] text-xl mb-3">
+                        {pkg.id === 'mini' ? 'Mini' : pkg.id === 'plus' ? 'Plus' : pkg.id === 'max' ? 'Max' : 'Ultra'}
+                      </h3>
+                      <div className="inline-flex items-center gap-1.5 mb-3">
+                        <span className="text-5xl font-bold text-[var(--text)]">{totalStars}</span>
+                        <Star className="w-6 h-6 text-[#FFD700] fill-[#FFD700]" />
                       </div>
-                      <div className="text-sm text-[var(--muted)] mb-3">⭐</div>
-                      <div className="text-3xl font-bold text-white mb-3">
+                      <div className="text-2xl font-bold text-white mb-2">
                         {formatPrice(pkg.price)}
                       </div>
-                      <p className="text-xs text-[var(--text2)] mb-4 leading-relaxed">
-                        {pkg.bonusPercent > 0 ? `Бонус +${pkg.starsTotal - pkg.starsBase}⭐` : 'Без бонуса'}
-                      </p>
+                      {bonusPercent > 0 && (
+                        <p className="text-xs text-emerald-400 font-semibold mb-3">
+                          +{totalStars - pkg.stars}⭐ бонусом
+                        </p>
+                      )}
                     </div>
+
+                    {/* Description */}
+                    {pkg.description && (
+                      <p className="text-sm text-[var(--text2)] leading-relaxed mb-3 flex-1">
+                        {pkg.description}
+                      </p>
+                    )}
+
+                    {/* Capacity */}
+                    {pkg.capacity && (
+                      <div className="mb-4 p-2.5 rounded-lg bg-white/[0.02] border border-white/5">
+                        <p className="text-xs text-[var(--text2)] leading-relaxed">
+                          <span className="font-semibold text-[var(--muted)]">Примерно:</span><br />
+                          {pkg.capacity}
+                        </p>
+                      </div>
+                    )}
                     
                     <Button
                       className={cn(
-                        "w-full font-semibold",
+                        "w-full font-semibold mt-auto",
                         pkg.popular
                           ? 'bg-[#FFD700] text-black hover:bg-[#FFC700] shadow-lg shadow-[#FFD700]/30'
                           : 'bg-white text-black hover:bg-white/90 shadow-md'
@@ -371,7 +414,7 @@ export default function PricingPage() {
                       {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        `Купить • ${pkg.starsTotal}⭐`
+                        `Купить за ${formatPrice(pkg.price)}`
                       )}
                     </Button>
                   </div>
@@ -379,6 +422,40 @@ export default function PricingPage() {
               );
             })}
           </div>
+
+          {/* Soft Sell Advice */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-16 max-w-2xl mx-auto"
+          >
+            <div className="p-8 rounded-3xl bg-gradient-to-br from-[#FFD700]/10 via-transparent to-transparent border-2 border-[#FFD700]/20">
+              <h3 className="text-2xl font-bold text-[var(--text)] mb-6 text-center">
+                Как выбрать? 🤔
+              </h3>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3 text-[var(--text)]">
+                  <span className="text-2xl shrink-0">👉</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-white">Только пробуете?</strong> Берите <strong className="text-[#FFD700]">Star</strong> — почувствуете темп.
+                  </p>
+                </li>
+                <li className="flex items-start gap-3 text-[var(--text)]">
+                  <span className="text-2xl shrink-0">👉</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-white">Делаете контент стабильно?</strong> <strong className="text-[#FFD700]">Pro</strong> — лучший баланс цены и объёма.
+                  </p>
+                </li>
+                <li className="flex items-start gap-3 text-[var(--text)]">
+                  <span className="text-2xl shrink-0">👉</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-white">Нужен поток и масштаб?</strong> <strong className="text-[#FFD700]">Business</strong> — чтобы не упираться в лимиты.
+                  </p>
+                </li>
+              </ul>
+            </div>
+          </motion.div>
 
           {/* Info Text */}
           <div className="mt-12 text-center max-w-2xl mx-auto">

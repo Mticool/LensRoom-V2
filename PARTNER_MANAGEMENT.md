@@ -210,3 +210,4 @@ curl -X POST /api/admin/partners/manual \
 - ✅ Видишь все комиссии и выплаты в `/admin/affiliate-earnings`
 
 **Обновлено:** Dec 17, 2025
+
