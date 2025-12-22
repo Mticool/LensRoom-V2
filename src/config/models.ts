@@ -514,12 +514,12 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: '10-25s',
   },
 
-  // === WAN - Unified model with variants (2.2 Turbo/2.5) ===
+  // === WAN - Unified model with variants (2.2 / 2.6) ===
   {
     id: 'wan',
     name: 'WAN',
-    apiId: 'wan-2.5/text-to-video', // Default (will be overridden by variant)
-    apiIdI2v: 'wan-2.5/image-to-video', // Default
+    apiId: 'wan/2-6-text-to-video', // Default (will be overridden by variant)
+    apiIdI2v: 'wan/2-6-image-to-video', // Default
     type: 'video',
     provider: 'kie_market',
     description: 'Бюджетная универсальная модель: хорошее качество за адекватную цену. Выбор версии (2.2/2.5) и разрешения (до 1080p).',
@@ -537,9 +537,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelVariants: [
       {
         id: 'wan-2.2',
-        name: 'WAN 2.2 Turbo',
-        apiId: 'wan-2.2/text-to-video', // TODO: verify actual API ID
-        apiIdI2v: 'wan-2.2/image-to-video', // TODO: verify actual API ID
+        name: 'WAN 2.2',
+        apiId: 'wan/2-2-text-to-video',
+        apiIdI2v: 'wan/2-2-image-to-video',
         pricing: {
           '5': { no_audio: 60 }, // 480p 5s = 12⭐/sec * 5 = 60⭐
           '10': { no_audio: 120 }, // 480p 10s = 12⭐/sec * 10 = 120⭐
@@ -552,10 +552,10 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
         },
       },
       {
-        id: 'wan-2.5',
-        name: 'WAN 2.5',
-        apiId: 'wan-2.5/text-to-video', // TODO: verify actual API ID
-        apiIdI2v: 'wan-2.5/image-to-video', // TODO: verify actual API ID
+        id: 'wan-2.6',
+        name: 'WAN 2.6',
+        apiId: 'wan/2-6-text-to-video',
+        apiIdI2v: 'wan/2-6-image-to-video',
         pricing: {
           '5': { no_audio: 90 }, // 720p 5s = 18⭐/sec * 5 = 90⭐
           '10': { no_audio: 180 }, // 720p 10s = 18⭐/sec * 10 = 180⭐
