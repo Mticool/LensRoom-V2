@@ -657,17 +657,21 @@ export default function AdminGeneratorPage() {
                             {task.type === "video" ? (
                               <video
                                 src={task.resultUrl}
-                                className="w-20 h-20 object-cover rounded-lg"
+                                className="w-40 h-40 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-[var(--gold)] transition-all"
                                 muted
                                 loop
                                 playsInline
                                 autoPlay
+                                onClick={() => window.open(task.resultUrl, '_blank')}
+                                title="Клик для открытия в полном размере"
                               />
                             ) : (
                               <img
                                 src={task.resultUrl}
                                 alt=""
-                                className="w-20 h-20 object-cover rounded-lg"
+                                className="w-40 h-40 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-[var(--gold)] transition-all"
+                                onClick={() => window.open(task.resultUrl, '_blank')}
+                                title="Клик для открытия в полном размере"
                               />
                             )}
                           </div>
