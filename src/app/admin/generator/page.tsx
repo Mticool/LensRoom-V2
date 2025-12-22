@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,6 @@ import {
   Film,
   Plus,
   Trash2,
-  Copy,
   Download,
   Save,
 } from "lucide-react";
@@ -80,11 +79,36 @@ export default function AdminGeneratorPage() {
   const [model, setModel] = useState(PHOTO_MODELS[0]?.id || "");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [prompts, setPrompts] = useState<string[]>([""]);
-  const [placement, setPlacement] = useState<"home" | "inspiration">("home");
-  const [autoSaveToGallery, setAutoSaveToGallery] = useState(true);
-  const [category, setCategory] = useState("");
+
+  // Save modal state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [taskToSave, setTaskToSave] = useState<GenerationTask | null>(null);
+  const [saveToHome, setSaveToHome] = useState(true);
+  const [saveToInspiration, setSaveToInspiration] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const models = type === "photo" ? PHOTO_MODELS : VIDEO_MODELS;
+
+  // Load categories
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch("/api/admin/categories", { credentials: "include" });
+      const data = await res.json();
+      if (Array.isArray(data.categories)) {
+        setCategories(data.categories);
+      }
+    } catch (error) {
+      console.error("Failed to load categories:", error);
+    }
+  };
 
   // Add prompt
   const addPrompt = () => {
@@ -202,11 +226,6 @@ export default function AdminGeneratorPage() {
               )
             );
 
-            // Auto-save to gallery if enabled
-            if (autoSaveToGallery) {
-              await saveToGallery({ ...task, resultUrl });
-            }
-
             break;
           }
 
@@ -264,61 +283,128 @@ export default function AdminGeneratorPage() {
     setCurrentTaskIndex(0);
   };
 
-  // Save result to gallery (effects_gallery)
-  const saveToGallery = async (task: GenerationTask, customPlacement?: "home" | "inspiration") => {
-    if (!task.resultUrl) return;
+  // Open save modal
+  const openSaveModal = (task: GenerationTask) => {
+    setTaskToSave(task);
+    setSaveToHome(true);
+    setSaveToInspiration(false);
+    setSelectedCategory(categories[0] || "");
+    setShowNewCategoryInput(false);
+    setNewCategoryInput("");
+    setShowSaveModal(true);
+  };
+
+  // Close save modal
+  const closeSaveModal = () => {
+    setShowSaveModal(false);
+    setTaskToSave(null);
+  };
+
+  // Create new category
+  const createCategory = async () => {
+    const categoryName = newCategoryInput.trim();
+    if (!categoryName) {
+      toast.error("Введите название категории");
+      return;
+    }
 
     try {
-      const targetPlacement = customPlacement || placement;
-      const modelInfo = getModelById(task.model);
-      const presetId = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      const galleryData = {
-        presetId,
-        title: task.prompt.slice(0, 100) || "Untitled",
-        contentType: task.type,
-        modelKey: task.model,
-        tileRatio: task.aspectRatio as "1:1" | "9:16" | "16:9",
-        costStars: modelInfo?.pricing ? 
-          (typeof modelInfo.pricing === 'number' ? modelInfo.pricing : 0) : 0,
-        mode: task.type === "video" ? "t2v" : "t2i",
-        variantId: "default",
-        previewImage: task.resultUrl,
-        previewUrl: task.resultUrl,
-        templatePrompt: task.prompt,
-        featured: false,
-        published: false,
-        order: 0,
-        // Content Constructor fields
-        placement: targetPlacement,
-        status: "draft",
-        category: category || "",
-        priority: 0,
-        type: task.type === "video" ? "video" : "image",
-        assetUrl: task.resultUrl,
-        posterUrl: task.type === "video" ? task.resultUrl : "",
-        aspect: task.aspectRatio as "1:1" | "9:16" | "16:9",
-        shortDescription: `Created with ${modelInfo?.name || task.model}`,
-      };
-
-      const res = await fetch("/api/admin/gallery", {
+      const res = await fetch("/api/admin/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(galleryData),
+        body: JSON.stringify({ name: categoryName }),
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData?.error || "Failed to save");
+        throw new Error("Failed to create category");
       }
-      
-      toast.success(`Сохранено в ${targetPlacement === "home" ? "Главную" : "Inspiration"}!`);
-      return true;
+
+      await loadCategories();
+      setSelectedCategory(categoryName);
+      setNewCategoryInput("");
+      setShowNewCategoryInput(false);
+      toast.success("Категория создана!");
+    } catch (error) {
+      toast.error("Не удалось создать категорию");
+    }
+  };
+
+  // Save to gallery
+  const saveToGallery = async () => {
+    if (!taskToSave || !taskToSave.resultUrl) return;
+
+    if (!saveToHome && !saveToInspiration) {
+      toast.error("Выберите хотя бы одно размещение");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const modelInfo = getModelById(taskToSave.model);
+      const placements = [];
+      if (saveToHome) placements.push("home");
+      if (saveToInspiration) placements.push("inspiration");
+
+      for (const placement of placements) {
+        const presetId = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        const galleryData = {
+          presetId,
+          title: taskToSave.prompt.slice(0, 100) || "Untitled",
+          contentType: taskToSave.type,
+          modelKey: taskToSave.model,
+          tileRatio: taskToSave.aspectRatio as "1:1" | "9:16" | "16:9",
+          costStars: modelInfo?.pricing ? 
+            (typeof modelInfo.pricing === 'number' ? modelInfo.pricing : 0) : 0,
+          mode: taskToSave.type === "video" ? "t2v" : "t2i",
+          variantId: "default",
+          previewImage: taskToSave.resultUrl,
+          previewUrl: taskToSave.resultUrl,
+          templatePrompt: taskToSave.prompt,
+          featured: false,
+          published: false,
+          order: 0,
+          placement: placement,
+          status: "draft",
+          category: selectedCategory || "",
+          priority: 0,
+          type: taskToSave.type === "video" ? "video" : "image",
+          assetUrl: taskToSave.resultUrl,
+          posterUrl: taskToSave.type === "video" ? taskToSave.resultUrl : "",
+          aspect: taskToSave.aspectRatio as "1:1" | "9:16" | "16:9",
+          shortDescription: `Created with ${modelInfo?.name || taskToSave.model}`,
+        };
+
+        const res = await fetch("/api/admin/gallery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(galleryData),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData?.error || "Failed to save");
+        }
+      }
+
+      // Mark task as saved
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskToSave.id ? { ...t, saved: true } : t
+        )
+      );
+
+      const placementsText = placements.map(p => p === "home" ? "Главную" : "Inspiration").join(" и ");
+      toast.success(`Сохранено в ${placementsText}!`);
+      closeSaveModal();
     } catch (error: any) {
       console.error("Gallery save error:", error);
       toast.error(`Ошибка: ${error.message || "Не удалось сохранить"}`);
-      return false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -331,7 +417,7 @@ export default function AdminGeneratorPage() {
       <div>
         <h1 className="text-3xl font-bold text-[var(--text)]">AI Генератор контента</h1>
         <p className="text-[var(--muted)] mt-1">
-          Пакетная генерация контента для главной страницы и вдохновения
+          Создавайте контент для главной страницы и раздела вдохновения
         </p>
       </div>
 
@@ -407,57 +493,6 @@ export default function AdminGeneratorPage() {
                   ))}
                 </div>
               </div>
-
-              {/* Placement */}
-              <div>
-                <label className="text-sm font-medium text-[var(--text)] mb-2 block">
-                  Размещение
-                </label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={placement === "home" ? "default" : "outline"}
-                    onClick={() => setPlacement("home")}
-                    className="flex-1"
-                  >
-                    Главная
-                  </Button>
-                  <Button
-                    variant={placement === "inspiration" ? "default" : "outline"}
-                    onClick={() => setPlacement("inspiration")}
-                    className="flex-1"
-                  >
-                    Inspiration
-                  </Button>
-                </div>
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="text-sm font-medium text-[var(--text)] mb-2 block">
-                  Категория (опционально)
-                </label>
-                <input
-                  type="text"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Портреты, Пейзажи, Продукты..."
-                  className="w-full px-4 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)]"
-                />
-              </div>
-
-              {/* Auto-save */}
-              <div className="flex items-center gap-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="autoSave"
-                  checked={autoSaveToGallery}
-                  onChange={(e) => setAutoSaveToGallery(e.target.checked)}
-                  className="w-4 h-4 rounded border-[var(--border)] bg-[var(--surface2)] text-[var(--gold)]"
-                />
-                <label htmlFor="autoSave" className="text-sm text-[var(--text)] cursor-pointer">
-                  Автоматически сохранять в галерею после генерации
-                </label>
-              </div>
             </CardContent>
           </Card>
 
@@ -500,39 +535,33 @@ export default function AdminGeneratorPage() {
             <CardHeader>
               <CardTitle>Шаблоны промптов</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {PROMPT_PRESETS.map((preset) => (
-                  <div key={preset.category}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-[var(--text)]">
-                        {preset.category}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => addPresetPrompts(preset.prompts)}
-                        className="text-xs"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Добавить все
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {preset.prompts.map((p, i) => (
-                        <button
-                          key={i}
-                          onClick={() => addPresetPrompts([p])}
-                          className="px-2 py-1 text-xs bg-[var(--surface2)] rounded-lg text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors truncate max-w-[200px]"
-                          title={p}
-                        >
-                          {p.slice(0, 30)}...
-                        </button>
-                      ))}
-                    </div>
+            <CardContent className="space-y-4">
+              {PROMPT_PRESETS.map((preset) => (
+                <div key={preset.category}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-[var(--text)]">{preset.category}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => addPresetPrompts(preset.prompts)}
+                      className="text-xs h-7"
+                    >
+                      Добавить все
+                    </Button>
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-1">
+                    {preset.prompts.map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => addPresetPrompts([p])}
+                        className="w-full text-left px-3 py-2 text-xs bg-[var(--surface2)] hover:bg-[var(--border)] rounded-lg text-[var(--text2)] line-clamp-1 transition-colors"
+                      >
+                        {p.slice(0, 60)}...
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
@@ -540,12 +569,14 @@ export default function AdminGeneratorPage() {
           <div className="flex gap-3">
             <Button
               onClick={createTasks}
-              disabled={isRunning || prompts.filter((p) => p.trim()).length === 0}
+              disabled={prompts.filter((p) => p.trim()).length === 0}
+              variant="outline"
               className="flex-1"
             >
+              <Sparkles className="w-4 h-4 mr-2" />
               Создать задачи
             </Button>
-            {tasks.length > 0 && !isRunning && (
+            {!isRunning && tasks.length > 0 && (
               <Button
                 onClick={runGeneration}
                 className="flex-1 bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
@@ -681,32 +712,20 @@ export default function AdminGeneratorPage() {
                       {/* Actions for completed */}
                       {task.status === "completed" && task.resultUrl && (
                         <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--border)]">
-                          {!autoSaveToGallery && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => saveToGallery(task, "home")}
-                                className="text-xs"
-                              >
-                                <Save className="w-3 h-3 mr-1" />
-                                На главную
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => saveToGallery(task, "inspiration")}
-                                className="text-xs"
-                              >
-                                <Save className="w-3 h-3 mr-1" />
-                                В Inspiration
-                              </Button>
-                            </>
-                          )}
-                          {autoSaveToGallery && (
+                          {!(task as any).saved ? (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => openSaveModal(task)}
+                              className="bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+                            >
+                              <Save className="w-3 h-3 mr-1" />
+                              Сохранить
+                            </Button>
+                          ) : (
                             <span className="text-xs text-emerald-400 flex items-center gap-1">
                               <Check className="w-3 h-3" />
-                              Сохранено в {placement === "home" ? "Главную" : "Inspiration"}
+                              Сохранено
                             </span>
                           )}
                           <a href={task.resultUrl} target="_blank" rel="noreferrer" className="ml-auto">
@@ -725,7 +744,160 @@ export default function AdminGeneratorPage() {
           </Card>
         </div>
       </div>
+
+      {/* Save Modal */}
+      {showSaveModal && taskToSave && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-[var(--text)] mb-4">Сохранить результат</h2>
+
+            {/* Preview */}
+            <div className="mb-6">
+              <div className="relative rounded-xl overflow-hidden bg-[var(--surface2)] border border-[var(--border)]">
+                {taskToSave.type === "video" ? (
+                  <video
+                    src={taskToSave.resultUrl}
+                    className="w-full max-h-96 object-contain"
+                    controls
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={taskToSave.resultUrl}
+                    alt="Preview"
+                    className="w-full max-h-96 object-contain"
+                  />
+                )}
+              </div>
+              <p className="text-sm text-[var(--muted)] mt-2 line-clamp-2">{taskToSave.prompt}</p>
+            </div>
+
+            {/* Placement */}
+            <div className="mb-6">
+              <label className="text-sm font-medium text-[var(--text)] mb-3 block">
+                Где разместить? (можно выбрать оба)
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface2)] cursor-pointer hover:bg-[var(--border)] transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={saveToHome}
+                    onChange={(e) => setSaveToHome(e.target.checked)}
+                    className="w-5 h-5 rounded border-[var(--border)] text-[var(--gold)]"
+                  />
+                  <div className="flex-1">
+                    <div className="text-base font-medium text-[var(--text)]">🏠 Главная страница</div>
+                    <div className="text-xs text-[var(--muted)]">Показать на главной странице сайта</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface2)] cursor-pointer hover:bg-[var(--border)] transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={saveToInspiration}
+                    onChange={(e) => setSaveToInspiration(e.target.checked)}
+                    className="w-5 h-5 rounded border-[var(--border)] text-[var(--gold)]"
+                  />
+                  <div className="flex-1">
+                    <div className="text-base font-medium text-[var(--text)]">✨ Inspiration</div>
+                    <div className="text-xs text-[var(--muted)]">Показать в разделе вдохновения</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Category */}
+            <div className="mb-6">
+              <label className="text-sm font-medium text-[var(--text)] mb-2 block">Категория</label>
+              {!showNewCategoryInput ? (
+                <div className="flex gap-2">
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="flex-1 px-4 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)]"
+                  >
+                    {categories.length === 0 && (
+                      <option value="">Категории не найдены</option>
+                    )}
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewCategoryInput(true)}
+                    className="shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    placeholder="Название новой категории..."
+                    className="flex-1 px-4 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)]"
+                    autoFocus
+                  />
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={createCategory}
+                    disabled={!newCategoryInput.trim()}
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowNewCategoryInput(false);
+                      setNewCategoryInput("");
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={closeSaveModal}
+                disabled={isSaving}
+                className="flex-1"
+              >
+                Отмена
+              </Button>
+              <Button
+                variant="default"
+                onClick={saveToGallery}
+                disabled={isSaving || (!saveToHome && !saveToInspiration)}
+                className="flex-1 bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Сохранение...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Сохранить
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

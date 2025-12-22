@@ -37,10 +37,8 @@ const NAV_GROUPS = [
   {
     title: "Контент",
     items: [
-      { href: "/admin/styles", label: "Стили", icon: Palette },
-      { href: "/admin/content", label: "Галерея", icon: FileImage },
+      { href: "/admin/generator", label: "Генератор AI", icon: Sparkles, badge: "AI" },
       { href: "/admin/categories", label: "Категории", icon: FolderOpen },
-      { href: "/admin/generator", label: "Генератор", icon: Sparkles, badge: "AI" },
       { href: "/admin/articles", label: "Статьи", icon: FileText },
     ],
   },
