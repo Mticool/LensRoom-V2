@@ -129,6 +129,29 @@ export type ModelConfig = PhotoModelConfig | VideoModelConfig;
 // All photo models use kie_market provider: POST /api/v1/jobs/createTask
 
 export const PHOTO_MODELS: PhotoModelConfig[] = [
+  // === MIDJOURNEY - KIE Market API ===
+  {
+    id: 'midjourney',
+    name: 'Midjourney V7',
+    apiId: 'midjourney/text-to-image',
+    type: 'photo',
+    provider: 'kie_market',
+    shortDescription: 'Арт и стиль высочайшего качества.',
+    description: 'Midjourney — когда нужен стиль, арт и «дорогая картинка» с характером. Лучший выбор для креативных задач, постеров и художественных визуалов.',
+    rank: 1,
+    featured: true,
+    speed: 'medium',
+    quality: 'ultra',
+    supportsI2i: true,
+    pricing: {
+      // Speed-based pricing: relaxed = 5⭐, fast = 10⭐, turbo = 20⭐
+      fast: 10, // Default
+    },
+    // MJ doesn't use standard quality options - it uses speed
+    qualityOptions: ['fast'],
+    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '5:6', '6:5', '2:1', '1:2'],
+    shortLabel: 'V7 • Art',
+  },
   {
     id: 'nano-banana',
     name: 'Nano Banana',

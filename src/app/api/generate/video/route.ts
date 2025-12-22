@@ -6,6 +6,7 @@ import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/mode
 import { computePrice } from '@/lib/pricing/compute-price';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
+import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -268,20 +269,130 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    const response = await kieClient.generateVideo({
-      model: apiModelId,
-      provider: modelInfo.provider,
-      prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
-      imageUrl: imageUrl,
-      lastFrameUrl: lastFrameUrl,
-      duration: duration || modelInfo.fixedDuration || 5,
-      aspectRatio: aspectRatio,
-      sound: alwaysSound,
-      mode: mode,
-      resolution: resolution,
-      quality: quality,
-      shots: shots, // For storyboard mode
-    });
+    // Подготовка промпта для Veo (модерация и очистка)
+    let finalPrompt = prompt;
+    let promptWarning: string | undefined;
+    
+    if (modelInfo.provider === 'kie_veo') {
+      const moderationResult = preparePromptForVeo(prompt, {
+        strict: false,
+        autoFix: true, // Автоматически исправлять проблемные слова
+      });
+      
+      if (moderationResult.needsModeration) {
+        promptWarning = moderationResult.warning;
+        // Используем очищенную версию
+        finalPrompt = moderationResult.cleaned || getSafePrompt(prompt);
+        console.log('[API] Prompt moderated for Veo:', {
+          original: prompt.substring(0, 100),
+          cleaned: finalPrompt.substring(0, 100),
+        });
+      }
+    }
+    
+    const fullPrompt = negativePrompt 
+      ? `${finalPrompt}. Avoid: ${negativePrompt}` 
+      : finalPrompt;
+
+    // Попытка генерации с обработкой ошибок политики контента
+    let response: any;
+    let usedFallback = false;
+    
+    try {
+      response = await kieClient.generateVideo({
+        model: apiModelId,
+        provider: modelInfo.provider,
+        prompt: fullPrompt,
+        imageUrl: imageUrl,
+        lastFrameUrl: lastFrameUrl,
+        duration: duration || modelInfo.fixedDuration || 5,
+        aspectRatio: aspectRatio,
+        sound: alwaysSound,
+        mode: mode,
+        resolution: resolution,
+        quality: quality,
+        shots: shots, // For storyboard mode
+      });
+    } catch (error: any) {
+      // Обработка ошибки политики контента Google Veo
+      const errorMessage = error?.message || String(error);
+      const isContentPolicyError = 
+        errorMessage.includes('content policy') ||
+        errorMessage.includes('violating content policies') ||
+        errorMessage.includes('Rejected by Google');
+      
+      if (isContentPolicyError && modelInfo.provider === 'kie_veo') {
+        console.warn('[API] Veo content policy error, trying fallback model:', errorMessage);
+        
+        // Fallback на Kling 2.6 (более лояльная модерация)
+        const fallbackModel = VIDEO_MODELS.find(m => 
+          m.id === 'kling' && m.supportsI2v === (mode === 'i2v')
+        );
+        
+        if (fallbackModel) {
+          try {
+            const fallbackVariant = fallbackModel.modelVariants?.[0] || null;
+            const fallbackApiId = (mode === 'i2v' && fallbackVariant?.apiIdI2v) 
+              ? fallbackVariant.apiIdI2v 
+              : fallbackVariant?.apiId || fallbackModel.apiId;
+            
+            console.log('[API] Using fallback model:', fallbackModel.name, fallbackApiId);
+            
+            response = await kieClient.generateVideo({
+              model: fallbackApiId,
+              provider: 'kie_market',
+              prompt: fullPrompt,
+              imageUrl: imageUrl,
+              duration: duration || 5,
+              aspectRatio: aspectRatio,
+              sound: false,
+              mode: mode,
+            });
+            
+            usedFallback = true;
+            
+            // Обновить запись в БД с информацией о fallback
+            if (generation?.id) {
+              await supabase
+                .from('generations')
+                .update({ 
+                  model_name: `${modelInfo.name} → ${fallbackModel.name} (fallback)`,
+                  metadata: { 
+                    original_model: model,
+                    fallback_reason: 'content_policy',
+                    fallback_model: fallbackModel.id,
+                  }
+                })
+                .eq('id', generation.id);
+            }
+          } catch (fallbackError) {
+            // Если fallback тоже не сработал, возвращаем ошибку
+            console.error('[API] Fallback model also failed:', fallbackError);
+            return NextResponse.json(
+              { 
+                error: 'Промпт был заблокирован политикой контента. Пожалуйста, переформулируйте запрос, избегая насилия, взрослого контента и других запрещённых тем.',
+                errorCode: 'CONTENT_POLICY_VIOLATION',
+                suggestion: 'Попробуйте описать сцену более нейтрально, без упоминания насилия, оружия или взрослого контента.',
+              },
+              { status: 400 }
+            );
+          }
+        } else {
+          // Нет доступного fallback
+          return NextResponse.json(
+            { 
+              error: 'Промпт был заблокирован политикой контента. Пожалуйста, переформулируйте запрос.',
+              errorCode: 'CONTENT_POLICY_VIOLATION',
+              suggestion: 'Попробуйте описать сцену более нейтрально, избегая запрещённых тем.',
+            },
+            { status: 400 }
+          );
+        }
+      } else {
+        // Другая ошибка - пробрасываем дальше
+        throw error;
+      }
+    }
 
     // Update generation with task ID
     if (generation?.id) {
@@ -298,8 +409,10 @@ export async function POST(request: NextRequest) {
       estimatedTime: response.estimatedTime || 120,
       creditCost: creditCost,
       generationId: generation?.id,
-      provider: modelInfo.provider,
+      provider: usedFallback ? 'kie_market' : modelInfo.provider,
       kind: "video",
+      warning: promptWarning,
+      usedFallback: usedFallback,
     });
   } catch (error) {
     console.error('[API] Video generation error:', error);

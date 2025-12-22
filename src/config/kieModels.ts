@@ -43,6 +43,39 @@ export interface KieModel {
 
 export const KIE_MODELS: Record<string, KieModel> = {
   // ===== IMAGE MODELS =====
+
+  // Midjourney V7
+  midjourney_t2i: {
+    id: 'midjourney_t2i',
+    name: 'Midjourney V7',
+    apiModel: 'midjourney/text-to-image',
+    kind: 'image',
+    mode: 't2i',
+    starsCost: 10, // Base cost for fast speed
+    requiresPremium: true,
+    description: 'Midjourney - арт/стиль высочайшего качества',
+    inputSchema: {
+      prompt: '',
+      aspectRatio: '1:1',
+      // MJ specific params
+    },
+  },
+
+  midjourney_i2i: {
+    id: 'midjourney_i2i',
+    name: 'Midjourney (Image Ref)',
+    apiModel: 'midjourney/image-to-image',
+    kind: 'image',
+    mode: 'i2i',
+    starsCost: 12,
+    requiresPremium: true,
+    description: 'Midjourney с референсным изображением',
+    inputSchema: {
+      prompt: '',
+      imageUrl: '',
+      aspectRatio: '1:1',
+    },
+  },
   
   seedream_45_t2i: {
     id: 'seedream_45_t2i',

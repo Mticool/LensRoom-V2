@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  Star,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ const NAV_GROUPS = [
     title: "Пользователи",
     items: [
       { href: "/admin/users", label: "Все пользователи", icon: Users },
+      { href: "/admin/credits", label: "Начисление ⭐", icon: Star },
       { href: "/admin/sales", label: "Продажи", icon: CreditCard },
       { href: "/admin/waitlist", label: "Waitlist", icon: Clock },
     ],

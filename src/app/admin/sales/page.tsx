@@ -6,6 +6,7 @@ import { AdminTable, Column } from "@/components/admin/AdminTable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AlertCircle } from "lucide-react";
 
 interface Sale {
   id: string;
@@ -29,9 +30,16 @@ interface SalesData {
   sales: Sale[];
 }
 
+interface ErrorResponse {
+  error: string;
+  hint?: string;
+  missing?: string[];
+}
+
 export default function AdminSalesPage() {
   const [data, setData] = useState<SalesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<ErrorResponse | null>(null);
 
   // Date filters (last 7 days by default)
   const [fromDate, setFromDate] = useState(() => {
@@ -41,14 +49,29 @@ export default function AdminSalesPage() {
   });
   const [toDate, setToDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  const fetchSales = () => {
+  const fetchSales = async () => {
     setIsLoading(true);
-    const params = new URLSearchParams({ from: fromDate, to: toDate });
-    fetch(`/api/admin/sales?${params}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then(setData)
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams({ from: fromDate, to: toDate });
+      const res = await fetch(`/api/admin/sales?${params}`, { credentials: "include" });
+      const json = await res.json();
+      
+      if (!res.ok) {
+        setError(json as ErrorResponse);
+        setData(null);
+        return;
+      }
+      
+      setData(json);
+    } catch (e) {
+      console.error("[AdminSales] Fetch error:", e);
+      setError({ error: "Не удалось загрузить данные" });
+      setData(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -141,8 +164,35 @@ export default function AdminSalesPage() {
         </CardContent>
       </Card>
 
+      {/* Error */}
+      {error && (
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-red-400">{error.error}</p>
+                {error.hint && (
+                  <p className="text-sm text-[var(--muted)] mt-1">{error.hint}</p>
+                )}
+                {error.missing && error.missing.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-[var(--muted)]">Отсутствующие поля:</p>
+                    <ul className="text-xs text-red-400/70 mt-1">
+                      {error.missing.map((m, i) => (
+                        <li key={i}>• {m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary */}
-      {data && !isLoading && (
+      {data && !isLoading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="pt-6">

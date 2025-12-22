@@ -166,15 +166,23 @@ export const MODEL_REGISTRY: ModelSpec[] = [
   },
   {
     id: "midjourney",
-    name: "Midjourney (MJ) — Artistic",
+    name: "Midjourney V7",
     contentType: "photo",
     rank: 4,
-    credits: null,
+    credits: 10, // Base cost for fast speed
     speed: "medium",
     quality: "ultra",
     description: "Когда нужен стиль/арт/«дорогая картинка» с характером.",
     featured: true,
-    modes: [PHOTO_MODES.t2i, PHOTO_MODES.two_refs],
+    modes: [PHOTO_MODES.t2i, PHOTO_MODES.i2i],
+    // Custom settings for MJ
+    customSettings: {
+      hasVersion: true,
+      hasSpeed: true,
+      hasStylization: true,
+      hasWeirdness: true,
+      hasVariety: true,
+    },
   },
   {
     id: "z-image",

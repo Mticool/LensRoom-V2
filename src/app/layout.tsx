@@ -9,6 +9,7 @@ import { ReferralHandler } from "@/components/referrals/ReferralHandler";
 import { ServiceWorkerRegistration } from "@/components/service-worker/ServiceWorkerRegistration";
 import { CriticalResources } from "@/components/performance/CriticalResources";
 import { LowBalanceAlert } from "@/components/ui/low-balance-alert";
+import { Analytics } from "@/components/analytics/Analytics";
 
 // Optimized font loading with next/font
 const inter = Inter({
@@ -159,21 +160,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LensRoom" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/icon-152x152.png" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
         
         {/* Splash screens for iOS (optional - добавить позже) */}
         {/* <link rel="apple-touch-startup-image" href="/splash.png" /> */}
-        
-        {/* Preload critical resources */}
-        <link 
-          rel="preload" 
-          href="/og-image.png" 
-          as="image" 
-          type="image/png"
-        />
         
         {/* Scripts */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
@@ -182,6 +172,12 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <ErrorBoundary>
           <Providers>
+            {/* Analytics */}
+            <Analytics 
+              gaId={process.env.NEXT_PUBLIC_GA_ID}
+              ymId={process.env.NEXT_PUBLIC_YM_ID}
+            />
+            
             {/* Performance optimizations */}
             <ServiceWorkerRegistration />
             <CriticalResources />

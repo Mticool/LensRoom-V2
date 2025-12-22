@@ -83,6 +83,23 @@ export function LibraryClient() {
   const [editedPrompt, setEditedPrompt] = useState("");
 
   const { favorites, toggleFavorite, isFavorite, fetchFavorites } = useFavoritesStore();
+  
+  // Safe favorites check (handle both Set and Array after hydration)
+  const safeIsFavorite = useCallback((id: string): boolean => {
+    try {
+      if (!favorites) return false;
+      if (favorites instanceof Set) {
+        return favorites.has(id);
+      }
+      if (Array.isArray(favorites)) {
+        const arr = favorites as string[];
+        return arr.includes(id);
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }, [favorites]);
 
   const prevStatusRef = useRef<Record<string, UiStatus>>({});
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,7 +111,12 @@ export function LibraryClient() {
 
   // Fetch favorites on mount
   useEffect(() => {
-    fetchFavorites();
+    try {
+      fetchFavorites();
+    } catch (error) {
+      console.error('[Library] Error fetching favorites:', error);
+      // Не критично, продолжаем работу
+    }
   }, [fetchFavorites]);
 
   // Fetch generations from API
@@ -124,8 +146,22 @@ export function LibraryClient() {
       });
       clearTimeout(timeout);
       
-      const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(json?.error || `Failed to load (${res.status})`);
+      let json: any = null;
+      try {
+        const text = await res.text();
+        if (text) {
+          json = JSON.parse(text);
+        }
+      } catch (parseError) {
+        console.error('[Library] Failed to parse response:', parseError);
+        throw new Error('Неверный формат ответа от сервера');
+      }
+      
+      if (!res.ok) {
+        const errorMsg = json?.error || `Ошибка загрузки (${res.status})`;
+        console.error('[Library] API error:', errorMsg, json);
+        throw new Error(errorMsg);
+      }
 
       // Parse new API format: { items: [...], count, meta }
       const newItems: LibraryItem[] = Array.isArray(json?.items) ? json.items : [];
@@ -134,8 +170,25 @@ export function LibraryClient() {
         console.log("[library] Received", newItems.length, "items");
       }
 
-      setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-      setHasMore(json?.meta?.hasMore || newItems.length === LIMIT);
+      // Валидация и нормализация данных
+      const validatedItems = newItems.map((item: any) => ({
+        id: String(item?.id || ''),
+        user_id: String(item?.user_id || ''),
+        type: String(item?.type || 'photo'),
+        status: String(item?.status || 'queued'),
+        created_at: item?.created_at || new Date().toISOString(),
+        updated_at: item?.updated_at || null,
+        prompt: item?.prompt || null,
+        model_name: item?.model_name || null,
+        preview_status: item?.preview_status || 'none',
+        originalUrl: item?.originalUrl || null,
+        previewUrl: item?.previewUrl || null,
+        posterUrl: item?.posterUrl || null,
+        displayUrl: item?.displayUrl || null,
+      }));
+
+      setItems((prev) => (append ? [...prev, ...validatedItems] : validatedItems));
+      setHasMore(json?.meta?.hasMore || validatedItems.length === LIMIT);
       lastFetchRef.current = Date.now();
       
     } catch (e) {
@@ -173,27 +226,60 @@ export function LibraryClient() {
 
   // Build grid items with filter
   const grid = useMemo(() => {
-    let filtered = items;
-    
-    // Apply favorites filter
-    if (filter === 'favorites') {
-      filtered = items.filter(item => favorites.has(item.id));
+    try {
+      let filtered = items;
+      
+      // Apply favorites filter
+      if (filter === 'favorites') {
+        filtered = items.filter(item => {
+          try {
+            if (!favorites) return false;
+            if (favorites instanceof Set) {
+              return favorites.has(item.id);
+            }
+            if (Array.isArray(favorites)) {
+              const arr = favorites as string[];
+              return arr.includes(item.id);
+            }
+            return false;
+          } catch {
+            return false;
+          }
+        });
+      }
+      
+      return filtered.map((item) => {
+        try {
+          const st = normalizeStatus(item?.status);
+          const isVideo = String(item?.type || "").toLowerCase() === "video";
+          const ageSeconds = getAgeSeconds(item?.created_at || new Date().toISOString());
+          const needsPreview = st === "success" && item?.preview_status !== "ready";
+          const progress = st === "generating" || st === "queued" 
+            ? calculateProgress(item?.created_at || new Date().toISOString(), item?.type || 'photo') 
+            : 0;
+          const timeRemaining = st === "generating" || st === "queued"
+            ? formatTimeRemaining(item?.created_at || new Date().toISOString(), item?.type || 'photo')
+            : null;
+          return { item, st, isVideo, ageSeconds, needsPreview, progress, timeRemaining };
+        } catch (itemError) {
+          console.error('[Library] Error processing item:', item?.id, itemError);
+          // Возвращаем безопасный fallback
+          return {
+            item,
+            st: 'failed' as UiStatus,
+            isVideo: false,
+            ageSeconds: 0,
+            needsPreview: false,
+            progress: 0,
+            timeRemaining: null,
+          };
+        }
+      });
+    } catch (error) {
+      console.error('[Library] Error building grid:', error);
+      return [];
     }
-    
-    return filtered.map((item) => {
-      const st = normalizeStatus(item.status);
-      const isVideo = String(item?.type || "").toLowerCase() === "video";
-      const ageSeconds = getAgeSeconds(item.created_at);
-      const needsPreview = st === "success" && item.preview_status !== "ready";
-      const progress = st === "generating" || st === "queued" 
-        ? calculateProgress(item.created_at, item.type) 
-        : 0;
-      const timeRemaining = st === "generating" || st === "queued"
-        ? formatTimeRemaining(item.created_at, item.type)
-        : null;
-      return { item, st, isVideo, ageSeconds, needsPreview, progress, timeRemaining };
-    });
-  }, [items, filter, favorites]);
+  }, [items, filter, favorites, safeIsFavorite]);
 
   // Determine if we need polling and at what interval
   const pollingConfig = useMemo(() => {
@@ -263,29 +349,37 @@ export function LibraryClient() {
 
   // Toast on generating -> success transitions
   useEffect(() => {
-    const prev = prevStatusRef.current || {};
-    const next: Record<string, UiStatus> = {};
-    
-    for (const { item, st } of grid) {
-      const id = String(item?.id || "");
-      if (!id) continue;
-      next[id] = st;
-      const was = prev[id];
+    try {
+      const prev = prevStatusRef.current || {};
+      const next: Record<string, UiStatus> = {};
       
-      if ((was === "generating" || was === "queued") && st === "success") {
-        toast.success("Готово! 🎉", {
-          description: item?.model_name || "Генерация завершена",
-          action: {
-            label: "Открыть",
-            onClick: () => {
-              setSelected(item);
-              setOpen(true);
-            },
-          },
-        });
+      for (const { item, st } of grid) {
+        try {
+          const id = String(item?.id || "");
+          if (!id) continue;
+          next[id] = st;
+          const was = prev[id];
+          
+          if ((was === "generating" || was === "queued") && st === "success") {
+            toast.success("Готово! 🎉", {
+              description: item?.model_name || "Генерация завершена",
+              action: {
+                label: "Открыть",
+                onClick: () => {
+                  setSelected(item);
+                  setOpen(true);
+                },
+              },
+            });
+          }
+        } catch (itemError) {
+          console.error('[Library] Error in status transition:', itemError);
+        }
       }
+      prevStatusRef.current = next;
+    } catch (error) {
+      console.error('[Library] Error in toast effect:', error);
     }
-    prevStatusRef.current = next;
   }, [grid]);
 
   const handleOpenExternal = (url: string) => {
@@ -355,34 +449,54 @@ export function LibraryClient() {
 
   // Toggle favorite
   const handleToggleFavorite = async (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    await toggleFavorite(id);
-    toast.success(isFavorite(id) ? "Удалено из избранного" : "Добавлено в избранное");
+    try {
+      e?.stopPropagation();
+      const wasFavorite = safeIsFavorite(id);
+      await toggleFavorite(id);
+      // Небольшая задержка чтобы store обновился
+      setTimeout(() => {
+        const nowFavorite = safeIsFavorite(id);
+        toast.success(nowFavorite ? "Добавлено в избранное" : "Удалено из избранного");
+      }, 100);
+    } catch (error) {
+      console.error('[Library] Error toggling favorite:', error);
+      toast.error('Ошибка при изменении избранного');
+    }
   };
 
   // Format estimated time remaining
   const formatTimeRemaining = (createdAt: string, type: string): string => {
-    const ageSeconds = getAgeSeconds(createdAt);
-    const isVideo = type.toLowerCase() === "video";
-    const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
-    
-    const avgTime = (min + max) / 2;
-    const remaining = Math.max(0, avgTime - ageSeconds);
-    
-    if (remaining <= 0) return "Скоро...";
-    if (remaining < 60) return `~${Math.ceil(remaining)} сек`;
-    return `~${Math.ceil(remaining / 60)} мин`;
+    try {
+      if (!createdAt) return "Скоро...";
+      const ageSeconds = getAgeSeconds(createdAt);
+      const isVideo = type?.toLowerCase() === "video";
+      const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
+      
+      const avgTime = (min + max) / 2;
+      const remaining = Math.max(0, avgTime - ageSeconds);
+      
+      if (remaining <= 0) return "Скоро...";
+      if (remaining < 60) return `~${Math.ceil(remaining)} сек`;
+      return `~${Math.ceil(remaining / 60)} мин`;
+    } catch {
+      return "Скоро...";
+    }
   };
 
   // Calculate progress percentage based on time
   const calculateProgress = (createdAt: string, type: string): number => {
-    const ageSeconds = getAgeSeconds(createdAt);
-    const isVideo = type.toLowerCase() === "video";
-    const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
-    
-    const avgTime = (min + max) / 2;
-    const progress = Math.min(95, (ageSeconds / avgTime) * 100);
-    return Math.round(progress);
+    try {
+      if (!createdAt) return 0;
+      const ageSeconds = getAgeSeconds(createdAt);
+      const isVideo = type?.toLowerCase() === "video";
+      const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
+      
+      const avgTime = (min + max) / 2;
+      const progress = Math.min(95, (ageSeconds / avgTime) * 100);
+      return Math.round(progress);
+    } catch {
+      return 0;
+    }
   };
 
   const handleDownload = async (generationId: string, kind: 'original' | 'preview' | 'poster' = 'original') => {
@@ -404,12 +518,18 @@ export function LibraryClient() {
 
   // Get display URL for grid card
   const getCardDisplayUrl = (item: LibraryItem, isVideo: boolean): string | null => {
-    if (isVideo) {
-      // Video: show poster if available
-      return item.posterUrl;
-    } else {
-      // Photo: show preview if available, else original
-      return item.previewUrl || item.originalUrl;
+    try {
+      if (!item) return null;
+      if (isVideo) {
+        // Video: show poster if available
+        return item.posterUrl || null;
+      } else {
+        // Photo: show preview if available, else original
+        return item.previewUrl || item.originalUrl || null;
+      }
+    } catch (error) {
+      console.error('[Library] Error getting display URL:', error);
+      return null;
     }
   };
 
@@ -484,15 +604,21 @@ export function LibraryClient() {
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {grid.map(({ item, st, isVideo, needsPreview, progress, timeRemaining }) => {
-                const hasError = imageError.has(String(item.id));
-                const displayUrl = getCardDisplayUrl(item, isVideo);
-                const canDisplay = !!displayUrl && !hasError;
-                const isFav = isFavorite(item.id);
+                if (!item || !item.id) {
+                  console.warn('[Library] Skipping invalid item:', item);
+                  return null;
+                }
                 
-                // Determine if we should show the card as "ready"
-                const hasContent = st === "success" && (item.originalUrl || item.previewUrl || item.posterUrl);
+                try {
+                  const hasError = imageError.has(String(item.id));
+                  const displayUrl = getCardDisplayUrl(item, isVideo);
+                  const canDisplay = !!displayUrl && !hasError;
+                  const isFav = safeIsFavorite(item.id);
+                  
+                  // Determine if we should show the card as "ready"
+                  const hasContent = st === "success" && (item.originalUrl || item.previewUrl || item.posterUrl);
 
-                return (
+                  return (
                   <div key={String(item.id)} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden group">
                     <div className="relative aspect-square bg-black/20">
                       {canDisplay ? (
@@ -622,8 +748,16 @@ export function LibraryClient() {
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                  );
+                } catch (cardError) {
+                  console.error('[Library] Error rendering card:', item?.id, cardError);
+                  return (
+                    <div key={String(item?.id || Math.random())} className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4">
+                      <div className="text-xs text-red-400">Ошибка отображения</div>
+                    </div>
+                  );
+                }
+              }).filter(Boolean)}
             </div>
 
             {/* Load more */}
@@ -668,14 +802,14 @@ export function LibraryClient() {
                 {/* Favorite button */}
                 <button
                   className={`p-2 rounded-xl transition-colors ${
-                    isFavorite(selected.id) 
+                    safeIsFavorite(selected.id) 
                       ? 'bg-red-500/20 text-red-400' 
                       : 'hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)]'
                   }`}
                   onClick={() => handleToggleFavorite(selected.id)}
-                  title={isFavorite(selected.id) ? "Убрать из избранного" : "Добавить в избранное"}
+                  title={safeIsFavorite(selected.id) ? "Убрать из избранного" : "Добавить в избранное"}
                 >
-                  <Heart className={`w-5 h-5 ${isFavorite(selected.id) ? 'fill-current' : ''}`} />
+                  <Heart className={`w-5 h-5 ${safeIsFavorite(selected.id) ? 'fill-current' : ''}`} />
                 </button>
                 {/* Regenerate similar */}
                 <button

@@ -21,6 +21,7 @@ export interface VeoGenerateRequest {
   model?: 'veo3' | 'veo3_fast'; // veo3 = quality, veo3_fast = fast
   aspectRatio?: string;
   enhancePrompt?: boolean;
+  useFallback?: boolean; // Use Veo 3 Fallback API to bypass content policy
   // For image-to-video
   imageUrls?: string[];
   // For callback webhook
@@ -270,8 +271,24 @@ export class KieAIClient {
 
     // KIE API returns code in body
     if (data.code && data.code !== 200) {
+      const errorMessage = data.message || data.msg || `API Error: ${data.code}`;
+      
+      // Проверка на ошибку политики контента Google
+      if (
+        errorMessage.includes('content policy') ||
+        errorMessage.includes('violating content policies') ||
+        errorMessage.includes('Rejected by Google') ||
+        errorMessage.includes('content policies')
+      ) {
+        throw new KieAPIError(
+          'Rejected by Google\'s content policy. Please revise your prompt or use Veo 3 Fallback API.',
+          data.code,
+          'CONTENT_POLICY_VIOLATION'
+        );
+      }
+      
       throw new KieAPIError(
-        data.message || data.msg || `API Error: ${data.code}`,
+        errorMessage,
         data.code
       );
     }
@@ -543,6 +560,7 @@ export class KieAIClient {
       prompt: params.prompt || '',
       aspectRatio: veoAspect,
       enhancePrompt: true,
+      useFallback: true, // Enable Veo 3 Fallback API to bypass content policy
     };
 
     // Select model based on quality
@@ -836,6 +854,96 @@ export class KieAIClient {
       id: response.data.taskId,
       status: "queued",
       estimatedTime: 30,
+    };
+  }
+
+  /**
+   * Generate image with Midjourney via KIE API
+   * Model: midjourney/vX-text-to-image
+   * Docs: https://kie.ai/model-preview/features/mj-api
+   */
+  async generateMidjourney(params: {
+    prompt: string;
+    version?: '7' | '6.1' | '6' | '5.2' | '5.1' | 'niji6';
+    speed?: 'relaxed' | 'fast' | 'turbo';
+    aspectRatio?: string;
+    stylization?: number; // 0-1000
+    weirdness?: number; // 0-3000
+    variety?: number; // 0-100
+    enableTranslation?: boolean;
+    imageUrl?: string; // For image-to-image mode
+  }): Promise<GenerateImageResponse> {
+    const input: Record<string, unknown> = {
+      prompt: params.prompt,
+    };
+
+    // Speed (required)
+    input.speed = params.speed || 'fast';
+
+    // Aspect ratio
+    if (params.aspectRatio) {
+      input.aspectRatio = params.aspectRatio;
+    }
+
+    // Version - map to KIE API format
+    const version = params.version || '7';
+    if (version === 'niji6') {
+      input.version = 'Niji 6';
+    } else {
+      input.version = `Version ${version}`;
+    }
+
+    // Stylization (0-1000)
+    if (params.stylization !== undefined && params.stylization > 0) {
+      input.stylization = params.stylization;
+    }
+
+    // Weirdness (0-3000)
+    if (params.weirdness !== undefined && params.weirdness > 0) {
+      input.weirdness = params.weirdness;
+    }
+
+    // Variety (0-100)
+    if (params.variety !== undefined && params.variety > 0) {
+      input.variety = params.variety;
+    }
+
+    // Translation (for non-English prompts)
+    if (params.enableTranslation !== undefined) {
+      input.enableTranslation = params.enableTranslation;
+    }
+
+    // Image-to-image mode
+    if (params.imageUrl) {
+      input.imageUrl = params.imageUrl;
+    }
+
+    // Determine API model based on mode
+    let model = 'midjourney/text-to-image';
+    if (params.imageUrl) {
+      model = 'midjourney/image-to-image';
+    }
+
+    const request: CreateTaskRequest = {
+      model,
+      input,
+    };
+
+    console.log('[Midjourney] Request:', JSON.stringify(request, null, 2));
+
+    const response = await this.createTask(request);
+
+    // Estimate time based on speed
+    const estimatedTimes: Record<string, number> = {
+      relaxed: 120, // 2 minutes
+      fast: 60, // 1 minute
+      turbo: 30, // 30 seconds
+    };
+
+    return {
+      id: response.data.taskId,
+      status: "queued",
+      estimatedTime: estimatedTimes[params.speed || 'fast'] || 60,
     };
   }
 

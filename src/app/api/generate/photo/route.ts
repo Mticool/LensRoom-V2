@@ -290,15 +290,36 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    const response = await kieClient.generateImage({
-      model: modelInfo.apiId,
-      prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
-      aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1") as any),
-      resolution: resolutionForKie,
-      outputFormat: "png", // Always PNG for photos
-      quality,
-      imageInputs,
-    });
+    let response: any;
+
+    // Check if this is Midjourney model - use special method
+    if (effectiveModelId === 'midjourney' || modelInfo.apiId.includes('midjourney')) {
+      // Extract MJ-specific params from request body
+      const mjParams = body.mjSettings || {};
+      
+      response = await kieClient.generateMidjourney({
+        prompt: prompt,
+        version: mjParams.version || '7',
+        speed: mjParams.speed || 'fast',
+        aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1")),
+        stylization: mjParams.stylization,
+        weirdness: mjParams.weirdness,
+        variety: mjParams.variety,
+        enableTranslation: mjParams.enableTranslation ?? true,
+        imageUrl: imageInputs?.[0], // For i2i mode
+      });
+    } else {
+      // Standard photo generation
+      response = await kieClient.generateImage({
+        model: modelInfo.apiId,
+        prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
+        aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1") as any),
+        resolution: resolutionForKie,
+        outputFormat: "png", // Always PNG for photos
+        quality,
+        imageInputs,
+      });
+    }
 
     // Attach task_id to DB record so callbacks / sync can find it reliably
     if (generation?.id) {

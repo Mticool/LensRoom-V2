@@ -53,6 +53,16 @@ export interface ModeSpec {
   comingSoon?: boolean; // For features not yet implemented
 }
 
+// Custom model settings (for models with unique controls)
+export interface ModelCustomSettings {
+  // Midjourney specific
+  hasVersion?: boolean;
+  hasSpeed?: boolean;
+  hasStylization?: boolean;
+  hasWeirdness?: boolean;
+  hasVariety?: boolean;
+}
+
 // Model specification
 export interface ModelSpec {
   id: string;
@@ -66,6 +76,7 @@ export interface ModelSpec {
   featured?: boolean;
   modes: ModeSpec[];
   hidden?: boolean;
+  customSettings?: ModelCustomSettings;
 }
 
 // Aspect ratio options

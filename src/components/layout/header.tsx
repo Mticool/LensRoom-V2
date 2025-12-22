@@ -225,7 +225,7 @@ export function Header() {
                             {/* Admin Link */}
                             {telegramUser?.isAdmin && (
                               <Link
-                                href="/account/waitlist"
+                                href="/admin/waitlist"
                                 onClick={() => setUserMenuOpen(false)}
                                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
                               >
@@ -356,7 +356,7 @@ export function Header() {
                       )}
                       {telegramUser?.isAdmin && (
                         <Link
-                          href="/account/waitlist"
+                          href="/admin/waitlist"
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white hover:bg-white/5 transition-colors motion-reduce:transition-none"
                         >

@@ -21,12 +21,8 @@ import { EffectsGallery } from '@/components/home/EffectsGallery';
 import { SUBSCRIPTIONS } from '@/lib/pricing-config';
 import { getHomeCopy, renderWithBreaks } from '@/content/home';
 import { ReferralInvite } from '@/components/home/referral-invite';
-import { HomeV2 } from '@/components/home-v2/HomeV2';
 
 const copy = getHomeCopy();
-
-// ===== FEATURE FLAG: Home V2 =====
-const isHomeV2Enabled = process.env.NEXT_PUBLIC_HOME_V2 === '1';
 
 // ===== HERO =====
 function Hero() {
@@ -453,10 +449,5 @@ function HomeV1() {
 
 // ===== MAIN PAGE =====
 export default function Home() {
-  // Feature flag: switch between Home V1 (original) and Home V2 (Netflix-style)
-  if (isHomeV2Enabled) {
-    return <HomeV2 />;
-  }
-  
   return <HomeV1 />;
 }

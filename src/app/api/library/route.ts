@@ -136,10 +136,11 @@ export async function GET(request: NextRequest) {
     // 6. Build URLs for each generation
     const items = await Promise.all(
       (generations || []).map(async (gen: any) => {
-        const isVideo = gen.type === "video";
-        let originalUrl: string | null = null;
-        let previewUrl: string | null = null;
-        let posterUrl: string | null = null;
+        try {
+          const isVideo = gen.type === "video";
+          let originalUrl: string | null = null;
+          let previewUrl: string | null = null;
+          let posterUrl: string | null = null;
 
         // --- ORIGINAL URL (REQUIRED for success generations) ---
         // Try to get signed URL from storage path first
@@ -194,40 +195,62 @@ export async function GET(request: NextRequest) {
           displayUrl = previewUrl || originalUrl; // Photo: preview or original
         }
 
-        return {
-          id: gen.id,
-          user_id: gen.user_id,
-          type: gen.type,
-          status: gen.status,
-          created_at: gen.created_at,
-          updated_at: gen.updated_at,
-          prompt: gen.prompt,
-          model_name: gen.model_name,
-          preview_status: gen.preview_status || "none",
-          // URLs - Library is NEVER empty now!
-          originalUrl,     // Always present for success
-          previewUrl,      // For photos (null if not ready)
-          posterUrl,       // For videos (null if not ready)
-          displayUrl,      // For grid display (previewUrl/posterUrl or originalUrl)
-        };
+          return {
+            id: gen.id,
+            user_id: gen.user_id,
+            type: gen.type || 'photo',
+            status: gen.status || 'queued',
+            created_at: gen.created_at || new Date().toISOString(),
+            updated_at: gen.updated_at || null,
+            prompt: gen.prompt || null,
+            model_name: gen.model_name || null,
+            preview_status: gen.preview_status || "none",
+            // URLs - Library is NEVER empty now!
+            originalUrl,     // Always present for success
+            previewUrl,      // For photos (null if not ready)
+            posterUrl,       // For videos (null if not ready)
+            displayUrl,      // For grid display (previewUrl/posterUrl or originalUrl)
+          };
+        } catch (itemError) {
+          console.error('[Library API] Error processing generation:', gen?.id, itemError);
+          // Return safe fallback
+          return {
+            id: gen?.id || '',
+            user_id: gen?.user_id || userId,
+            type: gen?.type || 'photo',
+            status: gen?.status || 'failed',
+            created_at: gen?.created_at || new Date().toISOString(),
+            updated_at: gen?.updated_at || null,
+            prompt: gen?.prompt || null,
+            model_name: gen?.model_name || null,
+            preview_status: 'none',
+            originalUrl: null,
+            previewUrl: null,
+            posterUrl: null,
+            displayUrl: null,
+          };
+        }
       })
     );
 
-    // Log for debugging
-    const successWithUrl = items.filter(i => i.status === "success" && i.originalUrl).length;
-    const successWithoutUrl = items.filter(i => i.status === "success" && !i.originalUrl).length;
-    const withPreview = items.filter(i => i.previewUrl || i.posterUrl).length;
+    // Filter out invalid items (без ID)
+    const validItems = items.filter(item => item.id && item.user_id);
     
-    console.log(`[Library API] user=${userId} total=${items.length} success_with_url=${successWithUrl} success_without_url=${successWithoutUrl} with_preview=${withPreview}`);
+    // Log for debugging
+    const successWithUrl = validItems.filter(i => i.status === "success" && i.originalUrl).length;
+    const successWithoutUrl = validItems.filter(i => i.status === "success" && !i.originalUrl).length;
+    const withPreview = validItems.filter(i => i.previewUrl || i.posterUrl).length;
+    
+    console.log(`[Library API] user=${userId} total=${validItems.length} success_with_url=${successWithUrl} success_without_url=${successWithoutUrl} with_preview=${withPreview}`);
 
     return NextResponse.json(
       { 
-        items, 
-        count: items.length,
+        items: validItems, 
+        count: validItems.length,
         meta: {
           limit,
           offset,
-          hasMore: items.length === limit,
+          hasMore: validItems.length === limit,
         }
       },
       {
@@ -246,3 +269,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
