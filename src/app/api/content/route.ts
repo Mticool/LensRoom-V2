@@ -13,8 +13,15 @@ export async function GET(request: NextRequest) {
     
     let query = supabase
       .from('effects_gallery')
-      .select('*')
-      .eq('status', 'published'); // Only published content
+      .select('*');
+    
+    // Filter by status (default: published for public access)
+    const status = searchParams.get('status');
+    if (status) {
+      query = query.eq('status', status);
+    } else {
+      query = query.eq('status', 'published');
+    }
     
     if (placement) {
       query = query.eq('placement', placement);
@@ -45,6 +52,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { 
+        effects: data || [],
         content: data || [],
         count: data?.length || 0,
       },

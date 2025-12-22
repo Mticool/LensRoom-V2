@@ -22,24 +22,13 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
   const src = (preset.previewImage || '').trim();
   const isVideo = /\.(mp4|webm)(\?|#|$)/i.test(src);
   return (
-    <button
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      role="link"
-      aria-label={`Создать ${preset.title}`}
+    <div
       className="group relative w-full overflow-hidden rounded-2xl bg-[var(--surface)] 
                  border border-[var(--border)] break-inside-avoid mb-4
                  transition-all duration-300 ease-out
                  hover:translate-y-[-2px]
                  hover:border-white/50
-                 hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]
-                 focus:outline-none focus:ring-2 focus:ring-[var(--gold)]/50 focus:ring-offset-2 focus:ring-offset-[var(--bg)]
-                 text-left"
+                 hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]"
     >
       {/* Image with aspect ratio */}
       <div className={`relative w-full ${getTileAspectClass(preset.tileRatio)} overflow-hidden`}>
@@ -66,13 +55,13 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
           <div className="w-full h-full min-h-[220px] bg-[var(--surface2)] flex items-center justify-center">
             <div className="text-center px-6">
               <div className="text-sm font-semibold text-[var(--text)]">{preset.title}</div>
-              <div className="text-xs text-[var(--muted)] mt-1">Нет превью (сгенерируй в /admin/styles)</div>
+              <div className="text-xs text-[var(--muted)] mt-1">Нет превью</div>
             </div>
           </div>
         )}
         
         {/* Bottom gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none" />
         
         {/* Cost pill - top right */}
         {preset.costStars > 0 && (
@@ -86,14 +75,26 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
           </div>
         )}
         
-        {/* Title - bottom left */}
+        {/* Title & Repeat Button - bottom */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate">
+          <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate mb-3">
             {preset.title}
           </h3>
+          <button
+            onClick={onClick}
+            className="w-full py-2.5 px-4 rounded-xl bg-[var(--gold)] text-black font-semibold text-sm
+                       hover:bg-[var(--gold)]/90 transition-all
+                       flex items-center justify-center gap-2
+                       opacity-0 group-hover:opacity-100"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Повторить
+          </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 

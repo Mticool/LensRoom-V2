@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ===== TYPES =====
@@ -60,24 +60,22 @@ function getAspectClass(ratio: string): string {
 // ===== CONTENT CARD COMPONENT =====
 interface ContentCardProps {
   card: ContentCard;
-  onClick: () => void;
+  onRepeat: () => void;
 }
 
-function ContentCardComponent({ card, onClick }: ContentCardProps) {
+function ContentCardComponent({ card, onRepeat }: ContentCardProps) {
   const src = (card.preview_url || card.preview_image || '').trim();
   const isVideo = /\.(mp4|webm)(\?|#|$)/i.test(src);
+  
   return (
     <motion.div variants={item} className="break-inside-avoid mb-4">
-      <button
-        onClick={onClick}
+      <div
         className="group relative w-full overflow-hidden rounded-2xl bg-[var(--surface)] 
                    border border-[var(--border)]
                    transition-all duration-300 ease-out
                    hover:translate-y-[-2px]
                    hover:border-white/50
-                   hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]
-                   focus:outline-none focus:ring-2 focus:ring-[var(--gold)]/50 focus:ring-offset-2 focus:ring-offset-[var(--bg)]
-                   text-left w-full"
+                   hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]"
       >
         {/* Image with aspect ratio */}
         <div className={`relative w-full ${getAspectClass(card.aspect || card.tile_ratio)} overflow-hidden`}>
@@ -104,13 +102,13 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
             <div className="w-full h-full min-h-[220px] bg-[var(--surface2)] flex items-center justify-center">
               <div className="text-center px-6">
                 <div className="text-sm font-semibold text-[var(--text)]">{card.title}</div>
-                <div className="text-xs text-[var(--muted)] mt-1">Нет превью — нажми “Сгенерировать превью” в админке</div>
+                <div className="text-xs text-[var(--muted)] mt-1">Нет превью</div>
               </div>
             </div>
           )}
           
           {/* Bottom gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none" />
           
           {/* Cost pill - top right */}
           {card.cost_stars > 0 && (
@@ -124,14 +122,24 @@ function ContentCardComponent({ card, onClick }: ContentCardProps) {
             </div>
           )}
           
-          {/* Title - bottom left */}
+          {/* Title & Repeat Button - bottom */}
           <div className="absolute bottom-0 left-0 right-0 p-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate mb-3">
               {card.title}
             </h3>
+            <button
+              onClick={onRepeat}
+              className="w-full py-2.5 px-4 rounded-xl bg-[var(--gold)] text-black font-semibold text-sm
+                         hover:bg-[var(--gold)]/90 transition-all
+                         flex items-center justify-center gap-2
+                         opacity-0 group-hover:opacity-100"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Повторить
+            </button>
           </div>
         </div>
-      </button>
+      </div>
     </motion.div>
   );
 }
@@ -181,30 +189,29 @@ export function InspirationGallery() {
     async function loadContent() {
       setLoading(true);
       try {
-        // Load published styles from inspiration_styles (managed in /admin/styles)
-        const res = await fetch(`/api/styles?placement=inspiration&limit=100&_t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to load styles');
+        // Load published content from effects_gallery
+        const res = await fetch(`/api/content?placement=inspiration&status=published&_t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to load content');
         const data = await res.json();
-        const styles = Array.isArray((data as any)?.styles) ? (data as any).styles : [];
+        const effects = Array.isArray(data?.effects) ? data.effects : [];
 
-        const mapped: ContentCard[] = styles.map((s: any) => ({
+        const mapped: ContentCard[] = effects.map((s: any) => ({
           id: String(s.id),
           preset_id: String(s.preset_id || s.id),
           title: String(s.title || ''),
-          // inspiration_styles currently describes mostly photo styles
-          content_type: 'photo',
+          content_type: s.content_type || 'photo',
           model_key: String(s.model_key || 'nano-banana-pro'),
-          tile_ratio: '1:1',
-          cost_stars: 0,
-          mode: 't2i',
-          preview_image: String(s.preview_image || s.thumbnail_url || ''),
-          preview_url: String(s.thumbnail_url || s.preview_image || ''),
+          tile_ratio: s.tile_ratio || '1:1',
+          cost_stars: Number(s.cost_stars || 0),
+          mode: s.mode || 't2i',
+          preview_image: String(s.preview_image || ''),
+          preview_url: String(s.preview_url || s.preview_image || ''),
           template_prompt: String(s.template_prompt || ''),
           featured: !!s.featured,
           category: String(s.category || ''),
-          priority: Number(s.display_order ?? 0),
-          aspect: '1:1',
-          short_description: String(s.description || ''),
+          priority: Number(s.priority ?? 0),
+          aspect: s.aspect || s.tile_ratio || '1:1',
+          short_description: String(s.short_description || ''),
         }));
 
         setContent(mapped);
@@ -228,8 +235,8 @@ export function InspirationGallery() {
     return true;
   });
 
-  // Handle card click - redirect to generator with pre-filled prompt
-  const handleCardClick = (card: ContentCard) => {
+  // Handle repeat - redirect to generator with pre-filled prompt
+  const handleRepeat = (card: ContentCard) => {
     const params = new URLSearchParams();
     params.set('kind', card.content_type);
     params.set('model', card.model_key);
@@ -240,7 +247,7 @@ export function InspirationGallery() {
     
     router.push(`/create/studio?${params.toString()}`);
     toast.success('Открываем генератор', {
-      description: card.template_prompt ? 'Промпт уже вставлен' : undefined,
+      description: 'Промпт уже вставлен — нажмите "Создать"',
     });
   };
 
@@ -258,9 +265,9 @@ export function InspirationGallery() {
     return (
       <div className="text-center py-20">
         <Sparkles className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
-        <p className="text-[var(--muted)] mb-4">Нет стилей для вдохновения</p>
+        <p className="text-[var(--muted)] mb-4">Нет контента для вдохновения</p>
         <p className="text-sm text-[var(--muted)]">
-          Администратор еще не добавил стили в /admin/styles
+          Создайте контент в разделе Стили (/admin/styles)
         </p>
       </div>
     );
@@ -289,12 +296,10 @@ export function InspirationGallery() {
           <ContentCardComponent
             key={card.id}
             card={card}
-            onClick={() => handleCardClick(card)}
+            onRepeat={() => handleRepeat(card)}
           />
         ))}
       </motion.div>
     </div>
   );
 }
-
-
