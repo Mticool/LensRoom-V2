@@ -23,8 +23,8 @@ export const PRODUCT_IMAGE_MODES: ProductImageMode[] = [
     name: "Студия (FLUX.2)",
     modelKey: "flux-2",
     description: "Чистая студийная картинка, стабильный реализм",
-    costPerImageStars: 8,
-    packCostStars: 45, // ~6% discount vs 8*6=48
+    costPerImageStars: 9, // Updated to match FLUX.2 Pro 1k pricing
+    packCostStars: 51, // ~6% discount vs 9*6=54
     featured: true,
   },
   {
@@ -32,8 +32,8 @@ export const PRODUCT_IMAGE_MODES: ProductImageMode[] = [
     name: "Премиум (Nano Banana Pro)",
     modelKey: "nano-banana-pro",
     description: "Дорогой свет, глянец, премиальная подача",
-    costPerImageStars: 18,
-    packCostStars: 99, // ~8% discount vs 18*6=108
+    costPerImageStars: 30, // Updated to match Nano Banana Pro 1k_2k pricing
+    packCostStars: 165, // ~8% discount vs 30*6=180
     badge: "PRO",
   },
   {
@@ -41,8 +41,8 @@ export const PRODUCT_IMAGE_MODES: ProductImageMode[] = [
     name: "Лайфстайл (Seedream 4.5)",
     modelKey: "seedream-4.5",
     description: "Товар в окружении (кухня/ванная/спортзал и т.д.)",
-    costPerImageStars: 12,
-    packCostStars: 75, // ~4% discount vs 12*6=72 (rounded up for premium feel)
+    costPerImageStars: 11, // Updated to match Seedream 4.5 pricing
+    packCostStars: 63, // ~5% discount vs 11*6=66
   },
 ];
 
