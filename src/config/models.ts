@@ -408,7 +408,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
       {
         id: 'kling-2.5-turbo',
         name: 'Kling 2.5 Turbo',
-        apiId: 'kling-2.5/text-to-video',
+        apiId: 'kling-2.5-turbo/text-to-video', // Updated API ID
         pricing: {
           '5': { no_audio: 65 },
           '10': { no_audio: 130 },

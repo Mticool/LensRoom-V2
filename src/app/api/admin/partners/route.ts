@@ -10,16 +10,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     
+    // Get applications first, then fetch profiles separately (no FK)
     let query = supabase
       .from('affiliate_applications')
-      .select(`
-        *,
-        telegram_profiles!affiliate_applications_user_id_fkey (
-          first_name,
-          last_name,
-          telegram_username
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
     
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
@@ -36,13 +30,32 @@ export async function GET(request: NextRequest) {
       throw error;
     }
     
-    const applications = (data || []).map((a: any) => ({
-      ...a,
-      profiles: a.telegram_profiles ? {
-        display_name: [a.telegram_profiles.first_name, a.telegram_profiles.last_name].filter(Boolean).join(' ') || null,
-        username: a.telegram_profiles.telegram_username,
-      } : null,
-    }));
+    // Fetch profiles for each application
+    const userIds = [...new Set((data || []).map((a: any) => a.user_id).filter(Boolean))];
+    
+    let profilesMap: Record<string, any> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('telegram_profiles')
+        .select('auth_user_id, first_name, last_name, telegram_username')
+        .in('auth_user_id', userIds);
+      
+      profilesMap = (profiles || []).reduce((acc: any, p: any) => {
+        acc[p.auth_user_id] = p;
+        return acc;
+      }, {});
+    }
+    
+    const applications = (data || []).map((a: any) => {
+      const profile = profilesMap[a.user_id];
+      return {
+        ...a,
+        profiles: profile ? {
+          display_name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null,
+          username: profile.telegram_username,
+        } : null,
+      };
+    });
     
     return NextResponse.json({ applications });
     

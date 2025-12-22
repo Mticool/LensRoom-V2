@@ -13,11 +13,7 @@ export async function GET(request: NextRequest) {
     
     let query = supabase
       .from('affiliate_earnings')
-      .select(`
-        *,
-        affiliate:telegram_profiles!affiliate_earnings_affiliate_user_id_fkey(first_name, last_name, telegram_username),
-        referral:telegram_profiles!affiliate_earnings_referral_user_id_fkey(first_name, last_name, telegram_username)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
     
     if (status && ['pending', 'paid', 'cancelled'].includes(status)) {
@@ -38,18 +34,42 @@ export async function GET(request: NextRequest) {
       throw error;
     }
     
-    // Форматируем данные
-    const earnings = (data || []).map((e: any) => ({
-      ...e,
-      affiliate: e.affiliate ? {
-        display_name: [e.affiliate.first_name, e.affiliate.last_name].filter(Boolean).join(' ') || null,
-        username: e.affiliate.telegram_username,
-      } : null,
-      referral: e.referral ? {
-        display_name: [e.referral.first_name, e.referral.last_name].filter(Boolean).join(' ') || null,
-        username: e.referral.telegram_username,
-      } : null,
-    }));
+    // Collect all user IDs
+    const allUserIds = new Set<string>();
+    (data || []).forEach((e: any) => {
+      if (e.affiliate_user_id) allUserIds.add(e.affiliate_user_id);
+      if (e.referral_user_id) allUserIds.add(e.referral_user_id);
+    });
+    
+    // Fetch profiles
+    let profilesMap: Record<string, any> = {};
+    if (allUserIds.size > 0) {
+      const { data: profiles } = await supabase
+        .from('telegram_profiles')
+        .select('auth_user_id, first_name, last_name, telegram_username')
+        .in('auth_user_id', Array.from(allUserIds));
+      
+      profilesMap = (profiles || []).reduce((acc: any, p: any) => {
+        acc[p.auth_user_id] = p;
+        return acc;
+      }, {});
+    }
+    
+    const earnings = (data || []).map((e: any) => {
+      const affiliate = profilesMap[e.affiliate_user_id];
+      const referral = profilesMap[e.referral_user_id];
+      return {
+        ...e,
+        affiliate: affiliate ? {
+          display_name: [affiliate.first_name, affiliate.last_name].filter(Boolean).join(' ') || null,
+          username: affiliate.telegram_username,
+        } : null,
+        referral: referral ? {
+          display_name: [referral.first_name, referral.last_name].filter(Boolean).join(' ') || null,
+          username: referral.telegram_username,
+        } : null,
+      };
+    });
     
     // Get summary (может не существовать)
     let summary: any[] = [];

@@ -8,36 +8,46 @@ export async function GET(request: NextRequest) {
     
     const supabase = getSupabaseAdmin();
     
-    // Get all affiliate tiers with profile info
+    // Get all affiliate tiers
     const { data, error } = await supabase
       .from('affiliate_tiers')
-      .select(`
-        *,
-        telegram_profiles!affiliate_tiers_user_id_fkey (
-          first_name,
-          last_name,
-          telegram_username
-        )
-      `)
+      .select('*')
       .order('updated_at', { ascending: false });
     
     if (error) {
       console.error('[API Partners Tiers] Error:', error);
-      // Если таблица не существует, вернуть пустой массив
       if (error.code === '42P01') {
         return NextResponse.json({ tiers: [] });
       }
       throw error;
     }
     
-    // Форматируем данные для совместимости
-    const tiers = (data || []).map((t: any) => ({
-      ...t,
-      profiles: t.telegram_profiles ? {
-        display_name: [t.telegram_profiles.first_name, t.telegram_profiles.last_name].filter(Boolean).join(' ') || null,
-        username: t.telegram_profiles.telegram_username,
-      } : null,
-    }));
+    // Fetch profiles separately
+    const userIds = [...new Set((data || []).map((t: any) => t.user_id).filter(Boolean))];
+    
+    let profilesMap: Record<string, any> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('telegram_profiles')
+        .select('auth_user_id, first_name, last_name, telegram_username')
+        .in('auth_user_id', userIds);
+      
+      profilesMap = (profiles || []).reduce((acc: any, p: any) => {
+        acc[p.auth_user_id] = p;
+        return acc;
+      }, {});
+    }
+    
+    const tiers = (data || []).map((t: any) => {
+      const profile = profilesMap[t.user_id];
+      return {
+        ...t,
+        profiles: profile ? {
+          display_name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null,
+          username: profile.telegram_username,
+        } : null,
+      };
+    });
     
     return NextResponse.json({ tiers });
     
