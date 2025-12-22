@@ -578,11 +578,15 @@ export class KieAIClient {
       request.imageUrls = params.imageUrls;
     }
 
-    // Note: Veo 3.1 API doesn't support start_end mode with separate first/last frames
-    // If start_end is needed, use only the first image
-    if (params.mode === 'start_end' && params.imageUrl) {
-      request.imageUrls = [params.imageUrl];
-      console.warn('[VEO] start_end mode: using first image only, Veo API does not support separate last frame');
+    // Start_end mode: first and last frame
+    if (params.mode === 'start_end') {
+      const urls: string[] = [];
+      if (params.imageUrl) urls.push(params.imageUrl); // First frame
+      if (params.lastFrameUrl) urls.push(params.lastFrameUrl); // Last frame
+      if (urls.length > 0) {
+        request.imageUrls = urls;
+        console.log('[VEO] start_end mode: using', urls.length, 'frames (first + last)');
+      }
     }
 
     // Add callback URL (recommended to keep delivery reliable)

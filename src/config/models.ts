@@ -372,11 +372,12 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     quality: 'ultra',
     supportsI2v: true,
     supportsAudio: true,
+    supportsStartEnd: true, // First & last frame support
     pricing: {
       quality: { '8': 450 },
       fast: { '8': 110 },
     },
-    modes: ['t2v', 'i2v'],
+    modes: ['t2v', 'i2v', 'start_end'],
     durationOptions: [8],
     // Default to fast (per UX requirement); can be switched to quality in UI.
     qualityOptions: ['fast', 'quality'],
@@ -463,11 +464,11 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: '10/15s',
   },
 
-  // === SORA 2 PRO - Market API (i2v) ===
+  // === SORA 2 PRO - Market API (i2v only) ===
   {
     id: 'sora-2-pro',
     name: 'Sora 2 Pro',
-    apiId: 'sora-2-pro-image-to-video', // i2v
+    apiId: 'sora-2-pro-image-to-video', // i2v only
     type: 'video',
     provider: 'kie_market',
     description: 'OpenAI Sora 2 Pro: максимальное качество и стабильность сцены. Когда важна "киношность" и чистота кадра.',
@@ -476,12 +477,11 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     speed: 'slow',
     quality: 'ultra',
     supportsI2v: true,
-    supportsStartEnd: true,
     pricing: {
       'standard': { '10': 220, '15': 400 },
       'high': { '10': 500, '15': 940 },
     },
-    modes: ['i2v', 'start_end'],
+    modes: ['i2v'], // Only i2v, start_end is Veo feature
     durationOptions: [10, 15],
     qualityOptions: ['standard', 'high'],
     aspectRatios: ['portrait', 'landscape'],
