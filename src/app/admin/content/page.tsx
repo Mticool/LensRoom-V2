@@ -5,11 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GalleryEditor, type EffectPreset } from "@/components/admin/gallery-editor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ContentMeta = {
-  effectsGallery: boolean;
-  inspiration: string[];
-};
-
 type EffectsApiRow = any;
 
 function fromDb(row: EffectsApiRow): EffectPreset {
@@ -45,27 +40,32 @@ function fromDb(row: EffectsApiRow): EffectPreset {
 }
 
 export default function AdminContentPage() {
-  const [meta, setMeta] = useState<ContentMeta | null>(null);
   const [presets, setPresets] = useState<EffectPreset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activePlacement, setActivePlacement] = useState<"home" | "inspiration">("home");
 
   const load = async (placement?: string) => {
     setLoading(true);
+    setError(null);
     try {
-      const m = await fetch("/api/admin/content/meta", { credentials: "include" }).then((r) => r.json());
-      setMeta(m);
-
-      if (m?.effectsGallery) {
-        const params = new URLSearchParams();
-        if (placement) params.set("placement", placement);
-        const url = `/api/admin/gallery?${params.toString()}`;
-        const res = await fetch(url, { credentials: "include" }).then((r) => r.json());
-        const list = Array.isArray(res?.effects) ? res.effects : [];
-        setPresets(list.map(fromDb));
-      } else {
-        setPresets([]);
+      const params = new URLSearchParams();
+      if (placement) params.set("placement", placement);
+      const url = `/api/admin/gallery?${params.toString()}`;
+      const res = await fetch(url, { credentials: "include" });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData?.error || `HTTP ${res.status}`);
       }
+      
+      const data = await res.json();
+      const list = Array.isArray(data?.effects) ? data.effects : [];
+      setPresets(list.map(fromDb));
+    } catch (err: any) {
+      console.error("Failed to load gallery:", err);
+      setError(err.message || "Не удалось загрузить контент");
+      setPresets([]);
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,6 @@ export default function AdminContentPage() {
 
   useEffect(() => {
     load(activePlacement);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePlacement]);
 
   const onSave = async (preset: EffectPreset) => {
@@ -116,8 +115,6 @@ export default function AdminContentPage() {
     await load();
   };
 
-  const inspirationTables = useMemo(() => meta?.inspiration || [], [meta]);
-
   return (
     <div className="space-y-8">
       <div>
@@ -131,9 +128,20 @@ export default function AdminContentPage() {
           <CardTitle>Карточки контента</CardTitle>
         </CardHeader>
         <CardContent>
-          {!meta && loading ? (
-            <div className="text-sm text-[var(--muted)]">Загрузка...</div>
-          ) : meta?.effectsGallery ? (
+          {error ? (
+            <div className="text-center py-8">
+              <p className="text-red-400 mb-4">Ошибка загрузки: {error}</p>
+              <p className="text-xs text-[var(--muted)] mb-4">
+                Возможно, таблица `effects_gallery` не создана в базе данных.
+              </p>
+              <button
+                onClick={() => load(activePlacement)}
+                className="px-4 py-2 bg-[var(--gold)] text-black rounded-lg hover:bg-[var(--gold)]/90"
+              >
+                Повторить попытку
+              </button>
+            </div>
+          ) : (
             <Tabs value={activePlacement} onValueChange={(v) => setActivePlacement(v as "home" | "inspiration")}>
               <TabsList className="mb-6">
                 <TabsTrigger value="home">Главная</TabsTrigger>
@@ -162,8 +170,6 @@ export default function AdminContentPage() {
                 />
               </TabsContent>
             </Tabs>
-          ) : (
-            <div className="text-sm text-[var(--muted)]">Таблица `effects_gallery` не найдена.</div>
           )}
         </CardContent>
       </Card>

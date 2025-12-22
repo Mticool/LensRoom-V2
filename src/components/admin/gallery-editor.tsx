@@ -715,6 +715,35 @@ function PresetEditorModal({
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">Размещение</h3>
                 
+                {/* Placement */}
+                <div>
+                  <label className="text-xs text-[var(--muted)] mb-1.5 block">Где разместить</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => updateForm({ placement: 'home' })}
+                      className={cn(
+                        "px-3 py-2 rounded-lg border text-sm transition-all",
+                        form.placement === 'home'
+                          ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--gold)] font-semibold"
+                          : "border-[var(--border)] text-[var(--text2)] hover:border-[var(--gold)]/50"
+                      )}
+                    >
+                      🏠 Главная
+                    </button>
+                    <button
+                      onClick={() => updateForm({ placement: 'inspiration' })}
+                      className={cn(
+                        "px-3 py-2 rounded-lg border text-sm transition-all",
+                        form.placement === 'inspiration'
+                          ? "border-[var(--gold)] bg-[var(--gold)]/10 text-[var(--gold)] font-semibold"
+                          : "border-[var(--border)] text-[var(--text2)] hover:border-[var(--gold)]/50"
+                      )}
+                    >
+                      ✨ Inspiration
+                    </button>
+                  </div>
+                </div>
+                
                 {/* Category */}
                 <div>
                   <label className="text-xs text-[var(--muted)] mb-1.5 block">Категория</label>
@@ -722,9 +751,12 @@ function PresetEditorModal({
                     type="text"
                     value={form.category || ''}
                     onChange={(e) => updateForm({ category: e.target.value })}
-                    placeholder="portrait, landscape, art..."
+                    placeholder="Портреты, Пейзажи, Продукты..."
                     className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)]"
                   />
+                  <p className="text-[10px] text-[var(--muted)] mt-1">
+                    Для фильтрации и организации контента
+                  </p>
                 </div>
 
                 {/* Priority */}
