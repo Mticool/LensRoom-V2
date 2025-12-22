@@ -427,8 +427,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
       },
       {
         id: 'kling-2.1',
-        name: 'Kling 2.1',
-        apiId: 'kling/v2-1',
+        name: 'Kling 2.1 Pro',
+        apiId: 'kling/v2-1-pro',
         pricing: {
           '5': { no_audio: 275 },
           '10': { no_audio: 550 },
