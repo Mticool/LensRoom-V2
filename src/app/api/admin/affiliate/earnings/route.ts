@@ -1,34 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { getSession } from '@/lib/telegram/auth';
+import { requireRole, respondAuthError } from '@/lib/auth/requireRole';
 
-/**
- * GET /api/admin/affiliate/earnings
- * 
- * Get all affiliate earnings (pending/paid)
- * Query params: ?status=pending|paid|cancelled&affiliateUserId=xxx
- */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { authUserId } = await requireRole('admin');
     
-    const userId = session.profileId;
     const supabase = getSupabaseAdmin();
-    
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-    
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const affiliateUserId = searchParams.get('affiliateUserId');
@@ -37,8 +15,8 @@ export async function GET(request: NextRequest) {
       .from('affiliate_earnings')
       .select(`
         *,
-        affiliate:profiles!affiliate_earnings_affiliate_user_id_fkey(display_name, username),
-        referral:profiles!affiliate_earnings_referral_user_id_fkey(display_name, username)
+        affiliate:telegram_profiles!affiliate_earnings_affiliate_user_id_fkey(first_name, last_name, telegram_username),
+        referral:telegram_profiles!affiliate_earnings_referral_user_id_fkey(first_name, last_name, telegram_username)
       `)
       .order('created_at', { ascending: false });
     
@@ -52,89 +30,76 @@ export async function GET(request: NextRequest) {
     
     const { data, error } = await query;
     
-    if (error) throw error;
+    if (error) {
+      console.error('[API Earnings] Error:', error);
+      if (error.code === '42P01') {
+        return NextResponse.json({ earnings: [], summary: [] });
+      }
+      throw error;
+    }
     
-    // Get summary
-    const { data: summary } = await supabase
-      .from('affiliate_earnings_summary')
-      .select('*')
-      .order('total_commission_rub', { ascending: false });
+    // Форматируем данные
+    const earnings = (data || []).map((e: any) => ({
+      ...e,
+      affiliate: e.affiliate ? {
+        display_name: [e.affiliate.first_name, e.affiliate.last_name].filter(Boolean).join(' ') || null,
+        username: e.affiliate.telegram_username,
+      } : null,
+      referral: e.referral ? {
+        display_name: [e.referral.first_name, e.referral.last_name].filter(Boolean).join(' ') || null,
+        username: e.referral.telegram_username,
+      } : null,
+    }));
     
-    return NextResponse.json({
-      earnings: data || [],
-      summary: summary || [],
-    });
+    // Get summary (может не существовать)
+    let summary: any[] = [];
+    try {
+      const { data: summaryData } = await supabase
+        .from('affiliate_earnings_summary')
+        .select('*')
+        .order('total_commission_rub', { ascending: false });
+      summary = summaryData || [];
+    } catch {
+      // view может не существовать
+    }
+    
+    return NextResponse.json({ earnings, summary });
     
   } catch (error) {
-    console.error('[/api/admin/affiliate/earnings] GET Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch earnings' },
-      { status: 500 }
-    );
+    console.error('[API Earnings] Error:', error);
+    return respondAuthError(error);
   }
 }
 
-/**
- * POST /api/admin/affiliate/earnings
- * 
- * Mark commission as paid
- * Body: { earningId: string, notes?: string }
- */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { authUserId } = await requireRole('admin');
     
-    const userId = session.profileId;
     const supabase = getSupabaseAdmin();
-    
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-    
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
     const body = await request.json();
     const { earningId, notes } = body;
     
     if (!earningId) {
-      return NextResponse.json(
-        { error: 'earningId is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'earningId is required' }, { status: 400 });
     }
     
-    // Update earning status
     const { error: updateError } = await supabase
       .from('affiliate_earnings')
       .update({
         status: 'paid',
         paid_at: new Date().toISOString(),
-        paid_by: userId,
+        paid_by: authUserId,
         notes: notes || null,
       })
       .eq('id', earningId)
-      .eq('status', 'pending'); // Only update if pending
+      .eq('status', 'pending');
     
     if (updateError) throw updateError;
     
-    return NextResponse.json({
-      success: true,
-      message: 'Commission marked as paid',
-    });
+    return NextResponse.json({ success: true, message: 'Commission marked as paid' });
     
   } catch (error) {
-    console.error('[/api/admin/affiliate/earnings] POST Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update earning' },
-      { status: 500 }
-    );
+    console.error('[API Earnings] Error:', error);
+    return respondAuthError(error);
   }
 }
