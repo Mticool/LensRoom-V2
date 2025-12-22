@@ -9,7 +9,7 @@ import { useCreditsStore } from '@/stores/credits-store';
 import { usePreferencesStore } from '@/stores/preferences-store';
 import { 
   User, Calendar, CreditCard, Crown, LogOut, Loader2, 
-  Image, Video, RefreshCw, ExternalLink, Download, Users, Copy, Check, Settings
+  Image, Video, RefreshCw, ExternalLink, Download, Users, Copy, Check, Settings, Key
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -186,6 +186,18 @@ export default function ProfilePage() {
                       <p className="text-[var(--text)] font-mono text-sm">{user.telegramId}</p>
                     </div>
                   </div>
+
+                  {/* API Keys Link */}
+                  <Link href="/profile/api-keys">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface2)] hover:bg-[var(--border)] transition-colors cursor-pointer group">
+                      <Key className="w-5 h-5 text-[var(--muted)] group-hover:text-[var(--gold)]" />
+                      <div className="flex-1">
+                        <p className="text-sm text-[var(--text)] font-medium">API ключи</p>
+                        <p className="text-xs text-[var(--muted)]">Midjourney и др.</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--gold)]" />
+                    </div>
+                  </Link>
                 </div>
               </Card>
             </motion.div>

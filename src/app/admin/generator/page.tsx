@@ -20,7 +20,7 @@ import {
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PHOTO_MODELS, VIDEO_MODELS } from "@/config/models";
+import { PHOTO_MODELS, VIDEO_MODELS, getModelById } from "@/config/models";
 
 interface GenerationTask {
   id: string;
@@ -80,6 +80,9 @@ export default function AdminGeneratorPage() {
   const [model, setModel] = useState(PHOTO_MODELS[0]?.id || "");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [prompts, setPrompts] = useState<string[]>([""]);
+  const [placement, setPlacement] = useState<"home" | "inspiration">("home");
+  const [autoSaveToGallery, setAutoSaveToGallery] = useState(true);
+  const [category, setCategory] = useState("");
 
   const models = type === "photo" ? PHOTO_MODELS : VIDEO_MODELS;
 
@@ -190,13 +193,20 @@ export default function AdminGeneratorPage() {
           const statusData = await statusRes.json();
 
           if (statusData.status === "completed" && statusData.results?.[0]?.url) {
+            const resultUrl = statusData.results[0].url;
             setTasks((prev) =>
               prev.map((t) =>
                 t.id === task.id
-                  ? { ...t, status: "completed", progress: 100, resultUrl: statusData.results[0].url }
+                  ? { ...t, status: "completed", progress: 100, resultUrl }
                   : t
               )
             );
+
+            // Auto-save to gallery if enabled
+            if (autoSaveToGallery) {
+              await saveToGallery({ ...task, resultUrl });
+            }
+
             break;
           }
 
@@ -254,32 +264,61 @@ export default function AdminGeneratorPage() {
     setCurrentTaskIndex(0);
   };
 
-  // Save result to styles
-  const saveToStyles = async (task: GenerationTask) => {
+  // Save result to gallery (effects_gallery)
+  const saveToGallery = async (task: GenerationTask, customPlacement?: "home" | "inspiration") => {
     if (!task.resultUrl) return;
 
     try {
-      const res = await fetch("/api/admin/styles", {
+      const targetPlacement = customPlacement || placement;
+      const modelInfo = getModelById(task.model);
+      const presetId = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const galleryData = {
+        presetId,
+        title: task.prompt.slice(0, 100) || "Untitled",
+        contentType: task.type,
+        modelKey: task.model,
+        tileRatio: task.aspectRatio as "1:1" | "9:16" | "16:9",
+        costStars: modelInfo?.pricing ? 
+          (typeof modelInfo.pricing === 'number' ? modelInfo.pricing : 0) : 0,
+        mode: task.type === "video" ? "t2v" : "t2i",
+        variantId: "default",
+        previewImage: task.resultUrl,
+        previewUrl: task.resultUrl,
+        templatePrompt: task.prompt,
+        featured: false,
+        published: false,
+        order: 0,
+        // Content Constructor fields
+        placement: targetPlacement,
+        status: "draft",
+        category: category || "",
+        priority: 0,
+        type: task.type === "video" ? "video" : "image",
+        assetUrl: task.resultUrl,
+        posterUrl: task.type === "video" ? task.resultUrl : "",
+        aspect: task.aspectRatio as "1:1" | "9:16" | "16:9",
+        shortDescription: `Created with ${modelInfo?.name || task.model}`,
+      };
+
+      const res = await fetch("/api/admin/gallery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          title: task.prompt.slice(0, 50),
-          description: task.prompt,
-          template_prompt: task.prompt,
-          preview_image: task.resultUrl,
-          thumbnail_url: task.resultUrl,
-          model_key: task.model,
-          placement: "inspiration",
-          published: false,
-          featured: false,
-        }),
+        body: JSON.stringify(galleryData),
       });
 
-      if (!res.ok) throw new Error("Failed to save");
-      toast.success("Сохранено в стили!");
-    } catch (error) {
-      toast.error("Ошибка сохранения");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Failed to save");
+      }
+      
+      toast.success(`Сохранено в ${targetPlacement === "home" ? "Главную" : "Inspiration"}!`);
+      return true;
+    } catch (error: any) {
+      console.error("Gallery save error:", error);
+      toast.error(`Ошибка: ${error.message || "Не удалось сохранить"}`);
+      return false;
     }
   };
 
@@ -367,6 +406,57 @@ export default function AdminGeneratorPage() {
                     </Button>
                   ))}
                 </div>
+              </div>
+
+              {/* Placement */}
+              <div>
+                <label className="text-sm font-medium text-[var(--text)] mb-2 block">
+                  Размещение
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={placement === "home" ? "default" : "outline"}
+                    onClick={() => setPlacement("home")}
+                    className="flex-1"
+                  >
+                    Главная
+                  </Button>
+                  <Button
+                    variant={placement === "inspiration" ? "default" : "outline"}
+                    onClick={() => setPlacement("inspiration")}
+                    className="flex-1"
+                  >
+                    Inspiration
+                  </Button>
+                </div>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="text-sm font-medium text-[var(--text)] mb-2 block">
+                  Категория (опционально)
+                </label>
+                <input
+                  type="text"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Портреты, Пейзажи, Продукты..."
+                  className="w-full px-4 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)]"
+                />
+              </div>
+
+              {/* Auto-save */}
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="autoSave"
+                  checked={autoSaveToGallery}
+                  onChange={(e) => setAutoSaveToGallery(e.target.checked)}
+                  className="w-4 h-4 rounded border-[var(--border)] bg-[var(--surface2)] text-[var(--gold)]"
+                />
+                <label htmlFor="autoSave" className="text-sm text-[var(--text)] cursor-pointer">
+                  Автоматически сохранять в галерею после генерации
+                </label>
               </div>
             </CardContent>
           </Card>
@@ -587,16 +677,35 @@ export default function AdminGeneratorPage() {
                       {/* Actions for completed */}
                       {task.status === "completed" && task.resultUrl && (
                         <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--border)]">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => saveToStyles(task)}
-                            className="text-xs"
-                          >
-                            <Save className="w-3 h-3 mr-1" />
-                            В стили
-                          </Button>
-                          <a href={task.resultUrl} target="_blank" rel="noreferrer">
+                          {!autoSaveToGallery && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => saveToGallery(task, "home")}
+                                className="text-xs"
+                              >
+                                <Save className="w-3 h-3 mr-1" />
+                                На главную
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => saveToGallery(task, "inspiration")}
+                                className="text-xs"
+                              >
+                                <Save className="w-3 h-3 mr-1" />
+                                В Inspiration
+                              </Button>
+                            </>
+                          )}
+                          {autoSaveToGallery && (
+                            <span className="text-xs text-emerald-400 flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              Сохранено в {placement === "home" ? "Главную" : "Inspiration"}
+                            </span>
+                          )}
+                          <a href={task.resultUrl} target="_blank" rel="noreferrer" className="ml-auto">
                             <Button size="sm" variant="ghost" className="text-xs">
                               <Download className="w-3 h-3 mr-1" />
                               Скачать
