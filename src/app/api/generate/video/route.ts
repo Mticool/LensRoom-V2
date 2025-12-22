@@ -269,25 +269,25 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    // Подготовка промпта для Veo (модерация и очистка)
+    // Подготовка промпта (модерация и очистка для всех моделей)
     let finalPrompt = prompt;
     let promptWarning: string | undefined;
     
-    if (modelInfo.provider === 'kie_veo') {
-      const moderationResult = preparePromptForVeo(prompt, {
-        strict: false,
-        autoFix: true, // Автоматически исправлять проблемные слова
+    // Применяем модерацию для ВСЕХ моделей (KIE API отклоняет насильственный контент)
+    const moderationResult = preparePromptForVeo(prompt, {
+      strict: false,
+      autoFix: true, // Автоматически исправлять проблемные слова
+    });
+    
+    if (moderationResult.needsModeration) {
+      promptWarning = moderationResult.warning;
+      // Используем очищенную версию
+      finalPrompt = moderationResult.cleaned || getSafePrompt(prompt);
+      console.log('[API] Prompt moderated:', {
+        model: model,
+        original: prompt.substring(0, 100),
+        cleaned: finalPrompt.substring(0, 100),
       });
-      
-      if (moderationResult.needsModeration) {
-        promptWarning = moderationResult.warning;
-        // Используем очищенную версию
-        finalPrompt = moderationResult.cleaned || getSafePrompt(prompt);
-        console.log('[API] Prompt moderated for Veo:', {
-          original: prompt.substring(0, 100),
-          cleaned: finalPrompt.substring(0, 100),
-        });
-      }
     }
     
     const fullPrompt = negativePrompt 

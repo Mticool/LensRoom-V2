@@ -29,8 +29,13 @@ export function replaceProblematicWords(prompt: string): string {
   const replacements: Record<string, string> = {
     'violence': 'action', 'violent': 'dynamic', 'weapon': 'tool', 'gun': 'device',
     'knife': 'tool', 'blood': 'red', 'bloody': 'red',
+    'fight': 'performance', 'fighter': 'performer', 'fighting': 'performing',
+    'punch': 'movement', 'punches': 'movements', 'kick': 'motion', 'kicks': 'motions',
+    'strike': 'move', 'strikes': 'moves', 'attack': 'advance', 'attacks': 'advances',
+    'combat': 'choreography', 'battle': 'performance',
     'nude': 'professional', 'naked': 'clothed', 'explicit': 'artistic',
     'hate': 'dislike', 'racist': 'cultural',
+    'murder': 'dramatic', 'shoot': 'point', 'shooting': 'pointing',
   };
   let replaced = prompt;
   Object.entries(replacements).forEach(([bad, good]) => {
@@ -55,13 +60,17 @@ export function preparePromptForVeo(prompt: string, options?: { strict?: boolean
   
   let cleaned = original;
   if (hasForbidden && options?.autoFix) {
-    cleaned = sanitizePrompt(original);
-    if (cleaned.length < 10) cleaned = replaceProblematicWords(original);
+    // Сначала пробуем заменить слова (сохраняем смысл)
+    cleaned = replaceProblematicWords(original);
+    // Если все еще есть запрещенные слова, удаляем их
+    if (containsForbiddenContent(cleaned)) {
+      cleaned = sanitizePrompt(cleaned);
+    }
   } else if (hasForbidden) {
     return { original, cleaned: original, needsModeration: true, warning: 'Промпт может быть заблокирован.' };
   }
   
-  return { original, cleaned, needsModeration: false };
+  return { original, cleaned, needsModeration: hasForbidden };
 }
 
 export function getSafePrompt(prompt: string): string {
