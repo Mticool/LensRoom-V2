@@ -31,6 +31,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
   }, []);
 
   const pollJobStatus = useCallback(async (jobId: string, generationId: string, provider: string): Promise<GenerationResult | null> => {
+    console.log('[useGeneration] Starting poll for job:', jobId, 'provider:', provider);
+    
     return new Promise((resolve) => {
       let attempts = 0;
       const maxAttempts = 120; // 2 minutes max
@@ -39,6 +41,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         attempts++;
         
         if (attempts > maxAttempts) {
+          console.log('[useGeneration] Poll timeout after', attempts, 'attempts');
           stopPolling();
           setError('Таймаут генерации. Попробуйте ещё раз.');
           resolve(null);
@@ -48,18 +51,23 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         try {
           const response = await fetch(`/api/jobs/${jobId}?provider=${provider}`);
           const data = await response.json();
+          
+          console.log('[useGeneration] Poll attempt', attempts, 'status:', data.status, 'results:', data.results?.length || 0);
 
           if (data.status === 'completed' || data.status === 'success') {
             stopPolling();
             
+            const resultUrl = data.results?.[0]?.url || data.url || '';
+            console.log('[useGeneration] Generation complete! URL:', resultUrl);
+            
             const result: GenerationResult = {
               id: generationId,
-              url: data.results?.[0]?.url || data.url || '',
+              url: resultUrl,
               prompt: data.prompt || '',
               mode: data.kind === 'video' ? 'video' : 'image',
               settings: {} as GenerationSettings,
               timestamp: Date.now(),
-              previewUrl: data.results?.[0]?.url || data.url,
+              previewUrl: resultUrl,
             };
             
             resolve(result);
@@ -67,6 +75,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
           }
 
           if (data.status === 'failed') {
+            console.log('[useGeneration] Generation failed:', data.error);
             stopPolling();
             setError(data.error || 'Генерация не удалась');
             resolve(null);
@@ -81,7 +90,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
           });
 
         } catch (e) {
-          console.error('Poll error:', e);
+          console.error('[useGeneration] Poll error:', e);
         }
       }, 1000);
     });
@@ -178,13 +187,17 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       }
 
       // Poll for completion
+      console.log('[useGeneration] Starting job poll. jobId:', data.jobId, 'generationId:', data.generationId);
       setProgress({ stage: 'generating', progress: 10 });
       const result = await pollJobStatus(data.jobId, data.generationId, data.provider || 'kie_market');
+
+      console.log('[useGeneration] Poll finished. Result:', result ? 'SUCCESS' : 'NULL', 'URL:', result?.url);
 
       if (result) {
         result.prompt = prompt;
         result.settings = settings;
         result.mode = mode;
+        console.log('[useGeneration] Calling onSuccess with result');
         options.onSuccess?.(result);
         
         // Send browser notification if enabled

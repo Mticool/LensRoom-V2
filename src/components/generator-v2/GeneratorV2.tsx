@@ -113,7 +113,9 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   // Generation hook
   const { generate, isGenerating, progress, error, clearError } = useGeneration({
     onSuccess: (result) => {
+      console.log('[GeneratorV2] onSuccess called with result:', result?.url);
       setCurrentResult(result);
+      console.log('[GeneratorV2] currentResult set, URL:', result?.url);
       addToHistory(result);
       refreshCredits();
       toast.success('Генерация завершена!');
