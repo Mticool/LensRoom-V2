@@ -179,7 +179,133 @@ export default function StudioPage() {
       color: 'white',
       fontFamily: 'system-ui, sans-serif',
       display: 'flex',
+      flexDirection: 'column',
     }}>
+      {/* Top Navigation Bar */}
+      <header style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 24px',
+        borderBottom: '1px solid #222',
+        background: '#111',
+      }}>
+        {/* Logo */}
+        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <div style={{
+            width: 32,
+            height: 32,
+            background: 'linear-gradient(135deg, #22d3ee, #8b5cf6)',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 16,
+          }}>
+            ✨
+          </div>
+          <span style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>LensRoom</span>
+        </a>
+
+        {/* Center Navigation */}
+        <nav style={{ display: 'flex', gap: 4, background: '#1a1a1a', padding: 4, borderRadius: 10 }}>
+          <button
+            onClick={() => handleModeChange('photo')}
+            style={{
+              padding: '10px 24px',
+              background: mode === 'photo' ? '#22d3ee' : 'transparent',
+              color: mode === 'photo' ? 'black' : '#888',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            🖼️ Фото
+          </button>
+          <button
+            onClick={() => handleModeChange('video')}
+            style={{
+              padding: '10px 24px',
+              background: mode === 'video' ? '#22d3ee' : 'transparent',
+              color: mode === 'video' ? 'black' : '#888',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            🎬 Видео
+          </button>
+          <a
+            href="/create/products"
+            style={{
+              padding: '10px 24px',
+              background: 'transparent',
+              color: '#888',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            🛍️ E-com
+          </a>
+        </nav>
+
+        {/* Right: Balance & Profile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <a
+            href="/pricing"
+            style={{
+              padding: '8px 16px',
+              background: '#1a1a1a',
+              borderRadius: 8,
+              color: '#22d3ee',
+              fontWeight: 600,
+              fontSize: 14,
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            ⭐ Пополнить
+          </a>
+          <a
+            href="/profile"
+            style={{
+              width: 36,
+              height: 36,
+              background: '#333',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none',
+              fontSize: 16,
+            }}
+          >
+            👤
+          </a>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, display: 'flex' }}>
       {/* Left: Canvas + History */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Main Canvas */}
@@ -303,42 +429,6 @@ export default function StudioPage() {
         gap: 20,
         overflowY: 'auto',
       }}>
-        {/* Mode Toggle */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => handleModeChange('photo')}
-            style={{
-              flex: 1,
-              padding: '14px',
-              background: mode === 'photo' ? '#22d3ee' : '#222',
-              color: mode === 'photo' ? 'black' : 'white',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            🖼️ Фото
-          </button>
-          <button
-            onClick={() => handleModeChange('video')}
-            style={{
-              flex: 1,
-              padding: '14px',
-              background: mode === 'video' ? '#22d3ee' : '#222',
-              color: mode === 'video' ? 'black' : 'white',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            🎬 Видео
-          </button>
-        </div>
-
         {/* Prompt */}
         <div>
           <label style={{ display: 'block', marginBottom: 8, color: '#888', fontSize: 14 }}>
@@ -510,20 +600,8 @@ export default function StudioPage() {
           </p>
         )}
 
-        {/* Back Link */}
-        <a
-          href="/"
-          style={{
-            textAlign: 'center',
-            color: '#888',
-            fontSize: 14,
-            textDecoration: 'none',
-            marginTop: 'auto',
-          }}
-        >
-          ← На главную
-        </a>
       </div>
+      </div> {/* Close Main Content */}
 
       <style>{`
         @keyframes spin {
