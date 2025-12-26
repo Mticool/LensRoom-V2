@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Canvas } from './Canvas';
 import { PromptBar } from './PromptBar';
@@ -110,27 +110,47 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   // History hook
   const { history, addToHistory, refresh: refreshHistory, isLoading: historyLoading } = useHistory(mode);
 
+  // Refs for callbacks to avoid recreating useGeneration options object
+  const addToHistoryRef = useRef(addToHistory);
+  const refreshCreditsRef = useRef(refreshCredits);
+  const hasNotificationsRef = useRef(hasNotifications);
+  const botPopupRef = useRef(botPopup);
+  
+  // Update refs on each render
+  addToHistoryRef.current = addToHistory;
+  refreshCreditsRef.current = refreshCredits;
+  hasNotificationsRef.current = hasNotifications;
+  botPopupRef.current = botPopup;
+
+  // Stable callbacks for useGeneration
+  const handleGenerationSuccess = useCallback((result: GenerationResult) => {
+    console.log('[GeneratorV2] onSuccess called with result:', result?.url);
+    setCurrentResult(result);
+    console.log('[GeneratorV2] currentResult set, URL:', result?.url);
+    addToHistoryRef.current(result);
+    refreshCreditsRef.current();
+    toast.success('Генерация завершена!');
+    celebrateGeneration();
+    botPopupRef.current.showAfterGeneration(hasNotificationsRef.current);
+  }, []);
+
+  const handleGenerationError = useCallback((err: string) => {
+    toast.error(err);
+  }, []);
+
+  const handleCreditsUsed = useCallback((amount: number) => {
+    toast.info(`Списано ${amount} ⭐`);
+  }, []);
+
+  // Stable options object for useGeneration
+  const generationOptions = useMemo(() => ({
+    onSuccess: handleGenerationSuccess,
+    onError: handleGenerationError,
+    onCreditsUsed: handleCreditsUsed,
+  }), [handleGenerationSuccess, handleGenerationError, handleCreditsUsed]);
+
   // Generation hook
-  const { generate, isGenerating, progress, error, clearError } = useGeneration({
-    onSuccess: (result) => {
-      console.log('[GeneratorV2] onSuccess called with result:', result?.url);
-      setCurrentResult(result);
-      console.log('[GeneratorV2] currentResult set, URL:', result?.url);
-      addToHistory(result);
-      refreshCredits();
-      toast.success('Генерация завершена!');
-      // 🎉 Confetti celebration
-      celebrateGeneration();
-      // Show bot connect popup after first generation (if no notifications)
-      botPopup.showAfterGeneration(hasNotifications);
-    },
-    onError: (err) => {
-      toast.error(err);
-    },
-    onCreditsUsed: (amount) => {
-      toast.info(`Списано ${amount} ⭐`);
-    },
-  });
+  const { generate, isGenerating, progress, error, clearError } = useGeneration(generationOptions);
 
   // Load settings from localStorage
   const [settings, setSettings] = useState<GenerationSettings>(() => {
