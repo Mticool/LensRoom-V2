@@ -423,9 +423,9 @@ export function Canvas({ result, isGenerating, mode, onExampleClick, progress: e
                 <p className="text-white/90 text-sm mb-3 line-clamp-2">{result.prompt}</p>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 text-[11px] text-white/50">
-                    <span>{result.settings.model}</span>
+                    <span>{result.settings?.model || 'AI'}</span>
                     <span>•</span>
-                    <span>{result.settings.size}</span>
+                    <span>{result.settings?.size || '1:1'}</span>
                     <span>•</span>
                     <span>{result.mode === 'video' ? 'Видео' : 'Изображение'}</span>
                   </div>

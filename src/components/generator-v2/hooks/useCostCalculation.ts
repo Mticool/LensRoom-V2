@@ -59,7 +59,11 @@ export function useCostCalculation(
   mode: GeneratorMode,
   settings: GenerationSettings
 ): CostCalculationResult {
+  // Use specific values instead of the whole settings object to prevent unnecessary recalculations
+  const { model, quality, resolution, duration, audio, modelVariant } = settings;
+  
   return useMemo(() => {
     return calculateGenerationCost(mode, settings);
-  }, [mode, settings]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, model, quality, resolution, duration, audio, modelVariant]);
 }
