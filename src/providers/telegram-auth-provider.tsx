@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { captureReferralCodeFromUrl, getStoredReferralCode, clearStoredReferralCode } from '@/lib/referrals/client';
 import { detectWebView, expandWebView, getTelegramWebApp } from "@/lib/telegram/webview";
 
@@ -148,25 +148,25 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   }, [refreshSession, signInWithTelegram]);
 
   // Sign out
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       await fetch('/api/auth/telegram', { method: 'DELETE' });
       setUser(null);
     } catch (error) {
       console.error('[TelegramAuth] Sign out error:', error);
     }
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    user,
+    loading,
+    signInWithTelegram,
+    signOut,
+    refreshSession,
+  }), [user, loading, signInWithTelegram, signOut, refreshSession]);
 
   return (
-    <TelegramAuthContext.Provider
-      value={{
-        user,
-        loading,
-        signInWithTelegram,
-        signOut,
-        refreshSession,
-      }}
-    >
+    <TelegramAuthContext.Provider value={contextValue}>
       {children}
     </TelegramAuthContext.Provider>
   );

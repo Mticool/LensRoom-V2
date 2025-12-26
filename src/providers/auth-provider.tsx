@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import Cookies from 'js-cookie';
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase not initialized');
     const { error } = await supabase.auth.signUp({
       email,
@@ -99,21 +99,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     if (error) throw error;
-  };
+  }, [supabase]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase not initialized');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-  };
+  }, [supabase]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (!supabase) throw new Error('Supabase not initialized');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  };
+  }, [supabase]);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     if (!supabase) throw new Error('Supabase not initialized');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -122,10 +122,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     if (error) throw error;
-  };
+  }, [supabase]);
+
+  const contextValue = useMemo(() => ({
+    user,
+    loading,
+    signUp,
+    signIn,
+    signOut,
+    signInWithGoogle,
+  }), [user, loading, signUp, signIn, signOut, signInWithGoogle]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, signInWithGoogle }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
