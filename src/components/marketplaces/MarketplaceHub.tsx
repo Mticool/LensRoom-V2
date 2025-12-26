@@ -310,7 +310,7 @@ function ComingSoonModal({ feature, onClose }: { feature: ComingSoonFeature; onC
   };
 
   const handleConnectBot = () => {
-    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoomBot';
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoom_bot';
     window.open(`https://t.me/${botUsername}?start=notify`, '_blank');
     toast.info('После запуска бота вы будете получать уведомления');
     onClose();

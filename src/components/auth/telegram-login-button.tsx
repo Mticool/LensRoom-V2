@@ -53,7 +53,7 @@ export function TelegramLoginButton({
     const script = document.createElement('script');
     script.src = 'https://telegram.org/js/telegram-widget.js?22';
     script.async = true;
-    script.setAttribute('data-telegram-login', botName || process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoomBot');
+    script.setAttribute('data-telegram-login', botName || process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoom_bot');
     script.setAttribute('data-size', buttonSize);
     script.setAttribute('data-radius', String(cornerRadius));
     script.setAttribute('data-request-access', requestAccess);

@@ -13,7 +13,7 @@ interface BotConnectPopupProps {
   onSuccess?: () => void;
 }
 
-const BOT_USERNAME = "LensRoomBot"; // Замените на ваш бот
+const BOT_USERNAME = "LensRoom_bot";
 
 export function BotConnectPopup({
   isOpen,

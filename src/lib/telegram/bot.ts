@@ -85,7 +85,7 @@ export async function sendBulkMessages(
  * Get bot username from environment
  */
 export function getTelegramBotUsername(): string {
-  return env.optional("TELEGRAM_BOT_USERNAME") || 'LensRoomBot';
+  return env.optional("TELEGRAM_BOT_USERNAME") || 'LensRoom_bot';
 }
 
 /**

@@ -21,7 +21,7 @@ export function NotificationPromoPopup({
   isOpen,
   onClose,
   telegramUsername,
-  botUsername = "LensRoomBot",
+  botUsername = "LensRoom_bot",
   onSuccess,
 }: NotificationPromoProps) {
   const [isConnecting, setIsConnecting] = useState(false);

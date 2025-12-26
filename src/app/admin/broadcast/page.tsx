@@ -450,7 +450,7 @@ export default function AdminBroadcastPage() {
                 Рассылка отправляется через Telegram Bot. Получат только пользователи, которые:
               </p>
               <ul className="list-disc list-inside text-[var(--muted)] mt-1 space-y-1">
-                <li>Запустили бота (@LensRoomBot)</li>
+                <li>Запустили бота (@LensRoom_bot)</li>
                 <li>Разрешили уведомления</li>
               </ul>
             </div>
