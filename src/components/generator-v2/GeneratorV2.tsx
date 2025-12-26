@@ -419,7 +419,6 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             isGenerating={isGenerating}
             mode={mode}
             onExampleClick={handleExampleClick}
-            progress={progress}
           />
         </div>
 
