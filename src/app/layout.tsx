@@ -1,15 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Header, Footer } from "@/components/layout";
 import { Providers } from "@/components/providers";
-import { ErrorBoundary } from "@/components/error-boundary";
-import { ReferralHandler } from "@/components/referrals/ReferralHandler";
-import { ServiceWorkerRegistration } from "@/components/service-worker/ServiceWorkerRegistration";
-import { CriticalResources } from "@/components/performance/CriticalResources";
-import { LowBalanceAlert } from "@/components/ui/low-balance-alert";
-import { Analytics } from "@/components/analytics/Analytics";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 
 // Optimized font loading with next/font
@@ -173,7 +165,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} antialiased`}>
         <Providers>
-          {children}
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
         </Providers>
       </body>
     </html>
