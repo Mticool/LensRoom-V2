@@ -8,9 +8,10 @@ import { LowBalanceAlert } from '@/components/ui/low-balance-alert';
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isGeneratorPage = pathname === '/create' || pathname.startsWith('/create/');
+  const isTestPage = pathname === '/test-minimal';
 
-  if (isGeneratorPage) {
-    // Generator pages - no header/footer
+  if (isGeneratorPage || isTestPage) {
+    // Generator and test pages - no header/footer
     return <div className="min-h-screen">{children}</div>;
   }
 
