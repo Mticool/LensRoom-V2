@@ -2,26 +2,24 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { GeneratorMode, GenerationSettings, GenerationResult } from '../GeneratorV2';
-import { notificationService } from '@/lib/notifications';
-
-interface GenerationProgress {
-  stage: 'queued' | 'generating' | 'processing' | 'finalizing';
-  progress: number;
-  eta?: string;
-}
 
 interface UseGenerationOptions {
   onSuccess?: (result: GenerationResult) => void;
   onError?: (error: string) => void;
   onCreditsUsed?: (amount: number) => void;
-  enableNotifications?: boolean;
 }
 
 export function useGeneration(options: UseGenerationOptions = {}) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [progress, setProgress] = useState<GenerationProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Store options in ref to avoid dependency issues
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  
+  // Track if currently generating
+  const isGeneratingRef = useRef(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -30,79 +28,23 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     }
   }, []);
 
-  const pollJobStatus = useCallback(async (jobId: string, generationId: string, provider: string): Promise<GenerationResult | null> => {
-    return new Promise((resolve) => {
-      let attempts = 0;
-      const maxAttempts = 120; // 2 minutes max
-
-      pollIntervalRef.current = setInterval(async () => {
-        attempts++;
-        
-        if (attempts > maxAttempts) {
-          stopPolling();
-          setError('Таймаут генерации. Попробуйте ещё раз.');
-          resolve(null);
-          return;
-        }
-
-        try {
-          const response = await fetch(`/api/jobs/${jobId}?provider=${provider}`);
-          const data = await response.json();
-
-          if (data.status === 'completed' || data.status === 'success') {
-            stopPolling();
-            
-            const result: GenerationResult = {
-              id: generationId,
-              url: data.results?.[0]?.url || data.url || '',
-              prompt: data.prompt || '',
-              mode: data.kind === 'video' ? 'video' : 'image',
-              settings: {} as GenerationSettings,
-              timestamp: Date.now(),
-              previewUrl: data.results?.[0]?.url || data.url,
-            };
-            
-            resolve(result);
-            return;
-          }
-
-          if (data.status === 'failed') {
-            stopPolling();
-            setError(data.error || 'Генерация не удалась');
-            resolve(null);
-            return;
-          }
-
-          // Update progress
-          setProgress({
-            stage: data.status === 'queued' ? 'queued' : 'generating',
-            progress: Math.min(attempts * 2, 95),
-            eta: data.estimatedTime ? `~${data.estimatedTime}с` : undefined,
-          });
-
-        } catch (e) {
-          console.error('Poll error:', e);
-        }
-      }, 1000);
-    });
-  }, [stopPolling]);
-
   const generate = useCallback(async (
     prompt: string,
     mode: GeneratorMode,
     settings: GenerationSettings,
     referenceImage?: string | null
   ): Promise<GenerationResult | null> => {
-    if (isGenerating) return null;
-
+    // Use ref to check if generating
+    if (isGeneratingRef.current) return null;
+    
+    isGeneratingRef.current = true;
     setIsGenerating(true);
     setError(null);
-    setProgress({ stage: 'queued', progress: 0 });
 
     try {
       const endpoint = mode === 'video' ? '/api/generate/video' : '/api/generate/photo';
       
-      const body: any = {
+      const body: Record<string, unknown> = {
         prompt,
         model: settings.model,
         aspectRatio: settings.size,
@@ -110,29 +52,16 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         mode: referenceImage ? (mode === 'video' ? 'i2v' : 'i2i') : (mode === 'video' ? 't2v' : 't2i'),
       };
 
-      // Add quality/resolution based on model
-      if (settings.quality) {
-        body.quality = settings.quality;
-      }
-
-      // Add reference image for i2i/i2v
-      if (referenceImage) {
-        body.referenceImage = referenceImage;
-      }
-
-      // Video-specific settings
+      if (settings.quality) body.quality = settings.quality;
+      if (referenceImage) body.referenceImage = referenceImage;
+      
       if (mode === 'video') {
         body.duration = settings.duration || 5;
         body.audio = settings.audio ?? false;
-        if (settings.modelVariant) {
-          body.modelVariant = settings.modelVariant;
-        }
-        if (settings.resolution) {
-          body.resolution = settings.resolution;
-        }
+        if (settings.modelVariant) body.modelVariant = settings.modelVariant;
+        if (settings.resolution) body.resolution = settings.resolution;
       }
 
-      // Midjourney-specific settings
       if (settings.model === 'midjourney' && settings.mjSettings) {
         body.mjSettings = settings.mjSettings;
       }
@@ -150,8 +79,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       }
 
       // Notify about credits used
-      if (data.creditCost && options.onCreditsUsed) {
-        options.onCreditsUsed(data.creditCost);
+      if (data.creditCost) {
+        optionsRef.current.onCreditsUsed?.(data.creditCost);
       }
 
       // If already completed (e.g., OpenAI)
@@ -163,68 +92,87 @@ export function useGeneration(options: UseGenerationOptions = {}) {
           mode,
           settings,
           timestamp: Date.now(),
-          previewUrl: data.results[0].url,
         };
         
-        setProgress(null);
-        options.onSuccess?.(result);
-        
-        // Send browser notification if enabled
-        if (options.enableNotifications !== false) {
-          notificationService.showGenerationComplete(mode, prompt);
-        }
-        
+        optionsRef.current.onSuccess?.(result);
         return result;
       }
 
       // Poll for completion
-      setProgress({ stage: 'generating', progress: 10 });
-      const result = await pollJobStatus(data.jobId, data.generationId, data.provider || 'kie_market');
+      const result = await new Promise<GenerationResult | null>((resolve) => {
+        let attempts = 0;
+        const maxAttempts = 120;
+        const jobId = data.jobId;
+        const generationId = data.generationId;
+        const provider = data.provider || 'kie_market';
+
+        pollIntervalRef.current = setInterval(async () => {
+          attempts++;
+          
+          if (attempts > maxAttempts) {
+            stopPolling();
+            setError('Таймаут генерации');
+            resolve(null);
+            return;
+          }
+
+          try {
+            const res = await fetch(`/api/jobs/${jobId}?provider=${provider}`);
+            const jobData = await res.json();
+
+            if (jobData.status === 'completed' || jobData.status === 'success') {
+              stopPolling();
+              resolve({
+                id: generationId,
+                url: jobData.results?.[0]?.url || jobData.url || '',
+                prompt,
+                mode,
+                settings,
+                timestamp: Date.now(),
+              });
+              return;
+            }
+
+            if (jobData.status === 'failed') {
+              stopPolling();
+              setError(jobData.error || 'Генерация не удалась');
+              resolve(null);
+              return;
+            }
+          } catch (e) {
+            console.error('Poll error:', e);
+          }
+        }, 1000);
+      });
 
       if (result) {
-        result.prompt = prompt;
-        result.settings = settings;
-        result.mode = mode;
-        options.onSuccess?.(result);
-        
-        // Send browser notification if enabled
-        if (options.enableNotifications !== false) {
-          notificationService.showGenerationComplete(mode, prompt);
-        }
+        optionsRef.current.onSuccess?.(result);
       }
 
       return result;
 
-    } catch (e: any) {
-      const errorMessage = e.message || 'Неизвестная ошибка';
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Неизвестная ошибка';
       setError(errorMessage);
-      options.onError?.(errorMessage);
-      
-      // Send error notification if enabled
-      if (options.enableNotifications !== false) {
-        notificationService.showGenerationError(errorMessage);
-      }
-      
+      optionsRef.current.onError?.(errorMessage);
       return null;
     } finally {
+      isGeneratingRef.current = false;
       setIsGenerating(false);
-      setProgress(null);
     }
-  }, [isGenerating, pollJobStatus, options]);
+  }, [stopPolling]);
 
   const cancel = useCallback(() => {
     stopPolling();
+    isGeneratingRef.current = false;
     setIsGenerating(false);
-    setProgress(null);
   }, [stopPolling]);
 
   return {
     generate,
     cancel,
     isGenerating,
-    progress,
     error,
-    clearError: () => setError(null),
+    clearError: useCallback(() => setError(null), []),
   };
 }
-

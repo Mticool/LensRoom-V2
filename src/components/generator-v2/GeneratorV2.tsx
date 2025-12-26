@@ -111,7 +111,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   const { history, addToHistory, refresh: refreshHistory, isLoading: historyLoading } = useHistory(mode);
 
   // Generation hook
-  const { generate, isGenerating, progress, error, clearError } = useGeneration({
+  const { generate, isGenerating, error, clearError } = useGeneration({
     onSuccess: (result) => {
       setCurrentResult(result);
       addToHistory(result);
