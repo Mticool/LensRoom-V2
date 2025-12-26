@@ -241,15 +241,8 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     router.push('/login');
   };
 
-  // Conditional render AFTER all hooks
-  return authLoading ? (
-    <div className="h-screen w-screen bg-[#0F0F10] flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-10 h-10 text-[#00D9FF] animate-spin mx-auto" />
-        <p className="mt-4 text-[#A1A1AA]">Загрузка...</p>
-      </div>
-    </div>
-  ) : (
+  // Always render full UI - no loading screen
+  return (
     <div 
       data-generator-v2="true"
       className="h-screen w-screen overflow-hidden bg-[#0F0F10] flex font-[Inter,system-ui,sans-serif]"
@@ -350,6 +343,13 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
               >
                 <Video className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline">Видео</span>
+              </button>
+              <button
+                onClick={() => router.push('/create/products')}
+                className="px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 text-[#A1A1AA] hover:text-white"
+              >
+                <span className="text-sm">🛍️</span>
+                <span className="hidden xs:inline">E-com</span>
               </button>
             </div>
 
