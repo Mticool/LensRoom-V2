@@ -4,9 +4,9 @@ import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
-// Lazy load new generator component
-const GeneratorV2 = dynamic(
-  () => import("@/components/generator-v2/GeneratorV2").then(mod => ({ default: mod.GeneratorV2 })),
+// Lazy load simple generator for testing
+const GeneratorV2Simple = dynamic(
+  () => import("@/components/generator-v2/GeneratorV2Simple").then(mod => ({ default: mod.GeneratorV2Simple })),
   {
     loading: () => <GeneratorLoading />,
     ssr: false,
@@ -27,7 +27,7 @@ function GeneratorLoading() {
 export default function CreatePage() {
   return (
     <Suspense fallback={<GeneratorLoading />}>
-      <GeneratorV2 defaultMode="image" />
+      <GeneratorV2Simple />
     </Suspense>
   );
 }
