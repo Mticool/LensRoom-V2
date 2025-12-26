@@ -18,7 +18,16 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Error fetching categories:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      
+      // Если таблица не существует
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        return NextResponse.json({ 
+          error: 'Таблица effects_gallery не найдена. Выполните миграцию базы данных.',
+          categories: []
+        }, { status: 500 });
+      }
+      
+      return NextResponse.json({ error: error.message, categories: [] }, { status: 500 });
     }
 
     // Extract unique categories
@@ -27,8 +36,17 @@ export async function GET(request: Request) {
     ).sort();
 
     return NextResponse.json({ categories: uniqueCategories });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Categories API error:', error);
+    
+    // Если таблица не существует
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return NextResponse.json({ 
+        error: 'Таблица effects_gallery не найдена. Выполните миграцию базы данных.',
+        categories: []
+      }, { status: 500 });
+    }
+    
     return respondAuthError(error);
   }
 }

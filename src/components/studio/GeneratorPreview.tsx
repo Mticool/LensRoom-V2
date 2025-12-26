@@ -90,12 +90,24 @@ export const GeneratorPreview = memo(function GeneratorPreview({
   }, []);
 
   // Update persisted result when new result arrives (and save to localStorage)
+  // Important: Only update if we have a new valid URL
   useEffect(() => {
-    if (resultUrl) {
+    if (resultUrl && resultUrl.length > 0) {
       setPersistedResult(resultUrl);
       setStoredResult(storageKey, resultUrl);
     }
   }, [resultUrl, storageKey]);
+
+  // Re-check localStorage if persistedResult is null but we're not generating
+  // This handles cases where state gets lost during re-renders
+  useEffect(() => {
+    if (!persistedResult && !isGenerating && isHydrated) {
+      const stored = getStoredResult(storageKey);
+      if (stored) {
+        setPersistedResult(stored);
+      }
+    }
+  }, [persistedResult, isGenerating, isHydrated, storageKey]);
 
   // Determine what to display
   const displayUrl = resultUrl || persistedResult;
@@ -199,7 +211,7 @@ export const GeneratorPreview = memo(function GeneratorPreview({
           {showResult ? (
             <>
               {isVideo ? (
-                // eslint-disable-next-line jsx-a11y/media-has-caption
+                 
                 <video 
                   src={displayUrl} 
                   controls 
@@ -262,7 +274,7 @@ export const GeneratorPreview = memo(function GeneratorPreview({
               <div className="w-12 h-12 rounded-2xl bg-[var(--gold)]/20 border border-[var(--gold)]/30 flex items-center justify-center mx-auto">
                 <Loader2 className="w-6 h-6 text-[var(--gold)] animate-spin" />
               </div>
-              <div className="mt-4 text-sm text-white/80">Генерация запущена...</div>
+              <div className="mt-4 text-sm text-white/80">Генерация...</div>
               <div className="mt-1 text-xs text-[var(--muted)]">Результат появится автоматически</div>
             </div>
           ) : (
@@ -270,8 +282,8 @@ export const GeneratorPreview = memo(function GeneratorPreview({
               <div className="w-12 h-12 rounded-2xl bg-black/30 border border-white/10 flex items-center justify-center mx-auto">
                 <Icon className="w-6 h-6 text-white/70" />
               </div>
-              <div className="mt-4 text-sm text-white/80">Результат появится здесь</div>
-              <div className="mt-1 text-xs text-[var(--muted)]">Нажмите «Сгенерировать»</div>
+              <div className="mt-4 text-sm text-white/80">Превью</div>
+              <div className="mt-1 text-xs text-[var(--muted)]">Результат генерации появится здесь</div>
             </div>
           )}
         </div>

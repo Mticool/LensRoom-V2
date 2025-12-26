@@ -31,7 +31,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = SUBSCRIPTION_TIERS.map((ti
   const descriptions: Record<string, string> = {
     star: `${tier.stars}⭐ в месяц + 50⭐ при регистрации. Для старта и теста моделей: фото, первые ролики, обложки и эффекты.`,
     pro: `${tier.stars}⭐ в месяц. Оптимальный тариф для регулярного контента и задач каждый день.`,
-    business: `${tier.stars}⭐ в месяц. Для бизнеса, маркетплейсов и производства контента потоком.`,
+    business: `${tier.stars}⭐ в месяц. Для бизнеса, e-commerce и производства контента потоком.`,
   };
 
   const badges: Record<string, string> = {

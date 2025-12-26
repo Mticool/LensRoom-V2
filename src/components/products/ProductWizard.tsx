@@ -217,7 +217,7 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
   return (
     <div className="space-y-6">
       {/* 1. Marketplace Selector */}
-      <Section title="Маркетплейс">
+      <Section title="Площадка">
         <div className="flex gap-2 p-1 bg-[var(--surface2)] rounded-xl">
           {MARKETPLACES.map((mp) => (
             <button
@@ -506,7 +506,7 @@ export function ProductWizard({ state, onChange, marketplaceProfile }: ProductWi
                 {/* Avoid Claims Warning */}
                 {selectedNiche.avoidClaims.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-[var(--border)]">
-                    <div className="flex items-center gap-1 text-[10px] text-amber-500 mb-1">
+                    <div className="flex items-center gap-1 text-[10px] text-orange-400 mb-1">
                       <AlertTriangle className="w-3 h-3" />
                       Избегайте формулировок:
                     </div>

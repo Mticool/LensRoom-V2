@@ -7,6 +7,7 @@ import { computePrice } from '@/lib/pricing/compute-price';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
+import { requireAuth } from "@/lib/auth/requireRole";
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,71 +68,83 @@ export async function POST(request: NextRequest) {
     });
     const creditCost = price.stars;
 
-    // Check Telegram auth
-    const telegramSession = await getSession();
-    
-    if (!telegramSession) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in to generate videos.' },
-        { status: 401 }
-      );
-    }
+    // Check auth and get user role
+    let userId: string;
+    let userRole: "user" | "manager" | "admin" = "user";
+    let skipCredits = false;
 
-    // Get auth.users.id from Telegram session
-    const userId = await getAuthUserId(telegramSession);
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User account not found. Please contact support.' },
-        { status: 404 }
-      );
+    try {
+      const auth = await requireAuth();
+      userId = auth.authUserId;
+      userRole = auth.role;
+      // Managers and admins don't pay credits when generating content for gallery
+      skipCredits = userRole === "manager" || userRole === "admin";
+    } catch (error) {
+      // Fallback to old auth method
+      const telegramSession = await getSession();
+      if (!telegramSession) {
+        return NextResponse.json(
+          { error: 'Unauthorized. Please log in to generate videos.' },
+          { status: 401 }
+        );
+      }
+      userId = await getAuthUserId(telegramSession) || "";
+      if (!userId) {
+        return NextResponse.json(
+          { error: 'User account not found. Please contact support.' },
+          { status: 404 }
+        );
+      }
     }
     
     // Use admin client for DB operations
     const supabase = getSupabaseAdmin();
 
-    // Get user credits
-    const { data: creditsData, error: creditsError } = await supabase
-      .from('credits')
-      .select('amount')
-      .eq('user_id', userId)
-      .single();
+    // Skip credit check for managers/admins
+    if (!skipCredits) {
+      // Get user credits
+      const { data: creditsData, error: creditsError } = await supabase
+        .from('credits')
+        .select('amount')
+        .eq('user_id', userId)
+        .single();
 
-    if (creditsError || !creditsData) {
-      return NextResponse.json(
-        { error: 'Failed to fetch credits' },
-        { status: 500 }
-      );
-    }
+      if (creditsError || !creditsData) {
+        return NextResponse.json(
+          { error: 'Failed to fetch credits' },
+          { status: 500 }
+        );
+      }
 
-    // Check if enough credits
-    if (creditsData.amount < creditCost) {
-      return NextResponse.json(
-        { 
-          error: 'Insufficient credits', 
-          required: creditCost, 
-          available: creditsData.amount,
-          message: `Нужно ${creditCost} ⭐, у вас ${creditsData.amount} ⭐`
-        },
-        { status: 402 }
-      );
-    }
+      // Check if enough credits
+      if (creditsData.amount < creditCost) {
+        return NextResponse.json(
+          { 
+            error: 'Insufficient credits', 
+            required: creditCost, 
+            available: creditsData.amount,
+            message: `Нужно ${creditCost} ⭐, у вас ${creditsData.amount} ⭐`
+          },
+          { status: 402 }
+        );
+      }
 
-    // Deduct credits
-    const newBalance = creditsData.amount - creditCost;
-    const { error: deductError } = await supabase
-      .from('credits')
-      .update({ 
-        amount: newBalance,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId);
+      // Deduct credits
+      const newBalance = creditsData.amount - creditCost;
+      const { error: deductError } = await supabase
+        .from('credits')
+        .update({ 
+          amount: newBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
 
-    if (deductError) {
-      return NextResponse.json(
-        { error: 'Failed to deduct credits' },
-        { status: 500 }
-      );
+      if (deductError) {
+        return NextResponse.json(
+          { error: 'Failed to deduct credits' },
+          { status: 500 }
+        );
+      }
     }
 
     // Ensure `profiles` row exists (generations.user_id may FK to profiles.id)
@@ -190,18 +203,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Record credit transaction (avoid columns missing on prod, like metadata)
-    try {
-      const { error: txError } = await supabase.from('credit_transactions').insert({
-        user_id: userId,
-        amount: -creditCost,
-        type: 'deduction',
-        description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с)`,
-        generation_id: generation?.id,
-      });
-      if (txError) console.error('[API] Failed to record transaction:', txError);
-    } catch (e) {
-      console.error('[API] Failed to record transaction:', e);
+    // Record credit transaction (only for regular users, not managers/admins)
+    if (!skipCredits) {
+      try {
+        const { error: txError } = await supabase.from('credit_transactions').insert({
+          user_id: userId,
+          amount: -creditCost,
+          type: 'deduction',
+          description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с)`,
+          generation_id: generation?.id,
+        });
+        if (txError) console.error('[API] Failed to record transaction:', txError);
+      } catch (e) {
+        console.error('[API] Failed to record transaction:', e);
+      }
     }
 
     // Generate video via KIE API

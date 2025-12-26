@@ -67,7 +67,7 @@ export function Header() {
     { name: 'Фото', href: '/create' },
     { name: 'Видео', href: '/create/video' },
     ...(studioEnabled ? [{ name: 'Studio (beta)', href: '/create/studio' }] : []),
-    { name: 'Маркетплейсы', href: '/create/products' },
+    { name: 'E-Com', href: '/create/products' },
     { name: 'Мои результаты', href: '/library' },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },

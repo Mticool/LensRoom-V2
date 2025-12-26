@@ -57,6 +57,10 @@ function computePhotoPrice(
   // Extract pricing
   if (typeof model.pricing === 'number') {
     creditsPerImage = model.pricing;
+  } else if (options.quality && options.resolution && model.provider === 'openai') {
+    // OpenAI GPT Image 1.5: pricing by quality_size key
+    const pricingKey = `${options.quality}_${options.resolution}`;
+    creditsPerImage = model.pricing[pricingKey as keyof typeof model.pricing] as number || 0;
   } else if (options.quality && model.pricing[options.quality as keyof typeof model.pricing]) {
     creditsPerImage = model.pricing[options.quality as keyof typeof model.pricing] as number;
   } else if (options.resolution && model.pricing[options.resolution as keyof typeof model.pricing]) {

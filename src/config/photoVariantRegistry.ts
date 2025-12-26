@@ -199,7 +199,7 @@ function buildParamSchema(variants: Variant[]): PhotoModel["paramSchema"] {
       const ui: "segmented" | "select" = values.length <= 4 ? "segmented" : "select";
 
       const labelFor = (value: string) => {
-        if (value === "default") return "BASE";
+        if (value === "default") return "Стандарт";
         if (k === "quality") {
           const m = value.match(/^([abc])_(\d+)cred$/i);
           if (m) return `${m[1].toUpperCase()} • ${m[2]}c`;
@@ -208,9 +208,12 @@ function buildParamSchema(variants: Variant[]): PhotoModel["paramSchema"] {
           if (value === "quality") return "Quality";
           if (value === "fast") return "Fast";
           if (value === "ultra") return "Ultra";
+          if (value === "medium") return "Medium";
+          if (value === "high") return "High";
         }
         if (k === "resolution") {
           if (/^\d+k$/i.test(value)) return value.toUpperCase();
+          if (value === "1k_2k") return "1K-2K";
         }
         if (k === "mode") {
           if (value === "pro") return "Pro";

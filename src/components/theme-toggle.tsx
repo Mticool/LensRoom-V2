@@ -17,17 +17,17 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
       title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
       className={`
         p-2 rounded-lg
-        text-[var(--muted)] hover:text-[var(--text)]
+        text-[var(--muted)] hover:text-[var(--gold)]
         hover:bg-[var(--surface2)]
         transition-all duration-200
-        theme-toggle-icon
         ${className}
       `}
     >
+      {/* Show icon of what theme you'll switch TO */}
       {theme === 'dark' ? (
-        <Moon className="w-5 h-5" />
-      ) : (
         <Sun className="w-5 h-5" />
+      ) : (
+        <Moon className="w-5 h-5" />
       )}
     </button>
   );

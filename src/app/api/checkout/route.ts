@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { payform } from '@/lib/payments/payform-client';
-import { getProdamusClient } from '@/lib/payments/prodamus-client';
+import { getRobokassaClient } from '@/lib/payments/robokassa-client';
 import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/pricing/plans';
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, itemId, provider: requestedProvider } = await request.json();
+    const { type, itemId } = await request.json();
 
     const supabase = await createServerSupabaseClient();
     
@@ -42,153 +41,112 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Choose provider: explicit request -> env preference -> auto-detect.
-    const envProvider = (process.env.PAYMENTS_PROVIDER || process.env.NEXT_PUBLIC_PAYMENTS_PROVIDER || '').toLowerCase();
-    const provider = (requestedProvider || envProvider || '').toLowerCase() as 'payform' | 'prodamus' | '';
-
-    const payformAvailable =
-      !!process.env.PAYFORM_SECRET_KEY &&
-      (type !== 'subscription' ||
-        (!!process.env.PAYFORM_SUBSCRIPTION_STAR &&
-          !!process.env.PAYFORM_SUBSCRIPTION_PRO &&
-          !!process.env.PAYFORM_SUBSCRIPTION_BUSINESS));
-    const prodamusAvailable = !!getProdamusClient();
-
-    const selectedProvider: 'payform' | 'prodamus' =
-      provider === 'payform'
-        ? 'payform'
-        : provider === 'prodamus'
-          ? 'prodamus'
-          : payformAvailable
-            ? 'payform'
-            : prodamusAvailable
-              ? 'prodamus'
-              : 'payform';
-
-    // Check if selected provider is configured (return a clear, safe message).
-    const missingEnv: string[] = [];
-    if (selectedProvider === 'payform') {
-      if (!process.env.PAYFORM_SECRET_KEY) missingEnv.push("PAYFORM_SECRET_KEY");
-      if (type === "subscription") {
-        if (!process.env.PAYFORM_SUBSCRIPTION_STAR) missingEnv.push("PAYFORM_SUBSCRIPTION_STAR");
-        if (!process.env.PAYFORM_SUBSCRIPTION_PRO) missingEnv.push("PAYFORM_SUBSCRIPTION_PRO");
-        if (!process.env.PAYFORM_SUBSCRIPTION_BUSINESS) missingEnv.push("PAYFORM_SUBSCRIPTION_BUSINESS");
-      }
-    } else {
-      if (!process.env.PRODAMUS_SECRET_KEY) missingEnv.push("PRODAMUS_SECRET_KEY");
-      if (!process.env.PRODAMUS_PROJECT_ID) missingEnv.push("PRODAMUS_PROJECT_ID");
-    }
-    if (missingEnv.length) {
+    // Check Robokassa configuration
+    const robokassa = getRobokassaClient();
+    if (!robokassa) {
       return NextResponse.json(
         {
           error: "Оплата пока не подключена. Напишите в поддержку.",
-          provider: selectedProvider,
-          missingEnv,
+          missingEnv: ["ROBOKASSA_MERCHANT_LOGIN", "ROBOKASSA_PASSWORD1", "ROBOKASSA_PASSWORD2"],
         },
         { status: 503 }
       );
     }
 
     let paymentUrl: string;
-    const customerEmail = user.email || `user_${user.id.slice(0, 8)}@lensroom.local`;
+    const customerEmail = user.email || undefined;
     const orderNumber = `LR-${Date.now()}-${user.id.slice(0, 8)}`;
 
     if (type === 'subscription') {
-      // ========== ПОДПИСКА ==========
+      // ========== ПОДПИСКА (рекуррентный платёж Robokassa) ==========
       const plan = SUBSCRIPTION_PLANS.find(p => p.id === itemId);
-      if (!plan || !plan.recurring) {
+      if (!plan) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
 
+      // Получаем реальный email пользователя из профиля
+      const admin = getSupabaseAdmin();
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('email')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      const realEmail = profile?.email && !profile.email.includes('@lensroom') 
+        ? profile.email 
+        : customerEmail;
+
       try {
-        if (selectedProvider === 'payform') {
-          paymentUrl = payform.createSubscriptionPayment({
-            orderNumber,
-            amount: plan.price,
-            customerEmail,
-            userId: user.id,
-            type: 'subscription',
-            planId: plan.id,
-            credits: plan.credits,
-            description: `Подписка ${plan.name} - ${plan.credits} кредитов/мес`,
-          });
-        } else {
-          const prodamus = getProdamusClient();
-          if (!prodamus) throw new Error('Prodamus not configured');
-          paymentUrl = prodamus.createPaymentLink({
-            orderNumber,
-            amount: plan.price,
-            customerEmail,
-            userId: user.id,
-            type: 'subscription',
-            planId: plan.id,
-            credits: plan.credits,
-          });
-        }
+        paymentUrl = robokassa.createSubscriptionPayment({
+          orderNumber,
+          amount: plan.price,
+          credits: plan.credits,
+          userId: user.id,
+          planId: plan.id,
+          email: realEmail,
+        });
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Payment configuration error';
+        console.error('[Checkout] Subscription error:', msg);
         return NextResponse.json({ 
           error: 'Не удалось создать оплату. Напишите в поддержку.',
-          provider: selectedProvider,
           hint: process.env.NODE_ENV !== 'production' ? msg : undefined,
         }, { status: 503 });
       }
 
-      // Сохранить в БД
-      // Use admin to bypass RLS regardless of auth method
-      await getSupabaseAdmin().from('payments').insert({
-        user_id: user.id,
-        prodamus_order_id: orderNumber, // Используем существующее поле
-        type: 'subscription',
-        amount: plan.price,
-        credits: plan.credits,
-        status: 'pending',
-        metadata: { plan_id: plan.id, plan_name: plan.name, provider: selectedProvider },
-      });
+      // Сохраняем связь email → userId для webhook'а подписки
+      // Robokassa передаёт email в уведомлениях о рекуррентных платежах
+      if (realEmail) {
+        const subscriptionMap: Record<string, string> = {
+          // New plans
+          'creator': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '',
+          'creator_plus': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '',
+          'business': process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '',
+          // Legacy mappings
+          'star': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR || '',
+          'pro': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || process.env.ROBOKASSA_SUBSCRIPTION_PRO || '',
+        };
+        
+        await admin.from('subscription_emails').upsert({
+          user_id: user.id,
+          email: realEmail.toLowerCase(),
+          plan_id: plan.id,
+          subscription_id: subscriptionMap[plan.id] || null,
+          status: 'pending',
+        }, {
+          onConflict: 'email,plan_id',
+        });
+      }
 
-      console.log('[Checkout] Subscription payment created:', {
+      console.log('[Checkout] Subscription redirect:', {
         orderNumber,
         userId: user.id,
         planId: plan.id,
         price: plan.price,
-        provider: selectedProvider,
+        credits: plan.credits,
+        email: realEmail,
       });
 
     } else if (type === 'package') {
-      // ========== РАЗОВЫЙ ПАКЕТ ==========
+      // ========== РАЗОВЫЙ ПАКЕТ (обычный платёж Robokassa) ==========
       const pkg = CREDIT_PACKAGES.find(p => p.id === itemId);
       if (!pkg) {
         return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
       }
 
       try {
-        if (selectedProvider === 'payform') {
-          paymentUrl = payform.createPackagePayment({
-            orderNumber,
-            amount: pkg.price,
-            customerEmail,
-            userId: user.id,
-            type: 'package',
-            credits: pkg.credits,
-            description: `${pkg.credits} кредитов LensRoom`,
-          });
-        } else {
-          const prodamus = getProdamusClient();
-          if (!prodamus) throw new Error('Prodamus not configured');
-          paymentUrl = prodamus.createPaymentLink({
-            orderNumber,
-            amount: pkg.price,
-            customerEmail,
-            userId: user.id,
-            type: 'package',
-            credits: pkg.credits,
-          });
-        }
+        paymentUrl = robokassa.createPackagePayment({
+          orderNumber,
+          amount: pkg.price,
+          credits: pkg.credits,
+          userId: user.id,
+          email: customerEmail,
+        });
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Payment configuration error';
+        console.error('[Checkout] Package error:', msg);
         return NextResponse.json({ 
           error: 'Не удалось создать оплату. Напишите в поддержку.',
-          provider: selectedProvider,
           hint: process.env.NODE_ENV !== 'production' ? msg : undefined,
         }, { status: 503 });
       }
@@ -196,16 +154,17 @@ export async function POST(request: NextRequest) {
       // Сохранить в БД
       await getSupabaseAdmin().from('payments').insert({
         user_id: user.id,
-        prodamus_order_id: orderNumber,
-        type: 'package',
+        external_id: orderNumber,
+        type: 'stars_purchase',
+        package_id: pkg.id,
         amount: pkg.price,
         credits: pkg.credits,
         status: 'pending',
+        provider: 'robokassa',
         metadata: { 
           package_id: pkg.id, 
           credits: pkg.credits,
-          popular: pkg.popular || false,
-          provider: selectedProvider,
+          order_number: orderNumber,
         },
       });
 
@@ -215,7 +174,6 @@ export async function POST(request: NextRequest) {
         packageId: pkg.id,
         credits: pkg.credits,
         price: pkg.price,
-        provider: selectedProvider,
       });
 
     } else {
@@ -225,7 +183,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       url: paymentUrl,
       orderId: orderNumber,
-      provider: selectedProvider,
+      provider: 'robokassa',
     });
 
   } catch (error) {

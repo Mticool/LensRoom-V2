@@ -60,7 +60,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     let storagePath: string | null = null;
-    let bucket = 'generations';
+    const bucket = 'generations';
 
     // Determine which file to download based on kind
     if (kind === 'preview') {

@@ -1,30 +1,46 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { Suspense } from "react";
 import { InspirationGallery } from "@/components/inspiration/InspirationGallery";
 
-export default function InspirationPage() {
+// Loading skeleton for Suspense
+function GallerySkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-2">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-10 w-20 rounded-full bg-[var(--surface)] animate-pulse" />
+        ))}
+      </div>
+      <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3">
+        {[...Array(10)].map((_, i) => (
+          <div key={i} className="break-inside-avoid mb-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+            <div className="aspect-[4/5] bg-[var(--surface2)] animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+export default function InspirationPage() {
   return (
     <div className="min-h-screen pt-20 sm:pt-24 pb-16 sm:pb-20 bg-[var(--bg)]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <motion.div
-          className="mb-6 sm:mb-10"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
+        <div className="mb-6 sm:mb-10">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4 text-[var(--text)]">
             Галерея вдохновения
           </h1>
           <p className="text-base sm:text-xl text-[var(--text2)]">
             Лучшие работы — повторите одним кликом
           </p>
-        </motion.div>
+        </div>
 
-        {/* Gallery */}
-        <InspirationGallery />
+        {/* Gallery with Suspense */}
+        <Suspense fallback={<GallerySkeleton />}>
+          <InspirationGallery />
+        </Suspense>
       </div>
     </div>
   );

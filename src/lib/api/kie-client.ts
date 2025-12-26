@@ -8,6 +8,29 @@
 import type { KieProvider } from '@/config/models';
 import { env } from "@/lib/env";
 
+// ===== HELPER FUNCTIONS =====
+
+/**
+ * Extract URLs from a string (useful for truncated JSON)
+ */
+function extractUrlsFromString(text: string): string[] {
+  if (!text) return [];
+  
+  // Try to find media URLs in the string
+  const urlMatches = text.match(/https?:\/\/[^\s"'\\<>]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm|avi)[^\s"'\\<>]*/gi);
+  if (urlMatches && urlMatches.length > 0) {
+    // Clean up URLs (remove trailing punctuation)
+    return urlMatches.map(url => url.replace(/[,;:'")\]}>]+$/, ''));
+  }
+  
+  // If text itself looks like a URL
+  if (text.startsWith('http') && (text.includes('.png') || text.includes('.jpg') || text.includes('.mp4'))) {
+    return [text.split(/[\s"']/)[0]];
+  }
+  
+  return [];
+}
+
 // ===== REQUEST TYPES =====
 
 export interface CreateTaskRequest {
@@ -263,8 +286,64 @@ export class KieAIClient {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      console.error("[KIE API] Invalid JSON response:", text.substring(0, 500));
-      throw new KieAPIError(`Invalid JSON response: ${text.substring(0, 100)}`, response.status);
+      const isLarge = text.length > 1_000_000;
+      console.error(`[KIE API] Invalid JSON response (${text.length} bytes, large=${isLarge})`);
+      if (!isLarge) {
+        console.error("[KIE API] Response preview:", text.substring(0, 500));
+      }
+      
+      // Try to extract data from truncated/large JSON using regex
+      const stateMatch = text.match(/"state"\s*:\s*"(waiting|queuing|generating|success|fail)"/);
+      const codeMatch = text.match(/"code"\s*:\s*(\d+)/);
+      const taskIdMatch = text.match(/"taskId"\s*:\s*"([^"]+)"/);
+      
+      // Look for URLs with multiple patterns (more robust)
+      let foundUrls: string[] = [];
+      
+      // Pattern 1: Direct URLs with image/video extensions
+      const urlPattern1 = text.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm|avi)/gi);
+      if (urlPattern1) foundUrls.push(...urlPattern1);
+      
+      // Pattern 2: URLs in JSON string format "url":"..."
+      const urlPattern2 = text.match(/"(?:url|imageUrl|videoUrl|resultUrl)"\s*:\s*"(https?:\/\/[^"]+)"/gi);
+      if (urlPattern2) {
+        urlPattern2.forEach(m => {
+          const match = m.match(/https?:\/\/[^"]+/);
+          if (match) foundUrls.push(match[0]);
+        });
+      }
+      
+      // Pattern 3: URLs in resultUrls array
+      const urlPattern3 = text.match(/"resultUrls"\s*:\s*\[([^\]]+)\]/);
+      if (urlPattern3) {
+        const arrayContent = urlPattern3[1];
+        const urls = arrayContent.match(/https?:\/\/[^"',\s]+/g);
+        if (urls) foundUrls.push(...urls);
+      }
+      
+      // Deduplicate and clean URLs
+      foundUrls = [...new Set(foundUrls)].map(url => url.replace(/[,;:'")\]}>\\]+$/, ''));
+      
+      if (stateMatch || codeMatch || foundUrls.length > 0) {
+        console.log("[KIE API] Extracted from response:", {
+          state: stateMatch?.[1],
+          code: codeMatch?.[1],
+          taskId: taskIdMatch?.[1],
+          urlsFound: foundUrls.length,
+          urls: foundUrls.slice(0, 3), // Log first 3
+        });
+        
+        data = {
+          code: codeMatch ? parseInt(codeMatch[1]) : 200,
+          data: {
+            state: stateMatch?.[1] || (foundUrls.length > 0 ? "success" : "generating"),
+            taskId: taskIdMatch?.[1],
+            resultJson: foundUrls.length > 0 ? JSON.stringify({ resultUrls: foundUrls }) : undefined,
+          }
+        };
+      } else {
+        throw new KieAPIError(`Invalid JSON response (${text.length} bytes): ${text.substring(0, 100)}`, response.status);
+      }
     }
     
     console.log("[KIE API] Response:", data);
@@ -272,6 +351,12 @@ export class KieAIClient {
     // KIE API returns code in body
     if (data.code && data.code !== 200) {
       const errorMessage = data.message || data.msg || `API Error: ${data.code}`;
+      
+      console.error("[KIE API] Error response:", {
+        code: data.code,
+        message: errorMessage,
+        fullData: JSON.stringify(data).substring(0, 500),
+      });
       
       // Проверка на ошибку политики контента Google
       if (
@@ -456,14 +541,43 @@ export class KieAIClient {
       if (params.quality && params.model !== 'qwen/image-edit' && !params.model.startsWith('seedream/4.5')) {
         input.quality = params.quality;
       }
+      // Handle image inputs for i2i based on model requirements
       if (params.imageInputs && params.imageInputs.length > 0 && params.model !== 'qwen/image-edit') {
-        input.image_input = params.imageInputs;
+        const imgUrl = params.imageInputs[0];
+        
+        // All KIE models use image_url for i2i reference
+        // Some also accept strength/denoise parameters
+        input.image_url = imgUrl;
+        
+        // Add model-specific parameters
+        if (params.model.includes('flux')) {
+          input.strength = 0.75; // FLUX uses strength 0-1
+        } else if (params.model.includes('nano-banana') || params.model.includes('imagen')) {
+          // Google models may use different naming
+          input.init_image = imgUrl;
+          input.image_urls = [imgUrl]; // Try array format too
+        } else if (params.model.includes('seedream')) {
+          input.strength = 0.7;
+        }
+        
+        console.log('[KIE i2i] Using reference image for model:', params.model);
       }
+      
+      // Request URL output instead of base64 (reduces response size dramatically)
+      input.return_url = true;
+      input.output_type = 'url';
 
       const request: CreateTaskRequest = {
         model: params.model,
         input,
       };
+      
+      // Add callback URL for async notifications
+      const base = this.callbackUrlBase.replace(/\/$/, "");
+      const secret = this.callbackSecret;
+      if (base && secret) {
+        request.callBackUrl = `${base}/api/webhooks/kie?secret=${encodeURIComponent(secret)}`;
+      }
 
       console.log('[KIE Image] Request:', JSON.stringify(request, null, 2));
 
@@ -495,7 +609,16 @@ export class KieAIClient {
             height: 1024,
           }));
         } catch (e) {
-          console.error("[KIE API] Failed to parse resultJson:", e);
+          console.error("[KIE API] Failed to parse resultJson, trying URL extraction:", e);
+          // Try to extract URLs from truncated/invalid JSON
+          const urls = extractUrlsFromString(data.resultJson);
+          if (urls.length > 0) {
+            outputs = urls.map((url) => ({
+              url,
+              width: 1024,
+              height: 1024,
+            }));
+          }
         }
       }
 
@@ -725,7 +848,17 @@ export class KieAIClient {
             duration: 5,
           }));
         } catch (e) {
-          console.error("[KIE API] Failed to parse video resultJson:", e);
+          console.error("[KIE API] Failed to parse video resultJson, trying URL extraction:", e);
+          // Try to extract URLs from truncated/invalid JSON
+          const urls = extractUrlsFromString(data.resultJson);
+          if (urls.length > 0) {
+            outputs = urls.map((url) => ({
+              url,
+              width: 1280,
+              height: 720,
+              duration: 5,
+            }));
+          }
         }
       }
 
@@ -890,6 +1023,7 @@ export class KieAIClient {
     }
 
     // Version - map to KIE API format
+    // KIE API expects version as: "Version 7", "Version 6.1", "Version 6", etc. or "Niji 6"
     const version = params.version || '7';
     if (version === 'niji6') {
       input.version = 'Niji 6';
@@ -921,17 +1055,27 @@ export class KieAIClient {
     if (params.imageUrl) {
       input.imageUrl = params.imageUrl;
     }
+    
+    // Request URL output instead of base64
+    input.return_url = true;
+    input.output_type = 'url';
 
-    // Determine API model based on mode
-    let model = 'midjourney/text-to-image';
-    if (params.imageUrl) {
-      model = 'midjourney/image-to-image';
-    }
+    // Determine API model
+    // KIE API uses just "midjourney" as model name
+    // Mode is determined by presence of imageUrl in input
+    const model = 'midjourney';
 
     const request: CreateTaskRequest = {
       model,
       input,
     };
+    
+    // Add callback URL for async notifications
+    const base = this.callbackUrlBase.replace(/\/$/, "");
+    const secret = this.callbackSecret;
+    if (base && secret) {
+      request.callBackUrl = `${base}/api/webhooks/kie?secret=${encodeURIComponent(secret)}`;
+    }
 
     console.log('[Midjourney] Request:', JSON.stringify(request, null, 2));
 
@@ -1246,16 +1390,16 @@ export class KieAIClient {
 export function getKieConfig() {
   // Evaluate env only when KIE integration is actually used.
   const apiKey = env.required("KIE_API_KEY", "KIE API key");
-  const callbackSecret = env.required("KIE_CALLBACK_SECRET", "KIE callback secret");
-  const callbackUrlBase = env.required("KIE_CALLBACK_URL", "Public base URL for callbacks");
+  // Callbacks are optional - KIE uses polling by default
+  const callbackSecret = env.optional("KIE_CALLBACK_SECRET") || "";
+  const callbackUrlBase = env.optional("KIE_CALLBACK_URL") || "";
   const baseUrl = env.optional("NEXT_PUBLIC_KIE_API_URL") || "https://api.kie.ai";
   const mockMode = env.bool("NEXT_PUBLIC_MOCK_MODE");
   const veoWebhookSecret = env.optional("VEO_WEBHOOK_SECRET") || undefined;
 
   const missing: string[] = [];
   if (!apiKey) missing.push("KIE_API_KEY");
-  if (!callbackSecret) missing.push("KIE_CALLBACK_SECRET");
-  if (!callbackUrlBase) missing.push("KIE_CALLBACK_URL");
+  // Callbacks no longer required - polling is used instead
 
   return {
     baseUrl,

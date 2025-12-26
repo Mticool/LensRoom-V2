@@ -14,6 +14,7 @@ export interface PricingTier {
   features: string[];
   benefits?: string[]; // "Что вы выигрываете" - польза для пользователя
   capacity?: string[]; // "Хватит примерно на" - конкретные примеры
+  targetAudience?: string; // "Кому подходит" - целевая аудитория
   limits: {
     credits: number; // кредитов в месяц
     starsPerMonth: number; // звёзд в месяц
@@ -46,69 +47,67 @@ export function packBonusPercent(pack: StarPack): number {
 // === ПОДПИСКИ ===
 export const SUBSCRIPTION_TIERS: PricingTier[] = [
   {
-    id: 'star',
-    name: 'Star',
-    price: 490,
-    stars: 500,
-    period: 'month',
-    subtitle: 'Быстрый старт без лишних затрат. Подходит, если вам нужно делать контент регулярно, но без "видео-марафонов".',
-    features: [
-      '500⭐ в месяц',
-      'Доступ к базовым моделям',
-      'Nano Banana, Z-image',
-      'Стандартный приоритет',
-      'Email поддержка',
-    ],
-    benefits: [
-      'Делаете поток картинок каждый день (карточки, посты, обложки)',
-      'Быстро тестируете идеи: что заходит — то масштабируете',
-      'Не переплачиваете за "тяжёлые" режимы, пока они не нужны',
-    ],
-    capacity: [
-      'до 71 генерации Nano Banana (7⭐)',
-      'или до 16 генераций Nano Banana Pro (30⭐)',
-      'или до 10 роликов Sora 2 (50⭐)',
-    ],
-    limits: {
-      credits: 500,
-      starsPerMonth: 500,
-      models: 'Базовые (Nano Banana, Z-image)',
-      support: 'Email (24 часа)',
-    },
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
+    id: 'creator',
+    name: 'Creator',
     price: 990,
     stars: 1200,
     period: 'month',
-    popular: true,
-    subtitle: 'Рабочий тариф "делаю контент системно". Идеален, если вы ведёте соцсети/магазин и хотите не думать о лимитах.',
+    subtitle: 'Уверенный старт для ежедневного контента. Быстро делайте качественные изображения для карточек товара, постов, обложек и рекламных креативов — без переплат.',
     features: [
-      '1200⭐ в месяц (+20% бонус)',
-      'Все фото модели',
-      'FLUX.2 Pro, Midjourney V7',
-      'Базовые видео модели',
-      'Veo 3.1 Fast, Sora 2',
-      'Приоритетная генерация',
-      'Telegram поддержка',
+      '✅ Nano Banana включён — быстрый фотореализм для рабочих задач',
+      '✅ Базовые фото-модели: FLUX, Seedream, Ideogram, Z-image',
+      '✅ Удаление фона и апскейл — по ⭐',
+      '✅ Видео-модели — по ⭐, когда нужно оживить контент',
     ],
     benefits: [
-      'Держите стабильный контент-план: фото + базовое видео',
-      'Можете массово генерировать и выбирать лучшие варианты',
-      'Экономите время: один вечер генераций — контент на неделю/две',
+      '80% фото-задач закрываете "на автомате"',
+      '⭐ тратите только на премиум: видео, 4K, апскейл',
+      'Быстро тестируете идеи и масштабируете лучшие',
     ],
     capacity: [
       'до 171 Nano Banana (7⭐)',
-      'или до 40 Nano Banana Pro (30⭐)',
-      'или до 24 роликов Sora 2 (50⭐)',
-      'или до 12 роликов Veo Fast (100⭐)',
+      'или до 109 Seedream (11⭐)',
+      'или до 24 Sora 2 (50⭐)',
     ],
+    targetAudience: 'E-Com, соцсети, тесты креативов, регулярные публикации',
     limits: {
       credits: 1200,
       starsPerMonth: 1200,
-      models: 'Все фото + базовые видео',
-      support: 'Telegram (2 часа)',
+      models: 'Nano Banana + базовые фото',
+      support: 'Email',
+    },
+  },
+  {
+    id: 'creator_plus',
+    name: 'Creator+',
+    price: 1990,
+    stars: 2550,
+    period: 'month',
+    popular: true,
+    subtitle: 'Тариф "делаю контент системно". Много вариантов, стабильное качество и возможность делать контент "пачками".',
+    features: [
+      '✅ Всё из Creator',
+      '🎁 Nano Banana Pro 1–2K включён — безлимит (fair use)',
+      '💎 Nano Banana Pro 4K — премиум-качество за ⭐',
+      '⭐ 2550⭐ на видео, 4K, апскейл и тяжёлые генерации',
+    ],
+    benefits: [
+      'Pro 1–2K — ваш новый стандарт качества',
+      '⭐ остаются на усиление: видео, 4K, максимум результата',
+      'Контент "пачками" без ощущения экономии',
+    ],
+    capacity: [
+      'Pro 1–2K: безлимит (0⭐)',
+      'до 364 Nano Banana (7⭐)',
+      'или до 51 Sora 2 (50⭐)',
+      'или до 25 Veo Fast (100⭐)',
+    ],
+    targetAudience: 'Контент ежедневно, запуск рекламы, много вариантов под проект',
+    limits: {
+      credits: 2550,
+      starsPerMonth: 2550,
+      models: 'Все фото + видео + Pro 1–2K',
+      support: 'Telegram (2ч)',
     },
   },
   {
@@ -117,32 +116,29 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
     price: 2990,
     stars: 3500,
     period: 'month',
-    subtitle: 'Тариф для объёма: когда контент = производственная линия. Для команд, арбитража и множества товаров.',
+    subtitle: 'Максимум свободы для потока и масштаба. Много товаров, активная реклама, серии креативов — без остановок.',
     features: [
-      '3500⭐ в месяц (+40% бонус)',
-      'Все модели без ограничений',
-      'Veo 3.1, Kling 2.6, Sora 2 Pro',
-      'Kling AI Avatar',
-      'Максимальный приоритет',
-      'API доступ',
-      'Персональный менеджер',
-      'VIP поддержка 24/7',
+      '✅ Всё из Creator+',
+      '🎁 Nano Banana Pro 1–2K включён — безлимит (fair use)',
+      '💎 Nano Banana Pro 4K — премиум-качество за ⭐',
+      '⭐ 3500⭐ — большой запас для видео и премиум-режимов',
     ],
     benefits: [
-      'Делаете много контента без стопов: тесты, итерации, разные стили',
-      'Спокойно запускаете серии роликов и не выбираете "что урезать"',
-      'Самый практичный вариант для скорости и стабильности',
+      'Работаете "в продакшне" без оглядки на лимиты',
+      'Быстро генерируете, тестируете, выбираете лучшее',
+      'Масштабируете без ощущения, что каждый шаг надо экономить',
     ],
     capacity: [
+      'Pro 1–2K: безлимит (0⭐)',
       'до 500 Nano Banana (7⭐)',
-      'или до 116 Nano Banana Pro (30⭐)',
-      'или до 70 роликов Sora 2 (50⭐)',
-      'или до 35 роликов Veo Fast (100⭐)',
+      'или до 70 Sora 2 (50⭐)',
+      'или до 35 Veo Fast (100⭐)',
     ],
+    targetAudience: 'Команды, агентства, магазины с большим ассортиментом, продакшн-режим',
     limits: {
       credits: 3500,
       starsPerMonth: 3500,
-      models: 'Все модели (Premium)',
+      models: 'Все модели + Pro 1–2K',
       support: 'VIP 24/7 + менеджер',
     },
   },
@@ -256,6 +252,111 @@ export function formatStars(stars: number): string {
 export function calculateSavings(pack: StarPack): number {
   // "Выгода" в ⭐ относительно базового объёма (без бонуса)
   return packTotalStars(pack) - pack.stars;
+}
+
+// === ENTITLEMENTS: Nano Banana Pro ===
+
+export interface PlanEntitlement {
+  modelId: string;
+  variantKey: string;
+  includedMonthlyLimit: number; // 0 = not included, -1 = truly unlimited
+  priceWhenNotIncluded: number; // stars to charge when quota exhausted or not included
+}
+
+export interface PlanEntitlements {
+  planId: string;
+  entitlements: PlanEntitlement[];
+}
+
+// Nano Banana Pro entitlements by plan
+// Internal limits - NOT displayed on pricing page
+export const PLAN_ENTITLEMENTS: PlanEntitlements[] = [
+  {
+    planId: 'creator',
+    entitlements: [
+      // Creator: Nano Banana Pro NOT included
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 0, priceWhenNotIncluded: 30 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
+    ],
+  },
+  {
+    planId: 'creator_plus',
+    entitlements: [
+      // Creator+: Pro 1-2K included (200/month fair use), 4K always paid
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 200, priceWhenNotIncluded: 30 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
+    ],
+  },
+  {
+    planId: 'business',
+    entitlements: [
+      // Business: Pro 1-2K included (300/month fair use), 4K always paid
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 300, priceWhenNotIncluded: 30 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
+    ],
+  },
+];
+
+/**
+ * Get entitlement for a specific model variant and plan
+ */
+export function getEntitlement(
+  planId: string | null,
+  modelId: string,
+  variantKey: string
+): PlanEntitlement | null {
+  if (!planId) return null;
+  const planEntitlements = PLAN_ENTITLEMENTS.find(p => p.planId === planId);
+  if (!planEntitlements) return null;
+  return planEntitlements.entitlements.find(
+    e => e.modelId === modelId && e.variantKey === variantKey
+  ) || null;
+}
+
+/**
+ * Check if a variant is included in plan (has quota > 0)
+ */
+export function isVariantIncludedInPlan(
+  planId: string | null,
+  modelId: string,
+  variantKey: string
+): boolean {
+  const ent = getEntitlement(planId, modelId, variantKey);
+  return ent ? ent.includedMonthlyLimit > 0 : false;
+}
+
+/**
+ * Get the price for a variant (either included or paid)
+ */
+export function getVariantPrice(
+  planId: string | null,
+  modelId: string,
+  variantKey: string,
+  usedThisMonth: number = 0
+): { stars: number; isIncluded: boolean } {
+  const ent = getEntitlement(planId, modelId, variantKey);
+  
+  if (!ent) {
+    // No entitlement found - use default pricing from models
+    // Nano Banana Pro defaults
+    if (modelId === 'nano-banana-pro') {
+      return { stars: variantKey === '4k' ? 40 : 30, isIncluded: false };
+    }
+    return { stars: 0, isIncluded: false };
+  }
+  
+  // 4K is always paid
+  if (variantKey === '4k') {
+    return { stars: ent.priceWhenNotIncluded, isIncluded: false };
+  }
+  
+  // Check if within included quota
+  if (ent.includedMonthlyLimit > 0 && usedThisMonth < ent.includedMonthlyLimit) {
+    return { stars: 0, isIncluded: true };
+  }
+  
+  // Quota exhausted or not included
+  return { stars: ent.priceWhenNotIncluded, isIncluded: false };
 }
 
 

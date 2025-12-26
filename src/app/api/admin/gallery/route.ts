@@ -35,12 +35,30 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Error fetching effects:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      
+      // Если таблица не существует
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        return NextResponse.json({ 
+          error: 'Таблица effects_gallery не найдена. Выполните миграцию базы данных.',
+          effects: []
+        }, { status: 500 });
+      }
+      
+      return NextResponse.json({ error: error.message, effects: [] }, { status: 500 });
     }
 
     return NextResponse.json({ effects: effects || [] });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gallery API error:', error);
+    
+    // Если таблица не существует
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return NextResponse.json({ 
+        error: 'Таблица effects_gallery не найдена. Выполните миграцию базы данных.',
+        effects: []
+      }, { status: 500 });
+    }
+    
     return respondAuthError(error);
   }
 }
@@ -186,6 +204,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ effect: result });
   } catch (error: any) {
     console.error('Gallery save error:', error);
+    
+    // Если ошибка связана с отсутствием таблицы или колонок
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return NextResponse.json({ 
+        error: 'Таблица effects_gallery не найдена. Выполните миграцию базы данных.' 
+      }, { status: 500 });
+    }
+    
+    // Если ошибка связана с отсутствием колонки
+    if (error?.code === '42703' || error?.message?.includes('column') && error?.message?.includes('does not exist')) {
+      return NextResponse.json({ 
+        error: 'Не хватает колонок в таблице. Выполните миграцию базы данных.' 
+      }, { status: 500 });
+    }
+    
     return respondAuthError(error);
   }
 }

@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  EFFECT_PRESETS, 
   FILTER_CHIPS, 
   getOrderedPresetsForMasonry,
   buildPresetUrl,
@@ -11,44 +10,66 @@ import {
   type FilterChipId,
   type EffectPreset,
 } from '@/config/effectsGallery';
+import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
 
-// ===== EFFECT CARD =====
+// ===== CONSTANTS =====
+const INITIAL_LOAD = 12; // Load 12 items initially (4 per column)
+const LOAD_MORE = 9; // Load 9 more on scroll
+
+// ===== EFFECT CARD (Memoized) =====
 interface EffectCardProps {
   preset: EffectPreset;
   onClick: () => void;
+  priority?: boolean;
 }
 
-function EffectCard({ preset, onClick }: EffectCardProps) {
+const EffectCard = memo(function EffectCard({ preset, onClick, priority = false }: EffectCardProps) {
   const src = (preset.previewImage || '').trim();
-  const isVideo = /\.(mp4|webm)(\?|#|$)/i.test(src);
+  const posterSrc = (preset.posterUrl || '').trim();
+  const isVideo = preset.contentType === 'video' || /\.(mp4|webm)(\?|#|$)/i.test(src);
+  
+  // Dynamic aspect ratios for visual variety in masonry
+  const getAspectClass = (ratio: string, isFeatured?: boolean) => {
+    // Featured items get taller aspect ratio for emphasis
+    if (isFeatured) return 'aspect-[3/4]';
+    
+    switch (ratio) {
+      case '9:16': return 'aspect-[9/16]'; // Tall portrait
+      case '3:4': return 'aspect-[3/4]';   // Portrait
+      case '4:5': return 'aspect-[4/5]';   // Instagram portrait
+      case '16:9': return 'aspect-video';  // Landscape
+      case '4:3': return 'aspect-[4/3]';   // Classic
+      case '2:3': return 'aspect-[2/3]';   // Photo portrait
+      case '1:1': return 'aspect-square';  // Square
+      default: return 'aspect-[3/4]';      // Default to nice portrait
+    }
+  };
+  
   return (
     <div
-      className="group relative w-full overflow-hidden rounded-2xl bg-[var(--surface)] 
-                 border border-[var(--border)] break-inside-avoid mb-4
+      className="group relative w-full overflow-hidden rounded-xl bg-[var(--surface)] 
+                 border border-[var(--border)] break-inside-avoid mb-3
                  transition-all duration-300 ease-out
                  hover:translate-y-[-2px]
                  hover:border-white/50
                  hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]"
     >
-      {/* Image with aspect ratio */}
-      <div className={`relative w-full ${getTileAspectClass(preset.tileRatio)} overflow-hidden`}>
+      {/* Image/Video with proper aspect ratio */}
+      <div className={`relative w-full ${getAspectClass(preset.tileRatio, preset.featured)} overflow-hidden`}>
         {src ? (
           isVideo ? (
-            <video
+            <LazyVideo
               src={src}
+              poster={posterSrc || undefined}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              muted
-              loop
-              playsInline
-              autoPlay
-              preload="metadata"
             />
           ) : (
-            <img
+            <OptimizedImage
               src={src}
               alt={preset.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
+              className="transition-transform duration-500 group-hover:scale-105"
+              priority={priority}
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           )
         ) : (
@@ -66,28 +87,28 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
         {/* Cost pill - top right */}
         {preset.costStars > 0 && (
           <div
-            className="absolute top-3 right-3 px-2 py-1 rounded-full 
+            className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full 
                         bg-black/50 backdrop-blur-sm
-                        text-[11px] font-semibold text-white
-                        flex items-center gap-1"
+                        text-[10px] font-semibold text-white
+                        flex items-center gap-0.5"
           >
             ⭐{preset.costStars}
           </div>
         )}
         
         {/* Title & Repeat Button - bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate mb-3">
+        <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+          <h3 className="text-xs font-bold text-white uppercase tracking-wide truncate mb-2">
             {preset.title}
           </h3>
           <button
             onClick={onClick}
-            className="w-full py-2.5 px-4 rounded-xl bg-[var(--gold)] text-black font-semibold text-sm
+            className="w-full py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg bg-[var(--gold)] text-black font-semibold text-xs
                        hover:bg-[var(--gold)]/90 transition-all
-                       flex items-center justify-center gap-2
+                       flex items-center justify-center gap-1
                        opacity-0 group-hover:opacity-100"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             Повторить
@@ -96,7 +117,7 @@ function EffectCard({ preset, onClick }: EffectCardProps) {
       </div>
     </div>
   );
-}
+});
 
 // ===== FILTER CHIPS =====
 interface FilterChipsProps {
@@ -104,7 +125,7 @@ interface FilterChipsProps {
   onFilterChange: (id: FilterChipId) => void;
 }
 
-function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
+const FilterChips = memo(function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
   return (
     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-6 px-6 md:mx-0 md:px-0 md:flex-wrap">
       {FILTER_CHIPS.map((chip) => (
@@ -122,7 +143,7 @@ function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
       ))}
     </div>
   );
-}
+});
 
 // ===== MASONRY GRID =====
 interface MasonryGridProps {
@@ -130,104 +151,211 @@ interface MasonryGridProps {
   onCardClick: (preset: EffectPreset) => void;
 }
 
-function MasonryGrid({ presets, onCardClick }: MasonryGridProps) {
+const MasonryGrid = memo(function MasonryGrid({ presets, onCardClick }: MasonryGridProps) {
   // Order presets for balanced visual layout
   const orderedPresets = getOrderedPresetsForMasonry(presets);
   
+  // Pattern for visual variety: tall, square, portrait, landscape...
+  const aspectPattern = ['3:4', '1:1', '4:5', '16:9', '2:3', '1:1', '9:16', '4:3'];
+  
+  // Apply pattern to presets that don't have explicit tileRatio
+  const presetsWithVariety = orderedPresets.map((preset, index) => {
+    // If preset already has a specific ratio, keep it
+    if (preset.tileRatio && preset.tileRatio !== '1:1') {
+      return preset;
+    }
+    // Otherwise apply pattern for visual variety
+    return {
+      ...preset,
+      tileRatio: aspectPattern[index % aspectPattern.length] as any,
+    };
+  });
+  
   return (
-    <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
-      {orderedPresets.map((preset) => (
+    <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3">
+      {presetsWithVariety.map((preset, index) => (
         <EffectCard
           key={preset.presetId}
           preset={preset}
           onClick={() => onCardClick(preset)}
+          priority={index < 8} // Priority load first 8 items
         />
       ))}
     </div>
   );
-}
+});
+
+// ===== SKELETON LOADER =====
+const SkeletonCard = memo(function SkeletonCard({ index = 0 }: { index?: number }) {
+  // Matching aspect pattern for skeleton loading
+  const aspects = ['aspect-[3/4]', 'aspect-square', 'aspect-[4/5]', 'aspect-video', 'aspect-[2/3]', 'aspect-square', 'aspect-[9/16]', 'aspect-[4/3]'];
+  const aspectClass = aspects[index % aspects.length];
+  
+  return (
+    <div className="break-inside-avoid mb-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+      <div className={`${aspectClass} bg-[var(--surface2)] animate-pulse`} />
+    </div>
+  );
+});
+
+const SkeletonGrid = memo(function SkeletonGrid() {
+  return (
+    <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3">
+      {[...Array(12)].map((_, i) => (
+        <SkeletonCard key={i} index={i} />
+      ))}
+    </div>
+  );
+});
 
 // ===== MAIN GALLERY COMPONENT =====
 export function EffectsGallery() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterChipId>('all');
-  const [presets, setPresets] = useState<EffectPreset[]>(EFFECT_PRESETS);
+  const [allPresets, setAllPresets] = useState<EffectPreset[]>([]);
+  const [displayCount, setDisplayCount] = useState(INITIAL_LOAD);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const cacheRef = useRef<EffectPreset[] | null>(null);
 
-  // Load real content from Content Constructor (fallback to static presets)
+  // Load content with caching
   useEffect(() => {
     let cancelled = false;
+    
     (async () => {
+      // Use cached data if available
+      if (cacheRef.current) {
+        setAllPresets(cacheRef.current);
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
       try {
-        // 1) Prefer styles from /admin/styles (inspiration_styles)
-        const stylesRes = await fetch(`/api/styles?placement=home&limit=100&_t=${Date.now()}`, { cache: 'no-store' });
-        if (stylesRes.ok) {
-          const sData = await stylesRes.json().catch(() => ({}));
-          const styles = Array.isArray((sData as any)?.styles) ? (sData as any).styles : [];
-          if (!cancelled && styles.length) {
-            const mapped: EffectPreset[] = styles.map((s: any) => ({
-              presetId: String(s.preset_id || s.id || ''),
-              title: String(s.title || ''),
-              contentType: 'photo' as any,
-              modelKey: String(s.model_key || 'nano-banana-pro'),
-              tileRatio: '1:1' as any,
-              costStars: 0,
-              mode: 't2i',
-              variantId: String(s.preset_id || 'default'),
-              previewImage: String(s.thumbnail_url || s.preview_image || ''),
-              templatePrompt: String(s.template_prompt || ''),
-              featured: !!s.featured,
-            }));
-            setPresets(mapped);
-            return;
-          }
+        // Load content from effects_gallery with placement=home
+        const res = await fetch('/api/content?placement=home&status=published&limit=100');
+        if (!res.ok) {
+          console.warn('[EffectsGallery] Failed to load content:', res.status);
+          setAllPresets([]);
+          return;
         }
-
-        // 2) Fallback: Content Constructor (effects_gallery)
-        const res = await fetch('/api/content?placement=home&limit=100', { cache: 'no-store' });
-        if (!res.ok) return;
+        
         const data = await res.json().catch(() => ({}));
-        const list = Array.isArray((data as any)?.content) ? (data as any).content : [];
+        const list = Array.isArray((data as any)?.content) ? (data as any).content : 
+                     Array.isArray((data as any)?.effects) ? (data as any).effects : [];
+        
         if (cancelled) return;
+        
         if (list.length) {
-          const mapped: EffectPreset[] = list.map((row: any) => ({
-            presetId: String(row.preset_id || row.presetId || ''),
-            title: String(row.title || ''),
-            contentType: (row.content_type || 'photo') as any,
-            modelKey: String(row.model_key || ''),
-            tileRatio: (row.tile_ratio || row.aspect || '1:1') as any,
-            costStars: Number(row.cost_stars ?? 0),
-            mode: String(row.mode || 't2i'),
-            variantId: String(row.variant_id || 'default'),
-            previewImage: String(row.preview_url || row.preview_image || ''),
-            templatePrompt: String(row.template_prompt || ''),
-            featured: !!row.featured,
-          }));
-          setPresets(mapped);
+          const mapped: EffectPreset[] = list.map((row: any) => {
+            const isVideo = row.content_type === 'video' || row.type === 'video';
+            
+            // For videos: prioritize animated preview (WebM) > poster > asset
+            // For photos: use preview > asset
+            let previewSrc = '';
+            if (isVideo) {
+              previewSrc = String(row.preview_url || row.poster_url || row.asset_url || '');
+            } else {
+              previewSrc = String(row.preview_url || row.preview_image || row.asset_url || '');
+            }
+            
+            const preset: EffectPreset = {
+              presetId: String(row.preset_id || row.presetId || row.id || ''),
+              title: String(row.title || ''),
+              contentType: (isVideo ? 'video' : 'photo') as any,
+              modelKey: String(row.model_key || ''),
+              tileRatio: (row.tile_ratio || row.aspect || '1:1') as any,
+              costStars: Number(row.cost_stars ?? 0),
+              mode: (row.mode || (isVideo ? 't2v' : 't2i')) as any,
+              variantId: String(row.variant_id || 'default'),
+              previewImage: previewSrc,
+              posterUrl: isVideo ? String(row.poster_url || '') : undefined,
+              templatePrompt: String(row.template_prompt || ''),
+              featured: !!row.featured,
+            };
+            
+            return preset;
+          });
+          
+          // Cache the data
+          cacheRef.current = mapped;
+          setAllPresets(mapped);
+        } else {
+          setAllPresets([]);
         }
       } catch (e) {
-        // Silent fallback; keep static presets.
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn('[EffectsGallery] Failed to load DB presets', e);
+        console.error('[EffectsGallery] Failed to load DB presets', e);
+        setAllPresets([]);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
     })();
+    
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Infinite scroll - load more when reaching bottom
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !loadingMore) {
+          setLoadingMore(true);
+          // Use requestIdleCallback for non-blocking load
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+              setDisplayCount(prev => prev + LOAD_MORE);
+              setLoadingMore(false);
+            });
+          } else {
+            setTimeout(() => {
+              setDisplayCount(prev => prev + LOAD_MORE);
+              setLoadingMore(false);
+            }, 100);
+          }
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    
+    const current = loadMoreRef.current;
+    if (current) {
+      observer.observe(current);
+    }
+    
+    return () => {
+      if (current) {
+        observer.unobserve(current);
+      }
+    };
+  }, [loadingMore]);
+
+  // Reset display count when filter changes
+  useEffect(() => {
+    setDisplayCount(INITIAL_LOAD);
+  }, [activeFilter]);
+
   const filteredPresets = (() => {
-    if (activeFilter === 'all') return presets;
+    if (activeFilter === 'all') return allPresets;
     const chip = FILTER_CHIPS.find((c) => c.id === activeFilter);
-    if (!chip) return presets;
+    if (!chip) return allPresets;
     if (chip.type === 'content') {
-      return presets.filter((p) => p.contentType === activeFilter);
+      return allPresets.filter((p) => p.contentType === activeFilter);
     }
     if (chip.type === 'model' && chip.modelKey) {
-      return presets.filter((p) => p.modelKey === chip.modelKey);
+      return allPresets.filter((p) => p.modelKey === chip.modelKey);
     }
-    return presets;
+    return allPresets;
   })();
+  
+  // Only show displayCount items
+  const visiblePresets = filteredPresets.slice(0, displayCount);
+  const hasMore = filteredPresets.length > displayCount;
   
   const handleCardClick = useCallback((preset: EffectPreset) => {
     router.push(buildPresetUrl(preset));
@@ -236,6 +364,24 @@ export function EffectsGallery() {
   const handleFilterChange = useCallback((id: FilterChipId) => {
     setActiveFilter(id);
   }, []);
+
+  // Loading state
+  if (loading) {
+    return (
+      <section className="pb-8">
+        <div className="container mx-auto px-6">
+          <div className="mb-8">
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-10 w-20 rounded-full bg-[var(--surface)] animate-pulse" />
+              ))}
+            </div>
+          </div>
+          <SkeletonGrid />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="pb-8">
@@ -249,16 +395,29 @@ export function EffectsGallery() {
         </div>
 
         {/* Masonry grid */}
-        <MasonryGrid 
-          presets={filteredPresets} 
-          onCardClick={handleCardClick} 
-        />
-        
-        {/* Empty state */}
-        {filteredPresets.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-[var(--muted)] text-lg">
-              Нет эффектов для выбранного фильтра
+        {visiblePresets.length > 0 ? (
+          <>
+            <MasonryGrid 
+              presets={visiblePresets} 
+              onCardClick={handleCardClick} 
+            />
+            
+            {/* Load more trigger */}
+            {hasMore && (
+              <div ref={loadMoreRef} className="flex justify-center py-8">
+                {loadingMore && (
+                  <div className="w-6 h-6 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-20">
+            <p className="text-[var(--muted)] text-lg mb-2">
+              Галерея эффектов пуста
+            </p>
+            <p className="text-sm text-[var(--muted)]">
+              Создайте контент в разделе <a href="/admin/styles" className="text-[var(--gold)] hover:underline">Стили</a>
             </p>
           </div>
         )}
@@ -268,8 +427,3 @@ export function EffectsGallery() {
 }
 
 export default EffectsGallery;
-
-
-
-
-

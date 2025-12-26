@@ -232,3 +232,4 @@ if (errorCount === 0) {
   console.log(`${colors.bold}${colors.red}❌ НАЙДЕНЫ РАСХОЖДЕНИЯ (${errorCount})${colors.reset}\n`);
   process.exit(1);
 }
+

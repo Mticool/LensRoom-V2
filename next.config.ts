@@ -37,6 +37,19 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "picsum.photos",
       },
+      // KIE AI generated images
+      {
+        protocol: "https",
+        hostname: "tempfile.aiquickdraw.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.kie.ai",
+      },
+      {
+        protocol: "https",
+        hostname: "**.aiquickdraw.com",
+      },
     ],
   },
 

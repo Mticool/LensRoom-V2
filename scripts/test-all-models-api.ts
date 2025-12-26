@@ -256,3 +256,4 @@ main().catch((error) => {
   console.error(`${colors.red}${colors.bold}Ошибка:${colors.reset}`, error);
   process.exit(1);
 });
+

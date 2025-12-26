@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Prepare input for KIE API
-    let kieInput: Record<string, unknown> = {
+    const kieInput: Record<string, unknown> = {
       prompt,
       ...options,
     };

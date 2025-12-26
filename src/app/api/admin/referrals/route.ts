@@ -62,7 +62,7 @@ export async function GET() {
     const inviteeIds = Array.from(new Set(refsAny.map((r: any) => String(r?.[rc.inviteeUserId])).filter(Boolean)));
 
     // Pull inviter profiles for nicer output (best-effort)
-    let profileMap: Record<string, any> = {};
+    const profileMap: Record<string, any> = {};
     const allUserIds = Array.from(new Set([...inviterIds, ...inviteeIds]));
     if (schema.users && allUserIds.length) {
       const u = schema.users;
@@ -97,7 +97,7 @@ export async function GET() {
     }
 
     // Purchases by invitees (completed only)
-    let purchasesByInvitee: Record<string, { purchases: number; revenue: number }> = {};
+    const purchasesByInvitee: Record<string, { purchases: number; revenue: number }> = {};
     if (inviteeIds.length) {
       const pc = pMap.columns;
       const completedStatuses = ["completed", "success", "paid"];

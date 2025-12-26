@@ -2,24 +2,21 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ExternalLink, X, Globe, Download, RefreshCw, Heart, Repeat, Edit3, Clock } from "lucide-react";
+import { 
+  Loader2, ExternalLink, X, Globe, Download, RefreshCw, Heart, Repeat, 
+  Edit3, Clock, Upload, Home, Lightbulb, Check, Plus, Image, Video,
+  Sparkles, Filter, Grid3X3, LayoutGrid, Star, FolderOpen, Zap
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
 import { detectWebView, openExternal } from "@/lib/telegram/webview";
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { toast } from "sonner";
-
-/**
- * LibraryClient - INSTANT PREVIEWS VERSION
- * 
- * Key changes:
- * - Library is NEVER empty after success (show original immediately)
- * - Smart polling: 3-5 sec for first 2 min, then 30 sec
- * - Uses new API response format with originalUrl/previewUrl/posterUrl
- * - Photo: show previewUrl if available, else originalUrl
- * - Video: show posterUrl if available, else placeholder
- */
+import { getModelById } from "@/config/models";
+import { NoGenerationsEmpty } from "@/components/ui/empty-state";
+import { GenerationGridSkeleton } from "@/components/ui/skeleton";
 
 type LibraryItem = {
   id: string;
@@ -31,11 +28,10 @@ type LibraryItem = {
   prompt?: string;
   model_name?: string;
   preview_status: "none" | "processing" | "ready" | "failed";
-  // URLs from API (signed, TTL 60 min)
-  originalUrl: string | null;  // Always present for success
-  previewUrl: string | null;   // For photos (null if not ready)
-  posterUrl: string | null;    // For videos (null if not ready)
-  displayUrl: string | null;   // For grid display
+  originalUrl: string | null;
+  previewUrl: string | null;
+  posterUrl: string | null;
+  displayUrl: string | null;
 };
 
 type UiStatus = "queued" | "generating" | "success" | "failed";
@@ -48,19 +44,10 @@ function normalizeStatus(s: any): UiStatus {
   return "failed";
 }
 
-function statusBadgeVariant(s: UiStatus): "default" | "success" | "error" | "outline" {
-  if (s === "success") return "success";
-  if (s === "failed") return "error";
-  if (s === "queued") return "outline";
-  return "default"; // generating
-}
-
-// Calculate time since creation in seconds
 function getAgeSeconds(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
 }
 
-// Estimated generation times by type (seconds)
 const ESTIMATED_TIMES = {
   photo: { min: 10, max: 30 },
   video: { min: 60, max: 180 },
@@ -74,127 +61,96 @@ export function LibraryClient() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'favorites'>('all');
-
+  const [filter, setFilter] = useState<'all' | 'photo' | 'video' | 'favorites'>('all');
+  const [gridSize, setGridSize] = useState<'small' | 'large'>('small');
+  
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<LibraryItem | null>(null);
   const [imageError, setImageError] = useState<Set<string>>(new Set());
   const [editPromptOpen, setEditPromptOpen] = useState(false);
   const [editedPrompt, setEditedPrompt] = useState("");
 
-  const { favorites, toggleFavorite, isFavorite, fetchFavorites } = useFavoritesStore();
+  // Admin features
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [publishItem, setPublishItem] = useState<LibraryItem | null>(null);
+  const [publishToHome, setPublishToHome] = useState(true);
+  const [publishToInspiration, setPublishToInspiration] = useState(false);
+  const [publishCategory, setPublishCategory] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishDescription, setPublishDescription] = useState("");
+
+  const { favorites, toggleFavorite, fetchFavorites } = useFavoritesStore();
+  const isAdminOrManager = userRole === "admin" || userRole === "manager";
   
-  // Safe favorites check (handle both Set and Array after hydration)
   const safeIsFavorite = useCallback((id: string): boolean => {
     try {
       if (!favorites) return false;
-      if (favorites instanceof Set) {
-        return favorites.has(id);
-      }
-      if (Array.isArray(favorites)) {
-        const arr = favorites as string[];
-        return arr.includes(id);
-      }
+      if (favorites instanceof Set) return favorites.has(id);
+      if (Array.isArray(favorites)) return (favorites as string[]).includes(id);
       return false;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }, [favorites]);
 
   const prevStatusRef = useRef<Record<string, UiStatus>>({});
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<number>(0);
-
   const isWebView = useMemo(() => detectWebView(), []);
-
   const LIMIT = 24;
 
-  // Fetch favorites on mount
   useEffect(() => {
-    try {
-      fetchFavorites();
-    } catch (error) {
-      console.error('[Library] Error fetching favorites:', error);
-      // Не критично, продолжаем работу
-    }
+    try { fetchFavorites(); } catch (e) { console.error('[Library] Error fetching favorites:', e); }
   }, [fetchFavorites]);
 
-  // Fetch generations from API
-  const fetchGenerations = useCallback(async (
-    offset: number = 0, 
-    append: boolean = false,
-    silent: boolean = false
-  ) => {
+  useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setUserRole(data.role || "user");
+          if (data.role === "admin" || data.role === "manager") {
+            loadCategories();
+          }
+        }
+      } catch (e) { console.error("[Library] Failed to check role:", e); }
+    };
+    checkRole();
+  }, []);
+
+  const loadCategories = async () => {
     try {
-      const isFirstLoad = offset === 0;
+      const res = await fetch("/api/admin/categories", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.categories)) setCategories(data.categories);
+      }
+    } catch (e) { console.error("[Library] Failed to load categories:", e); }
+  };
+
+  const fetchGenerations = useCallback(async (offset = 0, append = false, silent = false) => {
+    try {
       if (!silent) {
-        if (isFirstLoad) setLoading(true);
+        if (offset === 0) setLoading(true);
         else setLoadingMore(true);
       }
       setError(null);
 
-      const url = `/api/library?limit=${LIMIT}&offset=${offset}&_t=${Date.now()}`;
-      
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      
-      const res = await fetch(url, { 
-        signal: controller.signal,
+      const res = await fetch(`/api/library?limit=${LIMIT}&offset=${offset}&_t=${Date.now()}`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' },
         credentials: 'include'
       });
-      clearTimeout(timeout);
       
-      let json: any = null;
-      try {
-        const text = await res.text();
-        if (text) {
-          json = JSON.parse(text);
-        }
-      } catch (parseError) {
-        console.error('[Library] Failed to parse response:', parseError);
-        throw new Error('Неверный формат ответа от сервера');
-      }
-      
-      if (!res.ok) {
-        const errorMsg = json?.error || `Ошибка загрузки (${res.status})`;
-        console.error('[Library] API error:', errorMsg, json);
-        throw new Error(errorMsg);
-      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || `Ошибка загрузки (${res.status})`);
 
-      // Parse new API format: { items: [...], count, meta }
       const newItems: LibraryItem[] = Array.isArray(json?.items) ? json.items : [];
-      
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[library] Received", newItems.length, "items");
-      }
-
-      // Валидация и нормализация данных
-      const validatedItems = newItems.map((item: any) => ({
-        id: String(item?.id || ''),
-        user_id: String(item?.user_id || ''),
-        type: String(item?.type || 'photo'),
-        status: String(item?.status || 'queued'),
-        created_at: item?.created_at || new Date().toISOString(),
-        updated_at: item?.updated_at || null,
-        prompt: item?.prompt || null,
-        model_name: item?.model_name || null,
-        preview_status: item?.preview_status || 'none',
-        originalUrl: item?.originalUrl || null,
-        previewUrl: item?.previewUrl || null,
-        posterUrl: item?.posterUrl || null,
-        displayUrl: item?.displayUrl || null,
-      }));
-
-      setItems((prev) => (append ? [...prev, ...validatedItems] : validatedItems));
-      setHasMore(json?.meta?.hasMore || validatedItems.length === LIMIT);
+      setItems((prev) => (append ? [...prev, ...newItems] : newItems));
+      setHasMore(json?.meta?.hasMore || newItems.length === LIMIT);
       lastFetchRef.current = Date.now();
-      
     } catch (e) {
-      if (!silent) {
-        setError(e instanceof Error ? e.message : "Ошибка загрузки");
-      }
+      if (!silent) setError(e instanceof Error ? e.message : "Ошибка загрузки");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -202,199 +158,78 @@ export function LibraryClient() {
     }
   }, []);
 
-  // Initial load
-  useEffect(() => {
-    fetchGenerations(0, false);
-  }, [fetchGenerations]);
+  useEffect(() => { fetchGenerations(0, false); }, [fetchGenerations]);
 
-  // Allow other parts of the app (Studio) to trigger refresh
-  useEffect(() => {
-    const onRefresh = (event: CustomEvent) => {
-      invalidateCached("generations:");
-      
-      if (event?.detail?.newItem) {
-        // Prepend new item immediately
-        setItems((prev) => [event.detail.newItem, ...prev]);
-      } else {
-        // Full reload
-        fetchGenerations(0, false);
-      }
-    };
-    window.addEventListener("generations:refresh", onRefresh as any);
-    return () => window.removeEventListener("generations:refresh", onRefresh as any);
-  }, [fetchGenerations]);
-
-  // Build grid items with filter
+  // Filter and build grid
   const grid = useMemo(() => {
-    try {
-      let filtered = items;
-      
-      // Apply favorites filter
-      if (filter === 'favorites') {
-        filtered = items.filter(item => {
-          try {
-            if (!favorites) return false;
-            if (favorites instanceof Set) {
-              return favorites.has(item.id);
-            }
-            if (Array.isArray(favorites)) {
-              const arr = favorites as string[];
-              return arr.includes(item.id);
-            }
-            return false;
-          } catch {
-            return false;
-          }
-        });
-      }
-      
-      return filtered.map((item) => {
-        try {
-          const st = normalizeStatus(item?.status);
-          const isVideo = String(item?.type || "").toLowerCase() === "video";
-          const ageSeconds = getAgeSeconds(item?.created_at || new Date().toISOString());
-          const needsPreview = st === "success" && item?.preview_status !== "ready";
-          const progress = st === "generating" || st === "queued" 
-            ? calculateProgress(item?.created_at || new Date().toISOString(), item?.type || 'photo') 
-            : 0;
-          const timeRemaining = st === "generating" || st === "queued"
-            ? formatTimeRemaining(item?.created_at || new Date().toISOString(), item?.type || 'photo')
-            : null;
-          return { item, st, isVideo, ageSeconds, needsPreview, progress, timeRemaining };
-        } catch (itemError) {
-          console.error('[Library] Error processing item:', item?.id, itemError);
-          // Возвращаем безопасный fallback
-          return {
-            item,
-            st: 'failed' as UiStatus,
-            isVideo: false,
-            ageSeconds: 0,
-            needsPreview: false,
-            progress: 0,
-            timeRemaining: null,
-          };
-        }
-      });
-    } catch (error) {
-      console.error('[Library] Error building grid:', error);
-      return [];
-    }
-  }, [items, filter, favorites, safeIsFavorite]);
+    let filtered = items;
+    if (filter === 'photo') filtered = items.filter(i => i.type?.toLowerCase() !== 'video');
+    if (filter === 'video') filtered = items.filter(i => i.type?.toLowerCase() === 'video');
+    if (filter === 'favorites') filtered = items.filter(i => safeIsFavorite(i.id));
+    
+    return filtered.map((item) => {
+      const st = normalizeStatus(item?.status);
+      const isVideo = item?.type?.toLowerCase() === "video";
+      const needsPreview = st === "success" && item?.preview_status !== "ready";
+      const progress = (st === "generating" || st === "queued") ? calculateProgress(item?.created_at || '', item?.type || 'photo') : 0;
+      return { item, st, isVideo, needsPreview, progress };
+    });
+  }, [items, filter, safeIsFavorite]);
 
-  // Determine if we need polling and at what interval
+  // Stats
+  const stats = useMemo(() => ({
+    total: items.length,
+    photos: items.filter(i => i.type?.toLowerCase() !== 'video' && normalizeStatus(i.status) === 'success').length,
+    videos: items.filter(i => i.type?.toLowerCase() === 'video' && normalizeStatus(i.status) === 'success').length,
+    favorites: items.filter(i => safeIsFavorite(i.id)).length,
+  }), [items, safeIsFavorite]);
+
+  // Polling
   const pollingConfig = useMemo(() => {
-    const now = Date.now();
     let needsPolling = false;
-    let interval = 30000; // Default: 30 sec
-
-    for (const { item, st, needsPreview, ageSeconds } of grid) {
-      // Check for active jobs (generating/queued)
+    let interval = 30000;
+    for (const { st, needsPreview, item } of grid) {
+      const ageSeconds = getAgeSeconds(item?.created_at || '');
       if (st === "generating" || st === "queued") {
         needsPolling = true;
-        interval = Math.min(interval, 5000); // 5 sec for active jobs
+        interval = Math.min(interval, 5000);
       }
-      
-      // Check for recent success without preview
       if (needsPreview && ageSeconds < 120) {
-        // First 2 minutes: poll every 3 sec
         needsPolling = true;
         interval = Math.min(interval, 3000);
-      } else if (needsPreview && ageSeconds < 600) {
-        // 2-10 minutes: poll every 10 sec
+      } else if (needsPreview) {
         needsPolling = true;
         interval = Math.min(interval, 10000);
-      } else if (needsPreview) {
-        // After 10 minutes: poll every 30 sec
-        needsPolling = true;
-        interval = Math.min(interval, 30000);
       }
     }
-
     return { needsPolling, interval };
   }, [grid]);
 
-  // Smart polling effect
   useEffect(() => {
-    // Clear existing timer
-    if (pollingTimerRef.current) {
-      clearInterval(pollingTimerRef.current);
-      pollingTimerRef.current = null;
-    }
-
-    if (!pollingConfig.needsPolling || loading) {
-      return;
-    }
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[library] Polling active: interval=${pollingConfig.interval}ms`);
-    }
-
-    const poll = () => {
-      // Only poll if not too recent (debounce)
-      const timeSinceLast = Date.now() - lastFetchRef.current;
-      if (timeSinceLast > pollingConfig.interval * 0.8) {
-        fetchGenerations(0, false, true); // Silent refresh
+    if (pollingTimerRef.current) clearInterval(pollingTimerRef.current);
+    if (!pollingConfig.needsPolling || loading) return;
+    pollingTimerRef.current = setInterval(() => {
+      if (Date.now() - lastFetchRef.current > pollingConfig.interval * 0.8) {
+        fetchGenerations(0, false, true);
       }
-    };
-
-    pollingTimerRef.current = setInterval(poll, pollingConfig.interval);
-
-    return () => {
-      if (pollingTimerRef.current) {
-        clearInterval(pollingTimerRef.current);
-        pollingTimerRef.current = null;
-      }
-    };
+    }, pollingConfig.interval);
+    return () => { if (pollingTimerRef.current) clearInterval(pollingTimerRef.current); };
   }, [pollingConfig, loading, fetchGenerations]);
 
-  // Toast on generating -> success transitions
+  // Toast on success
   useEffect(() => {
-    try {
-      const prev = prevStatusRef.current || {};
-      const next: Record<string, UiStatus> = {};
-      
-      for (const { item, st } of grid) {
-        try {
-          const id = String(item?.id || "");
-          if (!id) continue;
-          next[id] = st;
-          const was = prev[id];
-          
-          if ((was === "generating" || was === "queued") && st === "success") {
-            toast.success("Готово! 🎉", {
-              description: item?.model_name || "Генерация завершена",
-              action: {
-                label: "Открыть",
-                onClick: () => {
-                  setSelected(item);
-                  setOpen(true);
-                },
-              },
-            });
-          }
-        } catch (itemError) {
-          console.error('[Library] Error in status transition:', itemError);
-        }
+    const prev = prevStatusRef.current || {};
+    const next: Record<string, UiStatus> = {};
+    for (const { item, st } of grid) {
+      const id = String(item?.id || "");
+      if (!id) continue;
+      next[id] = st;
+      if ((prev[id] === "generating" || prev[id] === "queued") && st === "success") {
+        toast.success("Готово! 🎉", { description: item?.model_name || "Генерация завершена" });
       }
-      prevStatusRef.current = next;
-    } catch (error) {
-      console.error('[Library] Error in toast effect:', error);
     }
+    prevStatusRef.current = next;
   }, [grid]);
-
-  const handleOpenExternal = (url: string) => {
-    if (isWebView) {
-      openExternal(url);
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
-      fetchGenerations(items.length, true);
-    }
-  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -402,381 +237,323 @@ export function LibraryClient() {
     fetchGenerations(0, false);
   };
 
-  const handleImageError = (id: string) => {
-    setImageError((prev) => new Set([...prev, id]));
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) fetchGenerations(items.length, true);
   };
 
-  // Navigate to create page with same settings
-  const handleRegenerateSimilar = (item: LibraryItem) => {
-    const isVideo = String(item.type || "").toLowerCase() === "video";
-    const params = new URLSearchParams();
-    
-    if (item.prompt) {
-      params.set("prompt", item.prompt);
-    }
-    if (item.model_name) {
-      params.set("model", item.model_name);
-    }
-    
-    const path = isVideo ? "/create/video" : "/create";
-    router.push(`${path}?${params.toString()}`);
-    toast.success("Настройки применены! Можете редактировать промпт.");
-  };
-
-  // Open edit prompt dialog
-  const handleEditPrompt = (item: LibraryItem) => {
-    setEditedPrompt(item.prompt || "");
-    setEditPromptOpen(true);
-  };
-
-  // Navigate to create with edited prompt
-  const handleRegenerateWithNewPrompt = () => {
-    if (!selected || !editedPrompt.trim()) return;
-    
-    const isVideo = String(selected.type || "").toLowerCase() === "video";
-    const params = new URLSearchParams();
-    params.set("prompt", editedPrompt.trim());
-    if (selected.model_name) {
-      params.set("model", selected.model_name);
-    }
-    
-    const path = isVideo ? "/create/video" : "/create";
-    router.push(`${path}?${params.toString()}`);
-    setEditPromptOpen(false);
-    setOpen(false);
-    toast.success("Создайте новую генерацию с изменённым промптом!");
-  };
-
-  // Toggle favorite
   const handleToggleFavorite = async (id: string, e?: React.MouseEvent) => {
-    try {
-      e?.stopPropagation();
-      const wasFavorite = safeIsFavorite(id);
-      await toggleFavorite(id);
-      // Небольшая задержка чтобы store обновился
-      setTimeout(() => {
-        const nowFavorite = safeIsFavorite(id);
-        toast.success(nowFavorite ? "Добавлено в избранное" : "Удалено из избранного");
-      }, 100);
-    } catch (error) {
-      console.error('[Library] Error toggling favorite:', error);
-      toast.error('Ошибка при изменении избранного');
-    }
+    e?.stopPropagation();
+    await toggleFavorite(id);
+    toast.success(safeIsFavorite(id) ? "Удалено из избранного" : "Добавлено в избранное");
   };
 
-  // Format estimated time remaining
-  const formatTimeRemaining = (createdAt: string, type: string): string => {
-    try {
-      if (!createdAt) return "Скоро...";
-      const ageSeconds = getAgeSeconds(createdAt);
-      const isVideo = type?.toLowerCase() === "video";
-      const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
-      
-      const avgTime = (min + max) / 2;
-      const remaining = Math.max(0, avgTime - ageSeconds);
-      
-      if (remaining <= 0) return "Скоро...";
-      if (remaining < 60) return `~${Math.ceil(remaining)} сек`;
-      return `~${Math.ceil(remaining / 60)} мин`;
-    } catch {
-      return "Скоро...";
-    }
+  const handleDownload = async (id: string) => {
+    const link = document.createElement('a');
+    link.href = `/api/generations/${id}/download?kind=original`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Скачивание началось');
   };
 
-  // Calculate progress percentage based on time
+  const handleRegenerateSimilar = (item: LibraryItem) => {
+    const params = new URLSearchParams();
+    if (item.prompt) params.set("prompt", item.prompt);
+    if (item.model_name) params.set("model", item.model_name);
+    const path = item.type?.toLowerCase() === "video" ? "/create/video" : "/create";
+    router.push(`${path}?${params.toString()}`);
+    toast.success("Настройки применены!");
+  };
+
   const calculateProgress = (createdAt: string, type: string): number => {
-    try {
-      if (!createdAt) return 0;
-      const ageSeconds = getAgeSeconds(createdAt);
-      const isVideo = type?.toLowerCase() === "video";
-      const { min, max } = isVideo ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
-      
-      const avgTime = (min + max) / 2;
-      const progress = Math.min(95, (ageSeconds / avgTime) * 100);
-      return Math.round(progress);
-    } catch {
-      return 0;
-    }
+    if (!createdAt) return 0;
+    const ageSeconds = getAgeSeconds(createdAt);
+    const { min, max } = type?.toLowerCase() === "video" ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
+    return Math.min(95, Math.round((ageSeconds / ((min + max) / 2)) * 100));
   };
 
-  const handleDownload = async (generationId: string, kind: 'original' | 'preview' | 'poster' = 'original') => {
-    try {
-      const downloadUrl = `/api/generations/${generationId}/download?kind=${kind}`;
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Скачивание началось');
-    } catch (error) {
-      console.error('[Download] Error:', error);
-      toast.error('Ошибка скачивания');
-    }
+  const getDisplayUrl = (item: LibraryItem, isVideo: boolean): string | null => {
+    if (isVideo) return item.posterUrl || null;
+    return item.previewUrl || item.originalUrl || null;
   };
 
-  // Get display URL for grid card
-  const getCardDisplayUrl = (item: LibraryItem, isVideo: boolean): string | null => {
+  // Publish handlers (kept minimal for brevity)
+  const handleOpenPublish = (item: LibraryItem) => {
+    setPublishItem(item);
+    setPublishToHome(true);
+    setPublishToInspiration(false);
+    setPublishCategory("");
+    setPublishModalOpen(true);
+  };
+
+  const handlePublishToGallery = async () => {
+    if (!publishItem || (!publishToHome && !publishToInspiration)) return;
+    setIsPublishing(true);
     try {
-      if (!item) return null;
-      if (isVideo) {
-        // Video: show poster if available
-        return item.posterUrl || null;
-      } else {
-        // Photo: show preview if available, else original
-        return item.previewUrl || item.originalUrl || null;
+      const modelInfo = getModelById(publishItem.model_name || "");
+      const placements = [];
+      if (publishToHome) placements.push("home");
+      if (publishToInspiration) placements.push("inspiration");
+      const isVideo = publishItem.type?.toLowerCase() === "video";
+
+      for (const placement of placements) {
+        await fetch("/api/admin/gallery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            presetId: `style-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            title: publishDescription.trim() || `Создано с ${modelInfo?.name || publishItem.model_name}`,
+            contentType: isVideo ? "video" : "photo",
+            modelKey: publishItem.model_name || "",
+            previewImage: publishItem.originalUrl,
+            previewUrl: publishItem.originalUrl,
+            templatePrompt: publishItem.prompt,
+            placement,
+            status: "published",
+            category: publishCategory || "",
+          }),
+        });
       }
-    } catch (error) {
-      console.error('[Library] Error getting display URL:', error);
-      return null;
+      toast.success("Опубликовано!");
+      setPublishModalOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Ошибка публикации");
+    } finally {
+      setIsPublishing(false);
     }
   };
 
   return (
-    <div className="min-h-screen pt-20 sm:pt-24 pb-16 sm:pb-20 bg-[var(--bg)]">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="flex items-end justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--text)]">Мои результаты</h1>
-            <p className="mt-2 text-sm text-[var(--muted)]">История фото и видео генераций</p>
-          </div>
-          <div className="flex gap-2">
-            {/* Filter tabs */}
-            <div className="flex bg-[var(--surface)] rounded-xl p-1 border border-[var(--border)]">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                  filter === 'all' 
-                    ? 'bg-white text-black font-medium' 
-                    : 'text-[var(--muted)] hover:text-[var(--text)]'
-                }`}
-              >
-                Все
-              </button>
-              <button
-                onClick={() => setFilter('favorites')}
-                className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-1 ${
-                  filter === 'favorites' 
-                    ? 'bg-white text-black font-medium' 
-                    : 'text-[var(--muted)] hover:text-[var(--text)]'
-                }`}
-              >
-                <Heart className="w-3.5 h-3.5" />
-                Избранное
-              </button>
+    <div className="min-h-screen bg-[var(--bg)] pt-20 pb-16">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-[var(--text)] flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                  <FolderOpen className="w-5 h-5 text-white" />
+                </div>
+                Мои результаты
+              </h1>
+              <p className="mt-2 text-[var(--muted)]">Все ваши фото и видео генерации</p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing || loading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Обновить
-            </Button>
+            
+            <div className="flex items-center gap-2">
+              {/* Grid size toggle */}
+              <div className="flex p-1 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <button
+                  onClick={() => setGridSize('small')}
+                  className={`p-2 rounded-md transition-colors ${gridSize === 'small' ? 'bg-white text-black' : 'text-[var(--muted)]'}`}
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setGridSize('large')}
+                  className={`p-2 rounded-md transition-colors ${gridSize === 'large' ? 'bg-white text-black' : 'text-[var(--muted)]'}`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing || loading}
+                className="border-[var(--border)]"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Обновить
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {loading && (
-          <div className="flex items-center gap-3 text-[var(--muted)]">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Загрузка…</span>
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Всего', value: stats.total, icon: Sparkles, color: 'text-[var(--gold)]' },
+              { label: 'Фото', value: stats.photos, icon: Image, color: 'text-emerald-400' },
+              { label: 'Видео', value: stats.videos, icon: Video, color: 'text-violet-400' },
+              { label: 'Избранное', value: stats.favorites, icon: Heart, color: 'text-rose-400' },
+            ].map((stat) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-3 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]"
+              >
+                <div className="flex items-center justify-between">
+                  <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                  <span className={`text-lg sm:text-xl font-bold ${stat.color}`}>{stat.value}</span>
+                </div>
+                <p className="text-[10px] sm:text-xs text-[var(--muted)] mt-1">{stat.label}</p>
+              </motion.div>
+            ))}
           </div>
-        )}
 
-        {!loading && error && (
-          <div className="rounded-2xl border border-white/10 bg-[var(--surface)] p-5 text-sm text-[var(--muted)]">
-            {error}
-            <Button variant="link" className="ml-2" onClick={handleRefresh}>
-              Повторить
-            </Button>
+          {/* Filters */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {[
+              { id: 'all', label: 'Все', icon: Sparkles },
+              { id: 'photo', label: 'Фото', icon: Image },
+              { id: 'video', label: 'Видео', icon: Video },
+              { id: 'favorites', label: 'Избранное', icon: Heart },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id as typeof filter)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                  filter === f.id
+                    ? 'bg-[var(--gold)] text-black'
+                    : 'bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)]'
+                }`}
+              >
+                <f.icon className="w-4 h-4" />
+                {f.label}
+              </button>
+            ))}
           </div>
-        )}
+        </motion.div>
 
-        {!loading && !error && grid.length === 0 && (
-          <div className="rounded-2xl border border-white/10 bg-[var(--surface)] p-8 text-center">
-            <div className="text-sm text-[var(--muted)]">Пока нет результатов. Создайте первую генерацию.</div>
+        {/* Content */}
+        {loading ? (
+          <GenerationGridSkeleton count={12} />
+        ) : error ? (
+          <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-8 text-center">
+            <p className="text-[var(--muted)]">{error}</p>
+            <Button variant="link" onClick={handleRefresh} className="mt-2">Повторить</Button>
           </div>
-        )}
-
-        {!loading && !error && grid.length > 0 && (
+        ) : grid.length === 0 ? (
+          <NoGenerationsEmpty />
+        ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {grid.map(({ item, st, isVideo, needsPreview, progress, timeRemaining }) => {
-                if (!item || !item.id) {
-                  console.warn('[Library] Skipping invalid item:', item);
-                  return null;
-                }
-                
-                try {
-                  const hasError = imageError.has(String(item.id));
-                  const displayUrl = getCardDisplayUrl(item, isVideo);
-                  const canDisplay = !!displayUrl && !hasError;
-                  const isFav = safeIsFavorite(item.id);
-                  
-                  // Determine if we should show the card as "ready"
-                  const hasContent = st === "success" && (item.originalUrl || item.previewUrl || item.posterUrl);
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className={`grid gap-3 ${
+                gridSize === 'small'
+                  ? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7'
+                  : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
+              }`}
+            >
+              {grid.map(({ item, st, isVideo, needsPreview, progress }, i) => {
+                const displayUrl = getDisplayUrl(item, isVideo);
+                const hasError = imageError.has(item.id);
+                const canDisplay = !!displayUrl && !hasError;
+                const isFav = safeIsFavorite(item.id);
+                const hasContent = st === "success" && (item.originalUrl || item.previewUrl);
 
-                  return (
-                  <div key={String(item.id)} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden group">
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.02 }}
+                    className="group rounded-xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden hover:border-[var(--gold)]/30 transition-all"
+                  >
                     <div className="relative aspect-square bg-black/20">
                       {canDisplay ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={displayUrl}
-                          alt={item.prompt || ""}
+                          alt=""
                           loading="lazy"
-                          decoding="async"
                           className="w-full h-full object-cover"
-                          onError={() => handleImageError(String(item.id))}
+                          onError={() => setImageError(prev => new Set([...prev, item.id]))}
                         />
-                      ) : isVideo && st === "success" ? (
-                        // Video without poster
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                          <div className="text-center">
-                            <div className="text-6xl mb-2">▶️</div>
-                            <div className="text-sm font-medium text-white/90">Video</div>
-                            {needsPreview && (
-                              <div className="text-xs text-white/60 mt-2 animate-pulse">
-                                Создаём постер...
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : st === "success" && !displayUrl ? (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <div className="text-center">
-                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-white/40" />
-                            <div className="text-xs text-white/60">Загрузка...</div>
-                          </div>
-                        </div>
                       ) : st === "generating" || st === "queued" ? (
-                        // Enhanced generating state with progress
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
-                          <div className="text-center px-4">
-                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-white/60" />
-                            <div className="text-sm text-white/80 mb-2">
-                              {st === "queued" ? "В очереди..." : "Генерация..."}
-                            </div>
-                            {/* Progress bar */}
-                            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
-                              <div 
-                                className="h-full bg-[var(--gold)] transition-all duration-500"
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                            {/* Time remaining */}
-                            {timeRemaining && (
-                              <div className="flex items-center justify-center gap-1 text-xs text-white/50">
-                                <Clock className="w-3 h-3" />
-                                {timeRemaining}
-                              </div>
-                            )}
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[var(--gold)]/10 to-violet-500/10 p-3">
+                          <Loader2 className="w-6 h-6 animate-spin text-[var(--gold)] mb-2" />
+                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-[var(--gold)] transition-all" style={{ width: `${progress}%` }} />
                           </div>
+                          <p className="text-[10px] text-[var(--muted)] mt-2">
+                            {st === "queued" ? "В очереди" : "Генерация..."}
+                          </p>
                         </div>
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs text-[var(--muted)]">
-                          {hasError ? "Ошибка загрузки" : st === "failed" ? "Ошибка генерации" : "—"}
+                        <div className="w-full h-full flex items-center justify-center">
+                          {isVideo ? <Video className="w-8 h-8 text-[var(--muted)]" /> : <Image className="w-8 h-8 text-[var(--muted)]" />}
                         </div>
                       )}
-                      
-                      {/* Status badge */}
-                      <div className="absolute top-3 left-3">
-                        <Badge variant={statusBadgeVariant(st)}>{st}</Badge>
+
+                      {/* Type badge */}
+                      <div className="absolute top-2 left-2">
+                        <div className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          isVideo ? 'bg-violet-500/90 text-white' : 'bg-emerald-500/90 text-white'
+                        }`}>
+                          {isVideo ? '🎬' : '🖼'}
+                        </div>
                       </div>
-                      
-                      {/* Favorite button (always visible on hover) */}
-                      {st === "success" && (
-                        <button
-                          onClick={(e) => handleToggleFavorite(item.id, e)}
-                          className={`absolute top-3 right-3 p-2 rounded-xl transition-all ${
-                            isFav 
-                              ? 'bg-red-500/90 text-white' 
-                              : 'bg-black/50 text-white/70 opacity-0 group-hover:opacity-100 hover:bg-black/70 hover:text-white'
-                          }`}
-                          title={isFav ? "Убрать из избранного" : "Добавить в избранное"}
-                        >
-                          <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
-                        </button>
-                      )}
-                      
-                      {/* Preview status indicator */}
-                      {st === "success" && needsPreview && !isFav && (
-                        <div className="absolute top-3 right-3">
-                          <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Превью генерируется" />
+
+                      {/* Favorite button */}
+                      <button
+                        onClick={(e) => handleToggleFavorite(item.id, e)}
+                        className={`absolute top-2 right-2 p-1.5 rounded-lg transition-all ${
+                          isFav
+                            ? 'bg-rose-500 text-white'
+                            : 'bg-black/50 text-white/70 opacity-0 group-hover:opacity-100'
+                        }`}
+                      >
+                        <Heart className={`w-3 h-3 ${isFav ? 'fill-current' : ''}`} />
+                      </button>
+
+                      {/* Hover overlay */}
+                      {hasContent && (
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => { setSelected(item); setOpen(true); }}
+                            className="p-2 rounded-lg bg-white text-black hover:bg-white/90"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(item.id)}
+                            className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRegenerateSimilar(item)}
+                            className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
+                          >
+                            <Repeat className="w-4 h-4" />
+                          </button>
+                          {isAdminOrManager && (
+                            <button
+                              onClick={() => handleOpenPublish(item)}
+                              className="p-2 rounded-lg bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+                            >
+                              <Upload className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
-                    
-                    <div className="p-4">
-                      <div className="text-sm font-semibold text-[var(--text)] truncate">{item.model_name || "—"}</div>
-                      <div className="mt-1 text-xs text-[var(--muted)] line-clamp-2">{item.prompt || ""}</div>
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          disabled={!hasContent}
-                          onClick={() => {
-                            setSelected(item);
-                            setOpen(true);
-                          }}
-                        >
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          Открыть
-                        </Button>
-                        {hasContent && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRegenerateSimilar(item)}
-                              title="Сгенерировать похожее"
-                            >
-                              <Repeat className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDownload(item.id, 'original')}
-                              title="Скачать"
-                            >
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
+
+                    {/* Info */}
+                    <div className="p-2">
+                      <p className="text-xs font-medium text-[var(--text)] truncate">{item.model_name || "—"}</p>
+                      <p className="text-[10px] text-[var(--muted)] truncate mt-0.5">{item.prompt || ""}</p>
                     </div>
-                  </div>
-                  );
-                } catch (cardError) {
-                  console.error('[Library] Error rendering card:', item?.id, cardError);
-                  return (
-                    <div key={String(item?.id || Math.random())} className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4">
-                      <div className="text-xs text-red-400">Ошибка отображения</div>
-                    </div>
-                  );
-                }
-              }).filter(Boolean)}
-            </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
 
             {/* Load more */}
             {hasMore && (
               <div className="mt-8 flex justify-center">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Загрузка...
-                    </>
-                  ) : (
-                    "Загрузить ещё"
-                  )}
+                <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore}>
+                  {loadingMore ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  {loadingMore ? "Загрузка..." : "Загрузить ещё"}
                 </Button>
               </div>
             )}
@@ -784,180 +561,148 @@ export function LibraryClient() {
         )}
       </div>
 
-      {/* Viewer modal */}
-      {open && selected && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-3 sm:p-4"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="relative max-w-5xl w-full bg-[var(--surface)] rounded-2xl overflow-hidden shadow-2xl max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+      {/* Viewer Modal */}
+      <AnimatePresence>
+        {open && selected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+            onClick={() => setOpen(false)}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-              <div className="text-sm font-semibold text-[var(--text)] truncate">
-                {selected.model_name || "Результат"}
-              </div>
-              <div className="flex items-center gap-2">
-                {/* Favorite button */}
-                <button
-                  className={`p-2 rounded-xl transition-colors ${
-                    safeIsFavorite(selected.id) 
-                      ? 'bg-red-500/20 text-red-400' 
-                      : 'hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)]'
-                  }`}
-                  onClick={() => handleToggleFavorite(selected.id)}
-                  title={safeIsFavorite(selected.id) ? "Убрать из избранного" : "Добавить в избранное"}
-                >
-                  <Heart className={`w-5 h-5 ${safeIsFavorite(selected.id) ? 'fill-current' : ''}`} />
-                </button>
-                {/* Regenerate similar */}
-                <button
-                  className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                  onClick={() => handleRegenerateSimilar(selected)}
-                  title="Сгенерировать похожее"
-                >
-                  <Repeat className="w-5 h-5" />
-                </button>
-                {/* Edit and regenerate */}
-                <button
-                  className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                  onClick={() => handleEditPrompt(selected)}
-                  title="Редактировать и пересоздать"
-                >
-                  <Edit3 className="w-5 h-5" />
-                </button>
-                {selected.originalUrl && (
-                  <button
-                    className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                    onClick={() => handleDownload(selected.id, 'original')}
-                    title="Скачать оригинал"
-                  >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative max-w-4xl w-full bg-[var(--surface)] rounded-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+                <div className="flex items-center gap-3">
+                  <div className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                    selected.type?.toLowerCase() === 'video' ? 'bg-violet-500/20 text-violet-400' : 'bg-emerald-500/20 text-emerald-400'
+                  }`}>
+                    {selected.type?.toLowerCase() === 'video' ? '🎬 Видео' : '🖼 Фото'}
+                  </div>
+                  <span className="text-sm font-medium text-[var(--text)]">{selected.model_name}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleToggleFavorite(selected.id)} className={`p-2 rounded-lg ${safeIsFavorite(selected.id) ? 'text-rose-400' : 'text-[var(--muted)]'} hover:bg-white/5`}>
+                    <Heart className={`w-5 h-5 ${safeIsFavorite(selected.id) ? 'fill-current' : ''}`} />
+                  </button>
+                  <button onClick={() => handleRegenerateSimilar(selected)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
+                    <Repeat className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => handleDownload(selected.id)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
                     <Download className="w-5 h-5" />
                   </button>
-                )}
-                {isWebView && selected.originalUrl && (
-                  <button
-                    className="p-2 rounded-xl hover:bg-white/5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                    onClick={() => handleOpenExternal(selected.originalUrl!)}
-                    title="Открыть в браузере"
-                  >
-                    <Globe className="w-5 h-5" />
+                  <button onClick={() => setOpen(false)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
+                    <X className="w-5 h-5" />
                   </button>
-                )}
-                <button
-                  className="p-2 rounded-xl hover:bg-white/5"
-                  onClick={() => setOpen(false)}
-                >
-                  <X className="w-5 h-5 text-white/80" />
-                </button>
+                </div>
               </div>
-            </div>
-            <div className="p-3 sm:p-4 flex-1 overflow-auto bg-black">
-              {String(selected.type || "").toLowerCase() === "video" ? (
-                <video
-                  src={selected.originalUrl || undefined}
-                  controls
-                  playsInline
-                  preload="auto"
-                  className="w-full max-h-[60vh] bg-black"
-                  poster={selected.posterUrl || undefined}
-                  onError={() => {
-                    const url = selected.originalUrl;
-                    if (url && isWebView) {
-                      openExternal(url);
-                      setOpen(false);
-                    }
-                  }}
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={selected.originalUrl || selected.previewUrl || ""}
-                  alt={selected.prompt || ""}
-                  className="w-full max-h-[60vh] object-contain bg-black"
-                  onError={() => {
-                    const url = selected.originalUrl || selected.previewUrl;
-                    if (url && isWebView) {
-                      openExternal(url);
-                      setOpen(false);
-                    }
-                  }}
-                />
-              )}
-            </div>
-            
-            {/* Prompt section */}
-            {selected.prompt && (
-              <div className="px-4 py-3 border-t border-[var(--border)]">
-                <p className="text-xs text-[var(--muted)] mb-1">Промпт:</p>
-                <p className="text-sm text-[var(--text)]">{selected.prompt}</p>
-              </div>
-            )}
-            
-            {/* WebView fallback */}
-            {isWebView && selected.originalUrl && (
-              <div className="px-4 py-3 border-t border-[var(--border)] text-center">
-                <button
-                  className="text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors inline-flex items-center gap-2"
-                  onClick={() => handleOpenExternal(selected.originalUrl!)}
-                >
-                  <Globe className="w-3 h-3" />
-                  Не отображается? Открыть в браузере
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Edit Prompt Modal */}
-      {editPromptOpen && selected && (
-        <div
-          className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
-          onClick={() => setEditPromptOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-[var(--surface)] rounded-2xl overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-              <h3 className="font-semibold text-[var(--text)]">Редактировать промпт</h3>
-              <button
-                className="p-2 rounded-xl hover:bg-white/5"
-                onClick={() => setEditPromptOpen(false)}
-              >
-                <X className="w-5 h-5 text-white/80" />
-              </button>
-            </div>
-            <div className="p-4">
-              <textarea
-                value={editedPrompt}
-                onChange={(e) => setEditedPrompt(e.target.value)}
-                className="w-full h-32 p-3 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder:text-[var(--muted)] resize-none focus:outline-none focus:border-[var(--gold)]/50"
-                placeholder="Введите новый промпт..."
-              />
-              <div className="mt-4 flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setEditPromptOpen(false)}
-                >
-                  Отмена
-                </Button>
-                <Button
-                  onClick={handleRegenerateWithNewPrompt}
-                  disabled={!editedPrompt.trim()}
-                  className="bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
-                >
-                  <Repeat className="w-4 h-4 mr-2" />
-                  Создать
-                </Button>
+              {/* Content */}
+              <div className="flex-1 overflow-auto bg-black flex items-center justify-center p-4">
+                {selected.type?.toLowerCase() === "video" ? (
+                  <video
+                    src={selected.originalUrl || undefined}
+                    controls
+                    playsInline
+                    className="max-w-full max-h-[60vh]"
+                    poster={selected.posterUrl || undefined}
+                  />
+                ) : (
+                  <img
+                    src={selected.originalUrl || selected.previewUrl || ""}
+                    alt=""
+                    className="max-w-full max-h-[60vh] object-contain"
+                  />
+                )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+
+              {/* Prompt */}
+              {selected.prompt && (
+                <div className="px-4 py-3 border-t border-[var(--border)]">
+                  <p className="text-xs text-[var(--muted)] mb-1">Промпт</p>
+                  <p className="text-sm text-[var(--text)]">{selected.prompt}</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Publish Modal */}
+      <AnimatePresence>
+        {publishModalOpen && publishItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+            onClick={() => setPublishModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="w-full max-w-md bg-[var(--surface)] rounded-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+                <h3 className="font-semibold text-[var(--text)] flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-[var(--gold)]" />
+                  Опубликовать
+                </h3>
+                <button onClick={() => setPublishModalOpen(false)} className="p-2 rounded-lg hover:bg-white/5">
+                  <X className="w-5 h-5 text-[var(--muted)]" />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="rounded-xl overflow-hidden bg-black aspect-video">
+                  <img src={publishItem.originalUrl || publishItem.previewUrl || ""} alt="" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-[var(--text)] mb-2 block">Описание</label>
+                  <textarea
+                    value={publishDescription}
+                    onChange={(e) => setPublishDescription(e.target.value)}
+                    placeholder="Добавьте описание..."
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-white/5">
+                    <input type="checkbox" checked={publishToHome} onChange={(e) => setPublishToHome(e.target.checked)} className="w-5 h-5 accent-[var(--gold)]" />
+                    <Home className="w-4 h-4 text-[var(--gold)]" />
+                    <span className="text-[var(--text)]">Главная</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-white/5">
+                    <input type="checkbox" checked={publishToInspiration} onChange={(e) => setPublishToInspiration(e.target.checked)} className="w-5 h-5 accent-[var(--gold)]" />
+                    <Lightbulb className="w-4 h-4 text-blue-400" />
+                    <span className="text-[var(--text)]">Вдохновение</span>
+                  </label>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setPublishModalOpen(false)}>Отмена</Button>
+                  <Button
+                    className="flex-1 bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+                    onClick={handlePublishToGallery}
+                    disabled={isPublishing || (!publishToHome && !publishToInspiration)}
+                  >
+                    {isPublishing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                    {isPublishing ? "Публикация..." : "Опубликовать"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-

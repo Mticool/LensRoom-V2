@@ -47,7 +47,7 @@ export default function PaymentSuccessContent() {
           recycle={false}
           numberOfPieces={500}
           gravity={0.3}
-          colors={['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899']}
+          colors={['#8B5CF6', '#3B82F6', '#10B981', '#00D9FF', '#EC4899']}
         />
       )}
 

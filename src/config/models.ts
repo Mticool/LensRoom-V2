@@ -19,6 +19,8 @@ export type PhotoQuality =
   | 'quality'
   | 'fast'
   | 'ultra'
+  | 'medium' // OpenAI GPT Image 1.5
+  | 'high' // OpenAI GPT Image 1.5
   // Ideogram Character packs
   | 'a_12cred'
   | 'a_18cred'
@@ -34,7 +36,7 @@ export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference'
 export type PhotoMode = 't2i' | 'i2i';
 
 // KIE API Provider type
-export type KieProvider = 'kie_market' | 'kie_veo';
+export type KieProvider = 'kie_market' | 'kie_veo' | 'openai';
 
 // Pricing structure: credits per generation
 export type PhotoPricing = 
@@ -129,11 +131,13 @@ export type ModelConfig = PhotoModelConfig | VideoModelConfig;
 // All photo models use kie_market provider: POST /api/v1/jobs/createTask
 
 export const PHOTO_MODELS: PhotoModelConfig[] = [
-  // === MIDJOURNEY - KIE Market API ===
+  // === MIDJOURNEY - KIE Market API === (ВРЕМЕННО СКРЫТО - требует активации в KIE)
+  // Раскомментировать когда модель будет доступна в аккаунте KIE
+  /*
   {
     id: 'midjourney',
     name: 'Midjourney V7',
-    apiId: 'midjourney/text-to-image',
+    apiId: 'midjourney',
     type: 'photo',
     provider: 'kie_market',
     shortDescription: 'Арт и стиль высочайшего качества.',
@@ -144,17 +148,14 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      // NEW PRICING: Grid = 4 images per call
-      // t2i_fast (8 credits): 14⭐
-      // t2i_turbo (16 credits): 27⭐
-      // i2i (16 credits): 27⭐
-      fast: 14, // t2i_fast (8 credits)
-      turbo: 27, // t2i_turbo (16 credits)
+      fast: 14,
+      turbo: 27,
     },
     qualityOptions: ['fast', 'turbo'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '5:6', '6:5', '2:1', '1:2'],
     shortLabel: 'V7 • Art',
   },
+  */
   {
     id: 'nano-banana',
     name: 'Nano Banana',
@@ -181,7 +182,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'nano-banana-pro',
     name: 'Nano Banana Pro',
-    apiId: 'google/nano-banana-pro',
+    apiId: 'nano-banana-pro',  // KIE API uses this format (without google/ prefix)
     type: 'photo',
     provider: 'kie_market',
     shortDescription: 'Максимум качества: детали, кожа, свет, чистые текстуры.',
@@ -292,6 +293,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
     shortLabel: '2⭐',
   },
+  // NOTE: Ideogram V3 is currently unavailable on KIE API (422 error)
+  // Keeping config for future use when model becomes available
+  /*
   {
     id: 'ideogram-v3',
     name: 'Ideogram V3',
@@ -306,7 +310,6 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: false,
     pricing: {
-      // NEW PRICING: turbo (3.5 credits) = 6⭐, balanced (7 credits) = 12⭐, quality (10 credits) = 17⭐
       turbo: 6,
       balanced: 12,
       quality: 17,
@@ -315,6 +318,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
     shortLabel: 'V3',
   },
+  */
   {
     id: 'recraft-remove-background',
     name: 'Recraft Remove Background',
@@ -360,6 +364,35 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     qualityOptions: ['2k', '4k', '8k'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
     shortLabel: '≤2K/4K/8K',
+  },
+  
+  // === GPT IMAGE - OpenAI ===
+  // Snapshot: gpt-image-1 (or gpt-image-1.5-2025-12-16)
+  // Sizes: 1024x1024 (1:1), 1024x1536 (9:16), 1536x1024 (16:9)
+  // Quality: medium, high
+  // Pricing (USD): medium 1024=$0.034, 1536=$0.05 | high 1024=$0.133, 1536=$0.2
+  {
+    id: 'gpt-image',
+    name: 'GPT Image',
+    apiId: 'gpt-image-1',
+    type: 'photo',
+    provider: 'openai',
+    shortDescription: 'OpenAI. Точное следование промпту, реалистичные детали.',
+    description: 'GPT Image от OpenAI — передовая модель генерации изображений. Отлично понимает сложные промпты, создаёт фотореалистичные и художественные изображения с высокой детализацией.',
+    rank: 3,
+    featured: true,
+    speed: 'fast',
+    quality: 'ultra',
+    supportsI2i: true, // OpenAI supports image editing
+    pricing: {
+      // Quality options with base price (1024x1024)
+      // API: medium=17⭐, high=67⭐ (prices for 1024x1024, larger sizes same)
+      medium: 17,
+      high: 67,
+    },
+    qualityOptions: ['medium', 'high'],
+    aspectRatios: ['1:1', '16:9', '9:16'],
+    shortLabel: 'OpenAI',
   },
 ];
 

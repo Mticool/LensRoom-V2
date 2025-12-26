@@ -7,7 +7,7 @@ const footerLinks = {
   product: [
     { label: "AI Фото", href: "/create" },
     { label: "AI Видео", href: "/create/video" },
-    { label: "Продуктовые карточки", href: "/create/products" },
+    { label: "E-Com Studio", href: "/create/products" },
   ],
   resources: [
     { label: "Библиотека", href: "/library" },

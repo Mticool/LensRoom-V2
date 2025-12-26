@@ -29,92 +29,106 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
+    // Safe query helper - returns 0 or empty if table doesn't exist
+    const safeCount = async (table: string, filter?: { column: string; value: string }) => {
+      try {
+        let query = supabase.from(table).select('*', { count: 'exact', head: true });
+        if (filter) {
+          query = query.eq(filter.column, filter.value);
+        }
+        const { count, error } = await query;
+        if (error) {
+          console.warn(`[admin/referrals] Table ${table} query error:`, error.message);
+          return 0;
+        }
+        return count || 0;
+      } catch (e) {
+        return 0;
+      }
+    };
+    
+    const safeSelect = async <T>(table: string, columns: string, options?: { limit?: number }) => {
+      try {
+        let query = supabase.from(table).select(columns);
+        if (options?.limit) {
+          query = query.limit(options.limit);
+        }
+        const { data, error } = await query;
+        if (error) {
+          console.warn(`[admin/referrals] Table ${table} select error:`, error.message);
+          return [] as T[];
+        }
+        return (data || []) as T[];
+      } catch (e) {
+        return [] as T[];
+      }
+    };
+    
     // Get total referral codes
-    const { count: totalCodes } = await supabase
-      .from('referral_codes')
-      .select('*', { count: 'exact', head: true });
+    const totalCodes = await safeCount('referral_codes');
     
     // Get total attributions (activated referrals)
-    const { count: totalAttributions } = await supabase
-      .from('referral_attributions')
-      .select('*', { count: 'exact', head: true });
+    const totalAttributions = await safeCount('referral_attributions');
     
     // Get total events
-    const { count: totalEvents } = await supabase
-      .from('referral_events')
-      .select('*', { count: 'exact', head: true });
+    const totalEvents = await safeCount('referral_events');
     
     // Get events by type
-    const { data: eventsByType } = await supabase
-      .from('referral_events')
-      .select('event_type')
-      .order('event_type');
-    
-    const eventTypeCounts = eventsByType?.reduce((acc: Record<string, number>, e: any) => {
+    const eventsByType = await safeSelect<{ event_type: string }>('referral_events', 'event_type');
+    const eventTypeCounts = eventsByType.reduce((acc: Record<string, number>, e) => {
       acc[e.event_type] = (acc[e.event_type] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>) || {};
+    }, {} as Record<string, number>);
     
     // Get total rewards
-    const { data: rewardsData } = await supabase
-      .from('referral_rewards')
-      .select('amount, reward_type');
-    
+    const rewardsData = await safeSelect<{ amount: number; reward_type: string }>('referral_rewards', 'amount, reward_type');
     const totalStarsRewarded = rewardsData
-      ?.filter((r: any) => r.reward_type === 'stars')
-      .reduce((sum: number, r: any) => sum + r.amount, 0) || 0;
+      .filter((r) => r.reward_type === 'stars')
+      .reduce((sum, r) => sum + r.amount, 0);
     
     // Get top referrers
-    const { data: topReferrers } = await supabase
-      .from('referral_attributions')
-      .select('referrer_user_id, profiles!referral_attributions_referrer_user_id_fkey(display_name, username)')
-      .limit(1000); // Fetch all for counting
+    const topReferrers = await safeSelect<{ referrer_user_id: string; profiles: any }>(
+      'referral_attributions',
+      'referrer_user_id, profiles!referral_attributions_referrer_user_id_fkey(display_name, username)',
+      { limit: 1000 }
+    );
     
-    const referrerCounts = topReferrers?.reduce((acc: Record<string, number>, a: any) => {
+    const referrerCounts = topReferrers.reduce((acc: Record<string, number>, a) => {
       acc[a.referrer_user_id] = (acc[a.referrer_user_id] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>) || {};
+    }, {} as Record<string, number>);
     
     const topReferrersList = Object.entries(referrerCounts)
-      .sort((a: any, b: any) => b[1] - a[1])
+      .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
-      .map((entry: any) => {
-        const [userId, count] = entry;
-        const profile = topReferrers?.find((r: any) => r.referrer_user_id === userId)?.profiles;
+      .map((entry) => {
+        const [refUserId, count] = entry;
+        const refProfile = topReferrers.find((r) => r.referrer_user_id === refUserId)?.profiles;
         return {
-          userId,
-          displayName: profile?.display_name || profile?.username || 'Unknown',
+          userId: refUserId,
+          displayName: refProfile?.display_name || refProfile?.username || 'Unknown',
           referralsCount: count,
         };
       });
     
     // Get affiliate stats
-    const { count: totalAffiliateApps } = await supabase
-      .from('affiliate_applications')
-      .select('*', { count: 'exact', head: true });
-    
-    const { count: pendingAffiliateApps } = await supabase
-      .from('affiliate_applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
-    
-    const { count: approvedAffiliates } = await supabase
-      .from('affiliate_tiers')
-      .select('*', { count: 'exact', head: true });
+    const totalAffiliateApps = await safeCount('affiliate_applications');
+    const pendingAffiliateApps = await safeCount('affiliate_applications', { column: 'status', value: 'pending' });
+    const approvedAffiliates = await safeCount('affiliate_tiers');
     
     return NextResponse.json({
       overview: {
-        totalCodes: totalCodes || 0,
-        totalAttributions: totalAttributions || 0,
-        totalEvents: totalEvents || 0,
+        totalCodes,
+        totalAttributions,
+        totalEvents,
         totalStarsRewarded,
         eventsByType: eventTypeCounts,
         topReferrers: topReferrersList,
       },
       affiliate: {
-        totalApplications: totalAffiliateApps || 0,
-        pendingApplications: pendingAffiliateApps || 0,
-        approvedAffiliates: approvedAffiliates || 0,
+        totalApplications: totalAffiliateApps,
+        pendingApplications: pendingAffiliateApps,
+        approvedAffiliates,
       },
     });
     

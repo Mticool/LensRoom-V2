@@ -140,3 +140,4 @@ create policy effects_gallery_write_manager_admin
   with check (public.has_role(auth.uid(), array['admin', 'manager']));
 
 commit;
+

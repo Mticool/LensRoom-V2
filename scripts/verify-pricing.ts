@@ -276,3 +276,4 @@ function printModelSummary(): void {
 // Run verification
 printModelSummary();
 verifyPricing();
+

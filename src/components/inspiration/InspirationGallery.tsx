@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
+
+// ===== CONSTANTS =====
+const INITIAL_LOAD = 12;
+const LOAD_MORE = 9;
 
 // ===== TYPES =====
 interface ContentCard {
@@ -18,6 +22,8 @@ interface ContentCard {
   mode: string;
   preview_image: string;
   preview_url?: string;
+  poster_url?: string;
+  asset_url?: string;
   template_prompt: string;
   featured: boolean;
   category: string;
@@ -27,22 +33,6 @@ interface ContentCard {
 }
 
 type FilterType = 'all' | 'photo' | 'video' | 'featured';
-
-// ===== ANIMATIONS =====
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-    },
-  },
-};
-
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-};
 
 // ===== ASPECT RATIO HELPER =====
 function getAspectClass(ratio: string): string {
@@ -57,20 +47,31 @@ function getAspectClass(ratio: string): string {
   }
 }
 
-// ===== CONTENT CARD COMPONENT =====
+// ===== CONTENT CARD COMPONENT (Memoized) =====
 interface ContentCardProps {
   card: ContentCard;
   onRepeat: () => void;
+  priority?: boolean;
 }
 
-function ContentCardComponent({ card, onRepeat }: ContentCardProps) {
-  const src = (card.preview_url || card.preview_image || '').trim();
-  const isVideo = /\.(mp4|webm)(\?|#|$)/i.test(src);
+const ContentCardComponent = memo(function ContentCardComponent({ card, onRepeat, priority = false }: ContentCardProps) {
+  const isVideo = card.content_type === 'video';
+  
+  // For videos: prioritize animated preview (WebM) > poster > asset
+  // For photos: use preview > asset
+  let src = '';
+  if (isVideo) {
+    src = (card.preview_url || card.poster_url || card.asset_url || card.preview_image || '').trim();
+  } else {
+    src = (card.preview_url || card.preview_image || card.asset_url || '').trim();
+  }
+  
+  const posterSrc = isVideo ? (card.poster_url || '').trim() : '';
   
   return (
-    <motion.div variants={item} className="break-inside-avoid mb-4">
+    <div className="break-inside-avoid mb-3">
       <div
-        className="group relative w-full overflow-hidden rounded-2xl bg-[var(--surface)] 
+        className="group relative w-full overflow-hidden rounded-xl bg-[var(--surface)] 
                    border border-[var(--border)]
                    transition-all duration-300 ease-out
                    hover:translate-y-[-2px]
@@ -81,21 +82,18 @@ function ContentCardComponent({ card, onRepeat }: ContentCardProps) {
         <div className={`relative w-full ${getAspectClass(card.aspect || card.tile_ratio)} overflow-hidden`}>
           {src ? (
             isVideo ? (
-              <video
+              <LazyVideo
                 src={src}
+                poster={posterSrc || undefined}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                muted
-                loop
-                playsInline
-                autoPlay
-                preload="metadata"
               />
             ) : (
-              <img
+              <OptimizedImage
                 src={src}
                 alt={card.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
+                className="transition-transform duration-500 group-hover:scale-105"
+                priority={priority}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               />
             )
           ) : (
@@ -113,36 +111,36 @@ function ContentCardComponent({ card, onRepeat }: ContentCardProps) {
           {/* Cost pill - top right */}
           {card.cost_stars > 0 && (
             <div
-              className="absolute top-3 right-3 px-2 py-1 rounded-full 
+              className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full 
                           bg-black/50 backdrop-blur-sm
-                          text-[11px] font-semibold text-white
-                          flex items-center gap-1"
+                          text-[10px] font-semibold text-white
+                          flex items-center gap-0.5"
             >
               ⭐{card.cost_stars}
             </div>
           )}
           
           {/* Title & Repeat Button - bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wide truncate mb-3">
+          <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wide truncate mb-2">
               {card.title}
             </h3>
             <button
               onClick={onRepeat}
-              className="w-full py-2.5 px-4 rounded-xl bg-[var(--gold)] text-black font-semibold text-sm
+              className="w-full py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg bg-[var(--gold)] text-black font-semibold text-xs
                          hover:bg-[var(--gold)]/90 transition-all
-                         flex items-center justify-center gap-2
+                         flex items-center justify-center gap-1
                          opacity-0 group-hover:opacity-100"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3 h-3" />
               Повторить
             </button>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 
 // ===== FILTER CHIPS =====
 const FILTER_OPTIONS: { id: FilterType; label: string }[] = [
@@ -157,7 +155,7 @@ interface FilterChipsProps {
   onFilterChange: (filter: FilterType) => void;
 }
 
-function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
+const FilterChips = memo(function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
   return (
     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
       {FILTER_OPTIONS.map((option) => (
@@ -175,22 +173,51 @@ function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
       ))}
     </div>
   );
-}
+});
+
+// ===== SKELETON LOADER =====
+const SkeletonCard = memo(function SkeletonCard() {
+  return (
+    <div className="break-inside-avoid mb-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+      <div className="aspect-[4/5] bg-[var(--surface2)] animate-pulse" />
+    </div>
+  );
+});
+
+const SkeletonGrid = memo(function SkeletonGrid() {
+  return (
+    <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3">
+      {[...Array(10)].map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+});
 
 // ===== MAIN GALLERY =====
 export function InspirationGallery() {
   const router = useRouter();
-  const [content, setContent] = useState<ContentCard[]>([]);
+  const [allContent, setAllContent] = useState<ContentCard[]>([]);
+  const [displayCount, setDisplayCount] = useState(INITIAL_LOAD);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const cacheRef = useRef<ContentCard[] | null>(null);
 
-  // Load content from API
+  // Load content from API with caching
   useEffect(() => {
     async function loadContent() {
+      // Use cached data if available
+      if (cacheRef.current) {
+        setAllContent(cacheRef.current);
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       try {
-        // Load published content from effects_gallery
-        const res = await fetch(`/api/content?placement=inspiration&status=published&_t=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch('/api/content?placement=inspiration&status=published&limit=100');
         if (!res.ok) throw new Error('Failed to load content');
         const data = await res.json();
         const effects = Array.isArray(data?.effects) ? data.effects : [];
@@ -206,6 +233,8 @@ export function InspirationGallery() {
           mode: s.mode || 't2i',
           preview_image: String(s.preview_image || ''),
           preview_url: String(s.preview_url || s.preview_image || ''),
+          poster_url: String(s.poster_url || ''),
+          asset_url: String(s.asset_url || ''),
           template_prompt: String(s.template_prompt || ''),
           featured: !!s.featured,
           category: String(s.category || ''),
@@ -214,7 +243,9 @@ export function InspirationGallery() {
           short_description: String(s.short_description || ''),
         }));
 
-        setContent(mapped);
+        // Cache the data
+        cacheRef.current = mapped;
+        setAllContent(mapped);
       } catch (error) {
         console.error('Failed to load inspiration content:', error);
         toast.error('Не удалось загрузить контент');
@@ -226,8 +257,48 @@ export function InspirationGallery() {
     loadContent();
   }, []);
 
+  // Infinite scroll - load more when reaching bottom
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !loadingMore) {
+          setLoadingMore(true);
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+              setDisplayCount(prev => prev + LOAD_MORE);
+              setLoadingMore(false);
+            });
+          } else {
+            setTimeout(() => {
+              setDisplayCount(prev => prev + LOAD_MORE);
+              setLoadingMore(false);
+            }, 100);
+          }
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    
+    const current = loadMoreRef.current;
+    if (current) {
+      observer.observe(current);
+    }
+    
+    return () => {
+      if (current) {
+        observer.unobserve(current);
+      }
+    };
+  }, [loadingMore]);
+
+  // Reset display count when filter changes
+  useEffect(() => {
+    setDisplayCount(INITIAL_LOAD);
+  }, [activeFilter]);
+
   // Filter content
-  const filteredContent = content.filter(card => {
+  const filteredContent = allContent.filter(card => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'featured') return card.featured;
     if (activeFilter === 'photo') return card.content_type === 'photo';
@@ -235,8 +306,12 @@ export function InspirationGallery() {
     return true;
   });
 
+  // Only show displayCount items
+  const visibleContent = filteredContent.slice(0, displayCount);
+  const hasMore = filteredContent.length > displayCount;
+
   // Handle repeat - redirect to generator with pre-filled prompt
-  const handleRepeat = (card: ContentCard) => {
+  const handleRepeat = useCallback((card: ContentCard) => {
     const params = new URLSearchParams();
     params.set('kind', card.content_type);
     params.set('model', card.model_key);
@@ -249,19 +324,24 @@ export function InspirationGallery() {
     toast.success('Открываем генератор', {
       description: 'Промпт уже вставлен — нажмите "Создать"',
     });
-  };
+  }, [router]);
 
   // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--gold)]" />
+      <div className="space-y-6">
+        <div className="flex gap-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-10 w-20 rounded-full bg-[var(--surface)] animate-pulse" />
+          ))}
+        </div>
+        <SkeletonGrid />
       </div>
     );
   }
 
   // Empty state
-  if (content.length === 0) {
+  if (allContent.length === 0) {
     return (
       <div className="text-center py-20">
         <Sparkles className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
@@ -282,24 +362,29 @@ export function InspirationGallery() {
       <div className="flex items-center gap-4 text-sm text-[var(--muted)]">
         <span>Всего: {filteredContent.length}</span>
         <span>•</span>
-        <span>Featured: {content.filter(c => c.featured).length}</span>
+        <span>Featured: {allContent.filter(c => c.featured).length}</span>
       </div>
 
       {/* Masonry Grid */}
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="columns-1 md:columns-2 lg:columns-3 gap-4"
-      >
-        {filteredContent.map((card) => (
+      <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3">
+        {visibleContent.map((card, index) => (
           <ContentCardComponent
             key={card.id}
             card={card}
             onRepeat={() => handleRepeat(card)}
+            priority={index < 8}
           />
         ))}
-      </motion.div>
+      </div>
+      
+      {/* Load more trigger */}
+      {hasMore && (
+        <div ref={loadMoreRef} className="flex justify-center py-8">
+          {loadingMore && (
+            <div className="w-6 h-6 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+          )}
+        </div>
+      )}
     </div>
   );
 }

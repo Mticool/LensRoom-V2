@@ -2,8 +2,6 @@
  * Model options types for unified model system
  */
 
-import type { ModelConfig, PhotoModelConfig, VideoModelConfig } from '@/config/models';
-
 export interface PhotoGenerationOptions {
   modelId: string;
   mode: 't2i' | 'i2i';

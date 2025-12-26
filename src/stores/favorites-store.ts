@@ -12,9 +12,8 @@ interface FavoritesState {
   fetchFavorites: () => Promise<void>;
 }
 
-// Convert Set to/from Array for localStorage persistence
+// Convert Set to Array for localStorage persistence
 const setToArray = (set: Set<string>) => Array.from(set);
-const arrayToSet = (arr: string[]) => new Set(arr);
 
 // Safe localStorage wrapper for SSR
 const safeStorage = {

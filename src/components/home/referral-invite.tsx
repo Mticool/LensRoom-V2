@@ -68,19 +68,19 @@ export function ReferralInvite() {
   };
 
   return (
-    <section className="py-14 border-t border-[var(--border)]">
+    <section className="py-14 border-t border-white/10">
       <div className="container mx-auto px-6">
-        <div className="max-w-4xl mx-auto rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-10">
+        <div className="max-w-4xl mx-auto rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <Badge className="mb-3 bg-white/5 text-white border border-white/10">
                 <Gift className="w-3.5 h-3.5 mr-1.5" />
                 Бонус за приглашение
               </Badge>
-              <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text)]">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white">
                 Пригласи друга — разделите 100⭐
               </h2>
-              <p className="mt-2 text-[var(--text2)]">
+              <p className="mt-2 text-white/70">
                 Вам +50⭐ и другу +50⭐ после его первого входа по вашей ссылке.
               </p>
               {hasPendingRef && !user && (
@@ -93,7 +93,7 @@ export function ReferralInvite() {
             <div className="sm:text-right">
               {user ? (
                 <>
-                  <div className="text-sm text-[var(--muted)] flex sm:justify-end items-center gap-2">
+                  <div className="text-sm text-white/60 flex sm:justify-end items-center gap-2">
                     <Users className="w-4 h-4" />
                     <span>
                       {data ? `Приглашено: ${data.invitedCount}` : " "}
@@ -103,7 +103,7 @@ export function ReferralInvite() {
                     <Button
                       onClick={copyLink}
                       disabled={loading || !data?.link}
-                      className="bg-white text-black hover:bg-white/90"
+                      className="bg-white text-black hover:bg-white/90 font-semibold"
                     >
                       {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                       {copied ? "Скопировано" : "Скопировать ссылку"}
@@ -113,7 +113,7 @@ export function ReferralInvite() {
               ) : (
                 <Button
                   onClick={() => setLoginOpen(true)}
-                  className="bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)]"
+                  className="bg-[#FFD700] text-black hover:bg-[#FFC700] font-semibold shadow-lg shadow-[#FFD700]/30"
                 >
                   Войти, чтобы получить ссылку
                 </Button>
@@ -122,14 +122,14 @@ export function ReferralInvite() {
           </div>
 
           {user && data?.link && (
-            <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3">
-              <div className="text-xs text-[var(--muted)] mb-1">Ваша реферальная ссылка</div>
-              <div className="text-sm text-[var(--text)] break-all">{data.link}</div>
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div className="text-xs text-white/50 mb-1">Ваша реферальная ссылка</div>
+              <div className="text-sm text-white break-all">{data.link}</div>
             </div>
           )}
 
           {user && error && (
-            <div className="mt-4 text-sm text-[var(--muted)]">
+            <div className="mt-4 text-sm text-white/50">
               {error}
             </div>
           )}

@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       const { error: updateError } = await supabase
         .from("generations")
         .update({
-          status: "completed",
+          status: "success",
           result_urls: resultUrls,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

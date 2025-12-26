@@ -78,3 +78,4 @@ create policy user_api_keys_admin_select
   using (public.has_role(auth.uid(), array['admin']));
 
 commit;
+

@@ -1,20 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getRobokassaClient } from '@/lib/payments/robokassa-client';
 import { getProdamusClient } from '@/lib/payments/prodamus-client';
-import { CREDIT_PACKAGES } from '@/lib/pricing/plans';
+import { CREDIT_PACKAGES, SUBSCRIPTION_PLANS } from '@/lib/pricing/plans';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
   try {
-    const { credits } = await request.json();
+    const body = await request.json();
+    const { credits, type = 'package', planId } = body;
 
-    // Validate credits package
-    const package_ = CREDIT_PACKAGES.find(p => p.credits === credits);
-    if (!package_) {
-      return NextResponse.json(
-        { error: 'Invalid credits package', availablePackages: CREDIT_PACKAGES.map(p => p.credits) },
-        { status: 400 }
-      );
+    // Validate package or subscription
+    let amount: number;
+    let creditsAmount: number;
+    let description: string;
+
+    if (type === 'subscription' && planId) {
+      // Подписка
+      const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
+      if (!plan) {
+        return NextResponse.json(
+          { error: 'Invalid subscription plan', availablePlans: SUBSCRIPTION_PLANS.map(p => p.id) },
+          { status: 400 }
+        );
+      }
+      amount = plan.price;
+      creditsAmount = plan.credits;
+      description = `Подписка ${plan.name}: ${plan.credits} ⭐/мес`;
+    } else {
+      // Пакет звёзд
+      const package_ = CREDIT_PACKAGES.find(p => p.credits === credits);
+      if (!package_) {
+        return NextResponse.json(
+          { error: 'Invalid credits package', availablePackages: CREDIT_PACKAGES.map(p => p.credits) },
+          { status: 400 }
+        );
+      }
+      amount = package_.price;
+      creditsAmount = package_.credits;
+      description = `Пополнение баланса: ${package_.credits} ⭐`;
     }
 
     // Check auth
@@ -38,33 +63,84 @@ export async function POST(request: NextRequest) {
     // Generate order number
     const orderNumber = `LR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create payment link
-    const prodamus = getProdamusClient();
-    if (!prodamus) {
-      return integrationNotConfigured("prodamus", ["PRODAMUS_SECRET_KEY", "PRODAMUS_PROJECT_ID"]);
+    // Try Robokassa first, fallback to Prodamus
+    let paymentUrl: string;
+    let provider: string;
+
+    const robokassa = getRobokassaClient();
+    if (robokassa) {
+      // Используем Robokassa
+      if (type === 'subscription' && planId) {
+        paymentUrl = robokassa.createSubscriptionPayment({
+          orderNumber,
+          amount,
+          credits: creditsAmount,
+          userId: user.id,
+          planId,
+          email: user.email || undefined,
+        });
+      } else {
+        paymentUrl = robokassa.createPackagePayment({
+          orderNumber,
+          amount,
+          credits: creditsAmount,
+          userId: user.id,
+          email: user.email || undefined,
+        });
+      }
+      provider = 'robokassa';
+    } else {
+      // Fallback на Prodamus
+      const prodamus = getProdamusClient();
+      if (!prodamus) {
+        return integrationNotConfigured("payment", [
+          "ROBOKASSA_MERCHANT_LOGIN",
+          "ROBOKASSA_PASSWORD1", 
+          "ROBOKASSA_PASSWORD2",
+        ]);
+      }
+      paymentUrl = prodamus.createPaymentLink({
+        orderNumber,
+        amount,
+        customerEmail: user.email || '',
+        credits: creditsAmount,
+        userId: user.id,
+      });
+      provider = 'prodamus';
     }
 
-    const paymentUrl = prodamus.createPaymentLink({
-      orderNumber,
-      amount: package_.price,
-      customerEmail: user.email || '',
-      credits: package_.credits,
-      userId: user.id,
+    // Создаём запись платежа в статусе pending
+    const adminSupabase = getSupabaseAdmin();
+    await adminSupabase.from('payments').insert({
+      user_id: user.id,
+      type: type === 'subscription' ? 'subscription' : 'stars_purchase',
+      package_id: planId || null,
+      amount,
+      credits: creditsAmount,
+      status: 'pending',
+      provider,
+      metadata: {
+        order_number: orderNumber,
+        description,
+      },
     });
 
     console.log('[Payments] Created payment:', {
       orderNumber,
       userId: user.id,
-      credits: package_.credits,
-      amount: package_.price,
+      credits: creditsAmount,
+      amount,
+      provider,
+      type,
     });
 
     return NextResponse.json({
       success: true,
       paymentUrl,
       orderNumber,
-      credits: package_.credits,
-      amount: package_.price,
+      credits: creditsAmount,
+      amount,
+      provider,
     });
   } catch (error) {
     console.error('[Payments] Error creating payment:', error);

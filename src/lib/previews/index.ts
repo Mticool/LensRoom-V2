@@ -22,6 +22,8 @@ const PREVIEW_MAX_SIZE = 512;
 const PREVIEW_QUALITY = 80;
 const POSTER_TIMEOUT_MS = 45000;
 const DOWNLOAD_TIMEOUT_MS = 30000;
+const ANIMATED_PREVIEW_DURATION = 4; // seconds
+const ANIMATED_PREVIEW_TIMEOUT_MS = 60000;
 
 /**
  * Download a file from URL with timeout
@@ -249,6 +251,105 @@ export async function generateVideoPoster(params: {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[Preview:video:${generationId}] step=error message=${message}`);
     throw new Error(`Video poster generation failed: ${message}`);
+  }
+}
+
+/**
+ * Generate animated preview for video (4 seconds WebM loop)
+ * 
+ * @param videoUrl - URL of video file
+ * @param userId - User ID for storage path
+ * @param generationId - Generation ID for filename
+ * @param supabase - Supabase client
+ * @returns Storage path (e.g., "userId/previews/genId_preview.webm")
+ */
+export async function generateVideoAnimatedPreview(params: {
+  videoUrl: string;
+  userId: string;
+  generationId: string;
+  supabase: SupabaseClient;
+}): Promise<{ path: string; publicUrl: string }> {
+  const { videoUrl, userId, generationId, supabase } = params;
+
+  const tempVideo = join(tmpdir(), `preview_video_${generationId}_${Date.now()}.tmp`);
+  const tempPreview = join(tmpdir(), `preview_animated_${generationId}_${Date.now()}.webm`);
+
+  try {
+    console.log(`[AnimatedPreview:${generationId}] step=download url=${videoUrl.substring(0, 60)}...`);
+    
+    // Download video
+    await downloadFile(videoUrl, tempVideo, supabase);
+
+    console.log(`[AnimatedPreview:${generationId}] step=ffmpeg generating_webm duration=${ANIMATED_PREVIEW_DURATION}s`);
+    
+    // Generate 4-second WebM preview
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("FFmpeg timeout"));
+      }, ANIMATED_PREVIEW_TIMEOUT_MS);
+
+      ffmpeg(tempVideo)
+        .setStartTime(0) // Start from beginning
+        .setDuration(ANIMATED_PREVIEW_DURATION) // 4 seconds
+        .size(`${PREVIEW_MAX_SIZE}x?`) // Scale to max width
+        .videoCodec('libvpx-vp9') // VP9 codec (better compression)
+        .videoBitrate('500k') // Low bitrate for small file
+        .fps(24) // 24 fps
+        .outputOptions([
+          '-deadline realtime', // Fast encoding
+          '-cpu-used 5', // Fast encoding preset
+          '-row-mt 1', // Multi-threading
+          '-auto-alt-ref 0', // Disable alt-ref for simpler encoding
+        ])
+        .noAudio() // Remove audio
+        .output(tempPreview)
+        .on('end', () => {
+          clearTimeout(timeout);
+          resolve();
+        })
+        .on('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        })
+        .run();
+    });
+
+    console.log(`[AnimatedPreview:${generationId}] step=read_file`);
+    
+    // Read the generated file
+    const previewBuffer = await fs.readFile(tempPreview);
+
+    // Clean up temp files
+    await Promise.all([
+      fs.unlink(tempVideo).catch(() => {}),
+      fs.unlink(tempPreview).catch(() => {}),
+    ]);
+
+    console.log(`[AnimatedPreview:${generationId}] step=upload size=${previewBuffer.byteLength} bytes`);
+    
+    // Upload to storage
+    const storagePath = `${userId}/previews/${generationId}_preview.webm`;
+    await uploadToStorage(supabase, "generations", storagePath, previewBuffer, "video/webm");
+
+    // Get public URL
+    const { data } = supabase.storage.from("generations").getPublicUrl(storagePath);
+
+    console.log(`[AnimatedPreview:${generationId}] step=complete path=${storagePath}`);
+
+    return {
+      path: storagePath,
+      publicUrl: data.publicUrl,
+    };
+  } catch (error) {
+    // Clean up on error
+    await Promise.all([
+      fs.unlink(tempVideo).catch(() => {}),
+      fs.unlink(tempPreview).catch(() => {}),
+    ]);
+
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[AnimatedPreview:${generationId}] step=error message=${message}`);
+    throw new Error(`Video animated preview generation failed: ${message}`);
   }
 }
 

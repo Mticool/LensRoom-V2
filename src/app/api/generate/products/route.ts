@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         amount: -totalCost,
         type: "deduction",
-        description: `Маркетплейсы: ${generationType === "single" ? "1" : count} изображ.`,
+        description: `E-Com: ${generationType === "single" ? "1" : count} изображ.`,
         generation_id: generation?.id,
       });
     } catch (e) {

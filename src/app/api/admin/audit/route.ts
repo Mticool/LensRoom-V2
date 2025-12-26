@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       )
     );
 
-    let userMap: Record<string, any> = {};
+    const userMap: Record<string, any> = {};
     try {
       const schema = await getAdminSchemaMapping();
       if (schema.users && schema.users.table.name === "telegram_profiles" && schema.users.columns.authUserId) {

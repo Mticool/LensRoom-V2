@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.error("/create/video error:", error);
   }, [error]);
 

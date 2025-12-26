@@ -165,34 +165,43 @@ export async function GET(request: NextRequest) {
           originalUrl = gen.asset_url;
         }
 
-        // --- PREVIEW URL (for photos) ---
-        if (!isVideo && gen.preview_path) {
-          const { data: signedData, error: signError } = await supabase.storage
+        // --- PREVIEW URL ---
+        // For photos: optimized webp preview
+        // For videos: animated preview (webm loop)
+        if (gen.preview_path) {
+          // Use public URL for generations bucket (it's public)
+          const { data } = supabase.storage
             .from("generations")
-            .createSignedUrl(gen.preview_path, SIGNED_URL_TTL);
-
-          if (!signError && signedData?.signedUrl) {
-            previewUrl = signedData.signedUrl;
+            .getPublicUrl(gen.preview_path);
+          
+          if (data?.publicUrl) {
+            previewUrl = data.publicUrl;
           }
         }
 
         // --- POSTER URL (for videos) ---
         if (isVideo && gen.poster_path) {
-          const { data: signedData, error: signError } = await supabase.storage
+          // Use public URL for generations bucket (it's public)
+          const { data } = supabase.storage
             .from("generations")
-            .createSignedUrl(gen.poster_path, SIGNED_URL_TTL);
-
-          if (!signError && signedData?.signedUrl) {
-            posterUrl = signedData.signedUrl;
+            .getPublicUrl(gen.poster_path);
+          
+          if (data?.publicUrl) {
+            posterUrl = data.publicUrl;
           }
         }
 
         // Determine displayUrl for grid (preview/poster if available, else original)
         let displayUrl: string | null = null;
         if (isVideo) {
-          displayUrl = posterUrl || null; // Video: poster or placeholder
+          displayUrl = previewUrl || posterUrl || null; // Video: animated preview > poster
         } else {
           displayUrl = previewUrl || originalUrl; // Photo: preview or original
+        }
+
+        // Debug logging for videos with previews
+        if (isVideo && gen.preview_path) {
+          console.log(`[Library API] Video preview: id=${gen.id.substring(0, 8)} preview_path=${gen.preview_path} previewUrl=${previewUrl ? 'OK' : 'NULL'} posterUrl=${posterUrl ? 'OK' : 'NULL'}`);
         }
 
           return {

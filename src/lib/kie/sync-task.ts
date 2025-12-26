@@ -4,7 +4,7 @@ import { notifyGenerationStatus } from "@/lib/telegram/notify";
 import { getKieClient } from "@/lib/api/kie-client";
 import { getModelById } from "@/config/models";
 import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generation";
-import { generateImagePreview, generateVideoPoster } from "@/lib/previews";
+import { generateImagePreview, generateVideoPoster, generateVideoAnimatedPreview } from "@/lib/previews";
 import { getSourceAssetUrl, validateAssetUrl } from "@/lib/previews/asset-url";
 
 /**
@@ -27,6 +27,7 @@ function getKieMarketConfig() {
 export type KieTaskState = "waiting" | "queuing" | "generating" | "success" | "fail";
 
 function parseResultJsonToUrls(resultJson: string): string[] {
+  // First try normal JSON parse
   try {
     const parsed = JSON.parse(resultJson);
     if (parsed?.outputs && Array.isArray(parsed.outputs)) return parsed.outputs.filter((u: any) => typeof u === "string");
@@ -35,46 +36,132 @@ function parseResultJsonToUrls(resultJson: string): string[] {
     if (typeof parsed === "string") return [parsed];
     return [];
   } catch {
-    return [resultJson];
+    // JSON parse failed - try to extract URLs with regex
+    console.warn('[KIE] JSON parse failed for resultJson, trying regex extraction');
+    
+    // Look for URLs in the string
+    const urlMatches = resultJson.match(/https?:\/\/[^\s"'<>]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm)[^\s"'<>]*/gi);
+    if (urlMatches && urlMatches.length > 0) {
+      console.log('[KIE] Extracted URLs via regex:', urlMatches.length);
+      return urlMatches;
+    }
+    
+    // If it's a direct URL string
+    if (resultJson.startsWith('http')) {
+      return [resultJson.split(/[\s"']/)[0]];
+    }
+    
+    // Last resort - return as-is if it looks like a URL
+    if (resultJson.includes('http')) {
+      const match = resultJson.match(/https?:\/\/[^\s"'<>]+/);
+      if (match) return [match[0]];
+    }
+    
+    return [];
   }
 }
 
-async function fetchRecordInfo(taskId: string): Promise<{ state: KieTaskState; resultJson?: string; failMsg?: string; failCode?: string }> {
+async function fetchRecordInfo(taskId: string, retries = 3): Promise<{ state: KieTaskState; resultJson?: string; failMsg?: string; failCode?: string }> {
   const cfg = getKieMarketConfig();
   if (!cfg) throw new Error("KIE not configured");
 
-  const res = await fetch(`${cfg.baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
-    headers: { Authorization: `Bearer ${cfg.apiKey}` },
-  });
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      
+      const res = await fetch(`${cfg.baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
+        headers: { Authorization: `Bearer ${cfg.apiKey}` },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeout);
 
-  const text = await res.text();
-  if (!res.ok) throw new Error(`KIE recordInfo error (${res.status}): ${text.slice(0, 200)}`);
+      const text = await res.text();
+      if (!res.ok) throw new Error(`KIE recordInfo error (${res.status}): ${text.slice(0, 200)}`);
 
-  let json: any;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error(`KIE recordInfo invalid JSON: ${text.slice(0, 200)}`);
+      let json: any;
+      try {
+        json = JSON.parse(text);
+      } catch (parseErr) {
+        // JSON parse error - might be truncated response
+        console.error(`[KIE] JSON parse error (attempt ${attempt + 1}/${retries}):`, {
+          taskId,
+          textLength: text.length,
+          error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        });
+        
+        // Try to extract data from truncated JSON using regex
+        const stateMatch = text.match(/"state"\s*:\s*"(waiting|queuing|generating|success|fail)"/);
+        const resultJsonMatch = text.match(/"resultJson"\s*:\s*"([^"]+)/);
+        const failMsgMatch = text.match(/"failMsg"\s*:\s*"([^"]+)"/);
+        
+        if (stateMatch) {
+          console.log('[KIE] Extracted state from truncated JSON:', stateMatch[1]);
+          
+          // Try to find URLs in the truncated response
+          let resultJson: string | undefined;
+          if (resultJsonMatch) {
+            // The resultJson might be truncated, but try to extract URLs
+            const partialResult = resultJsonMatch[1];
+            const urlMatch = text.match(/https?:\/\/[^\s"'\\]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm)[^\s"'\\]*/i);
+            if (urlMatch) {
+              resultJson = urlMatch[0];
+              console.log('[KIE] Extracted URL from truncated response:', resultJson);
+            }
+          }
+          
+          return {
+            state: stateMatch[1] as KieTaskState,
+            resultJson,
+            failMsg: failMsgMatch?.[1],
+            failCode: undefined,
+          };
+        }
+        
+        if (attempt < retries - 1) {
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); // Backoff
+          continue;
+        }
+        throw new Error(`KIE recordInfo invalid JSON after ${retries} attempts`);
+      }
+
+      const okCode = json?.code === 0 || json?.code === 200 || json?.code === "0" || json?.code === "200";
+      if (!okCode) {
+        const code = typeof json?.code !== "undefined" ? String(json.code) : "unknown";
+        const msg = json?.message || json?.msg || json?.error || "KIE recordInfo returned error";
+        throw new Error(`${msg}${code ? ` (code: ${code})` : ""}`);
+      }
+
+      const data = json?.data || {};
+      return {
+        state: data.state as KieTaskState,
+        resultJson: data.resultJson,
+        failMsg: data.failMsg,
+        failCode: data.failCode,
+      };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      
+      // Don't retry on non-retryable errors
+      if (lastError.message.includes('KIE recordInfo returned error')) {
+        throw lastError;
+      }
+      
+      if (attempt < retries - 1) {
+        console.warn(`[KIE] fetchRecordInfo attempt ${attempt + 1} failed, retrying...`, lastError.message);
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+      }
+    }
   }
-
-  const okCode = json?.code === 0 || json?.code === 200 || json?.code === "0" || json?.code === "200";
-  if (!okCode) {
-    const code = typeof json?.code !== "undefined" ? String(json.code) : "unknown";
-    const msg = json?.message || json?.msg || json?.error || "KIE recordInfo returned error";
-    throw new Error(`${msg}${code ? ` (code: ${code})` : ""}`);
-  }
-
-  const data = json?.data || {};
-  return {
-    state: data.state as KieTaskState,
-    resultJson: data.resultJson,
-    failMsg: data.failMsg,
-    failCode: data.failCode,
-  };
+  
+  throw lastError || new Error('fetchRecordInfo failed');
 }
 
 async function safeUpdateGeneration(supabase: SupabaseClient, generationId: string, patch: Record<string, any>) {
-  let working = { ...patch };
+  const working = { ...patch };
   for (let attempt = 0; attempt < 8; attempt++) {
     const { error } = await supabase.from("generations").update(working).eq("id", generationId);
     if (!error) return;
@@ -158,19 +245,33 @@ async function generatePreviewAsync(params: {
 
       console.log(`[Preview] Ready generationId=${generationId} type=photo path=${path}`);
     } else if (type === "video") {
-      const { path } = await generateVideoPoster({
+      // Generate both poster (static) and animated preview
+      const posterPromise = generateVideoPoster({
         videoUrl: sourceUrl,
         userId,
         generationId,
         supabase,
       });
 
+      const previewPromise = generateVideoAnimatedPreview({
+        videoUrl: sourceUrl,
+        userId,
+        generationId,
+        supabase,
+      }).catch((err) => {
+        console.warn(`[Preview] Animated preview failed (non-critical): ${err.message}`);
+        return null; // Non-critical, poster is enough
+      });
+
+      const [posterResult, previewResult] = await Promise.all([posterPromise, previewPromise]);
+
       await safeUpdateGeneration(supabase, generationId, {
-        poster_path: path,
+        poster_path: posterResult.path,
+        preview_path: previewResult?.path || null,
         preview_status: "ready",
       });
 
-      console.log(`[Preview] Ready generationId=${generationId} type=video path=${path}`);
+      console.log(`[Preview] Ready generationId=${generationId} type=video poster=${posterResult.path} animated=${previewResult?.path || 'failed'}`);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

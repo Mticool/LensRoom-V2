@@ -62,7 +62,7 @@ export function BottomActionBar({
               </div>
             </div>
             {warningText && (
-              <p className="text-xs text-amber-400/80 mt-1">{warningText}</p>
+              <p className="text-xs text-orange-400/80 mt-1">{warningText}</p>
             )}
           </div>
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { TelegramSession } from '@/types/telegram';
 import { captureReferralCodeFromUrl, getStoredReferralCode, clearStoredReferralCode } from '@/lib/referrals/client';
 import { detectWebView, expandWebView, getTelegramWebApp } from "@/lib/telegram/webview";
 
@@ -12,7 +11,7 @@ function decodeBase64Url(input: string): string {
   return atob(str);
 }
 
-function tryExtractTelegramAuthFromHash(): any | null {
+function tryExtractTelegramAuthFromHash(): Record<string, unknown> | null {
   if (typeof window === 'undefined') return null;
   const hash = window.location.hash || '';
   if (!hash.includes('tgAuthResult=')) return null;

@@ -233,7 +233,7 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
                   "motion-reduce:transition-none",
                   m === mode
                     ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
-                    : "bg-transparent text-[var(--text)] border-white/10 hover:border-white/20 hover:bg-[var(--surface2)]"
+                    : "bg-transparent text-white/90 border-white/10 hover:border-white/20 hover:bg-[var(--surface2)]"
                 )}
               >
                 {m === "t2i" ? "Текст → Фото" : "Фото → Фото"}
@@ -290,7 +290,7 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
                         "motion-reduce:transition-none",
                         active
                           ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
-                          : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]",
+                          : "bg-transparent border-white/10 text-white/90 hover:border-white/20 hover:bg-[var(--surface2)]",
                         !enabled && "opacity-40 cursor-not-allowed hover:bg-transparent hover:border-white/10"
                       )}
                     >
@@ -331,7 +331,7 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
                     "motion-reduce:transition-none",
                     a === aspect
                       ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
-                      : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
+                      : "bg-transparent border-white/10 text-white/90 hover:border-white/20 hover:bg-[var(--surface2)]"
                   )}
                 >
                   {a}

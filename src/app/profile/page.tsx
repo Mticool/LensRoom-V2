@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { usePreferencesStore } from '@/stores/preferences-store';
 import { 
   User, Calendar, CreditCard, Crown, LogOut, Loader2, 
-  Image, Video, RefreshCw, ExternalLink, Download, Users, Copy, Check, Settings, Key
+  Image, Video, RefreshCw, ExternalLink, Users, Copy, Check, 
+  Settings, Key, Star, Sparkles, TrendingUp, Bell, BellOff,
+  ChevronRight, Zap, Gift
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ProfileSkeleton } from '@/components/ui/skeleton';
+import { NoGenerationsEmpty } from '@/components/ui/empty-state';
 
 interface Generation {
   id: string;
@@ -62,7 +65,7 @@ export default function ProfilePage() {
       const res = await fetch('/api/referrals/me', { credentials: 'include' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setRefError(data?.error || 'Не удалось загрузить рефералы');
+        setRefError(data?.error || 'Не удалось загрузить');
         setRefData(null);
         return;
       }
@@ -70,8 +73,8 @@ export default function ProfilePage() {
         link: data?.link,
         invitedCount: data?.invitedCount || 0,
       });
-    } catch (e) {
-      setRefError('Не удалось загрузить рефералы');
+    } catch {
+      setRefError('Не удалось загрузить');
       setRefData(null);
     } finally {
       setRefLoading(false);
@@ -93,10 +96,7 @@ export default function ProfilePage() {
   const fetchGenerations = async () => {
     try {
       setLoadingGenerations(true);
-      const response = await fetch('/api/generations', {
-        credentials: 'include',
-      });
-      
+      const response = await fetch('/api/generations', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setGenerations(data.generations || []);
@@ -110,15 +110,15 @@ export default function ProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
-        <Loader2 className="w-8 h-8 text-[var(--gold)] animate-spin" />
+      <div className="min-h-screen bg-[var(--bg)] pt-20">
+        <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-8">
+          <ProfileSkeleton />
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const handleSignOut = async () => {
     await signOut();
@@ -131,341 +131,333 @@ export default function ProfilePage() {
   );
 
   const displayName = user.firstName || user.username || 'Пользователь';
+  const photoCount = generations.filter(g => g.type === 'photo' && g.status === 'completed').length;
+  const videoCount = generations.filter(g => g.type === 'video' && g.status === 'completed').length;
+  const totalSpent = generations.reduce((sum, g) => sum + (g.credits_used || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pt-20">
-      <div className="container mx-auto max-w-6xl px-6 py-12">
+    <div className="min-h-screen bg-[var(--bg)] pt-20 pb-12">
+      <div className="container mx-auto max-w-5xl px-4 sm:px-6">
+        
+        {/* Header Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--gold)]/20 via-[var(--surface)] to-[var(--surface)] border border-[var(--border)] p-6 sm:p-8 mb-6"
         >
-          <h1 className="text-4xl font-bold text-[var(--text)] mb-2">
-            Личный <span className="text-[var(--gold)]">кабинет</span>
-          </h1>
-          <p className="text-[var(--muted)]">Ваши генерации и настройки аккаунта</p>
-        </motion.div>
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--gold)]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+            {/* Avatar */}
+            {user.photoUrl ? (
+              <img 
+                src={user.photoUrl} 
+                alt={displayName}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-4 border-[var(--gold)]/30 shadow-xl"
+              />
+            ) : (
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-[var(--gold)] to-amber-600 flex items-center justify-center shadow-xl">
+                <span className="text-3xl sm:text-4xl font-bold text-black">
+                  {displayName[0].toUpperCase()}
+                </span>
+              </div>
+            )}
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Sidebar - User Info */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* User Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
-                <div className="flex items-center gap-4 mb-6">
-                  {user.photoUrl ? (
-                    <img 
-                      src={user.photoUrl} 
-                      alt={displayName}
-                      className="w-16 h-16 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-[var(--gold)]">
-                        {displayName[0].toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div>
-                    <h2 className="text-xl font-semibold text-[var(--text)]">{displayName}</h2>
-                    {user.username && (
-                      <p className="text-sm text-[var(--muted)]">@{user.username}</p>
-                    )}
-                  </div>
-                </div>
+            {/* User Info */}
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text)] mb-1">
+                {displayName}
+              </h1>
+              {user.username && (
+                <p className="text-[var(--muted)] mb-3">@{user.username}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--gold)]/10 border border-[var(--gold)]/20 text-[var(--gold)] text-sm font-medium">
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  {balance} звёзд
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[var(--muted)] text-sm">
+                  ID: {user.telegramId}
+                </span>
+              </div>
+            </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface2)]">
-                    <Calendar className="w-5 h-5 text-[var(--muted)]" />
-                    <div>
-                      <p className="text-xs text-[var(--muted)]">Telegram ID</p>
-                      <p className="text-[var(--text)] font-mono text-sm">{user.telegramId}</p>
-                    </div>
-                  </div>
-
-                  {/* API Keys Link */}
-                  <Link href="/profile/api-keys">
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface2)] hover:bg-[var(--border)] transition-colors cursor-pointer group">
-                      <Key className="w-5 h-5 text-[var(--muted)] group-hover:text-[var(--gold)]" />
-                      <div className="flex-1">
-                        <p className="text-sm text-[var(--text)] font-medium">API ключи</p>
-                        <p className="text-xs text-[var(--muted)]">Midjourney и др.</p>
-                      </div>
-                      <ExternalLink className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--gold)]" />
-                    </div>
-                  </Link>
-                </div>
-              </Card>
-            </motion.div>
-
-            {/* Balance Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-[var(--text)]">Баланс</h3>
-                  <CreditCard className="w-5 h-5 text-[var(--muted)]" />
-                </div>
-                <p className="text-4xl font-bold text-[var(--gold)] mb-4">
-                  {balance} ⭐
-                </p>
-                <Button asChild className="w-full bg-white text-black hover:bg-white/90">
-                  <Link href="/pricing">Пополнить баланс</Link>
-                </Button>
-              </Card>
-            </motion.div>
-
-            {/* Referrals */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-            >
-              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-[var(--text)]">Рефералы</h3>
-                  <Users className="w-5 h-5 text-[var(--muted)]" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 rounded-lg bg-[var(--surface2)]">
-                    <p className="text-xs text-[var(--muted)]">Приглашено</p>
-                    <p className="text-lg font-semibold text-[var(--text)]">
-                      {refLoading ? '…' : (refData?.invitedCount ?? 0)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-[var(--surface2)]">
-                    <p className="text-xs text-[var(--muted)]">Заработано</p>
-                    <p className="text-lg font-semibold text-[var(--gold)]">
-                      {refLoading ? '…' : `${(refData?.invitedCount ?? 0) * 50} ⭐`}
-                    </p>
-                  </div>
-                </div>
-
-                {refError ? (
-                  <p className="text-sm text-[var(--muted)] mb-4">{refError}</p>
-                ) : (
-                  <div className="mb-4">
-                    <p className="text-xs text-[var(--muted)] mb-2">Ваша ссылка</p>
-                    <div className="p-3 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-xs text-[var(--text)] break-all">
-                      {refLoading ? 'Загрузка…' : (refData?.link || '—')}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={copyReferralLink}
-                    disabled={refLoading || !refData?.link}
-                    className="flex-1 bg-white text-black hover:bg-white/90"
-                  >
-                    {refCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                    {refCopied ? 'Скопировано' : 'Копировать'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={fetchReferral}
-                    disabled={refLoading}
-                    className="border-[var(--border)]"
-                    title="Обновить"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                <p className="mt-3 text-xs text-[var(--muted)]">
-                  Бонус: +50⭐ вам и +50⭐ другу.
-                </p>
-              </Card>
-            </motion.div>
-
-            {/* Settings Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.28 }}
-            >
-              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-[var(--text)]">Settings</h3>
-                  <Settings className="w-5 h-5 text-[var(--muted)]" />
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface2)]">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--text)]">Success notifications</p>
-                      <p className="text-xs text-[var(--muted)]">Show when generation completes</p>
-                    </div>
-                    <button
-                      onClick={() => setShowSuccessNotifications(!showSuccessNotifications)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        showSuccessNotifications ? 'bg-[var(--gold)]' : 'bg-[var(--border)]'
-                      }`}
-                      role="switch"
-                      aria-checked={showSuccessNotifications}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          showSuccessNotifications ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-
-            {/* Actions */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="space-y-3"
-            >
-              <Button asChild variant="outline" className="w-full border-[var(--border)]">
-                <Link href="/account/subscription">
-                  <Crown className="w-4 h-4 mr-2" />
-                  Подписка
+            {/* Quick Actions */}
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button asChild className="flex-1 sm:flex-initial bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90">
+                <Link href="/pricing">
+                  <Zap className="w-4 h-4 mr-2" />
+                  Пополнить
                 </Link>
               </Button>
-              <Button
-                variant="outline"
+              <Button 
+                variant="outline" 
                 onClick={handleSignOut}
-                className="w-full text-red-400 border-red-400/30 hover:bg-red-400/10"
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Выйти
+                <LogOut className="w-4 h-4" />
               </Button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          {[
+            { label: 'Баланс', value: `${balance}`, icon: Star, color: 'text-[var(--gold)]', suffix: '⭐' },
+            { label: 'Фото', value: photoCount, icon: Image, color: 'text-emerald-400' },
+            { label: 'Видео', value: videoCount, icon: Video, color: 'text-violet-400' },
+            { label: 'Потрачено', value: totalSpent, icon: TrendingUp, color: 'text-rose-400', suffix: '⭐' },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/30 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs sm:text-sm text-[var(--muted)]">{stat.label}</span>
+                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+              </div>
+              <p className={`text-xl sm:text-2xl font-bold ${stat.color}`}>
+                {stat.value}{stat.suffix}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Main Grid */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left Column - Quick Links */}
+          <div className="space-y-4">
+            {/* Referral Card */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="p-5 rounded-2xl bg-gradient-to-br from-violet-500/10 to-transparent border border-violet-500/20"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                  <Gift className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[var(--text)]">Пригласи друга</h3>
+                  <p className="text-xs text-[var(--muted)]">+50⭐ тебе и другу</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="p-2.5 rounded-lg bg-white/5 text-center">
+                  <p className="text-lg font-bold text-[var(--text)]">
+                    {refLoading ? '—' : (refData?.invitedCount ?? 0)}
+                  </p>
+                  <p className="text-[10px] text-[var(--muted)]">приглашено</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white/5 text-center">
+                  <p className="text-lg font-bold text-violet-400">
+                    {refLoading ? '—' : `${(refData?.invitedCount ?? 0) * 50}⭐`}
+                  </p>
+                  <p className="text-[10px] text-[var(--muted)]">заработано</p>
+                </div>
+              </div>
+
+              <Button
+                onClick={copyReferralLink}
+                disabled={refLoading || !refData?.link}
+                className="w-full bg-violet-500 hover:bg-violet-600 text-white"
+                size="sm"
+              >
+                {refCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                {refCopied ? 'Скопировано!' : 'Копировать ссылку'}
+              </Button>
+            </motion.div>
+
+            {/* Quick Links */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden"
+            >
+              {[
+                { href: '/account/subscription', icon: Crown, label: 'Подписка', desc: 'Управление тарифом', color: 'text-[var(--gold)]' },
+                { href: '/profile/api-keys', icon: Key, label: 'API ключи', desc: 'Midjourney и др.', color: 'text-emerald-400' },
+                { href: '/library', icon: Image, label: 'Библиотека', desc: 'Все генерации', color: 'text-violet-400' },
+              ].map((link, i) => (
+                <Link 
+                  key={link.href} 
+                  href={link.href}
+                  className="flex items-center gap-3 p-4 hover:bg-[var(--surface2)] transition-colors border-b border-[var(--border)] last:border-0"
+                >
+                  <div className={`w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center ${link.color}`}>
+                    <link.icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--text)]">{link.label}</p>
+                    <p className="text-xs text-[var(--muted)]">{link.desc}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
+                </Link>
+              ))}
+            </motion.div>
+
+            {/* Settings */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {showSuccessNotifications ? (
+                    <Bell className="w-5 h-5 text-emerald-400" />
+                  ) : (
+                    <BellOff className="w-5 h-5 text-[var(--muted)]" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-[var(--text)]">Уведомления</p>
+                    <p className="text-xs text-[var(--muted)]">При завершении генерации</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSuccessNotifications(!showSuccessNotifications)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    showSuccessNotifications ? 'bg-emerald-500' : 'bg-[var(--surface2)]'
+                  }`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    showSuccessNotifications ? 'left-6' : 'left-1'
+                  }`} />
+                </button>
+              </div>
             </motion.div>
           </div>
 
-          {/* Main - Generations History */}
+          {/* Right Column - Recent Generations */}
           <div className="lg:col-span-2">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
+              className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden"
             >
-              <Card className="p-6 bg-[var(--surface)] border-[var(--border)]">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-[var(--text)]">История генераций</h3>
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border)]">
+                <h3 className="font-semibold text-[var(--text)]">Последние генерации</h3>
+                <div className="flex items-center gap-2">
+                  {/* Tabs */}
+                  <div className="flex p-1 rounded-lg bg-[var(--surface2)]">
+                    {(['all', 'photo', 'video'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                          activeTab === tab 
+                            ? 'bg-white text-black' 
+                            : 'text-[var(--muted)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {tab === 'all' ? 'Все' : tab === 'photo' ? 'Фото' : 'Видео'}
+                      </button>
+                    ))}
+                  </div>
                   <Button 
                     variant="ghost" 
-                    size="sm"
+                    size="icon"
                     onClick={fetchGenerations}
-                    className="text-[var(--muted)]"
+                    className="text-[var(--muted)] h-8 w-8"
                   >
                     <RefreshCw className="w-4 h-4" />
                   </Button>
                 </div>
+              </div>
 
-                {/* Tabs */}
-                <div className="flex gap-2 mb-6">
-                  {(['all', 'photo', 'video'] as const).map((tab) => (
-                    <Button
-                      key={tab}
-                      variant={activeTab === tab ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setActiveTab(tab)}
-                      className={activeTab === tab ? 'bg-white text-black' : ''}
-                    >
-                      {tab === 'all' && 'Все'}
-                      {tab === 'photo' && <><Image className="w-4 h-4 mr-1" /> Фото</>}
-                      {tab === 'video' && <><Video className="w-4 h-4 mr-1" /> Видео</>}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Generations List */}
+              {/* Content */}
+              <div className="p-4 sm:p-5">
                 {loadingGenerations ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-6 h-6 text-[var(--gold)] animate-spin" />
                   </div>
                 ) : filteredGenerations.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Image className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
-                    <p className="text-[var(--muted)]">Пока нет генераций</p>
-                    <Button asChild className="mt-4 bg-white text-black">
-                      <Link href="/create">Создать первую</Link>
-                    </Button>
-                  </div>
+                  <NoGenerationsEmpty />
                 ) : (
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                    {filteredGenerations.map((gen) => (
-                      <div 
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    {filteredGenerations.slice(0, 10).map((gen, i) => (
+                      <motion.div 
                         key={gen.id}
-                        className="flex gap-4 p-4 rounded-lg bg-[var(--surface2)] border border-[var(--border)]"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        className="flex gap-3 p-3 rounded-xl bg-[var(--surface2)] hover:bg-[var(--border)] transition-colors group"
                       >
                         {/* Thumbnail */}
-                        <div className="w-20 h-20 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {gen.results?.[0]?.url ? (
                             <img 
                               src={gen.results[0].url} 
-                              alt="Preview"
+                              alt=""
                               className="w-full h-full object-cover"
                             />
                           ) : gen.type === 'video' ? (
-                            <Video className="w-8 h-8 text-[var(--muted)]" />
+                            <Video className="w-6 h-6 text-[var(--muted)]" />
                           ) : (
-                            <Image className="w-8 h-8 text-[var(--muted)]" />
+                            <Image className="w-6 h-6 text-[var(--muted)]" />
                           )}
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              gen.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                              gen.status === 'processing' ? 'bg-yellow-500/20 text-yellow-400' :
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                              gen.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                              gen.status === 'processing' ? 'bg-amber-500/20 text-amber-400' :
                               gen.status === 'failed' ? 'bg-red-500/20 text-red-400' :
-                              'bg-[var(--muted)]/20 text-[var(--muted)]'
+                              'bg-white/10 text-[var(--muted)]'
                             }`}>
-                              {gen.status === 'completed' ? '✓ Готово' :
-                               gen.status === 'processing' ? '⏳ В работе' :
-                               gen.status === 'failed' ? '✗ Ошибка' : '⋯ Ожидание'}
+                              {gen.status === 'completed' ? '✓' : gen.status === 'processing' ? '⏳' : gen.status === 'failed' ? '✗' : '⋯'}
                             </span>
-                            <span className="text-xs text-[var(--muted)]">
-                              {gen.type === 'video' ? '🎬 Видео' : '🖼 Фото'}
+                            <span className="text-[10px] text-[var(--muted)]">
+                              {gen.type === 'video' ? '🎬' : '🖼'} {gen.model_name}
                             </span>
                           </div>
-                          <p className="text-sm text-[var(--text)] line-clamp-2 mb-1">
+                          <p className="text-xs text-[var(--text)] line-clamp-1 mb-1">
                             {gen.prompt}
                           </p>
-                          <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-                            <span>{gen.model_name}</span>
-                            <span>•</span>
-                            <span>{gen.credits_used} ⭐</span>
+                          <div className="flex items-center gap-2 text-[10px] text-[var(--muted)]">
+                            <span>{gen.credits_used}⭐</span>
                             <span>•</span>
                             <span>{new Date(gen.created_at).toLocaleDateString('ru-RU')}</span>
                           </div>
                         </div>
 
-                        {/* Actions */}
+                        {/* Action */}
                         {gen.status === 'completed' && gen.results?.[0]?.url && (
-                          <div className="flex flex-col gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              className="text-[var(--muted)]"
-                              onClick={() => window.open(gen.results![0].url, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <button
+                            onClick={() => window.open(gen.results![0].url, '_blank')}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg hover:bg-white/10"
+                          >
+                            <ExternalLink className="w-4 h-4 text-[var(--muted)]" />
+                          </button>
                         )}
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
-              </Card>
+
+                {filteredGenerations.length > 10 && (
+                  <div className="mt-4 text-center">
+                    <Button asChild variant="outline" size="sm" className="border-[var(--border)]">
+                      <Link href="/library">
+                        Смотреть все ({filteredGenerations.length})
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
         </div>

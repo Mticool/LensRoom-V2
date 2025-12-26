@@ -15,6 +15,7 @@ export interface EffectPreset {
   mode: EffectMode;
   variantId: string;
   previewImage: string;
+  posterUrl?: string; // Static poster for videos
   templatePrompt: string;
   featured?: boolean;
 }

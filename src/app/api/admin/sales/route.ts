@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
     const rowsAny = (rows as any[]) || [];
     const userIds = Array.from(new Set(rowsAny.map((r: any) => String(r?.[c.userId])).filter(Boolean)));
-    let userMap: Record<string, any> = {};
+    const userMap: Record<string, any> = {};
     if (schema.users && userIds.length) {
       const u = schema.users;
       const uTable = u.table.name;

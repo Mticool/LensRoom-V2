@@ -129,7 +129,7 @@ export function buildMjPrompt(
   settings: MjSettings,
   aspectRatio?: string
 ): string {
-  let prompt = userPrompt.trim();
+  const prompt = userPrompt.trim();
   
   // Midjourney uses --parameters in prompt
   // But KIE API accepts them as separate fields, so we just return clean prompt

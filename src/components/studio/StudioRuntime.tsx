@@ -471,12 +471,12 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                     { duration: 12000 }
                   );
                 } else {
-                  toast("Photo ready ✅", {
+                  toast.success("Фото готово! ✅", {
+                    description: "Сохранено в библиотеку",
+                    duration: 4000,
                     action: {
-                      label: "Open in Library",
-                      onClick: () => {
-                        router.push("/library");
-                      },
+                      label: "Открыть",
+                      onClick: () => router.push("/library"),
                     },
                   });
                 }
@@ -528,88 +528,17 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     setLastError(null);
     setResultUrls([]);
 
-    // Show start notification (bigger for video)
+    // Show start notification - auto-dismiss after 3 seconds
     if (modelInfo.type === "video") {
-      toast.custom(
-        (t) => (
-          <div className="w-[min(92vw,520px)] rounded-2xl border border-white/10 bg-[var(--surface)] shadow-[var(--shadow-lg)] p-4">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--gold)]/15">
-                <Film className="h-6 w-6 text-[var(--gold)]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-lg font-bold text-[var(--text)]">🎬 Видео создаётся…</div>
-                <div className="mt-1 text-sm text-[var(--text2)]">
-                  Обычно это занимает 1–3 минуты. Можно продолжать пользоваться сайтом — мы покажем уведомление, когда видео будет готово.
-                </div>
-                <div className="mt-3 flex items-center gap-2 text-sm text-[var(--muted)]">
-                  <Loader2 className="h-4 w-4 animate-spin text-[var(--gold)]" />
-                  <span>Генерация запущена</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    onClick={() => {
-                      toast.dismiss(t);
-                      router.push("/library");
-                    }}
-                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:border-white/30"
-                  >
-                    Открыть «Мои результаты»
-                  </button>
-                  <button
-                    onClick={() => toast.dismiss(t)}
-                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text2)] hover:text-[var(--text)]"
-                  >
-                    Закрыть
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ),
-        { duration: 9000 }
-      );
+      toast("🎬 Видео создаётся...", {
+        description: "~1-3 мин. Можно продолжать работу.",
+        duration: 3000,
+      });
     } else {
-      // Photo generation notification (same style as video)
-      toast.custom(
-        (t) => (
-          <div className="w-[min(92vw,520px)] rounded-2xl border border-white/10 bg-[var(--surface)] shadow-[var(--shadow-lg)] p-4">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--gold)]/15">
-                <CheckCircle2 className="h-6 w-6 text-[var(--gold)]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-lg font-bold text-[var(--text)]">🎨 Фото создаётся…</div>
-                <div className="mt-1 text-sm text-[var(--text2)]">
-                  Обычно это занимает 10–30 секунд. Можно продолжать пользоваться сайтом — мы покажем уведомление, когда фото будет готово.
-                </div>
-                <div className="mt-3 flex items-center gap-2 text-sm text-[var(--muted)]">
-                  <Loader2 className="h-4 w-4 animate-spin text-[var(--gold)]" />
-                  <span>Генерация запущена</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    onClick={() => {
-                      toast.dismiss(t);
-                      router.push("/library");
-                    }}
-                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:border-white/30"
-                  >
-                    Открыть «Мои результаты»
-                  </button>
-                  <button
-                    onClick={() => toast.dismiss(t)}
-                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text2)] hover:text-[var(--text)]"
-                  >
-                    Закрыть
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ),
-        { duration: 9000 }
-      );
+      toast("🎨 Фото создаётся...", {
+        description: "~10-30 сек. Можно продолжать работу.",
+        duration: 3000,
+      });
     }
 
     try {
@@ -649,6 +578,45 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         }
 
         const jobId = String(data.jobId);
+        
+        // Check if generation already completed (e.g., OpenAI sync response)
+        if (data.status === 'completed' && Array.isArray(data.results) && data.results[0]?.url) {
+          const urls = data.results.map((r: any) => r.url).filter(Boolean);
+          const job: ActiveJob = {
+            jobId,
+            kind: "image",
+            provider: data?.provider,
+            modelName: activePhotoBase.title || modelInfo.name,
+            createdAt: Date.now(),
+            status: "success",
+            progress: 100,
+            resultUrls: urls,
+            opened: false,
+          };
+          setActiveJobs((prev) => [job, ...prev]);
+          setFocusedJobId(jobId);
+          setResultUrls(urls);
+          setStatus("success");
+          setProgress(100);
+          setIsStarting(false);
+          
+          // Refresh library
+          invalidateCached("generations:");
+          try { window.dispatchEvent(new CustomEvent("generations:refresh")); } catch {}
+          
+          // Show success notification
+          toast.success("Фото готово! ✅", {
+            description: "Сохранено в библиотеку",
+            duration: 4000,
+            action: {
+              label: "Открыть",
+              onClick: () => router.push("/library"),
+            },
+          });
+          return;
+        }
+        
+        // Start polling for async providers (KIE etc.)
         const job: ActiveJob = {
           jobId,
           kind: "image",
