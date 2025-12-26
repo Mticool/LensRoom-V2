@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Loader2, Sparkles, Maximize2, ZoomIn, ZoomOut, X, 
-  Download, Copy, RefreshCw, ExternalLink 
+  Download, Copy
 } from 'lucide-react';
 import { GenerationResult, GeneratorMode } from './GeneratorV2';
 import { toast } from 'sonner';
@@ -22,63 +22,15 @@ interface CanvasProps {
   progress?: GenerationProgress | null;
 }
 
-const STAGE_LABELS: Record<string, string> = {
-  queued: 'В очереди...',
-  queue: 'В очереди...',
-  generating: 'Генерация...',
-  processing: 'Обработка...',
-  finalizing: 'Финализация...',
-};
-
 export function Canvas({ result, isGenerating, mode, onExampleClick, progress: externalProgress }: CanvasProps) {
+  // All hooks at the top - before any conditions
   const [showLightbox, setShowLightbox] = useState(false);
   const [zoom, setZoom] = useState(100);
   
-  // Progress state handling - MUST be at top level before any conditional returns
-  const [internalProgress, setInternalProgress] = useState(0);
-  const [internalStage, setInternalStage] = useState<string>('queued');
-  const [estimatedTime, setEstimatedTime] = useState(30);
-  
-  const progress = externalProgress?.progress ?? internalProgress;
-  const stage = externalProgress?.stage ?? internalStage;
-  const eta = externalProgress?.eta;
+  // Use external progress if available, otherwise show simple indicator
+  const progress = externalProgress?.progress ?? 50;
+  const stage = externalProgress?.stage ?? 'generating';
 
-  // Progress simulation effect - use ref to track progress to avoid setState in setState
-  const progressRef = useRef(0);
-  
-  useEffect(() => {
-    if (!isGenerating) {
-      progressRef.current = 0;
-      setInternalProgress(0);
-      setInternalStage('queued');
-      setEstimatedTime(30);
-      return;
-    }
-
-    if (externalProgress) return;
-
-    const interval = setInterval(() => {
-      progressRef.current = Math.min(progressRef.current + Math.random() * 5, 95);
-      const next = progressRef.current;
-      
-      // Update all states separately, not inside another setState
-      setInternalProgress(next);
-      
-      if (next < 20) {
-        setInternalStage('queued');
-        setEstimatedTime(25);
-      } else if (next < 80) {
-        setInternalStage('generating');
-        setEstimatedTime(Math.max(5, 20 - Math.floor((next - 20) / 3)));
-      } else {
-        setInternalStage('finalizing');
-        setEstimatedTime(Math.max(2, 10 - Math.floor((next - 80) / 2)));
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [isGenerating, externalProgress]);
-  
   const examples = mode === 'video' 
     ? [
         'Медленная съёмка волн океана на закате',
@@ -192,20 +144,15 @@ export function Canvas({ result, isGenerating, mode, onExampleClick, progress: e
     );
   }
 
-  // Loading state - Freepik style (canvas placeholder with progress)
+  // Loading state - Simple spinner
   if (isGenerating) {
     return (
       <div className="h-full w-full flex items-center justify-center p-3 md:p-6 bg-[#0F0F10]">
-        {/* Placeholder matching result layout */}
         <div className="relative w-full h-full max-w-4xl max-h-full flex items-center justify-center">
-          {/* Generating placeholder - matches result container */}
           <div className="relative rounded-xl md:rounded-2xl overflow-hidden bg-[#18181B] border border-[#27272A] shadow-2xl shadow-black/50 w-full max-w-2xl aspect-square max-h-[calc(100vh-280px)] flex items-center justify-center">
-            {/* Animated background */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#00D9FF]/5 via-transparent to-[#00D9FF]/5 animate-pulse" />
             
-            {/* Generating content */}
             <div className="relative z-10 text-center p-8 space-y-6">
-              {/* Spinner */}
               <div className="relative mx-auto w-20 h-20">
                 <div className="absolute inset-0 rounded-full border-4 border-[#27272A]" />
                 <div 
@@ -217,44 +164,19 @@ export function Canvas({ result, isGenerating, mode, onExampleClick, progress: e
                 </div>
               </div>
               
-              {/* Status */}
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold text-white">
-                  {STAGE_LABELS[stage] || 'Создаём...'}
+                  {stage === 'queued' ? 'В очереди...' : stage === 'finalizing' ? 'Финализация...' : 'Генерация...'}
                 </h3>
                 <p className="text-sm text-[#71717A]">
-                  {eta || `~${estimatedTime} сек`}
+                  {mode === 'video' ? 'Видео' : 'Фото'}
                 </p>
               </div>
 
-              {/* Progress bar */}
               <div className="w-full max-w-xs mx-auto">
-                <div className="flex items-center justify-between text-[11px] mb-2">
-                  <span className="text-[#00D9FF] font-medium">{Math.floor(progress)}%</span>
-                  <span className="text-[#52525B]">{mode === 'video' ? 'Видео' : 'Фото'}</span>
-                </div>
                 <div className="h-1 bg-[#27272A] rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#00D9FF] to-[#22D3EE] rounded-full transition-all duration-500"
-                    style={{ width: `${progress}%` }}
-                  />
+                  <div className="h-full w-1/2 bg-gradient-to-r from-[#00D9FF] to-[#22D3EE] rounded-full animate-pulse" />
                 </div>
-              </div>
-
-              {/* Stage dots */}
-              <div className="flex items-center justify-center gap-2 pt-2">
-                {(['queued', 'generating', 'finalizing']).map((s, i) => (
-                  <div key={s} className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full transition-all ${
-                      s === stage 
-                        ? 'bg-[#00D9FF] scale-125' 
-                        : progress > (i * 33)
-                        ? 'bg-[#3F3F46]'
-                        : 'bg-[#27272A]'
-                    }`} />
-                    {i < 2 && <div className="w-8 h-px bg-[#27272A]" />}
-                  </div>
-                ))}
               </div>
             </div>
           </div>
