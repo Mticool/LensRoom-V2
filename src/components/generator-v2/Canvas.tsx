@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Loader2, Sparkles, Maximize2, ZoomIn, ZoomOut, X, 
   Download, Copy, RefreshCw, ExternalLink 
@@ -43,9 +43,12 @@ export function Canvas({ result, isGenerating, mode, onExampleClick, progress: e
   const stage = externalProgress?.stage ?? internalStage;
   const eta = externalProgress?.eta;
 
-  // Progress simulation effect
+  // Progress simulation effect - use ref to track progress to avoid setState in setState
+  const progressRef = useRef(0);
+  
   useEffect(() => {
     if (!isGenerating) {
+      progressRef.current = 0;
       setInternalProgress(0);
       setInternalStage('queued');
       setEstimatedTime(30);
@@ -55,22 +58,22 @@ export function Canvas({ result, isGenerating, mode, onExampleClick, progress: e
     if (externalProgress) return;
 
     const interval = setInterval(() => {
-      setInternalProgress(prev => {
-        const next = Math.min(prev + Math.random() * 5, 95);
-        
-        if (next < 20) {
-          setInternalStage('queued');
-          setEstimatedTime(25);
-        } else if (next < 80) {
-          setInternalStage('generating');
-          setEstimatedTime(Math.max(5, 20 - Math.floor((next - 20) / 3)));
-        } else {
-          setInternalStage('finalizing');
-          setEstimatedTime(Math.max(2, 10 - Math.floor((next - 80) / 2)));
-        }
-        
-        return next;
-      });
+      progressRef.current = Math.min(progressRef.current + Math.random() * 5, 95);
+      const next = progressRef.current;
+      
+      // Update all states separately, not inside another setState
+      setInternalProgress(next);
+      
+      if (next < 20) {
+        setInternalStage('queued');
+        setEstimatedTime(25);
+      } else if (next < 80) {
+        setInternalStage('generating');
+        setEstimatedTime(Math.max(5, 20 - Math.floor((next - 20) / 3)));
+      } else {
+        setInternalStage('finalizing');
+        setEstimatedTime(Math.max(2, 10 - Math.floor((next - 80) / 2)));
+      }
     }, 500);
 
     return () => clearInterval(interval);

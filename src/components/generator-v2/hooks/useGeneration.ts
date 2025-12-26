@@ -22,6 +22,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
   const [progress, setProgress] = useState<GenerationProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Use ref to track generating state to avoid regenerating the generate callback
+  const isGeneratingRef = useRef(false);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -106,8 +108,9 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     settings: GenerationSettings,
     referenceImage?: string | null
   ): Promise<GenerationResult | null> => {
-    if (isGenerating) return null;
+    if (isGeneratingRef.current) return null;
 
+    isGeneratingRef.current = true;
     setIsGenerating(true);
     setError(null);
     setProgress({ stage: 'queued', progress: 0 });
@@ -224,10 +227,11 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       
       return null;
     } finally {
+      isGeneratingRef.current = false;
       setIsGenerating(false);
       setProgress(null);
     }
-  }, [isGenerating, pollJobStatus]);
+  }, [pollJobStatus]);
 
   const cancel = useCallback(() => {
     stopPolling();
