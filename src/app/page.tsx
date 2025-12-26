@@ -242,7 +242,7 @@ function FloatingCard({
             ) : (
               <Sparkles className="w-3 h-3 text-[#00D9FF]" />
             )}
-            <span className="text-[10px] text-white/80 font-medium">
+            <span className="text-[10px] text-white font-medium">
               {type === 'video' ? 'AI Video' : 'AI Generated'}
             </span>
           </div>
@@ -335,7 +335,7 @@ function Hero() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00D9FF] opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00D9FF]"></span>
           </span>
-          <span className="text-sm text-white/80">Топовые AI модели в одном месте</span>
+          <span className="text-sm text-[var(--text2)]">Топовые AI модели в одном месте</span>
         </div>
 
         {/* Main headline */}
@@ -343,7 +343,7 @@ function Hero() {
           className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.1] mb-4 sm:mb-6 opacity-0 animate-fade-up px-2"
           style={{ animationDelay: '400ms' }}
         >
-          <span className="text-white">Создавайте </span>
+          <span className="text-[var(--text)]">Создавайте </span>
           <span className="relative inline-block">
             <span className="bg-gradient-to-r from-[#00D9FF] via-[#A78BFA] to-[#EC4899] bg-clip-text text-transparent">
               невероятный
@@ -360,12 +360,12 @@ function Hero() {
             </svg>
           </span>
           <br />
-          <span className="text-white">контент с AI</span>
+          <span className="text-[var(--text)]">контент с AI</span>
         </h1>
 
         {/* Subtitle */}
         <p 
-          className="text-base sm:text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed opacity-0 animate-fade-up px-4"
+          className="text-base sm:text-lg md:text-xl text-[var(--muted)] max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed opacity-0 animate-fade-up px-4"
           style={{ animationDelay: '600ms' }}
         >
           Фото и видео студийного качества за секунды.
@@ -397,7 +397,7 @@ function Hero() {
             asChild
             size="lg" 
             variant="outline"
-            className="border-white/20 text-white hover:bg-white/5 h-12 sm:h-14 px-8 sm:px-10 rounded-xl backdrop-blur-sm w-full sm:w-auto"
+            className="border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)] h-12 sm:h-14 px-8 sm:px-10 rounded-xl backdrop-blur-sm w-full sm:w-auto"
           >
             <Link href="/inspiration" className="flex items-center justify-center gap-2">
               <Play className="w-4 h-4" />
@@ -408,19 +408,19 @@ function Hero() {
 
         {/* Trust indicators */}
         <div 
-          className="flex flex-wrap justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-white/40 opacity-0 animate-fade-up px-4"
+          className="flex flex-wrap justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-[var(--muted)] opacity-0 animate-fade-up px-4"
           style={{ animationDelay: '1000ms' }}
         >
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00D9FF]" />
+            <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--gold)]" />
             <span>50⭐ бесплатно</span>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00D9FF]" />
+            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--gold)]" />
             <span>Telegram</span>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00D9FF]" />
+            <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--gold)]" />
             <span>Без карты</span>
           </div>
         </div>
@@ -428,7 +428,7 @@ function Hero() {
 
       {/* Scroll indicator */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-        <ChevronDown className="w-6 h-6 text-white/30" />
+        <ChevronDown className="w-6 h-6 text-[var(--muted)]" />
       </div>
     </section>
   );
@@ -462,23 +462,23 @@ function FreeBananaHighlight() {
                   <Gift className="w-3 h-3" />
                   ЭКСКЛЮЗИВ
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                <h3 className="text-2xl md:text-3xl font-bold text-[var(--text)] mb-2">
                   Nano Banana Pro — бесплатно! 🍌
                 </h3>
-                <p className="text-white/60 mb-4 max-w-xl">
+                <p className="text-[var(--muted)] mb-4 max-w-xl">
                   В тарифах Creator+ и Business — безлимитные генерации на Nano Banana Pro без траты звёзд. 
                   Премиум качество фото включено в подписку!
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                  <div className="flex items-center gap-2 text-sm text-white/80">
+                  <div className="flex items-center gap-2 text-sm text-[var(--text2)]">
                     <Check className="w-4 h-4 text-[#22C55E]" />
                     <span>Безлимит 1-2K фото</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-white/80">
+                  <div className="flex items-center gap-2 text-sm text-[var(--text2)]">
                     <Check className="w-4 h-4 text-[#22C55E]" />
                     <span>Премиум качество</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-white/80">
+                  <div className="flex items-center gap-2 text-sm text-[var(--text2)]">
                     <Check className="w-4 h-4 text-[#22C55E]" />
                     <span>Без траты ⭐</span>
                   </div>
