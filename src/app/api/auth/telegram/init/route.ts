@@ -33,7 +33,7 @@ export async function POST() {
     }
 
     // Return the code and bot link
-    const botUsername = env.optional("TELEGRAM_BOT_USERNAME") || 'LensRoom_bot';
+    const botUsername = env.optional("TELEGRAM_BOT_USERNAME") || 'LensRoomBot';
     const botLink = `https://t.me/${botUsername}?start=login_${code}`;
 
     return NextResponse.json({

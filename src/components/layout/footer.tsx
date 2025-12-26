@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
 
 const footerLinks = {
@@ -22,6 +23,13 @@ const footerLinks = {
 };
 
 export function Footer() {
+  const pathname = usePathname();
+  
+  // Скрываем футер на страницах генератора
+  if (pathname === '/create' || pathname.startsWith('/create/')) {
+    return null;
+  }
+
   return (
     <footer className="border-t border-[var(--border)] bg-[var(--surface)]">
       <div className="container mx-auto px-6 py-12">

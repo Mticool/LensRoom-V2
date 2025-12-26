@@ -262,11 +262,11 @@ function Hero() {
   }, []);
 
   const cardPositions = [
-    { x: '5%', y: '15%', rotate: -12, scale: 0.9 },
+    { x: '3%', y: '15%', rotate: -12, scale: 0.9 },
     { x: '75%', y: '10%', rotate: 8, scale: 0.85 },
-    { x: '-5%', y: '55%', rotate: -6, scale: 0.75 },
-    { x: '80%', y: '50%', rotate: 12, scale: 0.8 },
-    { x: '15%', y: '75%', rotate: -4, scale: 0.7 },
+    { x: '2%', y: '55%', rotate: -6, scale: 0.75 },
+    { x: '78%', y: '50%', rotate: 12, scale: 0.8 },
+    { x: '12%', y: '75%', rotate: -4, scale: 0.7 },
     { x: '70%', y: '80%', rotate: 6, scale: 0.75 },
   ];
 

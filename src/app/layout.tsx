@@ -8,7 +8,6 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { ReferralHandler } from "@/components/referrals/ReferralHandler";
 import { ServiceWorkerRegistration } from "@/components/service-worker/ServiceWorkerRegistration";
 import { CriticalResources } from "@/components/performance/CriticalResources";
-import { LowBalanceAlert } from "@/components/ui/low-balance-alert";
 import { Analytics } from "@/components/analytics/Analytics";
 
 // Optimized font loading with next/font
@@ -187,7 +186,6 @@ export default function RootLayout({
               <ReferralHandler />
             </Suspense>
             <Header />
-            <LowBalanceAlert />
             <div className="min-h-screen">{children}</div>
             <Footer />
           </Providers>
