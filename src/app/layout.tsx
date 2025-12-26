@@ -10,6 +10,7 @@ import { ServiceWorkerRegistration } from "@/components/service-worker/ServiceWo
 import { CriticalResources } from "@/components/performance/CriticalResources";
 import { LowBalanceAlert } from "@/components/ui/low-balance-alert";
 import { Analytics } from "@/components/analytics/Analytics";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 
 // Optimized font loading with next/font
 const inter = Inter({
@@ -186,10 +187,7 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <ReferralHandler />
             </Suspense>
-            <Header />
-            <LowBalanceAlert />
-            <div className="min-h-screen">{children}</div>
-            <Footer />
+            <ConditionalLayout>{children}</ConditionalLayout>
           </Providers>
         </ErrorBoundary>
       </body>
