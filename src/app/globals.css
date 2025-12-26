@@ -4,11 +4,13 @@
 /* Apple-like Minimal Black (default site-wide) */
 
 :root {
-  /* Exact Freepik.com Dark Theme */
+  /* Default Dark Theme */
   --bg: #0D0D0D;
   --surface: #1A1A1A;
   --surface2: #222222;
-  --border: rgba(255, 255, 255, 0.06);
+  --surface3: #2A2A2A;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
   --text: #FFFFFF;
   --text2: rgba(255, 255, 255, 0.9);
   --muted: rgba(255, 255, 255, 0.6);
@@ -17,9 +19,15 @@
   --radius: 16px;
   --glass-bg: rgba(13, 13, 13, 0.95);
   
-  /* PRIMARY BRAND COLOR - Freepik Cyan (replaces gold!) */
+  /* PRIMARY BRAND COLOR */
   --gold: #00D9FF;
   --gold-hover: #1AE3FF;
+  
+  /* Button colors */
+  --btn-primary-bg: #FFFFFF;
+  --btn-primary-text: #0D0D0D;
+  --btn-secondary-bg: #222222;
+  --btn-secondary-text: #FFFFFF;
   
   color-scheme: dark;
 }
@@ -28,7 +36,9 @@ html[data-theme="dark"] {
   --bg: #0D0D0D;
   --surface: #1A1A1A;
   --surface2: #222222;
-  --border: rgba(255, 255, 255, 0.06);
+  --surface3: #2A2A2A;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
   --text: #FFFFFF;
   --text2: rgba(255, 255, 255, 0.9);
   --muted: rgba(255, 255, 255, 0.6);
@@ -41,21 +51,40 @@ html[data-theme="dark"] {
   --gold: #00D9FF;
   --gold-hover: #1AE3FF;
   
+  /* Button colors for dark theme */
+  --btn-primary-bg: #FFFFFF;
+  --btn-primary-text: #0D0D0D;
+  --btn-secondary-bg: #222222;
+  --btn-secondary-text: #FFFFFF;
+  
   color-scheme: dark;
 }
 
 html[data-theme="light"] {
   --bg: #FAFAFA;
   --surface: #FFFFFF;
-  --surface2: #F5F5F5;
-  --border: rgba(0, 0, 0, 0.10);
-  --text: rgba(0, 0, 0, 0.92);
-  --text2: rgba(0, 0, 0, 0.78);
-  --muted: rgba(0, 0, 0, 0.62);
+  --surface2: #F0F0F0;
+  --surface3: #E5E5E5;
+  --border: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.20);
+  --text: #1A1A1A;
+  --text2: #333333;
+  --muted: #666666;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.12);
   --radius: 16px;
-  --glass-bg: rgba(250, 250, 250, 0.85);
+  --glass-bg: rgba(255, 255, 255, 0.90);
+  
+  /* Light theme brand colors - slightly darker cyan for contrast */
+  --gold: #0891B2;
+  --gold-hover: #0E7490;
+  
+  /* Button colors for light theme */
+  --btn-primary-bg: #1A1A1A;
+  --btn-primary-text: #FFFFFF;
+  --btn-secondary-bg: #F0F0F0;
+  --btn-secondary-text: #1A1A1A;
+  
   color-scheme: light;
 }
 
@@ -440,6 +469,11 @@ html.tg-webview body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="light"] .glass-morphism {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 /* Gradient text */

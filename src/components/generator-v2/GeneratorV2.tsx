@@ -245,7 +245,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   return (
     <div 
       data-generator-v2="true"
-      className="h-screen w-screen overflow-hidden bg-[#0F0F10] flex font-[Inter,system-ui,sans-serif]"
+      className="h-screen w-screen overflow-hidden bg-[var(--gen-bg)] flex font-[Inter,system-ui,sans-serif]"
     >
       {/* Settings Panel - Left (hidden on mobile, shown via overlay) */}
       {!isMobile && (
@@ -262,14 +262,14 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       {isMobile && showSettings && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSettings(false)}>
           <div 
-            className="absolute left-0 top-0 bottom-0 w-[85%] max-w-xs bg-[#18181B] animate-in slide-in-from-left duration-300"
+            className="absolute left-0 top-0 bottom-0 w-[85%] max-w-xs bg-[var(--gen-surface)] animate-in slide-in-from-left duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-[#27272A]">
-              <span className="text-sm font-medium text-white">Настройки</span>
+            <div className="flex items-center justify-between p-4 border-b border-[var(--gen-border)]">
+              <span className="text-sm font-medium text-[var(--gen-text)]">Настройки</span>
               <button
                 onClick={() => setShowSettings(false)}
-                className="p-1.5 rounded-lg hover:bg-[#27272A] text-[#71717A]"
+                className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] text-[var(--gen-muted2)]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -288,16 +288,16 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative bg-[#0F0F10]">
+      <div className="flex-1 flex flex-col relative bg-[var(--gen-bg)]">
         {/* Header - Responsive */}
-        <div className="h-12 md:h-12 border-b border-[#27272A] bg-[#18181B] flex items-center justify-between px-3 md:px-4">
+        <div className="h-12 md:h-12 border-b border-[var(--gen-border)] bg-[var(--gen-surface)] flex items-center justify-between px-3 md:px-4">
           {/* Left: Menu (mobile) + Logo & Home */}
           <div className="flex items-center gap-2 md:gap-3">
             {/* Mobile menu button */}
             {isMobile && (
               <button
                 onClick={() => setShowSettings(true)}
-                className="p-1.5 rounded-lg hover:bg-[#27272A] text-[#A1A1AA] hover:text-white transition-colors"
+                className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-colors"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -305,15 +305,15 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             
             <button
               onClick={() => router.push('/')}
-              className="p-1.5 rounded-lg hover:bg-[#27272A] text-[#52525B] hover:text-white transition-colors hidden md:block"
+              className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] text-[var(--gen-muted2)] hover:text-[var(--gen-text)] transition-colors hidden md:block"
               title="На главную"
             >
               <Home className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-[#00D9FF]" />
-              <span className="text-sm font-semibold text-white hidden sm:block">LensRoom</span>
-              <span className="px-1.5 py-0.5 rounded bg-[#27272A] text-[#71717A] text-[10px] font-medium hidden sm:block">
+              <Sparkles className="w-4 h-4 text-[var(--gen-primary)]" />
+              <span className="text-sm font-semibold text-[var(--gen-text)] hidden sm:block">LensRoom</span>
+              <span className="px-1.5 py-0.5 rounded bg-[var(--gen-surface2)] text-[var(--gen-muted2)] text-[10px] font-medium hidden sm:block">
                 2.0
               </span>
             </div>
@@ -321,13 +321,13 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
 
           {/* Center: Mode Switcher & Styles */}
           <div className="flex items-center gap-1 md:gap-2">
-            <div className="flex items-center bg-[#27272A] rounded-lg p-0.5">
+            <div className="flex items-center bg-[var(--gen-surface2)] rounded-lg p-0.5">
               <button
                 onClick={() => setMode('image')}
                 className={`px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 ${
                   mode === 'image'
-                    ? 'bg-[#00D9FF] text-[#0F0F10] shadow-lg shadow-[#00D9FF]/20'
-                    : 'text-[#A1A1AA] hover:text-white'
+                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
+                    : 'text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
                 }`}
               >
                 <ImageIcon className="w-3.5 h-3.5" />
@@ -337,8 +337,8 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 onClick={() => setMode('video')}
                 className={`px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 ${
                   mode === 'video'
-                    ? 'bg-[#00D9FF] text-[#0F0F10] shadow-lg shadow-[#00D9FF]/20'
-                    : 'text-[#A1A1AA] hover:text-white'
+                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
+                    : 'text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
                 }`}
               >
                 <Video className="w-3.5 h-3.5" />
@@ -346,7 +346,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
               </button>
               <button
                 onClick={() => router.push('/create/products')}
-                className="px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 text-[#A1A1AA] hover:text-white"
+                className="px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 text-[var(--gen-muted)] hover:text-[var(--gen-text)]"
               >
                 <span className="text-sm">🛍️</span>
                 <span className="hidden xs:inline">E-com</span>
@@ -355,7 +355,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
 
             <button
               onClick={() => setShowStyleGallery(true)}
-              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white transition-all flex items-center gap-1.5 text-xs"
+              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-all flex items-center gap-1.5 text-xs"
             >
               <Palette className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Стили</span>
@@ -367,7 +367,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 setMode('image');
                 toast.info('Выберите изображение для апскейла');
               }}
-              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white transition-all flex items-center gap-1.5 text-xs hidden sm:flex"
+              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-all flex items-center gap-1.5 text-xs hidden sm:flex"
             >
               <ArrowUpCircle className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Upscale</span>
@@ -378,20 +378,20 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
           <div className="flex items-center gap-2 md:gap-3">
             {isAuthenticated ? (
               <>
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#27272A]">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--gen-surface2)]">
                   <div className="w-1 h-1 rounded-full bg-emerald-400" />
-                  <span className="text-[11px] font-medium text-white">
+                  <span className="text-[11px] font-medium text-[var(--gen-text)]">
                     {credits.toLocaleString()} ⭐
                   </span>
                 </div>
                 {username && !isMobile && (
-                  <span className="text-[11px] text-[#71717A]">@{username}</span>
+                  <span className="text-[11px] text-[var(--gen-muted2)]">@{username}</span>
                 )}
               </>
             ) : (
               <button
                 onClick={handleLogin}
-                className="px-2 md:px-3 py-1.5 rounded-lg bg-[#00D9FF] hover:bg-[#22D3EE] text-[#0F0F10] text-xs font-medium transition-all flex items-center gap-1.5"
+                className="px-2 md:px-3 py-1.5 rounded-lg bg-[var(--gen-primary)] hover:bg-[#22D3EE] text-[#0F0F10] text-xs font-medium transition-all flex items-center gap-1.5"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">Войти</span>
@@ -400,7 +400,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="p-1.5 rounded-lg hover:bg-[#27272A] transition-colors text-[#52525B] hover:text-white hidden md:block"
+              className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] transition-colors text-[var(--gen-muted2)] hover:text-[var(--gen-text)] hidden md:block"
               title={showHistory ? "Скрыть историю" : "Показать историю"}
             >
               <PanelLeft className={`w-4 h-4 transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`} />
@@ -409,7 +409,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 overflow-hidden bg-[#0F0F10]">
+        <div className="flex-1 overflow-hidden bg-[var(--gen-bg)]">
           <Canvas
             result={currentResult}
             isGenerating={isGenerating}
@@ -419,7 +419,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
         </div>
 
         {/* Prompt Bar */}
-        <div className="px-3 md:px-6 pt-3 md:pt-4 pb-4 md:pb-8 bg-[#0F0F10]">
+        <div className="px-3 md:px-6 pt-3 md:pt-4 pb-4 md:pb-8 bg-[var(--gen-bg)]">
           <PromptBar
             onGenerate={handleGenerate}
             isGenerating={isGenerating}
@@ -435,7 +435,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
           {isMobile && history.length > 0 && (
             <button
               onClick={() => setShowHistory(true)}
-              className="mt-3 w-full py-2 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white transition-all flex items-center justify-center gap-2 text-xs"
+              className="mt-3 w-full py-2 rounded-lg bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-all flex items-center justify-center gap-2 text-xs"
             >
               <PanelLeft className="w-3.5 h-3.5" />
               История ({history.length})
@@ -496,8 +496,8 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       {/* Hotkeys Modal */}
       {showHotkeys && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowHotkeys(false)}>
-          <div className="bg-[#18181B] rounded-2xl border border-[#27272A] p-6 max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-white mb-4">⌨️ Горячие клавиши</h3>
+          <div className="bg-[var(--gen-surface)] rounded-2xl border border-[var(--gen-border)] p-6 max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-[var(--gen-text)] mb-4">⌨️ Горячие клавиши</h3>
             <div className="space-y-3">
               {[
                 { keys: ['⌘/Ctrl', 'Enter'], desc: 'Создать' },
@@ -506,10 +506,10 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 { keys: ['?'], desc: 'Показать подсказки' },
               ].map((hotkey, i) => (
                 <div key={i} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-[#A1A1AA]">{hotkey.desc}</span>
+                  <span className="text-sm text-[var(--gen-muted)]">{hotkey.desc}</span>
                   <div className="flex gap-1">
                     {hotkey.keys.map((key, j) => (
-                      <kbd key={j} className="px-2 py-1 rounded bg-[#27272A] text-white text-xs font-mono border border-[#3F3F46]">
+                      <kbd key={j} className="px-2 py-1 rounded bg-[var(--gen-surface2)] text-[var(--gen-text)] text-xs font-mono border border-[#3F3F46]">
                         {key}
                       </kbd>
                     ))}

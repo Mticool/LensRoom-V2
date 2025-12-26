@@ -4,22 +4,24 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-[var(--radius)] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none",
+  "inline-flex items-center justify-center rounded-[var(--radius)] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]/30 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none",
   {
     variants: {
       variant: {
-        // Primary - White on black
-        default: "bg-white text-black hover:bg-white/90 shadow-[var(--shadow-sm)]",
+        // Primary - uses theme variables
+        default: "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] hover:opacity-90 shadow-[var(--shadow-sm)]",
         // Secondary - surface with border
-        secondary: "bg-[var(--surface2)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--surface)] hover:border-white/20",
+        secondary: "bg-[var(--btn-secondary-bg)] text-[var(--btn-secondary-text)] border border-[var(--border)] hover:bg-[var(--surface3)] hover:border-[var(--border-strong)]",
         // Outline - minimal border
-        outline: "border border-[var(--border)] bg-transparent text-[var(--text)] hover:bg-[var(--surface2)] hover:border-white/20",
+        outline: "border border-[var(--border)] bg-transparent text-[var(--text)] hover:bg-[var(--surface2)] hover:border-[var(--border-strong)]",
         // Ghost - no background
         ghost: "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]",
         // Destructive
-        destructive: "bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20",
+        destructive: "bg-red-500/10 text-red-600 border border-red-500/30 hover:bg-red-500/20",
         // Link
-        link: "text-[var(--text)] underline-offset-4 hover:underline",
+        link: "text-[var(--gold)] underline-offset-4 hover:underline",
+        // Brand - cyan accent
+        brand: "bg-[var(--gold)] text-white hover:bg-[var(--gold-hover)] shadow-[var(--shadow-sm)]",
       },
       size: {
         sm: "h-9 px-4 text-sm",

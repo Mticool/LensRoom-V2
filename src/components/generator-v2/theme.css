@@ -8,38 +8,31 @@
    Source: freepik.com/pikaso/ai-image-generator
    ======================================== */
 
+/* DARK THEME (default) */
 [data-generator-v2="true"] {
   /* Background - Pikaso uses very dark zinc */
-  --bg: #0F0F10 !important;
-  --surface: #18181B !important;
-  --surface2: #27272A !important;
-  --surface3: #3F3F46 !important;
+  --gen-bg: #0F0F10;
+  --gen-surface: #18181B;
+  --gen-surface2: #27272A;
+  --gen-surface3: #3F3F46;
   
   /* Borders - barely visible */
-  --border: #27272A !important;
-  --border-hover: #3F3F46 !important;
+  --gen-border: #27272A;
+  --gen-border-hover: #3F3F46;
   
   /* Text - pure white and zinc grays */
-  --text: #FFFFFF !important;
-  --text2: #E4E4E7 !important;
-  --muted: #A1A1AA !important;
-  --muted2: #71717A !important;
+  --gen-text: #FFFFFF;
+  --gen-text2: #E4E4E7;
+  --gen-muted: #A1A1AA;
+  --gen-muted2: #71717A;
   
   /* Primary accent - Freepik cyan */
-  --primary: #00D9FF !important;
-  --primary-hover: #22D3EE !important;
-  --primary-muted: #0891B2 !important;
+  --gen-primary: #00D9FF;
+  --gen-primary-hover: #22D3EE;
+  --gen-primary-muted: #0891B2;
   
   /* Secondary - Purple */
-  --secondary: #A855F7 !important;
-  
-  /* Override system colors */
-  --color-bg-primary: #0F0F10 !important;
-  --color-bg-secondary: #18181B !important;
-  --color-text-primary: #FFFFFF !important;
-  --color-gold: #00D9FF !important;
-  --gold: #00D9FF !important;
-  --gold-hover: #22D3EE !important;
+  --gen-secondary: #A855F7;
   
   /* Font - Inter (same as Freepik) */
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
@@ -47,6 +40,33 @@
   /* Smooth rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* LIGHT THEME */
+html[data-theme="light"] [data-generator-v2="true"] {
+  /* Background - Clean light */
+  --gen-bg: #FAFAFA;
+  --gen-surface: #FFFFFF;
+  --gen-surface2: #F4F4F5;
+  --gen-surface3: #E4E4E7;
+  
+  /* Borders - visible but subtle */
+  --gen-border: #E4E4E7;
+  --gen-border-hover: #D4D4D8;
+  
+  /* Text - dark on light */
+  --gen-text: #18181B;
+  --gen-text2: #27272A;
+  --gen-muted: #71717A;
+  --gen-muted2: #A1A1AA;
+  
+  /* Primary accent - darker cyan for contrast */
+  --gen-primary: #0891B2;
+  --gen-primary-hover: #0E7490;
+  --gen-primary-muted: #06B6D4;
+  
+  /* Secondary - Purple */
+  --gen-secondary: #9333EA;
 }
 
 /* Freepik-inspired color palette */

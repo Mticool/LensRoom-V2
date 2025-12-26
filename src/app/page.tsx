@@ -125,56 +125,56 @@ function WelcomePopup() {
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-md rounded-3xl bg-gradient-to-b from-[#1A1A1A] to-[#0F0F0F] border border-white/10 p-8 shadow-2xl animate-scale-in">
+      <div className="relative w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-8 shadow-2xl animate-scale-in">
         {/* Close button */}
         <button 
           onClick={handleClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors"
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-[var(--surface2)] transition-colors"
         >
-          <X className="w-5 h-5 text-white/60" />
+          <X className="w-5 h-5 text-[var(--muted)]" />
         </button>
 
         {/* Gift icon */}
-        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#00D9FF] to-[#A78BFA] p-[2px]">
-          <div className="w-full h-full rounded-2xl bg-[#0F0F0F] flex items-center justify-center">
-            <Gift className="w-10 h-10 text-[#00D9FF]" />
+        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[var(--gold)] to-[#A78BFA] p-[2px]">
+          <div className="w-full h-full rounded-2xl bg-[var(--surface)] flex items-center justify-center">
+            <Gift className="w-10 h-10 text-[var(--gold)]" />
           </div>
         </div>
 
         {/* Content */}
-        <h3 className="text-2xl font-bold text-white text-center mb-3">
+        <h3 className="text-2xl font-bold text-[var(--text)] text-center mb-3">
           Добро пожаловать! 🎉
         </h3>
-        <p className="text-white/60 text-center mb-6">
-          Получите <span className="text-[#00D9FF] font-bold">50 бесплатных звёзд</span> при регистрации и создайте свой первый AI контент!
+        <p className="text-[var(--muted)] text-center mb-6">
+          Получите <span className="text-[var(--gold)] font-bold">50 бесплатных звёзд</span> при регистрации и создайте свой первый AI контент!
         </p>
 
         {/* Features list */}
         <div className="space-y-3 mb-6">
           <div className="flex items-center gap-3 text-sm">
-            <div className="w-6 h-6 rounded-full bg-[#00D9FF]/20 flex items-center justify-center">
-              <Check className="w-4 h-4 text-[#00D9FF]" />
+            <div className="w-6 h-6 rounded-full bg-[var(--gold)]/20 flex items-center justify-center">
+              <Check className="w-4 h-4 text-[var(--gold)]" />
             </div>
-            <span className="text-white/80">Nano Banana — бесплатно в тарифах</span>
+            <span className="text-[var(--text2)]">Nano Banana — бесплатно в тарифах</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <div className="w-6 h-6 rounded-full bg-[#00D9FF]/20 flex items-center justify-center">
-              <Check className="w-4 h-4 text-[#00D9FF]" />
+            <div className="w-6 h-6 rounded-full bg-[var(--gold)]/20 flex items-center justify-center">
+              <Check className="w-4 h-4 text-[var(--gold)]" />
             </div>
-            <span className="text-white/80">10+ топовых AI моделей</span>
+            <span className="text-[var(--text2)]">10+ топовых AI моделей</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <div className="w-6 h-6 rounded-full bg-[#00D9FF]/20 flex items-center justify-center">
-              <Check className="w-4 h-4 text-[#00D9FF]" />
+            <div className="w-6 h-6 rounded-full bg-[var(--gold)]/20 flex items-center justify-center">
+              <Check className="w-4 h-4 text-[var(--gold)]" />
             </div>
-            <span className="text-white/80">Вход за 5 секунд через Telegram</span>
+            <span className="text-[var(--text2)]">Вход за 5 секунд через Telegram</span>
           </div>
         </div>
 
         {/* CTA */}
         <Button 
           asChild
-          className="w-full bg-gradient-to-r from-[#00D9FF] to-[#A78BFA] hover:opacity-90 text-black font-bold h-14 rounded-xl text-base"
+          className="w-full bg-gradient-to-r from-[var(--gold)] to-[#A78BFA] hover:opacity-90 text-white font-bold h-14 rounded-xl text-base"
         >
           <Link href="/create" onClick={handleClose}>
             <Sparkles className="w-5 h-5 mr-2" />
@@ -182,7 +182,7 @@ function WelcomePopup() {
           </Link>
         </Button>
 
-        <p className="text-xs text-white/30 text-center mt-4">
+        <p className="text-xs text-[var(--muted)] text-center mt-4">
           Без карты • Без спама • Отписка в 1 клик
         </p>
       </div>
@@ -530,14 +530,14 @@ function Features() {
 
   return (
     <section className="py-12 sm:py-16 md:py-24 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0A0A] to-[#0A0A0A]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--bg)] to-[var(--bg)]" />
       
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
         <div className="text-center mb-8 sm:mb-12 md:mb-16">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-2 sm:mb-4">
             Всё для контента
           </h2>
-          <p className="text-white/50 text-sm sm:text-base max-w-lg mx-auto">
+          <p className="text-[var(--muted)] text-sm sm:text-base max-w-lg mx-auto">
             Один инструмент вместо десятка сервисов
           </p>
         </div>
@@ -546,21 +546,21 @@ function Features() {
           {features.map((feature, i) => (
             <div 
               key={i}
-              className="group relative p-5 sm:p-6 md:p-8 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-white/10 transition-all duration-300 active:scale-[0.98] sm:hover:translate-y-[-4px]"
+              className="group relative p-5 sm:p-6 md:p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-strong)] transition-all duration-300 active:scale-[0.98] sm:hover:translate-y-[-4px]"
             >
               {/* Glow effect on hover */}
               <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
               
               <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br ${feature.gradient} p-[1px] mb-4 sm:mb-6`}>
-                <div className="w-full h-full rounded-xl bg-[#0A0A0A] flex items-center justify-center">
+                <div className="w-full h-full rounded-xl bg-[var(--bg)] flex items-center justify-center">
                   <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
               </div>
               
-              <h3 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">
+              <h3 className="text-lg sm:text-xl font-bold text-[var(--text)] mb-1 sm:mb-2">
                 {feature.title}
               </h3>
-              <p className="text-white/50 text-xs sm:text-sm leading-relaxed">
+              <p className="text-[var(--muted)] text-xs sm:text-sm leading-relaxed">
                 {feature.description}
               </p>
             </div>
@@ -580,40 +580,40 @@ function AnimatedStats() {
 
   return (
     <section className="py-12 sm:py-16 md:py-20 relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-[#00D9FF]/5 via-transparent to-[#A78BFA]/5" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[var(--gold)]/5 via-transparent to-[#A78BFA]/5" />
       
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8 max-w-4xl mx-auto">
-          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={users.ref}>
-            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#00D9FF] mx-auto mb-2 sm:mb-3" />
-            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-[var(--surface)]" ref={users.ref}>
+            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--gold)] mx-auto mb-2 sm:mb-3" />
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-0.5 sm:mb-1">
               {users.count.toLocaleString()}+
             </div>
-            <div className="text-xs sm:text-sm text-white/40">пользователей</div>
+            <div className="text-xs sm:text-sm text-[var(--muted)]">пользователей</div>
           </div>
           
-          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={generations.ref}>
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-[var(--surface)]" ref={generations.ref}>
             <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-[#A78BFA] mx-auto mb-2 sm:mb-3" />
-            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-0.5 sm:mb-1">
               {generations.count.toLocaleString()}+
             </div>
-            <div className="text-xs sm:text-sm text-white/40">генераций</div>
+            <div className="text-xs sm:text-sm text-[var(--muted)]">генераций</div>
           </div>
           
-          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={models.ref}>
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-[var(--surface)]" ref={models.ref}>
             <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-[#EC4899] mx-auto mb-2 sm:mb-3" />
-            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-0.5 sm:mb-1">
               {models.count}+
             </div>
-            <div className="text-xs sm:text-sm text-white/40">AI моделей</div>
+            <div className="text-xs sm:text-sm text-[var(--muted)]">AI моделей</div>
           </div>
           
-          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={satisfaction.ref}>
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-[var(--surface)]" ref={satisfaction.ref}>
             <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-[#22C55E] mx-auto mb-2 sm:mb-3" />
-            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-0.5 sm:mb-1">
               {satisfaction.count}%
             </div>
-            <div className="text-xs sm:text-sm text-white/40">довольных</div>
+            <div className="text-xs sm:text-sm text-[var(--muted)]">довольных</div>
           </div>
         </div>
       </div>
@@ -639,10 +639,10 @@ function ModelsShowcase() {
 
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
         <div className="text-center mb-8 sm:mb-12 md:mb-16">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-2 sm:mb-4">
             Топовые модели мира
           </h2>
-          <p className="text-white/50 text-sm sm:text-base max-w-lg mx-auto">
+          <p className="text-[var(--muted)] text-sm sm:text-base max-w-lg mx-auto">
             Выбирайте лучшее для каждой задачи
           </p>
         </div>
@@ -656,7 +656,7 @@ function ModelsShowcase() {
                 className={`flex-shrink-0 w-44 sm:w-56 md:w-64 p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl snap-start transition-all group ${
                   model.free 
                     ? 'bg-gradient-to-br from-[#22C55E]/10 to-[#22C55E]/5 border-2 border-[#22C55E]/30 active:border-[#22C55E]/50' 
-                    : 'bg-white/[0.03] border border-white/[0.06] active:border-white/20'
+                    : 'bg-[var(--surface)] border border-[var(--border)] active:border-[var(--border-strong)]'
                 }`}
               >
                 <div 
@@ -665,8 +665,8 @@ function ModelsShowcase() {
                 >
                   {model.badge}
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-white mb-0.5 sm:mb-1">{model.name}</h3>
-                <p className="text-white/40 text-xs sm:text-sm">{model.type}</p>
+                <h3 className="text-base sm:text-lg font-bold text-[var(--text)] mb-0.5 sm:mb-1">{model.name}</h3>
+                <p className="text-[var(--muted)] text-xs sm:text-sm">{model.type}</p>
                 {model.free && (
                   <div className="mt-2 sm:mt-3 flex items-center gap-1 text-[#22C55E] text-[10px] sm:text-xs font-medium">
                     <Gift className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -698,10 +698,10 @@ function ReferralBanner() {
                   <Gift className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white mb-1">
+                  <h3 className="text-lg font-bold text-[var(--text)] mb-1">
                     Приглашай друзей — получай звёзды!
                   </h3>
-                  <p className="text-white/60 text-sm">
+                  <p className="text-[var(--muted)] text-sm">
                     50⭐ за каждого друга, который зарегистрируется по вашей ссылке
                   </p>
                 </div>
@@ -730,10 +730,10 @@ function GallerySection() {
     <section className="py-24 relative">
       <div className="container mx-auto px-6">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-[var(--text)] mb-4">
             Галерея работ
           </h2>
-          <p className="text-white/50 max-w-lg mx-auto">
+          <p className="text-[var(--muted)] max-w-lg mx-auto">
             Нажмите на любой пример — откроется генератор с теми же настройками
           </p>
         </div>
@@ -755,7 +755,7 @@ function HowItWorks() {
     <section className="py-12 sm:py-16 md:py-24 relative">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="text-center mb-8 sm:mb-12 md:mb-16">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-2 sm:mb-4">
             Три шага до результата
           </h2>
         </div>
@@ -764,14 +764,14 @@ function HowItWorks() {
           {steps.map((step, i) => (
             <div key={i} className="flex flex-col items-center gap-2 sm:gap-4 flex-1">
               {i > 0 && (
-                <div className="hidden md:block absolute w-16 h-px bg-gradient-to-r from-white/20 to-white/5" />
+                <div className="hidden md:block absolute w-16 h-px bg-gradient-to-r from-[var(--border)] to-transparent" />
               )}
               <div className="text-center">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-br from-white/20 to-white/5 bg-clip-text text-transparent mb-1 sm:mb-2">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-br from-[var(--muted)] to-transparent bg-clip-text text-transparent mb-1 sm:mb-2">
                   {step.num}
                 </div>
-                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white mb-0.5 sm:mb-1">{step.title}</h3>
-                <p className="text-white/40 text-[10px] sm:text-xs md:text-sm">{step.desc}</p>
+                <h3 className="text-sm sm:text-base md:text-lg font-bold text-[var(--text)] mb-0.5 sm:mb-1">{step.title}</h3>
+                <p className="text-[var(--muted)] text-[10px] sm:text-xs md:text-sm">{step.desc}</p>
               </div>
             </div>
           ))}
@@ -816,14 +816,14 @@ function FAQSection() {
     <section className="py-12 sm:py-16 md:py-24 relative">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="text-center mb-8 sm:mb-12 md:mb-16">
-          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/5 border border-white/10 mb-4 sm:mb-6">
-            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00D9FF]" />
-            <span className="text-xs sm:text-sm text-white/80">FAQ</span>
+          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[var(--surface)] border border-[var(--border)] mb-4 sm:mb-6">
+            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--gold)]" />
+            <span className="text-xs sm:text-sm text-[var(--text2)]">FAQ</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-2 sm:mb-4">
             Частые вопросы
           </h2>
-          <p className="text-white/50 text-sm sm:text-base max-w-lg mx-auto">
+          <p className="text-[var(--muted)] text-sm sm:text-base max-w-lg mx-auto">
             Не нашли ответ? Напишите в Telegram
           </p>
         </div>
@@ -832,23 +832,23 @@ function FAQSection() {
           {faqs.map((faq, i) => (
             <div 
               key={i}
-              className="rounded-xl sm:rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden"
+              className="rounded-xl sm:rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden"
             >
               <button
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="w-full flex items-center justify-between p-4 sm:p-5 md:p-6 text-left active:bg-white/[0.04] sm:hover:bg-white/[0.02] transition-colors"
+                className="w-full flex items-center justify-between p-4 sm:p-5 md:p-6 text-left hover:bg-[var(--surface2)] transition-colors"
               >
-                <span className="font-semibold text-white text-sm sm:text-base pr-3 sm:pr-4">{faq.question}</span>
-                <div className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/5 flex items-center justify-center transition-transform duration-300 ${openIndex === i ? 'rotate-180' : ''}`}>
+                <span className="font-semibold text-[var(--text)] text-sm sm:text-base pr-3 sm:pr-4">{faq.question}</span>
+                <div className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--surface2)] flex items-center justify-center transition-transform duration-300 ${openIndex === i ? 'rotate-180' : ''}`}>
                   {openIndex === i ? (
-                    <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00D9FF]" />
+                    <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--gold)]" />
                   ) : (
-                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/60" />
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--muted)]" />
                   )}
                 </div>
               </button>
               <div className={`overflow-hidden transition-all duration-300 ${openIndex === i ? 'max-h-96' : 'max-h-0'}`}>
-                <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 text-white/60 text-sm sm:text-base leading-relaxed">
+                <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 text-[var(--muted)] text-sm sm:text-base leading-relaxed">
                   {faq.answer}
                 </div>
               </div>
@@ -867,22 +867,22 @@ function FinalCTA() {
       {/* Background effects */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,217,255,0.15),transparent_60%)]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[400px] md:w-[600px] h-[300px] sm:h-[400px] md:h-[600px] bg-[#00D9FF]/10 rounded-full blur-[80px] sm:blur-[100px] md:blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[400px] md:w-[600px] h-[300px] sm:h-[400px] md:h-[600px] bg-[var(--gold)]/10 rounded-full blur-[80px] sm:blur-[100px] md:blur-[120px]" />
       </div>
 
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 sm:mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--text)] mb-4 sm:mb-6">
             Готовы создавать?
           </h2>
-          <p className="text-base sm:text-lg md:text-xl text-white/50 mb-6 sm:mb-8 md:mb-10 px-4">
+          <p className="text-base sm:text-lg md:text-xl text-[var(--muted)] mb-6 sm:mb-8 md:mb-10 px-4">
             Получите 50⭐ бесплатно и создайте первый контент
           </p>
           
           <Button 
             asChild
             size="lg" 
-            className="relative group bg-white hover:bg-white/90 text-black font-bold text-base sm:text-lg h-12 sm:h-14 md:h-16 px-8 sm:px-10 md:px-14 rounded-xl sm:rounded-2xl w-full sm:w-auto max-w-xs sm:max-w-none mx-auto"
+            className="relative group bg-[var(--btn-primary-bg)] hover:opacity-90 text-[var(--btn-primary-text)] font-bold text-base sm:text-lg h-12 sm:h-14 md:h-16 px-8 sm:px-10 md:px-14 rounded-xl sm:rounded-2xl w-full sm:w-auto max-w-xs sm:max-w-none mx-auto"
           >
             <Link href="/create">
               <span className="flex items-center justify-center gap-2 sm:gap-3">
@@ -893,7 +893,7 @@ function FinalCTA() {
             </Link>
           </Button>
 
-          <p className="mt-4 sm:mt-6 text-xs sm:text-sm text-white/30">
+          <p className="mt-4 sm:mt-6 text-xs sm:text-sm text-[var(--muted)]">
             Вход через Telegram • Без карты
           </p>
         </div>
@@ -905,7 +905,7 @@ function FinalCTA() {
 // ===== MAIN PAGE =====
 export default function Home() {
   return (
-    <main className="bg-[#0A0A0A] text-white min-h-screen overflow-x-hidden">
+    <main className="bg-[var(--bg)] text-[var(--text)] min-h-screen overflow-x-hidden">
       <WelcomePopup />
       <Hero />
       <FreeBananaHighlight />
