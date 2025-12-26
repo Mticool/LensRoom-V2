@@ -7,15 +7,6 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { TelegramAuthProvider } from "@/providers/telegram-auth-provider";
 import { ThemeProvider, useTheme } from "@/lib/theme-provider";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60 * 1000, // 1 minute
-      retry: 1,
-    },
-  },
-});
-
 function ThemedToaster() {
   const { theme } = useTheme();
   
@@ -37,6 +28,16 @@ function ThemedToaster() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  // Create QueryClient inside component using useState to ensure it's stable
+  const [queryClient] = React.useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000, // 1 minute
+        retry: 1,
+      },
+    },
+  }));
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
