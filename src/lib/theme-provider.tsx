@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 
 export type Theme = 'light' | 'dark';
 
@@ -60,17 +60,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(newTheme);
   }, [theme, setTheme]);
 
+  const defaultContextValue = useMemo(() => ({
+    theme: 'dark' as Theme,
+    toggleTheme: () => {},
+    setTheme: () => {}
+  }), []);
+
+  const contextValue = useMemo(() => ({
+    theme,
+    toggleTheme,
+    setTheme
+  }), [theme, toggleTheme, setTheme]);
+
   // Prevent flash by returning children with default theme context before mount
   if (!mounted) {
     return (
-      <ThemeContext.Provider value={{ theme: 'dark', toggleTheme: () => {}, setTheme: () => {} }}>
+      <ThemeContext.Provider value={defaultContextValue}>
         {children}
       </ThemeContext.Provider>
     );
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );
