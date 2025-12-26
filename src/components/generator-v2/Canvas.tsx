@@ -34,6 +34,48 @@ export function Canvas({ result, isGenerating, mode, onExampleClick, progress: e
   const [showLightbox, setShowLightbox] = useState(false);
   const [zoom, setZoom] = useState(100);
   
+  // Progress state handling - MUST be at top level before any conditional returns
+  const [internalProgress, setInternalProgress] = useState(0);
+  const [internalStage, setInternalStage] = useState<string>('queued');
+  const [estimatedTime, setEstimatedTime] = useState(30);
+  
+  const progress = externalProgress?.progress ?? internalProgress;
+  const stage = externalProgress?.stage ?? internalStage;
+  const eta = externalProgress?.eta;
+
+  // Progress simulation effect
+  useEffect(() => {
+    if (!isGenerating) {
+      setInternalProgress(0);
+      setInternalStage('queued');
+      setEstimatedTime(30);
+      return;
+    }
+
+    if (externalProgress) return;
+
+    const interval = setInterval(() => {
+      setInternalProgress(prev => {
+        const next = Math.min(prev + Math.random() * 5, 95);
+        
+        if (next < 20) {
+          setInternalStage('queued');
+          setEstimatedTime(25);
+        } else if (next < 80) {
+          setInternalStage('generating');
+          setEstimatedTime(Math.max(5, 20 - Math.floor((next - 20) / 3)));
+        } else {
+          setInternalStage('finalizing');
+          setEstimatedTime(Math.max(2, 10 - Math.floor((next - 80) / 2)));
+        }
+        
+        return next;
+      });
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isGenerating, externalProgress]);
+  
   const examples = mode === 'video' 
     ? [
         'Медленная съёмка волн океана на закате',
@@ -127,47 +169,6 @@ export function Canvas({ result, isGenerating, mode, onExampleClick, progress: e
       </div>
     );
   }
-
-  // Progress state handling
-  const [internalProgress, setInternalProgress] = useState(0);
-  const [internalStage, setInternalStage] = useState<string>('queued');
-  const [estimatedTime, setEstimatedTime] = useState(30);
-
-  const progress = externalProgress?.progress ?? internalProgress;
-  const stage = externalProgress?.stage ?? internalStage;
-  const eta = externalProgress?.eta;
-
-  useEffect(() => {
-    if (!isGenerating) {
-      setInternalProgress(0);
-      setInternalStage('queued');
-      setEstimatedTime(30);
-      return;
-    }
-
-    if (externalProgress) return;
-
-    const interval = setInterval(() => {
-      setInternalProgress(prev => {
-        const next = Math.min(prev + Math.random() * 5, 95);
-        
-        if (next < 20) {
-          setInternalStage('queued');
-          setEstimatedTime(25);
-        } else if (next < 80) {
-          setInternalStage('generating');
-          setEstimatedTime(Math.max(5, 20 - Math.floor((next - 20) / 3)));
-        } else {
-          setInternalStage('finalizing');
-          setEstimatedTime(Math.max(2, 10 - Math.floor((next - 80) / 2)));
-        }
-        
-        return next;
-      });
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [isGenerating, externalProgress]);
 
   // Loading state
   if (isGenerating) {
