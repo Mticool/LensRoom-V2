@@ -96,6 +96,10 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     });
   }, [stopPolling]);
 
+  // Store options in ref to avoid re-creating generate on every render
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   const generate = useCallback(async (
     prompt: string,
     mode: GeneratorMode,
@@ -159,8 +163,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       }
 
       // Notify about credits used
-      if (data.creditCost && options.onCreditsUsed) {
-        options.onCreditsUsed(data.creditCost);
+      if (data.creditCost && optionsRef.current.onCreditsUsed) {
+        optionsRef.current.onCreditsUsed(data.creditCost);
       }
 
       // If already completed (e.g., OpenAI)
@@ -176,10 +180,10 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         };
         
         setProgress(null);
-        options.onSuccess?.(result);
+        optionsRef.current.onSuccess?.(result);
         
         // Send browser notification if enabled
-        if (options.enableNotifications !== false) {
+        if (optionsRef.current.enableNotifications !== false) {
           notificationService.showGenerationComplete(mode, prompt);
         }
         
@@ -198,10 +202,10 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         result.settings = settings;
         result.mode = mode;
         console.log('[useGeneration] Calling onSuccess with result');
-        options.onSuccess?.(result);
+        optionsRef.current.onSuccess?.(result);
         
         // Send browser notification if enabled
-        if (options.enableNotifications !== false) {
+        if (optionsRef.current.enableNotifications !== false) {
           notificationService.showGenerationComplete(mode, prompt);
         }
       }
@@ -211,10 +215,10 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     } catch (e: any) {
       const errorMessage = e.message || 'Неизвестная ошибка';
       setError(errorMessage);
-      options.onError?.(errorMessage);
+      optionsRef.current.onError?.(errorMessage);
       
       // Send error notification if enabled
-      if (options.enableNotifications !== false) {
+      if (optionsRef.current.enableNotifications !== false) {
         notificationService.showGenerationError(errorMessage);
       }
       
@@ -223,7 +227,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       setIsGenerating(false);
       setProgress(null);
     }
-  }, [isGenerating, pollJobStatus, options]);
+  }, [isGenerating, pollJobStatus]);
 
   const cancel = useCallback(() => {
     stopPolling();
