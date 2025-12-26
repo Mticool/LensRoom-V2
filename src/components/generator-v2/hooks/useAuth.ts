@@ -97,15 +97,6 @@ export function useAuth() {
     }
   }, []);
 
-  return {
-    isAuthenticated: auth.isAuthenticated,
-    isLoading: auth.isLoading,
-    credits: auth.credits,
-    userId: auth.userId,
-    username: auth.username,
-    role: auth.role,
-    refreshCredits,
-    checkAuth,
-  };
+  return { ...auth, refreshCredits, checkAuth };
 }
 

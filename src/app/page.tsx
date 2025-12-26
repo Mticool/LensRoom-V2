@@ -920,3 +920,429 @@ export default function Home() {
     </main>
   );
 }
+
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== FEATURES SECTION =====
+function Features() {
+  const features = [
+    {
+      icon: ImageIcon,
+      title: 'Фото',
+      description: 'Портреты, продукты, арт — студийное качество',
+      gradient: 'from-[#00D9FF] to-[#0EA5E9]',
+    },
+    {
+      icon: Video,
+      title: 'Видео',
+      description: 'Reels, промо — кинематографичный результат',
+      gradient: 'from-[#A78BFA] to-[#8B5CF6]',
+    },
+    {
+      icon: Wand2,
+      title: 'Эффекты',
+      description: 'Трансформации, переходы, магия',
+      gradient: 'from-[#EC4899] to-[#DB2777]',
+    },
+  ];
+
+  return (
+    <section className="py-12 sm:py-16 md:py-24 relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0A0A] to-[#0A0A0A]" />
+      
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+            Всё для контента
+          </h2>
+          <p className="text-white/50 text-sm sm:text-base max-w-lg mx-auto">
+            Один инструмент вместо десятка сервисов
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
+          {features.map((feature, i) => (
+            <div 
+              key={i}
+              className="group relative p-5 sm:p-6 md:p-8 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-white/10 transition-all duration-300 active:scale-[0.98] sm:hover:translate-y-[-4px]"
+            >
+              {/* Glow effect on hover */}
+              <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+              
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br ${feature.gradient} p-[1px] mb-4 sm:mb-6`}>
+                <div className="w-full h-full rounded-xl bg-[#0A0A0A] flex items-center justify-center">
+                  <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+              </div>
+              
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">
+                {feature.title}
+              </h3>
+              <p className="text-white/50 text-xs sm:text-sm leading-relaxed">
+                {feature.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== ANIMATED STATS SECTION =====
+function AnimatedStats() {
+  const users = useAnimatedCounter(1000, 2000);
+  const generations = useAnimatedCounter(5000, 2500);
+  const models = useAnimatedCounter(10, 1500);
+  const satisfaction = useAnimatedCounter(98, 2000);
+
+  return (
+    <section className="py-12 sm:py-16 md:py-20 relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-[#00D9FF]/5 via-transparent to-[#A78BFA]/5" />
+      
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8 max-w-4xl mx-auto">
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={users.ref}>
+            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#00D9FF] mx-auto mb-2 sm:mb-3" />
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+              {users.count.toLocaleString()}+
+            </div>
+            <div className="text-xs sm:text-sm text-white/40">пользователей</div>
+          </div>
+          
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={generations.ref}>
+            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-[#A78BFA] mx-auto mb-2 sm:mb-3" />
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+              {generations.count.toLocaleString()}+
+            </div>
+            <div className="text-xs sm:text-sm text-white/40">генераций</div>
+          </div>
+          
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={models.ref}>
+            <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-[#EC4899] mx-auto mb-2 sm:mb-3" />
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+              {models.count}+
+            </div>
+            <div className="text-xs sm:text-sm text-white/40">AI моделей</div>
+          </div>
+          
+          <div className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]" ref={satisfaction.ref}>
+            <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-[#22C55E] mx-auto mb-2 sm:mb-3" />
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-0.5 sm:mb-1">
+              {satisfaction.count}%
+            </div>
+            <div className="text-xs sm:text-sm text-white/40">довольных</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== MODELS SHOWCASE =====
+function ModelsShowcase() {
+  const models = [
+    { name: 'Nano Banana Pro', type: 'Фото', badge: 'Бесплатно', color: '#22C55E', free: true },
+    { name: 'Veo 3.1', type: 'Видео', badge: 'Google', color: '#A78BFA', free: false },
+    { name: 'Kling 2.6', type: 'Видео', badge: 'Trending', color: '#EC4899', free: false },
+    { name: 'Sora Pro', type: 'Видео', badge: 'OpenAI', color: '#00D9FF', free: false },
+    { name: 'Seedance', type: 'Видео', badge: 'Fast', color: '#F59E0B', free: false },
+  ];
+
+  return (
+    <section className="py-12 sm:py-16 md:py-24 relative overflow-hidden">
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,217,255,0.08),transparent_70%)]" />
+      </div>
+
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+            Топовые модели мира
+          </h2>
+          <p className="text-white/50 text-sm sm:text-base max-w-lg mx-auto">
+            Выбирайте лучшее для каждой задачи
+          </p>
+        </div>
+
+        {/* Scrolling models */}
+        <div className="relative -mx-4 sm:mx-0">
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory px-4 sm:px-0">
+            {models.map((model, i) => (
+              <div 
+                key={i}
+                className={`flex-shrink-0 w-44 sm:w-56 md:w-64 p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl snap-start transition-all group ${
+                  model.free 
+                    ? 'bg-gradient-to-br from-[#22C55E]/10 to-[#22C55E]/5 border-2 border-[#22C55E]/30 active:border-[#22C55E]/50' 
+                    : 'bg-white/[0.03] border border-white/[0.06] active:border-white/20'
+                }`}
+              >
+                <div 
+                  className="text-[10px] sm:text-xs font-bold px-2 py-0.5 sm:py-1 rounded-full inline-block mb-2 sm:mb-4"
+                  style={{ backgroundColor: `${model.color}20`, color: model.color }}
+                >
+                  {model.badge}
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white mb-0.5 sm:mb-1">{model.name}</h3>
+                <p className="text-white/40 text-xs sm:text-sm">{model.type}</p>
+                {model.free && (
+                  <div className="mt-2 sm:mt-3 flex items-center gap-1 text-[#22C55E] text-[10px] sm:text-xs font-medium">
+                    <Gift className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    <span>В подписке</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== REFERRAL BANNER =====
+function ReferralBanner() {
+  return (
+    <section className="py-12 relative">
+      <div className="container mx-auto px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative p-6 md:p-8 rounded-2xl bg-gradient-to-r from-[#A78BFA]/10 to-[#EC4899]/10 border border-[#A78BFA]/20 overflow-hidden">
+            {/* Decorative */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#A78BFA]/20 rounded-full blur-[40px]" />
+            
+            <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#A78BFA] to-[#EC4899] flex items-center justify-center">
+                  <Gift className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Приглашай друзей — получай звёзды!
+                  </h3>
+                  <p className="text-white/60 text-sm">
+                    50⭐ за каждого друга, который зарегистрируется по вашей ссылке
+                  </p>
+                </div>
+              </div>
+              
+              <Button 
+                asChild
+                className="bg-gradient-to-r from-[#A78BFA] to-[#EC4899] hover:opacity-90 text-white font-bold px-6 h-12 rounded-xl flex-shrink-0"
+              >
+                <Link href="/profile">
+                  Моя реферальная ссылка
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== GALLERY SECTION =====
+function GallerySection() {
+  return (
+    <section className="py-24 relative">
+      <div className="container mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Галерея работ
+          </h2>
+          <p className="text-white/50 max-w-lg mx-auto">
+            Нажмите на любой пример — откроется генератор с теми же настройками
+          </p>
+        </div>
+      </div>
+      <EffectsGallery />
+    </section>
+  );
+}
+
+// ===== HOW IT WORKS =====
+function HowItWorks() {
+  const steps = [
+    { num: '01', title: 'Выберите', desc: 'Модель или пример' },
+    { num: '02', title: 'Опишите', desc: 'Что хотите создать' },
+    { num: '03', title: 'Получите', desc: 'Результат за секунды' },
+  ];
+
+  return (
+    <section className="py-12 sm:py-16 md:py-24 relative">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+            Три шага до результата
+          </h2>
+        </div>
+
+        <div className="flex flex-row items-start justify-center gap-2 sm:gap-4 md:gap-8 max-w-4xl mx-auto">
+          {steps.map((step, i) => (
+            <div key={i} className="flex flex-col items-center gap-2 sm:gap-4 flex-1">
+              {i > 0 && (
+                <div className="hidden md:block absolute w-16 h-px bg-gradient-to-r from-white/20 to-white/5" />
+              )}
+              <div className="text-center">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-br from-white/20 to-white/5 bg-clip-text text-transparent mb-1 sm:mb-2">
+                  {step.num}
+                </div>
+                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white mb-0.5 sm:mb-1">{step.title}</h3>
+                <p className="text-white/40 text-[10px] sm:text-xs md:text-sm">{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== FAQ SECTION =====
+function FAQSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const faqs = [
+    {
+      question: 'Как начать пользоваться LensRoom?',
+      answer: 'Зарегистрируйтесь через Telegram за 5 секунд и получите 50 бесплатных звёзд. После этого можете сразу создавать фото и видео.',
+    },
+    {
+      question: 'Что такое звёзды (⭐)?',
+      answer: 'Звёзды — это внутренняя валюта LensRoom. Каждая генерация стоит определённое количество звёзд. Вы видите цену до генерации.',
+    },
+    {
+      question: 'Nano Banana Pro бесплатно?',
+      answer: 'Да! В тарифах Creator+ и Business — безлимитные генерации 1-2K фото без траты звёзд.',
+    },
+    {
+      question: 'Какие видео-модели есть?',
+      answer: 'Veo 3.1 (Google), Kling 2.6, Sora Pro (OpenAI), Seedance — от кинематографичности до скорости.',
+    },
+    {
+      question: 'Мои генерации приватны?',
+      answer: 'Да! Все результаты видны только вам. Мы не используем ваши работы для обучения.',
+    },
+    {
+      question: 'Можно использовать коммерчески?',
+      answer: 'Да, все сгенерированные изображения и видео принадлежат вам — для e-commerce, рекламы и соцсетей.',
+    },
+  ];
+
+  return (
+    <section className="py-12 sm:py-16 md:py-24 relative">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16">
+          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/5 border border-white/10 mb-4 sm:mb-6">
+            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00D9FF]" />
+            <span className="text-xs sm:text-sm text-white/80">FAQ</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">
+            Частые вопросы
+          </h2>
+          <p className="text-white/50 text-sm sm:text-base max-w-lg mx-auto">
+            Не нашли ответ? Напишите в Telegram
+          </p>
+        </div>
+
+        <div className="max-w-3xl mx-auto space-y-2 sm:space-y-3 md:space-y-4">
+          {faqs.map((faq, i) => (
+            <div 
+              key={i}
+              className="rounded-xl sm:rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden"
+            >
+              <button
+                onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                className="w-full flex items-center justify-between p-4 sm:p-5 md:p-6 text-left active:bg-white/[0.04] sm:hover:bg-white/[0.02] transition-colors"
+              >
+                <span className="font-semibold text-white text-sm sm:text-base pr-3 sm:pr-4">{faq.question}</span>
+                <div className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/5 flex items-center justify-center transition-transform duration-300 ${openIndex === i ? 'rotate-180' : ''}`}>
+                  {openIndex === i ? (
+                    <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00D9FF]" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/60" />
+                  )}
+                </div>
+              </button>
+              <div className={`overflow-hidden transition-all duration-300 ${openIndex === i ? 'max-h-96' : 'max-h-0'}`}>
+                <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 text-white/60 text-sm sm:text-base leading-relaxed">
+                  {faq.answer}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== FINAL CTA =====
+function FinalCTA() {
+  return (
+    <section className="py-16 sm:py-24 md:py-32 relative overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,217,255,0.15),transparent_60%)]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[400px] md:w-[600px] h-[300px] sm:h-[400px] md:h-[600px] bg-[#00D9FF]/10 rounded-full blur-[80px] sm:blur-[100px] md:blur-[120px]" />
+      </div>
+
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 sm:mb-6">
+            Готовы создавать?
+          </h2>
+          <p className="text-base sm:text-lg md:text-xl text-white/50 mb-6 sm:mb-8 md:mb-10 px-4">
+            Получите 50⭐ бесплатно и создайте первый контент
+          </p>
+          
+          <Button 
+            asChild
+            size="lg" 
+            className="relative group bg-white hover:bg-white/90 text-black font-bold text-base sm:text-lg h-12 sm:h-14 md:h-16 px-8 sm:px-10 md:px-14 rounded-xl sm:rounded-2xl w-full sm:w-auto max-w-xs sm:max-w-none mx-auto"
+          >
+            <Link href="/create">
+              <span className="flex items-center justify-center gap-2 sm:gap-3">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                Начать бесплатно
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+          </Button>
+
+          <p className="mt-4 sm:mt-6 text-xs sm:text-sm text-white/30">
+            Вход через Telegram • Без карты
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== MAIN PAGE =====
+export default function Home() {
+  return (
+    <main className="bg-[#0A0A0A] text-white min-h-screen overflow-x-hidden">
+      <WelcomePopup />
+      <Hero />
+      <FreeBananaHighlight />
+      <Features />
+      <AnimatedStats />
+      <ModelsShowcase />
+      <ReferralBanner />
+      <GallerySection />
+      <HowItWorks />
+      <FAQSection />
+      <FinalCTA />
+    </main>
+  );
+}
