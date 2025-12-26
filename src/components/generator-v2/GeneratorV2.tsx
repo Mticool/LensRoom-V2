@@ -241,19 +241,15 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     router.push('/login');
   };
 
-  // Show loading state
-  if (authLoading) {
-    return (
-      <div className="h-screen w-screen bg-[#0F0F10] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-[#00D9FF] animate-spin mx-auto" />
-          <p className="mt-4 text-[#A1A1AA]">Загрузка...</p>
-        </div>
+  // Conditional render AFTER all hooks
+  return authLoading ? (
+    <div className="h-screen w-screen bg-[#0F0F10] flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 text-[#00D9FF] animate-spin mx-auto" />
+        <p className="mt-4 text-[#A1A1AA]">Загрузка...</p>
       </div>
-    );
-  }
-
-  return (
+    </div>
+  ) : (
     <div 
       data-generator-v2="true"
       className="h-screen w-screen overflow-hidden bg-[#0F0F10] flex font-[Inter,system-ui,sans-serif]"

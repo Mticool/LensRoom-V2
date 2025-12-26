@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "../globals.css";
+import { Providers } from "@/components/providers";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { ReferralHandler } from "@/components/referrals/ReferralHandler";
+import { ServiceWorkerRegistration } from "@/components/service-worker/ServiceWorkerRegistration";
+import { CriticalResources } from "@/components/performance/CriticalResources";
+import { Analytics } from "@/components/analytics/Analytics";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -11,8 +18,23 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "LensRoom - AI Генератор",
-  description: "Создавайте изображения с помощью AI",
+  description: "Создавайте изображения и видео с помощью AI",
 };
+
+const themeScript = `
+(function() {
+  try {
+    var t = localStorage.getItem('theme');
+    if (t !== 'light' && t !== 'dark') {
+      t = 'dark';
+      localStorage.setItem('theme', t);
+    }
+    document.documentElement.dataset.theme = t;
+  } catch (e) {
+    document.documentElement.dataset.theme = 'dark';
+  }
+})();
+`;
 
 export default function GeneratorLayout({
   children,
@@ -20,25 +42,25 @@ export default function GeneratorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru" data-theme="dark" className={inter.variable}>
+    <html lang="ru" data-theme="dark" suppressHydrationWarning className={inter.variable}>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var t = localStorage.getItem('theme') || 'dark';
-                  document.documentElement.dataset.theme = t;
-                } catch (e) {
-                  document.documentElement.dataset.theme = 'dark';
-                }
-              })();
-            `,
-          }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={`${inter.className} antialiased`}>
-        {children}
+        <ErrorBoundary>
+          <Providers>
+            <Analytics 
+              gaId={process.env.NEXT_PUBLIC_GA_ID}
+              ymId={process.env.NEXT_PUBLIC_YM_ID}
+            />
+            <ServiceWorkerRegistration />
+            <CriticalResources />
+            <Suspense fallback={null}>
+              <ReferralHandler />
+            </Suspense>
+            {children}
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );
