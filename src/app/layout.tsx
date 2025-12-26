@@ -172,24 +172,7 @@ export default function RootLayout({
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body className={`${inter.className} antialiased`}>
-        <ErrorBoundary>
-          <Providers>
-            {/* Analytics */}
-            <Analytics 
-              gaId={process.env.NEXT_PUBLIC_GA_ID}
-              ymId={process.env.NEXT_PUBLIC_YM_ID}
-            />
-            
-            {/* Performance optimizations */}
-            <ServiceWorkerRegistration />
-            <CriticalResources />
-            
-            <Suspense fallback={null}>
-              <ReferralHandler />
-            </Suspense>
-            <ConditionalLayout>{children}</ConditionalLayout>
-          </Providers>
-        </ErrorBoundary>
+        {children}
       </body>
     </html>
   );
