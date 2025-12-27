@@ -116,7 +116,7 @@ export function GeneratorV2Clean() {
 
   // Render
   return (
-    <div className="h-screen w-screen flex bg-[#0F0F10] text-white overflow-hidden">
+    <div className="h-[calc(100vh-64px)] w-screen flex bg-[#0F0F10] text-white overflow-hidden mt-16">
       {/* Left Panel - Canvas */}
       <div className="flex-1 flex flex-col">
         {/* Canvas Header */}
@@ -229,4 +229,5 @@ export function GeneratorV2Clean() {
     </div>
   );
 }
+
 

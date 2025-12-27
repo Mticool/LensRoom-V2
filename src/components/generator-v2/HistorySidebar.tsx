@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Clock, X, Copy, Repeat, Image, Film, Loader2, RefreshCw, Bell, Star, ChevronRight } from 'lucide-react';
+import { Clock, X, Copy, Repeat, Image, Film, Loader2, RefreshCw, Bell, Star, ChevronRight, Edit } from 'lucide-react';
 import { GenerationResult } from './GeneratorV2';
 
 interface HistorySidebarProps {
@@ -11,12 +11,13 @@ interface HistorySidebarProps {
   onClose: () => void;
   onCopyPrompt?: (prompt: string) => void;
   onRepeat?: (result: GenerationResult) => void;
+  onEdit?: (result: GenerationResult) => void;
   isLoading?: boolean;
   onRefresh?: () => void;
   onConnectBot?: () => void;
 }
 
-export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPrompt, onRepeat, isLoading, onRefresh, onConnectBot }: HistorySidebarProps) {
+export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPrompt, onRepeat, onEdit, isLoading, onRefresh, onConnectBot }: HistorySidebarProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   
@@ -52,6 +53,11 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
   const handleRepeat = (e: React.MouseEvent, result: GenerationResult) => {
     e.stopPropagation();
     onRepeat?.(result);
+  };
+
+  const handleEdit = (e: React.MouseEvent, result: GenerationResult) => {
+    e.stopPropagation();
+    onEdit?.(result);
   };
 
   const formatTimestamp = (timestamp: number) => {
@@ -181,18 +187,25 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
 
                 {/* Actions - shown on hover */}
                 <div className="px-2 pb-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {onEdit && result.mode === 'image' && (
+                    <button
+                      onClick={(e) => handleEdit(e, result)}
+                      className="p-1.5 rounded-md hover:bg-[#A855F7]/20 text-[#52525B] hover:text-[#A855F7] transition-all flex items-center gap-1"
+                      title="Редактировать изображение"
+                    >
+                      <Edit className="w-3 h-3" />
+                      <span className="text-[10px]">Remix</span>
+                    </button>
+                  )}
                   <button
                     onClick={(e) => handleCopy(e, result)}
                     className="p-1.5 rounded-md hover:bg-[#3F3F46] text-[#52525B] hover:text-white transition-all flex items-center gap-1"
                     title="Копировать промпт"
                   >
                     {copiedId === result.id ? (
-                      <span className="text-emerald-400 text-[10px]">✓ Скопировано</span>
+                      <span className="text-emerald-400 text-[10px]">✓</span>
                     ) : (
-                      <>
-                        <Copy className="w-3 h-3" />
-                        <span className="text-[10px]">Копировать</span>
-                      </>
+                      <Copy className="w-3 h-3" />
                     )}
                   </button>
                   <button
@@ -201,7 +214,6 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
                     title="Повторить с теми же настройками"
                   >
                     <Repeat className="w-3 h-3" />
-                    <span className="text-[10px]">Повторить</span>
                   </button>
                 </div>
               </button>

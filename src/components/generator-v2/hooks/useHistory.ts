@@ -1,17 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { GenerationResult, GeneratorMode, GenerationSettings } from '../GeneratorV2';
 
 export function useHistory(mode: GeneratorMode) {
   const [history, setHistory] = useState<GenerationResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchHistory = useCallback(async () => {
     try {
+      // Cancel previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      abortControllerRef.current = new AbortController();
+      
       setIsLoading(true);
       const type = mode === 'video' ? 'video' : 'photo';
-      const response = await fetch(`/api/generations?type=${type}&limit=50`);
+      const response = await fetch(`/api/generations?type=${type}&limit=50`, {
+        signal: abortControllerRef.current.signal,
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch history');
@@ -36,7 +46,9 @@ export function useHistory(mode: GeneratorMode) {
 
       setHistory(results.filter(r => r.status === 'success' && r.url));
     } catch (error) {
-      console.error('Failed to fetch history:', error);
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Failed to fetch history:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +56,14 @@ export function useHistory(mode: GeneratorMode) {
 
   useEffect(() => {
     fetchHistory();
-  }, [fetchHistory]);
+
+    return () => {
+      // Cleanup on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [mode]);
 
   const addToHistory = useCallback((result: GenerationResult) => {
     setHistory(prev => [result, ...prev]);
@@ -63,5 +82,6 @@ export function useHistory(mode: GeneratorMode) {
     refresh: fetchHistory,
   };
 }
+
 
 

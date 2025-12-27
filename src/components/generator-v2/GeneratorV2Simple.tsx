@@ -80,7 +80,7 @@ export function GeneratorV2Simple() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0F0F10]">
+    <div className="h-[calc(100vh-64px)] w-screen flex flex-col bg-[#0F0F10] mt-16">
       {/* Header */}
       <div className="h-12 border-b border-[#27272A] bg-[#18181B] flex items-center px-4">
         <Sparkles className="w-4 h-4 text-[#00D9FF] mr-2" />
@@ -131,4 +131,5 @@ export function GeneratorV2Simple() {
     </div>
   );
 }
+
 

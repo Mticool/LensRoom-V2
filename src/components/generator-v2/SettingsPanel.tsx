@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Settings2, Sparkles, Upload, X, ChevronDown, ChevronUp, Wand2, Zap, Clock, Star } from 'lucide-react';
+import { Settings2, Sparkles, ChevronDown, ChevronUp, Wand2, Zap, Clock, Star } from 'lucide-react';
 import { GeneratorMode, GenerationSettings } from './GeneratorV2';
+import { ImageUploader } from './ImageUploader';
 import { Tooltip } from './Tooltip';
 import { PHOTO_MODELS, VIDEO_MODELS, PhotoModelConfig, VideoModelConfig } from '@/config/models';
 
@@ -55,7 +56,6 @@ export function SettingsPanel({
   onReferenceImageChange,
 }: SettingsPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
 
   // Get models based on mode
@@ -101,30 +101,6 @@ export function SettingsPanel({
     const supported = currentModel.aspectRatios;
     return ASPECT_RATIOS.filter(ar => supported.includes(ar.id));
   }, [currentModel]);
-
-  // Handle reference image upload
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Файл слишком большой. Максимум 10MB.');
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onReferenceImageChange(reader.result as string);
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error('Upload error:', error);
-      setIsUploading(false);
-    }
-  };
 
   const SpeedIcon = SPEED_CONFIG[currentModel?.speed || 'medium']?.icon || Clock;
 
@@ -330,51 +306,11 @@ export function SettingsPanel({
         {/* Reference Image (i2i / i2v) */}
         {((mode === 'image' && currentModel && 'supportsI2i' in currentModel && currentModel.supportsI2i) ||
           (mode === 'video' && currentModel && 'supportsI2v' in currentModel && currentModel.supportsI2v)) && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-[#A1A1AA] uppercase tracking-wide">
-                Референс
-              </label>
-              {referenceImage && (
-                <button
-                  onClick={() => onReferenceImageChange(null)}
-                  className="text-[10px] text-[#EF4444] hover:text-red-400"
-                >
-                  Удалить
-                </button>
-              )}
-            </div>
-            
-            {referenceImage ? (
-              <div className="relative rounded-lg overflow-hidden border border-[#27272A]">
-                <img 
-                  src={referenceImage} 
-                  alt="Reference" 
-                  className="w-full h-20 object-cover"
-                />
-                <button
-                  onClick={() => onReferenceImageChange(null)}
-                  className="absolute top-1 right-1 p-1 rounded bg-black/60 hover:bg-black/80 text-white"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center h-16 rounded-lg border border-dashed border-[#3F3F46] hover:border-[#52525B] cursor-pointer transition-colors bg-[#27272A]/30">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  disabled={isUploading}
-                />
-                <Upload className="w-4 h-4 text-[#71717A] mb-1" />
-                <span className="text-[10px] text-[#71717A]">
-                  {isUploading ? 'Загрузка...' : 'Загрузить'}
-                </span>
-              </label>
-            )}
-          </div>
+          <ImageUploader
+            value={referenceImage}
+            onChange={onReferenceImageChange}
+            mode="compact"
+          />
         )}
 
         {/* Midjourney Settings */}

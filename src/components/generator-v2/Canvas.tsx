@@ -1,8 +1,11 @@
 'use client';
 
-import { memo } from 'react';
-import { Sparkles, Download, Maximize2 } from 'lucide-react';
+import { memo, useState } from 'react';
+import { Sparkles, Download, Maximize2, Wand2, Layers } from 'lucide-react';
 import { GenerationResult, GeneratorMode } from './GeneratorV2';
+import { ImageUploader } from './ImageUploader';
+import { BatchImageUploader, type UploadedImage } from './BatchImageUploader';
+import { HistoryImagePicker } from './HistoryImagePicker';
 import { toast } from 'sonner';
 
 interface CanvasProps {
@@ -10,6 +13,11 @@ interface CanvasProps {
   isGenerating: boolean;
   mode: GeneratorMode;
   onExampleClick?: (prompt: string) => void;
+  referenceImage?: string | null;
+  onReferenceImageChange?: (image: string | null) => void;
+  batchMode?: boolean;
+  batchImages?: UploadedImage[];
+  onBatchImagesChange?: (images: UploadedImage[]) => void;
 }
 
 // Простой компонент без сложного state management
@@ -17,12 +25,36 @@ export const Canvas = memo(function Canvas({
   result, 
   isGenerating, 
   mode, 
-  onExampleClick 
+  onExampleClick,
+  referenceImage,
+  onReferenceImageChange,
+  batchMode = false,
+  batchImages = [],
+  onBatchImagesChange 
 }: CanvasProps) {
+  const [showHistoryPicker, setShowHistoryPicker] = useState(false);
   
   const examples = mode === 'video' 
     ? ['Волны океана на закате', 'Кот играет с пряжей', 'Неоновый город ночью']
     : ['Космический корабль киберпанк 8k', 'Портрет с цветами в волосах', 'Неоновый город, дождь'];
+
+  const remixExamples = mode === 'video'
+    ? ['Добавить дождь и грозу', 'Превратить в ночную сцену', 'Добавить снег']
+    : ['Добавить неоновое освещение', 'Превратить в киберпанк стиль', 'Добавить цветы и природу', 'Сделать в стиле аниме'];
+
+  const handleSelectFromHistory = (selected: { preview: string; id: string }[]) => {
+    if (!onBatchImagesChange) return;
+    
+    const historyImages: UploadedImage[] = selected.map(img => ({
+      id: img.id,
+      preview: img.preview,
+      status: 'ready',
+      source: 'history',
+    }));
+    
+    onBatchImagesChange([...batchImages, ...historyImages]);
+    toast.success(`Добавлено ${selected.length} изображений из истории`);
+  };
 
   // Download handler
   const handleDownload = async () => {
@@ -46,6 +78,107 @@ export const Canvas = memo(function Canvas({
 
   // Empty state
   if (!result && !isGenerating) {
+    // Batch режим
+    if (batchMode && onBatchImagesChange) {
+      return (
+        <div className="h-full w-full flex items-center justify-center p-6 bg-[#0F0F10]">
+          <div className="w-full max-w-2xl space-y-6">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00D9FF]/10 border border-[#00D9FF]/20 mb-4">
+                <Layers className="w-4 h-4 text-[#00D9FF]" />
+                <span className="text-sm font-medium text-[#00D9FF]">Batch режим</span>
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-2">
+                Массовая обработка изображений
+              </h2>
+              <p className="text-sm text-[#71717A]">
+                Загрузите несколько изображений и примените один промпт ко всем
+              </p>
+            </div>
+
+            <BatchImageUploader
+              images={batchImages}
+              onImagesChange={onBatchImagesChange}
+              maxImages={10}
+              showHistoryButton
+              onSelectFromHistory={() => setShowHistoryPicker(true)}
+            />
+
+            {batchImages.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-[#71717A] font-medium uppercase tracking-wide">
+                  Примеры промптов
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {remixExamples.map((ex, i) => (
+                    <button
+                      key={i}
+                      onClick={() => onExampleClick?.(ex)}
+                      className="px-3 py-2 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white text-xs transition-colors"
+                    >
+                      {ex}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <HistoryImagePicker
+              isOpen={showHistoryPicker}
+              onClose={() => setShowHistoryPicker(false)}
+              onSelect={handleSelectFromHistory}
+              maxSelect={10}
+              mode="image"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Если есть референсное изображение - показываем Remix режим
+    if (referenceImage && onReferenceImageChange) {
+      return (
+        <div className="h-full w-full flex items-center justify-center p-6 bg-[#0F0F10]">
+          <div className="w-full max-w-2xl space-y-6">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00D9FF]/10 border border-[#00D9FF]/20 mb-4">
+                <Wand2 className="w-4 h-4 text-[#00D9FF]" />
+                <span className="text-sm font-medium text-[#00D9FF]">Remix режим</span>
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-2">
+                Редактируйте изображение
+              </h2>
+              <p className="text-sm text-[#71717A]">
+                Опишите, что хотите изменить или добавить
+              </p>
+            </div>
+
+            <ImageUploader 
+              value={referenceImage}
+              onChange={onReferenceImageChange}
+              mode="prominent"
+            />
+
+            <div className="space-y-2">
+              <p className="text-xs text-[#71717A] font-medium uppercase tracking-wide">Примеры промптов</p>
+              <div className="flex flex-wrap gap-2">
+                {remixExamples.map((ex, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onExampleClick?.(ex)}
+                    className="px-3 py-2 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white text-xs transition-colors"
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Обычный режим T2I/T2V
     return (
       <div className="h-full w-full flex items-center justify-center p-6 bg-[#0F0F10]">
         <div className="text-center space-y-6 max-w-md">

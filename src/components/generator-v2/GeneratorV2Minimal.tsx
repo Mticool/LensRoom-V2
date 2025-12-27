@@ -20,7 +20,7 @@ export function GeneratorV2Minimal() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0F0F10] text-white">
+    <div className="h-[calc(100vh-64px)] w-screen flex flex-col bg-[#0F0F10] text-white mt-16">
       {/* Header */}
       <div className="h-12 border-b border-gray-700 bg-gray-900 flex items-center px-4">
         <Sparkles className="w-4 h-4 text-cyan-400 mr-2" />
@@ -71,4 +71,5 @@ export function GeneratorV2Minimal() {
     </div>
   );
 }
+
 

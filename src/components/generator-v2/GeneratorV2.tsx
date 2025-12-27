@@ -7,13 +7,16 @@ import { PromptBar } from './PromptBar';
 import { SettingsPanel } from './SettingsPanel';
 import { HistorySidebar } from './HistorySidebar';
 import { StyleGallery } from './StyleGallery';
+import { BatchImageUploader, type UploadedImage } from './BatchImageUploader';
+import { HistoryImagePicker } from './HistoryImagePicker';
+import { BatchProgressBar, type BatchProgress } from './BatchProgressBar';
 import { useAuth } from './hooks/useAuth';
 import { useGeneration } from './hooks/useGeneration';
 import { useHistory } from './hooks/useHistory';
 import { useCostCalculation } from './hooks/useCostCalculation';
 import { 
   Sparkles, Image as ImageIcon, Video, PanelLeft, Palette, 
-  LogIn, Loader2, ArrowUpCircle, Home, Settings2, X, Menu
+  LogIn, Loader2, ArrowUpCircle, Settings2, X, Menu, Wand2, Layers
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { celebrateGeneration } from '@/lib/confetti';
@@ -70,11 +73,25 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   const [currentResult, setCurrentResult] = useState<GenerationResult | null>(null);
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  
+  // Batch mode state
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchImages, setBatchImages] = useState<UploadedImage[]>([]);
+  const [showHistoryPicker, setShowHistoryPicker] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
+    total: 0,
+    completed: 0,
+    failed: 0,
+    current: 0,
+    status: 'idle',
+  });
 
   // Check if mobile
   const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
+    setMounted(true);
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
       // Hide history on mobile by default
@@ -89,6 +106,13 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Sync mode with defaultMode on mount (fixes refresh issue)
+  useEffect(() => {
+    if (defaultMode !== mode) {
+      setMode(defaultMode);
+    }
+  }, [defaultMode]);
   
   // Auth hook
   const { isAuthenticated, isLoading: authLoading, credits, username, refreshCredits } = useAuth();
@@ -132,29 +156,36 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
 
   // Load settings from localStorage
   const [settings, setSettings] = useState<GenerationSettings>(() => {
-    if (typeof window !== 'undefined') {
+    return {
+      model: defaultMode === 'video' ? 'veo-3.1' : 'nano-banana',
+      size: '1:1',
+      quality: defaultMode === 'video' ? 'fast' : 'turbo',
+      duration: 5,
+    };
+  });
+
+  // Hydrate settings from localStorage after mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && mounted) {
       const saved = localStorage.getItem('lensroom-generator-v2-settings');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          setSettings(parsed);
         } catch {
           // ignore
         }
       }
     }
-    return {
-      model: mode === 'video' ? 'veo-3.1' : 'nano-banana',
-      size: '1:1',
-      quality: mode === 'video' ? 'fast' : 'turbo',
-      duration: 5,
-    };
-  });
+  }, [mounted]);
 
   // Cost calculation (must be after settings)
   const { stars: estimatedCost } = useCostCalculation(mode, settings);
 
   // Update default model when mode changes
   useEffect(() => {
+    if (!mounted) return;
+    
     if (mode === 'video' && !settings.model.includes('kling') && !settings.model.includes('veo') && !settings.model.includes('wan') && !settings.model.includes('sora')) {
       setSettings(prev => ({
         ...prev,
@@ -169,14 +200,14 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
         quality: 'turbo',
       }));
     }
-  }, [mode]);
+  }, [mode, mounted, settings.model]);
 
   // Save settings to localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && mounted) {
       localStorage.setItem('lensroom-generator-v2-settings', JSON.stringify(settings));
     }
-  }, [settings]);
+  }, [settings, mounted]);
 
   // Hotkeys
   useEffect(() => {
@@ -207,8 +238,117 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     }
 
     clearError();
+
+    // Batch режим - обрабатываем несколько изображений
+    if (batchMode && batchImages.length > 0) {
+      const totalCost = estimatedCost * batchImages.length;
+      
+      // Проверяем баланс
+      if (credits < totalCost) {
+        toast.error(`Недостаточно кредитов. Нужно: ${totalCost}⭐, у вас: ${credits}⭐`);
+        return;
+      }
+
+      // Подтверждение
+      const confirmed = window.confirm(
+        `Обработать ${batchImages.length} изображений?\n` +
+        `Стоимость: ${totalCost}⭐\n` +
+        `У вас: ${credits}⭐`
+      );
+
+      if (!confirmed) return;
+
+      // Инициализируем прогресс
+      setBatchProgress({
+        total: batchImages.length,
+        completed: 0,
+        failed: 0,
+        current: 0,
+        status: 'processing',
+        currentPrompt: prompt,
+      });
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Обрабатываем последовательно
+      for (let i = 0; i < batchImages.length; i++) {
+        const image = batchImages[i];
+        
+        // Обновляем текущий индекс
+        setBatchProgress(prev => ({
+          ...prev,
+          current: i + 1,
+        }));
+        
+        try {
+          await generate(prompt, mode, settings, image.preview);
+          
+          successCount++;
+          
+          // Обновляем прогресс
+          setBatchProgress(prev => ({
+            ...prev,
+            completed: successCount,
+          }));
+
+          // Небольшая пауза между запросами
+          if (i < batchImages.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          failCount++;
+          
+          // Обновляем прогресс с ошибкой
+          setBatchProgress(prev => ({
+            ...prev,
+            failed: failCount,
+          }));
+          
+          console.error(`Batch image ${i} failed:`, error);
+        }
+      }
+
+      // Завершаем прогресс
+      setBatchProgress(prev => ({
+        ...prev,
+        status: successCount > 0 ? 'completed' : 'error',
+      }));
+
+      // Итоговое уведомление
+      if (successCount > 0) {
+        toast.success(
+          `Готово! Обработано: ${successCount}/${batchImages.length}`,
+          { duration: 5000 }
+        );
+        celebrateGeneration();
+      }
+
+      if (failCount > 0) {
+        toast.error(`Не удалось обработать: ${failCount}`);
+      }
+
+      // Сбрасываем прогресс через 3 секунды
+      setTimeout(() => {
+        setBatchProgress({
+          total: 0,
+          completed: 0,
+          failed: 0,
+          current: 0,
+          status: 'idle',
+        });
+      }, 3000);
+
+      // Обновляем кредиты
+      refreshCredits();
+      refreshHistory();
+
+      return;
+    }
+
+    // Обычная генерация (single image или без референса)
     await generate(prompt, mode, settings, referenceImage);
-  }, [mode, settings, isGenerating, isAuthenticated, generate, clearError, referenceImage]);
+  }, [mode, settings, isGenerating, isAuthenticated, generate, clearError, referenceImage, batchMode, batchImages, estimatedCost, credits, refreshCredits, refreshHistory]);
 
   const handleSelectFromHistory = useCallback((result: GenerationResult) => {
     setCurrentResult(result);
@@ -237,15 +377,93 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     setMode(result.mode);
   }, []);
 
+  const handleEditFromHistory = useCallback(async (result: GenerationResult) => {
+    try {
+      // Загружаем изображение как blob
+      const imageUrl = result.previewUrl || result.url;
+      if (!imageUrl) {
+        toast.error('Изображение недоступно');
+        return;
+      }
+
+      toast.loading('Загрузка изображения...', { id: 'edit-load' });
+
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      
+      // Конвертируем в base64 dataURL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        
+        if (batchMode) {
+          // Добавляем в batch режим
+          const newImage: UploadedImage = {
+            id: crypto.randomUUID(),
+            preview: dataUrl,
+            status: 'ready',
+            source: 'history',
+          };
+          setBatchImages(prev => [...prev, newImage]);
+          toast.success('Изображение добавлено в Batch', { id: 'edit-load' });
+        } else {
+          // Включаем Remix режим
+          setReferenceImage(dataUrl);
+          toast.success('Изображение загружено для редактирования', { id: 'edit-load' });
+        }
+
+        // Заполняем промпт
+        setCurrentPrompt(result.prompt);
+
+        // Скроллим к промпт-бару
+        setTimeout(() => {
+          const textarea = document.querySelector('textarea');
+          if (textarea) {
+            textarea.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'center'
+            });
+            textarea.focus();
+          }
+        }, 100);
+      };
+
+      reader.onerror = () => {
+        toast.error('Ошибка загрузки изображения', { id: 'edit-load' });
+      };
+
+      reader.readAsDataURL(blob);
+
+    } catch (error) {
+      console.error('Edit from history error:', error);
+      toast.error('Не удалось загрузить изображение', { id: 'edit-load' });
+    }
+  }, [batchMode]);
+
   const handleLogin = () => {
     router.push('/login');
   };
+
+  // Show minimal loading state during hydration
+  if (!mounted) {
+    return (
+      <div 
+        data-generator-v2="true"
+        className="h-screen w-screen overflow-hidden bg-[var(--gen-bg)] flex items-center justify-center font-[Inter,system-ui,sans-serif]"
+      >
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--gen-primary)]" />
+          <span className="text-sm text-[var(--gen-muted)]">Загрузка...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Always render full UI - no loading screen
   return (
     <div 
       data-generator-v2="true"
-      className="h-screen w-screen overflow-hidden bg-[var(--gen-bg)] flex font-[Inter,system-ui,sans-serif]"
+      className="h-[calc(100vh-64px)] w-screen overflow-hidden bg-[var(--gen-bg)] flex font-[Inter,system-ui,sans-serif] mt-16"
     >
       {/* Settings Panel - Left (hidden on mobile, shown via overlay) */}
       {!isMobile && (
@@ -291,7 +509,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       <div className="flex-1 flex flex-col relative bg-[var(--gen-bg)]">
         {/* Header - Responsive */}
         <div className="h-12 md:h-12 border-b border-[var(--gen-border)] bg-[var(--gen-surface)] flex items-center justify-between px-3 md:px-4">
-          {/* Left: Menu (mobile) + Logo & Home */}
+          {/* Left: Menu (mobile) + Mode Indicator */}
           <div className="flex items-center gap-2 md:gap-3">
             {/* Mobile menu button */}
             {isMobile && (
@@ -302,22 +520,6 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 <Menu className="w-5 h-5" />
               </button>
             )}
-            
-            <button
-              onClick={() => router.push('/')}
-              className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] text-[var(--gen-muted2)] hover:text-[var(--gen-text)] transition-colors hidden md:block"
-              title="На главную"
-            >
-              <Home className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-[var(--gen-primary)]" />
-              <span className="text-sm font-semibold text-[var(--gen-text)] hidden sm:block">LensRoom</span>
-              <span className="px-1.5 py-0.5 rounded bg-[var(--gen-surface2)] text-[var(--gen-muted2)] text-[10px] font-medium hidden sm:block">
-                2.0
-              </span>
-            </div>
-          </div>
 
           {/* Center: Mode Switcher & Styles */}
           <div className="flex items-center gap-1 md:gap-2">
@@ -360,6 +562,83 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
               <Palette className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Стили</span>
             </button>
+
+            {/* Remix button - включает режим редактирования */}
+            {mode === 'image' && !batchMode && (
+              <button
+                onClick={() => {
+                  if (!referenceImage) {
+                    // Если нет референса - показываем подсказку
+                    toast.info('Загрузите изображение в настройках для редактирования');
+                    // Можно открыть input для загрузки
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setReferenceImage(reader.result as string);
+                          toast.success('Изображение загружено. Опишите изменения!');
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    };
+                    input.click();
+                  } else {
+                    // Если есть референс - очищаем (toggle)
+                    setReferenceImage(null);
+                    toast.info('Режим Remix выключен');
+                  }
+                }}
+                className={`p-1.5 md:px-3 md:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs ${
+                  referenceImage
+                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
+                    : 'bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
+                }`}
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">{referenceImage ? 'Remix ON' : 'Remix'}</span>
+              </button>
+            )}
+
+            {/* Batch button - включает пакетный режим */}
+            {mode === 'image' && (
+              <button
+                onClick={() => {
+                  const newBatchMode = !batchMode;
+                  setBatchMode(newBatchMode);
+                  if (newBatchMode) {
+                    // Переходим в batch режим
+                    if (referenceImage) {
+                      // Конвертируем текущий референс в batch
+                      setBatchImages([{
+                        id: crypto.randomUUID(),
+                        preview: referenceImage,
+                        status: 'ready',
+                      }]);
+                      setReferenceImage(null);
+                    }
+                    toast.info('Batch режим включен - загрузите несколько изображений');
+                  } else {
+                    // Выключаем batch режим
+                    setBatchImages([]);
+                    toast.info('Batch режим выключен');
+                  }
+                }}
+                className={`p-1.5 md:px-3 md:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs ${
+                  batchMode
+                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
+                    : 'bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">
+                  {batchMode ? `Batch (${batchImages.length})` : 'Batch'}
+                </span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -415,6 +694,11 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             isGenerating={isGenerating}
             mode={mode}
             onExampleClick={handleExampleClick}
+            referenceImage={referenceImage}
+            onReferenceImageChange={setReferenceImage}
+            batchMode={batchMode}
+            batchImages={batchImages}
+            onBatchImagesChange={setBatchImages}
           />
         </div>
 
@@ -430,9 +714,22 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             credits={credits}
             estimatedCost={estimatedCost}
           />
+
+          {/* Batch Image Uploader - под промптом */}
+          {batchMode && mode === 'image' && (
+            <div className="mt-4 max-w-3xl mx-auto">
+              <BatchImageUploader
+                images={batchImages}
+                onImagesChange={setBatchImages}
+                maxImages={10}
+                showHistoryButton
+                onSelectFromHistory={() => setShowHistoryPicker(true)}
+              />
+            </div>
+          )}
           
           {/* Mobile: History button below prompt */}
-          {isMobile && history.length > 0 && (
+          {isMobile && history.length > 0 && !batchMode && (
             <button
               onClick={() => setShowHistory(true)}
               className="mt-3 w-full py-2 rounded-lg bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-all flex items-center justify-center gap-2 text-xs"
@@ -442,22 +739,43 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             </button>
           )}
         </div>
+
+        {/* History Image Picker Modal */}
+        {batchMode && (
+          <HistoryImagePicker
+            isOpen={showHistoryPicker}
+            onClose={() => setShowHistoryPicker(false)}
+            onSelect={(selected) => {
+              const historyImages: UploadedImage[] = selected.map(img => ({
+                id: img.id,
+                preview: img.preview,
+                status: 'ready',
+                source: 'history',
+              }));
+              setBatchImages(prev => [...prev, ...historyImages]);
+              toast.success(`Добавлено ${selected.length} изображений из истории`);
+            }}
+            maxSelect={10 - batchImages.length}
+            mode="image"
+          />
+        )}
       </div>
 
       {/* History Sidebar - Right (Desktop) */}
       {showHistory && !isMobile && (
         <div className="animate-in slide-in-from-right duration-300">
-          <HistorySidebar
-            isOpen={showHistory}
-            history={history}
-            onSelect={handleSelectFromHistory}
-            onClose={() => setShowHistory(false)}
-            onCopyPrompt={handleCopyPrompt}
-            onRepeat={handleRepeatGeneration}
-            isLoading={historyLoading}
-            onRefresh={refreshHistory}
-            onConnectBot={botPopup.showPopup}
-          />
+            <HistorySidebar
+              isOpen={showHistory}
+              history={history}
+              onSelect={handleSelectFromHistory}
+              onClose={() => setShowHistory(false)}
+              onCopyPrompt={handleCopyPrompt}
+              onRepeat={handleRepeatGeneration}
+              onEdit={handleEditFromHistory}
+              isLoading={historyLoading}
+              onRefresh={refreshHistory}
+              onConnectBot={botPopup.showPopup}
+            />
         </div>
       )}
 
@@ -478,6 +796,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
               onClose={() => setShowHistory(false)}
               onCopyPrompt={handleCopyPrompt}
               onRepeat={handleRepeatGeneration}
+              onEdit={handleEditFromHistory}
               isLoading={historyLoading}
               onRefresh={refreshHistory}
               onConnectBot={botPopup.showPopup}
@@ -531,6 +850,21 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
         onSuccess={() => {
           setHasNotifications(true);
           refreshCredits();
+        }}
+      />
+
+      {/* Batch Progress Bar */}
+      <BatchProgressBar
+        progress={batchProgress}
+        onCancel={() => {
+          setBatchProgress({
+            total: 0,
+            completed: 0,
+            failed: 0,
+            current: 0,
+            status: 'idle',
+          });
+          toast.info('Обработка отменена');
         }}
       />
     </div>

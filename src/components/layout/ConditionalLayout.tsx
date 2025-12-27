@@ -10,18 +10,18 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const isGeneratorPage = pathname === '/create' || pathname.startsWith('/create/');
   const isTestPage = pathname === '/test-minimal';
 
-  if (isGeneratorPage || isTestPage) {
-    // Generator and test pages - no header/footer
+  if (isTestPage) {
+    // Test pages only - no header/footer
     return <div className="min-h-screen">{children}</div>;
   }
 
-  // Normal pages - with header/footer
+  // All pages including generator - with header (footer only for non-generator)
   return (
     <>
       <Header />
       <LowBalanceAlert />
       <div className="min-h-screen">{children}</div>
-      <Footer />
+      {!isGeneratorPage && <Footer />}
     </>
   );
 }
