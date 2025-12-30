@@ -195,6 +195,22 @@ html.tg-webview body {
   background: var(--muted);
 }
 
+/* Gradient animation */
+@keyframes gradient {
+  0%, 100% {
+    background-size: 200% 200%;
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
 /* ===== RADIX DROPDOWN FIX ===== */
 
 [data-radix-popper-content-wrapper] {
