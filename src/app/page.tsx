@@ -15,13 +15,40 @@ export default function HomePage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  // AI Examples для карусели
+  // AI Examples для галереи
   const aiExamples = [
-    { title: 'AI Portrait', subtitle: 'Cozy Vibes', type: 'AI Generated', gradient: 'from-purple-500 to-pink-500' },
-    { title: 'AI Art', subtitle: 'Vintage Style', type: 'AI Generated', gradient: 'from-cyan-500 to-blue-500' },
-    { title: 'AI Video', subtitle: 'Motion', type: 'AI Video', gradient: 'from-pink-500 to-red-500' },
-    { title: 'AI Fashion', subtitle: 'Retro', type: 'AI Generated', gradient: 'from-yellow-500 to-orange-500' },
-    { title: 'AI Beauty', subtitle: 'Editorial', type: 'AI Generated', gradient: 'from-green-500 to-teal-500' },
+    { 
+      title: 'AI Portrait', 
+      subtitle: 'Cozy Vibes', 
+      type: 'AI Generated', 
+      image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=500&fit=crop',
+      gradient: 'from-purple-500 to-pink-500',
+      position: 'top-left'
+    },
+    { 
+      title: 'AI Family', 
+      subtitle: 'Winter Joy', 
+      type: 'AI Generated', 
+      image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400&h=500&fit=crop',
+      gradient: 'from-cyan-500 to-blue-500',
+      position: 'top-right'
+    },
+    { 
+      title: 'AI Video', 
+      subtitle: 'Motion', 
+      type: 'AI Video', 
+      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=500&fit=crop',
+      gradient: 'from-pink-500 to-red-500',
+      position: 'bottom-left'
+    },
+    { 
+      title: 'AI Beauty', 
+      subtitle: 'Editorial', 
+      type: 'AI Generated', 
+      image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=500&fit=crop',
+      gradient: 'from-orange-500 to-pink-500',
+      position: 'bottom-right'
+    },
   ];
 
   // Топовые модели
@@ -81,40 +108,113 @@ export default function HomePage() {
         </div>
 
         <div className="container mx-auto px-6 relative z-10">
-          {/* AI Examples Gallery */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex gap-4 mb-12 overflow-x-auto pb-4 scrollbar-hide justify-center flex-wrap"
-          >
-            {aiExamples.map((example, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="flex-shrink-0 w-48 h-64 rounded-2xl bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl border border-white/10 p-4 hover:border-white/30 transition-all cursor-pointer overflow-hidden relative group"
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${example.gradient} opacity-20 group-hover:opacity-30 transition-opacity`} />
-                <div className="relative z-10 h-full flex flex-col justify-end">
-                  <div className="text-xs px-2 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/20 w-fit mb-2">
-                    {example.type}
-                  </div>
-                  <h4 className="font-bold text-lg">{example.title}</h4>
-                  <p className="text-sm text-gray-400">{example.subtitle}</p>
+          {/* Floating AI Examples Gallery */}
+          <div className="absolute inset-0 pointer-events-none hidden lg:block">
+            {/* Top Left */}
+            <motion.div
+              initial={{ opacity: 0, x: -100, y: -50 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="absolute top-20 left-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image 
+                src={aiExamples[0].image} 
+                alt={aiExamples[0].title}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="text-xs px-3 py-1 rounded-full bg-cyan-500/90 backdrop-blur-md border border-white/20 w-fit mb-2 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  {aiExamples[0].type}
                 </div>
-              </motion.div>
-            ))}
-          </motion.div>
+                <h4 className="font-bold text-lg text-white">{aiExamples[0].title}</h4>
+                <p className="text-sm text-gray-300">{aiExamples[0].subtitle}</p>
+              </div>
+            </motion.div>
 
-          {/* Hero Text */}
+            {/* Top Right */}
+            <motion.div
+              initial={{ opacity: 0, x: 100, y: -50 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.8 }}
+              className="absolute top-20 right-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image 
+                src={aiExamples[1].image} 
+                alt={aiExamples[1].title}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="text-xs px-3 py-1 rounded-full bg-cyan-500/90 backdrop-blur-md border border-white/20 w-fit mb-2 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  {aiExamples[1].type}
+                </div>
+                <h4 className="font-bold text-lg text-white">{aiExamples[1].title}</h4>
+                <p className="text-sm text-gray-300">{aiExamples[1].subtitle}</p>
+              </div>
+            </motion.div>
+
+            {/* Bottom Left */}
+            <motion.div
+              initial={{ opacity: 0, x: -100, y: 50 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+              className="absolute bottom-40 left-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image 
+                src={aiExamples[2].image} 
+                alt={aiExamples[2].title}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute top-4 left-4">
+                <div className="text-xs px-3 py-1 rounded-full bg-pink-500/90 backdrop-blur-md border border-white/20 w-fit flex items-center gap-1">
+                  <Video className="w-3 h-3" />
+                  {aiExamples[2].type}
+                </div>
+              </div>
+              <div className="absolute bottom-4 left-4 right-4">
+                <h4 className="font-bold text-lg text-white">{aiExamples[2].title}</h4>
+                <p className="text-sm text-gray-300">{aiExamples[2].subtitle}</p>
+              </div>
+            </motion.div>
+
+            {/* Bottom Right */}
+            <motion.div
+              initial={{ opacity: 0, x: 100, y: 50 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.8 }}
+              className="absolute bottom-40 right-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image 
+                src={aiExamples[3].image} 
+                alt={aiExamples[3].title}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="text-xs px-3 py-1 rounded-full bg-cyan-500/90 backdrop-blur-md border border-white/20 w-fit mb-2 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  {aiExamples[3].type}
+                </div>
+                <h4 className="font-bold text-lg text-white">{aiExamples[3].title}</h4>
+                <p className="text-sm text-gray-300">{aiExamples[3].subtitle}</p>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Hero Text - Centered */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="text-center max-w-6xl mx-auto"
+            transition={{ duration: 0.8, delay: 0.7 }}
+            className="text-center max-w-6xl mx-auto relative z-10"
           >
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight">
               Топовые AI модели
