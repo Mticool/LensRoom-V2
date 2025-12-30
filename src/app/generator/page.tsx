@@ -50,8 +50,8 @@ const MODELS_CONFIG = {
       { id: 'topaz-upscale', name: 'Topaz Upscale', icon: Zap, provider: 'Topaz Labs', cost: 42, description: 'Upscale to 4K/8K resolution' },
     ],
     parameters: {
-      quality: { label: 'Quality', type: 'select', options: ['Turbo', 'Balanced', 'Quality', 'HD', '2K', '4K'], default: '2K' },
-      aspectRatio: { label: 'Aspect Ratio', type: 'select', options: ['1:1', '9:16', '16:9', '4:3', '3:4', '21:9'], default: '9:16' },
+      quality: { label: 'Качество', type: 'select', options: ['Turbo', 'Balanced', 'Quality', 'HD', '2K', '4K'], default: '2K' },
+      aspectRatio: { label: 'Соотношение сторон', type: 'select', options: ['1:1', '9:16', '16:9', '4:3', '3:4', '21:9'], default: '9:16' },
       style: { label: 'Style', type: 'select', options: ['Photorealistic', 'Illustration', 'Minimalist', '3D Render', 'Abstract'], default: 'Photorealistic' },
     },
     examples: [
@@ -64,7 +64,7 @@ const MODELS_CONFIG = {
     section: 'Video',
     icon: Video,
     models: [
-      { id: 'veo3', name: 'Veo 3.1', icon: Video, provider: 'Google', cost: 260, badge: 'TOP', description: 'Flagship 8s generation' },
+      { id: 'veo3', name: 'Veo 3.1', icon: Video, provider: 'Google', cost: 260, badge: 'TOP', description: 'Быстрая генерация видео' },
       { id: 'kling-2.5-turbo', name: 'Kling 2.5 Turbo', icon: Zap, provider: 'Kuaishou', cost: 105, badge: 'Fast', description: 'Rapid universal generation' },
       { id: 'kling-2.6', name: 'Kling 2.6', icon: Video, provider: 'Kuaishou', cost: 230, badge: 'Audio', description: 'Video with audio synthesis' },
       { id: 'kling-2.1-pro', name: 'Kling 2.1 Pro', icon: Star, provider: 'Kuaishou', cost: 402, badge: 'Premium', description: 'Maximum quality output' },
@@ -79,10 +79,10 @@ const MODELS_CONFIG = {
       { id: 'seedance-pro', name: 'Seedance 1.5 Pro', icon: Video, provider: 'ByteDance', cost: 80, description: 'Universal generation' },
     ],
     parameters: {
-      duration: { label: 'Duration', type: 'select', options: ['5', '6', '8', '10', '15', '20'], default: '10', unit: 's' },
-      aspectRatio: { label: 'Aspect Ratio', type: 'select', options: ['9:16', '16:9', '1:1', '4:3', '21:9'], default: '9:16' },
-      quality: { label: 'Quality', type: 'select', options: ['720p', '1080p', '2K', '4K'], default: '1080p' },
-      mode: { label: 'Mode', type: 'select', options: ['Text to Video', 'Image to Video', 'Video to Video'], default: 'Text to Video' },
+      duration: { label: 'Длительность', type: 'select', options: ['5', '6', '8', '10', '15', '20'], default: '10', unit: 'с' },
+      aspectRatio: { label: 'Соотношение сторон', type: 'select', options: ['9:16', '16:9', '1:1', '4:3', '21:9'], default: '9:16' },
+      quality: { label: 'Качество', type: 'select', options: ['720p', '1080p', '2K', '4K'], default: '1080p' },
+      mode: { label: 'Режим', type: 'select', options: ['Текст в видео', 'Изображение в видео', 'Видео в видео'], default: 'Текст в видео' },
     },
     examples: [
       'Smooth camera dolly through modern architectural space with natural lighting',
@@ -482,7 +482,7 @@ function GeneratorPageContent() {
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface2)] transition"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              Reset
+              Сбросить
             </button>
           </div>
 
