@@ -264,6 +264,18 @@ function GeneratorPageContent() {
         {/* LEFT COLUMN - History (240px for SYNTX) */}
         {showLeftSidebar && (
         <aside className="w-60 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col">
+          {/* Header with collapse button */}
+          <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-[var(--text)]">История</h3>
+            <button
+              onClick={() => setShowLeftSidebar(false)}
+              className="p-1.5 rounded-lg hover:bg-[var(--surface2)] transition"
+              title="Скрыть историю"
+            >
+              <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
+            </button>
+          </div>
+          
           {/* Search */}
           <div className="p-4 border-b border-[var(--border)]">
             <div className="relative">
@@ -327,18 +339,16 @@ function GeneratorPageContent() {
       </aside>
         )}
 
-      {/* Toggle Left Sidebar Button */}
-      <button
-        onClick={() => setShowLeftSidebar(!showLeftSidebar)}
-        className="w-8 bg-[var(--surface)] border-r border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
-        title={showLeftSidebar ? 'Скрыть историю' : 'Показать историю'}
-      >
-        {showLeftSidebar ? (
-          <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
-        ) : (
+      {/* Show Left Sidebar Button (when hidden) */}
+      {!showLeftSidebar && (
+        <button
+          onClick={() => setShowLeftSidebar(true)}
+          className="fixed left-4 top-20 z-40 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface2)] transition shadow-lg"
+          title="Показать историю"
+        >
           <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
-        )}
-      </button>
+        </button>
+      )}
 
       {/* CENTER COLUMN - Canvas */}
       <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
@@ -434,18 +444,16 @@ function GeneratorPageContent() {
         </div>
       </main>
 
-      {/* Toggle Right Sidebar Button */}
-      <button
-        onClick={() => setShowRightSidebar(!showRightSidebar)}
-        className="w-8 bg-[var(--surface)] border-l border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
-        title={showRightSidebar ? 'Скрыть настройки' : 'Показать настройки'}
-      >
-        {showRightSidebar ? (
-          <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
-        ) : (
+      {/* Show Right Sidebar Button (when hidden) */}
+      {!showRightSidebar && (
+        <button
+          onClick={() => setShowRightSidebar(true)}
+          className="fixed right-4 top-20 z-40 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface2)] transition shadow-lg"
+          title="Показать настройки"
+        >
           <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
-        )}
-      </button>
+        </button>
+      )}
 
       {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
       {showRightSidebar && (
