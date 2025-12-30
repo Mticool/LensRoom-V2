@@ -299,12 +299,10 @@ function GeneratorPageContent() {
           {/* History List */}
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {groupedResults.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                <div className="w-16 h-16 rounded-2xl bg-[var(--surface2)] flex items-center justify-center mb-3">
-                  <MessageSquare className="w-8 h-8 text-[var(--muted)]" />
-                </div>
-                <p className="text-sm font-medium text-[var(--text)] mb-1">No history yet</p>
-                <p className="text-xs text-[var(--muted)]">Your generations will appear here</p>
+              <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+                {/* 3D коробка (SYNTX style) */}
+                <div className="text-6xl mb-4 opacity-50">📦</div>
+                <p className="text-gray-400 text-sm">Нет данных</p>
               </div>
             ) : (
               groupedResults.map(([date, dayResults]) => (
