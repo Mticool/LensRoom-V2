@@ -85,10 +85,10 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-black text-white">
       
-      {/* Hero Section - Freepik Style */}
-      <section className="relative min-h-[85vh] flex items-center justify-center pt-24 pb-20 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      {/* Hero Section - Freepik Style Dark */}
+      <section className="relative min-h-[85vh] flex items-center justify-center pt-24 pb-20 bg-gradient-to-br from-gray-900 via-black to-gray-900">
         
         <div className="container mx-auto px-6 relative z-10">
           
@@ -99,7 +99,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: -100, y: -50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
-              className="absolute top-10 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
+              className="absolute top-10 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
             >
               <Image 
                 src={aiExamples[0].image} 
@@ -109,8 +109,8 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-white/95 text-gray-900 font-medium w-fit mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-blue-500" />
+                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-white font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" />
                   {aiExamples[0].type}
                 </div>
                 <h4 className="font-semibold text-white text-sm">{aiExamples[0].title}</h4>
@@ -122,7 +122,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: 100, y: -50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="absolute top-10 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
+              className="absolute top-10 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
             >
               <Image 
                 src={aiExamples[1].image} 
@@ -132,8 +132,8 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-white/95 text-gray-900 font-medium w-fit mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-blue-500" />
+                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-white font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" />
                   {aiExamples[1].type}
                 </div>
                 <h4 className="font-semibold text-white text-sm">{aiExamples[1].title}</h4>
@@ -145,7 +145,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: -100, y: 50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="absolute bottom-32 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
+              className="absolute bottom-32 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
             >
               <Image 
                 src={aiExamples[2].image} 
@@ -170,7 +170,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: 100, y: 50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.5, duration: 0.6 }}
-              className="absolute bottom-32 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
+              className="absolute bottom-32 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
             >
               <Image 
                 src={aiExamples[3].image} 
@@ -180,8 +180,8 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-white/95 text-gray-900 font-medium w-fit mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-blue-500" />
+                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-white font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" />
                   {aiExamples[3].type}
                 </div>
                 <h4 className="font-semibold text-white text-sm">{aiExamples[3].title}</h4>
@@ -201,37 +201,37 @@ export default function HomePage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-6"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-white text-sm font-medium mb-6"
             >
               <Sparkles className="w-4 h-4" />
               Топовые AI модели в одном месте
             </motion.div>
 
             {/* Main Heading */}
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-white">
               Создавайте невероятный
               <br />
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
                 контент с AI
               </span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-gray-600 mb-4 max-w-3xl mx-auto font-normal">
+            <p className="text-xl md:text-2xl text-gray-400 mb-4 max-w-3xl mx-auto font-normal">
               Фото и видео студийного качества за секунды
             </p>
 
             {/* Model Tags */}
             <div className="flex flex-wrap items-center justify-center gap-2 mb-8 text-sm">
-              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
+              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
                 Nano Banana Pro
               </div>
-              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
+              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
                 Veo 3.1
               </div>
-              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
+              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
                 Kling
               </div>
-              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
+              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
                 Sora
               </div>
             </div>
@@ -241,7 +241,7 @@ export default function HomePage() {
               <Link href="/generator?section=image">
                 <Button 
                   size="lg"
-                  className="group bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg hover:shadow-xl transition-all"
+                  className="group bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 transition-all"
                 >
                   Начать создавать
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -251,7 +251,7 @@ export default function HomePage() {
                 <Button 
                   size="lg"
                   variant="outline"
-                  className="px-8 py-6 text-base font-medium rounded-xl bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-900 transition-all"
+                  className="px-8 py-6 text-base font-medium rounded-xl bg-white/5 backdrop-blur-xl border-2 border-white/10 hover:border-white/20 hover:bg-white/10 text-white transition-all"
                 >
                   Смотреть примеры
                 </Button>
@@ -259,19 +259,19 @@ export default function HomePage() {
             </div>
 
             {/* Info Line */}
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-400">
               <div className="flex items-center gap-1.5">
-                <Gift className="w-4 h-4 text-green-600" />
-                <span className="font-medium text-green-700">50⭐ бесплатно</span>
+                <Gift className="w-4 h-4 text-yellow-400" />
+                <span className="font-medium text-yellow-300">50⭐ бесплатно</span>
               </div>
-              <div className="w-1 h-1 rounded-full bg-gray-300" />
+              <div className="w-1 h-1 rounded-full bg-gray-600" />
               <div className="flex items-center gap-1.5">
-                <Send className="w-4 h-4 text-blue-600" />
+                <Send className="w-4 h-4 text-blue-400" />
                 <span>Telegram</span>
               </div>
-              <div className="w-1 h-1 rounded-full bg-gray-300" />
+              <div className="w-1 h-1 rounded-full bg-gray-600" />
               <div className="flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-green-600" />
+                <Check className="w-4 h-4 text-green-400" />
                 <span>Без карты</span>
               </div>
             </div>
@@ -280,45 +280,45 @@ export default function HomePage() {
       </section>
 
       {/* Nano Banana Pro Promo */}
-      <section className="py-16 bg-gradient-to-br from-yellow-50 to-orange-50">
+      <section className="py-16 bg-gradient-to-br from-yellow-900/10 to-orange-900/10">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-5xl mx-auto p-8 md:p-10 rounded-3xl bg-white shadow-xl border border-gray-200"
+            className="max-w-5xl mx-auto p-8 md:p-10 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10"
           >
             <div className="flex items-start justify-between flex-wrap gap-6">
               <div className="flex-1 min-w-[280px]">
-                <div className="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold mb-4">
+                <div className="inline-block px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-semibold mb-4">
                   ЭКСКЛЮЗИВ
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
                   Nano Banana Pro — бесплатно! 🍌
                 </h2>
-                <p className="text-lg text-gray-600 mb-6 font-normal">
+                <p className="text-lg text-gray-300 mb-6 font-normal">
                   В тарифах <span className="text-purple-600 font-semibold">Creator+</span> и{' '}
                   <span className="text-blue-600 font-semibold">Business</span> безлимитные генерации без траты звёзд
                 </p>
                 
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-600" />
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-green-400" />
                     </div>
-                    <span className="text-gray-700">Безлимит 1–2K фото</span>
+                    <span className="text-gray-200">Безлимит 1–2K фото</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-600" />
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-green-400" />
                     </div>
-                    <span className="text-gray-700">Премиум качество</span>
+                    <span className="text-gray-200">Премиум качество</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-600" />
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-green-400" />
                     </div>
-                    <span className="text-gray-700">Без траты ⭐</span>
+                    <span className="text-gray-200">Без траты ⭐</span>
                   </div>
                 </div>
 
@@ -412,12 +412,12 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="text-center p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 border border-gray-200"
+                className="text-center p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10"
               >
-                <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-1">
+                <div className="text-3xl md:text-4xl font-bold text-white mb-1">
                   {metric.value}
                 </div>
-                <div className="text-sm text-gray-600 font-normal">{metric.label}</div>
+                <div className="text-sm text-gray-400 font-normal">{metric.label}</div>
               </motion.div>
             ))}
           </motion.div>
@@ -425,7 +425,7 @@ export default function HomePage() {
       </section>
 
       {/* Top Models Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-950">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -433,10 +433,10 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
               Топовые модели мира
             </h2>
-            <p className="text-xl text-gray-600 font-normal">
+            <p className="text-xl text-gray-400 font-normal">
               Выбирайте лучшее для каждой задачи
             </p>
           </motion.div>
@@ -449,13 +449,13 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group p-5 rounded-2xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all cursor-pointer text-center"
+                className="group p-5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer text-center"
               >
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <model.icon className="w-7 h-7 text-blue-600" />
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <model.icon className="w-7 h-7 text-cyan-400" />
                 </div>
-                <h3 className="font-bold text-base mb-1 text-gray-900">{model.name}</h3>
-                <p className="text-sm text-gray-500 mb-3 font-normal">{model.type}</p>
+                <h3 className="font-bold text-base mb-1 text-white">{model.name}</h3>
+                <p className="text-sm text-gray-400 mb-3 font-normal">{model.type}</p>
                 <div className={`inline-block px-2.5 py-1 rounded-full ${model.badgeColor} text-white text-xs font-semibold`}>
                   {model.badge}
                 </div>
@@ -466,27 +466,27 @@ export default function HomePage() {
       </section>
 
       {/* Referral Section */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-black">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto p-8 md:p-10 rounded-3xl bg-gradient-to-br from-purple-50 to-pink-50 border border-gray-200 text-center"
+            className="max-w-4xl mx-auto p-8 md:p-10 rounded-3xl bg-gradient-to-br from-purple-900/20 to-pink-900/20 backdrop-blur-xl border border-white/10 text-center"
           >
-            <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center mx-auto mb-6">
-              <Rocket className="w-8 h-8 text-purple-600" />
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center mx-auto mb-6">
+              <Rocket className="w-8 h-8 text-purple-400" />
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
               Приглашай друзей — получай звёзды!
             </h2>
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto font-normal">
+            <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto font-normal">
               50⭐ за каждого друга + 10% от его пополнений навсегда
             </p>
             <Link href="/profile">
               <Button 
                 size="lg"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg"
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all"
               >
                 Моя реферальная ссылка
               </Button>
@@ -496,7 +496,7 @@ export default function HomePage() {
       </section>
 
       {/* Gallery Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-950">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -504,10 +504,10 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-10"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
               Галерея работ
             </h2>
-            <p className="text-xl text-gray-600 mb-6 font-normal">
+            <p className="text-xl text-gray-400 mb-6 font-normal">
               Кликните по примеру, чтобы открыть генератор
             </p>
 
@@ -519,8 +519,8 @@ export default function HomePage() {
                   onClick={() => setActiveFilter(filter.toLowerCase())}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     activeFilter === filter.toLowerCase()
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
+                      ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/25'
+                      : 'bg-white/5 backdrop-blur-xl text-gray-300 border border-white/10 hover:border-white/20'
                   }`}
                 >
                   {filter}
@@ -533,15 +533,15 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16 px-6 rounded-2xl bg-white border border-gray-200"
+            className="text-center py-16 px-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10"
           >
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <ImageIcon className="w-8 h-8 text-gray-400" />
+            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+              <ImageIcon className="w-8 h-8 text-gray-500" />
             </div>
-            <p className="text-lg text-gray-600 mb-3 font-normal">
+            <p className="text-lg text-gray-400 mb-3 font-normal">
               Галерея эффектов пуста
             </p>
-            <Link href="/generator?section=image" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
+            <Link href="/generator?section=image" className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
               Создайте контент в разделе Генератор →
             </Link>
           </motion.div>
@@ -549,7 +549,7 @@ export default function HomePage() {
       </section>
 
       {/* Steps Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-black">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -557,7 +557,7 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
               Три шага до результата
             </h2>
           </motion.div>
@@ -595,15 +595,15 @@ export default function HomePage() {
                 className="text-center"
               >
                 <div className="relative inline-block mb-6">
-                  <div className="w-20 h-20 rounded-2xl bg-white shadow-lg flex items-center justify-center border border-gray-200">
-                    <step.icon className="w-10 h-10 text-blue-600" />
+                  <div className="w-20 h-20 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center">
+                    <step.icon className="w-10 h-10 text-cyan-400" />
                   </div>
                   <div className={`absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-r ${step.color} flex items-center justify-center font-bold text-white text-sm shadow-lg`}>
                     {step.number}
                   </div>
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-gray-900">{step.title}</h3>
-                <p className="text-gray-600 font-normal">{step.description}</p>
+                <h3 className="text-xl font-bold mb-2 text-white">{step.title}</h3>
+                <p className="text-gray-400 font-normal">{step.description}</p>
               </motion.div>
             ))}
           </div>
@@ -611,7 +611,7 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-950">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -619,12 +619,12 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
               Частые вопросы
             </h2>
-            <p className="text-xl text-gray-600 font-normal">
+            <p className="text-xl text-gray-400 font-normal">
               Не нашли ответ?{' '}
-              <a href="https://t.me/lensroom" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium">
+              <a href="https://t.me/lensroom" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 font-medium">
                 Напишите в Telegram
               </a>
             </p>
@@ -638,17 +638,17 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="rounded-xl bg-white border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                className="rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden hover:border-white/20 transition-all"
               >
                 <button
                   onClick={() => setOpenFAQ(openFAQ === i ? null : i)}
-                  className="w-full p-5 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  className="w-full p-5 text-left flex items-center justify-between hover:bg-white/5 transition-colors"
                 >
-                  <span className="font-semibold text-base text-gray-900 pr-4">{faq.question}</span>
+                  <span className="font-semibold text-base text-white pr-4">{faq.question}</span>
                   {openFAQ === i ? (
-                    <ChevronUp className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    <ChevronUp className="w-5 h-5 text-cyan-400 flex-shrink-0" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
                   )}
                 </button>
                 <AnimatePresence>
@@ -660,7 +660,7 @@ export default function HomePage() {
                       transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-5 pb-5 text-gray-600 leading-relaxed font-normal">
+                      <div className="px-5 pb-5 text-gray-400 leading-relaxed font-normal">
                         {faq.answer}
                       </div>
                     </motion.div>
@@ -673,7 +673,7 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
+      <section className="py-20 bg-gradient-to-br from-cyan-900 via-blue-900 to-purple-900">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -693,7 +693,7 @@ export default function HomePage() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button 
                   size="lg"
-                  className="bg-white hover:bg-gray-100 text-blue-600 px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl"
+                  className="bg-white hover:bg-gray-100 text-black px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl"
                 >
                   <Sparkles className="w-6 h-6 mr-2" />
                   Начать бесплатно
