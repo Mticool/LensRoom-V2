@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import { Header } from './header';
-import { Footer } from './footer';
 import { LowBalanceAlert } from '@/components/ui/low-balance-alert';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
@@ -21,7 +20,6 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
       <Header />
       <LowBalanceAlert />
       <div className="min-h-screen">{children}</div>
-      {!isGeneratorPage && <Footer />}
     </>
   );
 }

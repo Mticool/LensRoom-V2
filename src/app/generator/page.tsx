@@ -372,11 +372,11 @@ function GeneratorPageContent() {
             </div>
           </div>
 
-          {/* Canvas Area - SYNTX padding with bottom padding for fixed prompt bar */}
-          <div className="flex-1 overflow-y-auto px-16 py-10 pb-32">
+          {/* Canvas Area - SYNTX (no scroll, centered) */}
+          <div className="flex-1 overflow-hidden flex items-center justify-center">
             {chatHistory.length === 0 ? (
-              /* Empty State - SYNTX Style */
-              <div className="h-full flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
+              /* Empty State - SYNTX Style (Centered, No Scroll) */}
+              <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
                 {/* White Star Icon - No Container */}
                 <Sparkles className="w-16 h-16 text-white opacity-90 mb-5" />
                 <h1 className="text-3xl font-bold mb-2">{modelInfo?.name}</h1>
@@ -517,8 +517,8 @@ function GeneratorPageContent() {
         </aside>
       </div>
 
-      {/* PROMPT BAR - Fixed at Bottom */}
-      <div className="fixed bottom-0 left-60 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4">
+      {/* PROMPT BAR - Fixed at Bottom (Full Width) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3">
         <div className="max-w-5xl mx-auto pr-70">
           {/* File Previews */}
           {uploadedFiles.length > 0 && (
