@@ -403,10 +403,10 @@ function GeneratorPageContent() {
           </div>
 
           {/* Settings Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {/* Model Selector */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Model</label>
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">МОДЕЛЬ</label>
               <button
                 onClick={() => setShowModelModal(true)}
                 className="w-full flex items-center justify-between px-3 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-primary)] transition"
