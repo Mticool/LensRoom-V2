@@ -165,6 +165,66 @@ function GeneratorPageContent() {
     }
   }, [activeSection, sectionConfig]);
 
+  // Load generation history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!user) return;
+
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        // Get user ID
+        let userId: string | null = null;
+        if ('id' in user) {
+          userId = String(user.id);
+        }
+
+        if (!userId) return;
+
+        // Load generations from Supabase
+        const { data: generations, error } = await supabase
+          .from('generations')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('type', activeSection)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (error) {
+          console.error('Failed to load history:', error);
+          return;
+        }
+
+        if (generations && generations.length > 0) {
+          // Convert to GenerationResult format
+          const loadedResults: GenerationResult[] = generations.map((gen: any) => ({
+            id: gen.id,
+            type: activeSection,
+            content: gen.result_urls?.[0] || `Генерация ${gen.model_name}`,
+            prompt: gen.prompt || '',
+            model: gen.model_id || '',
+            timestamp: new Date(gen.created_at),
+          }));
+
+          setResults(loadedResults);
+          
+          // Set most recent as current if exists
+          if (loadedResults[0]) {
+            setCurrentResult(loadedResults[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading history:', error);
+      }
+    };
+
+    loadHistory();
+  }, [user, activeSection]);
+
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const maxFiles = activeSection === 'video' ? 1 : 4;
@@ -353,12 +413,64 @@ function GeneratorPageContent() {
       {/* CENTER COLUMN - Canvas */}
       <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
         {/* Canvas Content - Centered */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
-            <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
-            <p className="text-xs text-gray-500">{modelInfo?.description || 'Продвинутая языковая модель для сложных задач'}</p>
-          </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          {isGenerating ? (
+            /* Генерация в процессе */
+            <div className="text-center max-w-md w-full">
+              <div className="relative w-24 h-24 mx-auto mb-6">
+                {/* Анимированное кольцо */}
+                <div className="absolute inset-0 rounded-full border-4 border-purple-500/20"></div>
+                <div 
+                  className="absolute inset-0 rounded-full border-4 border-t-purple-500 border-r-cyan-500 border-b-transparent border-l-transparent animate-spin"
+                  style={{ animationDuration: '1s' }}
+                ></div>
+                {/* Иконка в центре */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Sparkles className="w-10 h-10 text-purple-400 animate-pulse" />
+                </div>
+              </div>
+              
+              <h3 className="text-xl font-semibold mb-3 text-white">Генерация...</h3>
+              <p className="text-sm text-gray-400 mb-6">{modelInfo?.name || 'ChatGPT 4.5'}</p>
+              
+              {/* Прогресс бар */}
+              <div className="w-full bg-[#1a1a1a] rounded-full h-2 mb-3 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-600 to-cyan-500 transition-all duration-500 ease-out rounded-full"
+                  style={{ width: `${generationProgress}%` }}
+                ></div>
+              </div>
+              
+              <p className="text-xs text-gray-500">
+                {generationProgress < 30 && 'Отправка запроса...'}
+                {generationProgress >= 30 && generationProgress < 70 && 'Обработка промпта...'}
+                {generationProgress >= 70 && 'Финализация...'}
+              </p>
+            </div>
+          ) : currentResult ? (
+            /* Показываем результат */
+            <div className="text-center max-w-2xl">
+              <div className="mb-6 p-6 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a]">
+                <div className="text-green-400 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-3">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">Готово!</h3>
+                  <p className="text-sm text-gray-400">{currentResult.content}</p>
+                </div>
+                <div className="text-xs text-gray-500 mt-4">
+                  Модель: {currentResult.model} • {new Date(currentResult.timestamp).toLocaleString('ru-RU')}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Пустое состояние */
+            <div className="text-center">
+              <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
+              <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
+              <p className="text-xs text-gray-500">{modelInfo?.description || 'Продвинутая языковая модель для сложных задач'}</p>
+            </div>
+          )}
         </div>
 
         {/* PROMPT BAR - Centered in Canvas */}
