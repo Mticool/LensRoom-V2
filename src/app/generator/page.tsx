@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { 
   MessageSquare, Search, Plus, Settings, RotateCcw, ChevronDown,
   Paperclip, Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
-  Brain, Bot, Star, FileText
+  Brain, Bot, Star, FileText, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // ===== MODELS CONFIG =====
@@ -281,6 +281,7 @@ function GeneratorPageContent() {
       <div className="flex-1 flex overflow-hidden">
         
         {/* LEFT COLUMN - History (240px for SYNTX) */}
+        {showLeftSidebar && (
         <aside className="w-60 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col">
           {/* Search */}
           <div className="p-4 border-b border-[var(--border)]">
@@ -336,24 +337,135 @@ function GeneratorPageContent() {
           {/* Bottom Actions */}
           <div className="p-4 border-t border-[var(--border)]">
             {user && (
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface2)]">
-                <span className="text-sm text-[var(--muted)]">Balance</span>
-                <span className="text-sm font-bold text-[var(--accent-primary)]">{balance} ⭐</span>
-              </div>
-            )}
-          </div>
-        </aside>
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface2)]">
+              <span className="text-sm text-[var(--muted)]">Баланс</span>
+              <span className="text-sm font-bold text-[var(--accent-primary)]">{balance} ⭐</span>
+            </div>
+          )}
+        </div>
+      </aside>
+        )}
 
-        {/* CENTER COLUMN - Canvas */}
-        <main className="flex-1 flex items-center justify-center overflow-hidden bg-[var(--bg)]">
+      {/* Toggle Left Sidebar Button */}
+      <button
+        onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+        className="w-6 bg-[var(--surface)] border-r border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
+      >
+        {showLeftSidebar ? (
+          <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
+        )}
+      </button>
+
+      {/* CENTER COLUMN - Canvas */}
+      <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+        {/* Canvas Content - Centered */}
+        <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
-            <p className="text-xs text-gray-500">{modelInfo?.description || 'Advanced language model for complex tasks'}</p>
+            <p className="text-xs text-gray-500">{modelInfo?.description || 'Продвинутая языковая модель для сложных задач'}</p>
           </div>
-        </main>
+        </div>
 
-        {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
+        {/* PROMPT BAR - Centered in Canvas */}
+        <div className="border-t border-[#1a1a1a] bg-[#0a0a0a] p-4">
+          {/* File Previews */}
+          {uploadedFiles.length > 0 && (
+            <div className="flex gap-2 mb-3 flex-wrap">
+              {uploadedFiles.map((file, i) => (
+                <div key={i} className="relative group">
+                  <div className="w-20 h-20 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center overflow-hidden">
+                    <span className="text-xs text-gray-500 text-center px-2 leading-tight">{file.name.slice(0, 12)}</span>
+                  </div>
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input Row */}
+          <div className="flex items-center gap-3">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              multiple={activeSection !== 'video'}
+              className="hidden"
+              accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : activeSection === 'audio' ? 'audio/*' : ''}
+            />
+            
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0"
+              title="Прикрепить файл"
+            >
+              <Paperclip className="w-5 h-5 text-cyan-400" />
+            </button>
+            
+            <span className="text-xs text-gray-500 flex-shrink-0">{uploadedFiles.length}/4</span>
+            
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleGenerate();
+                }
+              }}
+              placeholder="Напишите ваш промпт..."
+              className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-500"
+            />
+            
+            <button className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0">
+              <Mic className="w-5 h-5 text-cyan-400" />
+            </button>
+            
+            <button
+              onClick={handleGenerate}
+              disabled={!prompt.trim() || isGenerating}
+              className={cn(
+                "p-2.5 rounded-lg transition flex-shrink-0",
+                prompt.trim() && !isGenerating
+                  ? "bg-gradient-to-r from-purple-600 to-cyan-500 hover:opacity-90"
+                  : "bg-[#1a1a1a] text-gray-600 cursor-not-allowed"
+              )}
+            >
+              <Send className="w-4 h-4 text-white" />
+            </button>
+          </div>
+          
+          {/* Cost Display */}
+          <div className="flex justify-end mt-2">
+            <span className="text-xs text-gray-400">
+              Стоимость: <span className="text-purple-400">⚡ {modelInfo?.cost || 0}</span>
+            </span>
+          </div>
+        </div>
+      </main>
+
+      {/* Toggle Right Sidebar Button */}
+      <button
+        onClick={() => setShowRightSidebar(!showRightSidebar)}
+        className="w-6 bg-[var(--surface)] border-l border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
+      >
+        {showRightSidebar ? (
+          <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
+        ) : (
+          <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
+        )}
+      </button>
+
+      {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
+      {showRightSidebar && (
         <aside className="w-70 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
@@ -523,7 +635,7 @@ function GeneratorPageContent() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModelModal(false)}>
           <div className="w-full max-w-3xl max-h-[85vh] bg-[var(--surface)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-              <h2 className="text-xl font-bold">Select Model</h2>
+              <h2 className="text-xl font-bold">Выбор модели</h2>
               <button onClick={() => setShowModelModal(false)} className="p-2 rounded-xl hover:bg-[var(--surface2)] transition">
                 <X className="w-5 h-5" />
               </button>
