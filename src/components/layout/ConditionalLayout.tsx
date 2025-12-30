@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import { Header } from './header';
-import { LowBalanceAlert } from '@/components/ui/low-balance-alert';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,7 +17,6 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      <LowBalanceAlert />
       <div className="min-h-screen">{children}</div>
     </>
   );
