@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useAuth } from '@/providers/auth-provider';
@@ -131,7 +131,7 @@ interface GenerationResult {
   timestamp: Date;
 }
 
-export default function GeneratorPage() {
+function GeneratorPageContent() {
   const searchParams = useSearchParams();
   const sectionFromUrl = (searchParams.get('section') || 'text') as SectionType;
   
@@ -676,5 +676,13 @@ export default function GeneratorPage() {
       {/* Login Dialog */}
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
+  );
+}
+
+export default function GeneratorPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-[var(--muted)]">Загрузка...</div></div>}>
+      <GeneratorPageContent />
+    </Suspense>
   );
 }
