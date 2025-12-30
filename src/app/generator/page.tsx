@@ -336,20 +336,13 @@ function GeneratorPageContent() {
           </div>
 
           {/* Bottom Actions */}
-          <div className="p-4 border-t border-[var(--border)] space-y-3">
+          <div className="p-4 border-t border-[var(--border)]">
             {user && (
               <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface2)]">
                 <span className="text-sm text-[var(--muted)]">Balance</span>
                 <span className="text-sm font-bold text-[var(--accent-primary)]">{balance} ⭐</span>
               </div>
             )}
-            <button 
-              onClick={handleReset} 
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white hover:opacity-90 transition font-semibold shadow-lg shadow-purple-500/30"
-            >
-              <Plus className="w-5 h-5" />
-              New Chat
-            </button>
           </div>
         </aside>
 
@@ -379,8 +372,8 @@ function GeneratorPageContent() {
             </div>
           </div>
 
-          {/* Canvas Area - SYNTX padding */}
-          <div className="flex-1 overflow-y-auto px-16 py-10">
+          {/* Canvas Area - SYNTX padding with bottom padding for fixed prompt bar */}
+          <div className="flex-1 overflow-y-auto px-16 py-10 pb-32">
             {chatHistory.length === 0 ? (
               /* Empty State - SYNTX Style */
               <div className="h-full flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
@@ -420,74 +413,6 @@ function GeneratorPageContent() {
             )}
           </div>
 
-          {/* Prompt Bar - Bottom of Center (reduced padding) */}
-          <div className="border-t border-[var(--border)] bg-[var(--surface)] p-4">
-            <div className="max-w-5xl mx-auto">
-              {/* File Previews */}
-              {uploadedFiles.length > 0 && (
-                <div className="flex gap-2 mb-3 flex-wrap">
-                  {uploadedFiles.map((file, i) => (
-                    <div key={i} className="relative group">
-                      <div className="w-20 h-20 rounded-xl bg-[var(--surface2)] border border-[var(--border)] flex items-center justify-center overflow-hidden">
-                        <span className="text-xs text-[var(--muted)] text-center px-2 leading-tight">{file.name.slice(0, 12)}</span>
-                      </div>
-                      <button
-                        onClick={() => removeFile(i)}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Input Row */}
-              <div className="flex gap-3 items-end">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-3.5 rounded-xl bg-[var(--surface2)] hover:bg-[var(--surface3)] border border-[var(--border)] transition flex-shrink-0"
-                  title="Attach file"
-                >
-                  <Paperclip className="w-5 h-5 text-[var(--muted)]" />
-                </button>
-                
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleGenerate();
-                      }
-                    }}
-                    placeholder="Describe what you want to create..."
-                    className="w-full px-4 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 transition text-sm"
-                  />
-                </div>
-
-                <button
-                  onClick={handleGenerate}
-                  disabled={!prompt.trim() || isGenerating}
-                  className={cn(
-                    "px-6 py-3.5 rounded-xl flex items-center gap-2.5 font-semibold transition-all flex-shrink-0",
-                    prompt.trim() && !isGenerating
-                      ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white hover:opacity-90 shadow-lg shadow-purple-500/30"
-                      : "bg-[var(--surface3)] text-[var(--muted)] cursor-not-allowed"
-                  )}
-                >
-                  <Send className="w-5 h-5" />
-                  <span>Generate</span>
-                </button>
-              </div>
-
-              <p className="text-xs text-[var(--muted)] text-center mt-3">
-                <kbd className="px-2 py-0.5 rounded bg-[var(--surface2)] border border-[var(--border)] font-mono text-[10px]">Enter</kbd> to generate
-              </p>
-            </div>
-          </div>
         </main>
 
         {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
@@ -592,15 +517,82 @@ function GeneratorPageContent() {
         </aside>
       </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple={activeSection !== 'video'}
-        onChange={handleFileSelect}
-        style={{ display: 'none' }}
-        accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : activeSection === 'audio' ? 'audio/*' : ''}
-      />
+      {/* PROMPT BAR - Fixed at Bottom */}
+      <div className="fixed bottom-0 left-60 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="max-w-5xl mx-auto pr-70">
+          {/* File Previews */}
+          {uploadedFiles.length > 0 && (
+            <div className="flex gap-2 mb-3 flex-wrap">
+              {uploadedFiles.map((file, i) => (
+                <div key={i} className="relative group">
+                  <div className="w-20 h-20 rounded-xl bg-[var(--surface2)] border border-[var(--border)] flex items-center justify-center overflow-hidden">
+                    <span className="text-xs text-[var(--muted)] text-center px-2 leading-tight">{file.name.slice(0, 12)}</span>
+                  </div>
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input Row */}
+          <div className="flex gap-3 items-end">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              multiple={activeSection !== 'video'}
+              className="hidden"
+              accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : activeSection === 'audio' ? 'audio/*' : ''}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-3.5 rounded-xl bg-[var(--surface2)] hover:bg-[var(--surface3)] border border-[var(--border)] transition flex-shrink-0"
+              title="Attach file"
+            >
+              <Paperclip className="w-5 h-5 text-[var(--muted)]" />
+            </button>
+            
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleGenerate();
+                  }
+                }}
+                placeholder="Describe what you want to create..."
+                className="w-full px-4 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 transition text-sm"
+              />
+            </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={!prompt.trim() || isGenerating}
+              className={cn(
+                "px-6 py-3.5 rounded-xl flex items-center gap-2.5 font-semibold transition-all flex-shrink-0",
+                prompt.trim() && !isGenerating
+                  ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white hover:opacity-90 shadow-lg shadow-purple-500/30"
+                  : "bg-[var(--surface3)] text-[var(--muted)] cursor-not-allowed"
+              )}
+            >
+              <Send className="w-5 h-5" />
+              <span>Generate</span>
+            </button>
+          </div>
+
+          <p className="text-xs text-[var(--muted)] text-center mt-3">
+            <kbd className="px-2 py-0.5 rounded bg-[var(--surface2)] border border-[var(--border)] font-mono text-[10px]">Enter</kbd> to generate
+          </p>
+        </div>
+      </div>
 
       {/* Model Modal */}
       {showModelModal && (
