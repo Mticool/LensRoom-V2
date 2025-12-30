@@ -2,172 +2,297 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, Video, Image as ImageIcon, Mic, ArrowRight, Stars, Wand2 } from 'lucide-react';
+import { Sparkles, Zap, Video, Image as ImageIcon, Mic, ArrowRight, Brain, Palette, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
   const features = [
     {
-      icon: ImageIcon,
+      icon: Palette,
       title: 'Дизайн',
       description: 'Создавайте фотореалистичные изображения с помощью передовых AI моделей',
-      gradient: 'from-purple-500 to-pink-500',
-      href: '/generator?section=image'
+      gradient: 'from-purple-500/20 to-pink-500/20',
+      glowColor: 'shadow-purple-500/50',
+      href: '/generator?section=image',
+      models: '15+ моделей'
     },
     {
       icon: Video,
       title: 'Видео',
       description: 'Генерируйте профессиональные видео из текста или изображений',
-      gradient: 'from-blue-500 to-cyan-500',
-      href: '/generator?section=video'
+      gradient: 'from-cyan-500/20 to-blue-500/20',
+      glowColor: 'shadow-cyan-500/50',
+      href: '/generator?section=video',
+      models: '10+ моделей'
     },
     {
-      icon: Mic,
+      icon: Music,
       title: 'Аудио',
       description: 'Синтезируйте естественную речь и создавайте музыку',
-      gradient: 'from-orange-500 to-red-500',
-      href: '/generator?section=audio'
+      gradient: 'from-pink-500/20 to-red-500/20',
+      glowColor: 'shadow-pink-500/50',
+      href: '/generator?section=audio',
+      models: '5+ моделей'
     }
   ];
 
-  const stats = [
-    { label: 'Моделей AI', value: '50+' },
-    { label: 'Генераций', value: '1M+' },
-    { label: 'Пользователей', value: '10K+' }
+  const capabilities = [
+    { icon: Brain, label: '50+ AI моделей', description: 'Лучшие модели со всего мира' },
+    { icon: Zap, label: 'Мгновенная генерация', description: 'Результаты за секунды' },
+    { icon: Sparkles, label: 'Высокое качество', description: 'До 8K разрешения' },
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        {/* Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 via-transparent to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-500/20 via-transparent to-transparent" />
-        
-        <div className="container mx-auto px-6 pt-32 pb-24 relative">
+      <section className="relative min-h-[90vh] flex items-center justify-center">
+        {/* Animated Background Gradients */}
+        <div className="absolute inset-0 overflow-hidden">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            animate={{
+              scale: [1, 1.2, 1],
+              rotate: [0, 90, 0],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            className="absolute top-0 -left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-[120px]"
+          />
+          <motion.div
+            animate={{
+              scale: [1.2, 1, 1.2],
+              rotate: [90, 0, 90],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            className="absolute bottom-0 -right-1/4 w-96 h-96 bg-cyan-500/30 rounded-full blur-[120px]"
+          />
+          <motion.div
+            animate={{
+              scale: [1, 1.3, 1],
+              x: [0, 100, 0],
+            }}
+            transition={{
+              duration: 15,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-500/20 rounded-full blur-[120px]"
+          />
+        </div>
+
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center max-w-4xl mx-auto"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-center max-w-5xl mx-auto"
           >
             {/* Badge */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border border-purple-500/20 mb-8"
+              transition={{ delay: 0.2, type: "spring" }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 mb-8 hover:bg-white/10 transition-all cursor-default"
             >
-              <Sparkles className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-300">Powered by AI</span>
+              <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
+              <span className="text-sm font-medium bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                Powered by 50+ AI Models
+              </span>
             </motion.div>
 
             {/* Main Heading */}
-            <h1 className="text-6xl md:text-7xl font-bold mb-6 leading-tight">
-              Создавайте с помощью
-              <br />
-              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                Искусственного Интеллекта
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="text-6xl md:text-8xl font-bold mb-8 leading-[1.1]"
+            >
+              Создавайте с{' '}
+              <span className="relative inline-block">
+                <span className="relative z-10 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent animate-gradient">
+                  AI
+                </span>
+                <motion.span
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 0.8, 0.5],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-purple-400 to-cyan-400 blur-2xl"
+                />
               </span>
-            </h1>
+            </motion.h1>
 
-            <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Доступ к 50+ передовым AI моделям для генерации изображений, видео и аудио. 
-              Превратите свои идеи в реальность за секунды.
-            </p>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.8 }}
+              className="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed"
+            >
+              Генерируйте изображения, видео и аудио с помощью передовых нейросетей. 
+              Превратите идеи в реальность за секунды.
+            </motion.p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20"
+            >
               <Link href="/generator?section=image">
                 <Button 
                   size="lg"
-                  className="group bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white px-8 py-6 text-lg rounded-2xl shadow-lg shadow-purple-500/25 transition-all"
+                  className="group relative bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white px-10 py-7 text-lg rounded-2xl shadow-2xl shadow-purple-500/30 transition-all hover:scale-105 hover:shadow-purple-500/50"
                 >
-                  Начать создавать
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <span className="relative z-10 flex items-center">
+                    Начать создавать
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-2 transition-transform" />
+                  </span>
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                    }}
+                    className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-2xl blur-xl opacity-50"
+                  />
                 </Button>
               </Link>
               <Link href="/pricing">
                 <Button 
                   size="lg"
                   variant="outline"
-                  className="px-8 py-6 text-lg rounded-2xl border-gray-700 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all"
+                  className="px-10 py-7 text-lg rounded-2xl bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
                 >
                   Посмотреть тарифы
                 </Button>
               </Link>
-            </div>
+            </motion.div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
-              {stats.map((stat, i) => (
+            {/* Capabilities */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.8 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
+            >
+              {capabilities.map((item, i) => (
                 <motion.div
-                  key={stat.label}
+                  key={item.label}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 + i * 0.1 }}
-                  className="text-center"
+                  transition={{ delay: 0.7 + i * 0.1 }}
+                  className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all group"
                 >
-                  <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent mb-1">
-                    {stat.value}
+                  <item.icon className="w-8 h-8 text-purple-400 group-hover:scale-110 transition-transform" />
+                  <div className="text-center">
+                    <div className="font-semibold text-white mb-1">{item.label}</div>
+                    <div className="text-sm text-gray-400">{item.description}</div>
                   </div>
-                  <div className="text-sm text-gray-500">{stat.label}</div>
                 </motion.div>
               ))}
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-24 relative">
-        <div className="container mx-auto px-6">
+      <section className="py-32 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent" />
+        
+        <div className="container mx-auto px-6 relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            transition={{ duration: 0.6 }}
+            className="text-center mb-20"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Всё что вам нужно
+            <h2 className="text-5xl md:text-6xl font-bold mb-6">
+              Всё что вам{' '}
+              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                нужно
+              </span>
             </h2>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto">
               Мощные инструменты для создания контента нового поколения
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
             {features.map((feature, i) => (
               <motion.div
                 key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.15, duration: 0.6 }}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
               >
                 <Link href={feature.href}>
-                  <div className="group relative p-8 rounded-3xl bg-[var(--surface)] border border-[var(--border)] hover:border-purple-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/10 h-full">
-                    {/* Gradient Overlay */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 rounded-3xl transition-opacity duration-300`} />
-                    
-                    <div className="relative">
-                      {/* Icon */}
-                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                        <feature.icon className="w-7 h-7 text-white" />
-                      </div>
+                  <div className="group relative h-full">
+                    {/* Card */}
+                    <div className="relative p-10 rounded-3xl bg-black border border-white/10 hover:border-white/20 transition-all duration-500 h-full backdrop-blur-xl overflow-hidden">
+                      {/* Gradient Background */}
+                      <motion.div
+                        className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+                        initial={false}
+                      />
+                      
+                      {/* Glow Effect */}
+                      <motion.div
+                        animate={{
+                          scale: [1, 1.2, 1],
+                          opacity: [0, 0.3, 0],
+                        }}
+                        transition={{
+                          duration: 3,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                        className={`absolute -inset-4 bg-gradient-to-br ${feature.gradient} blur-3xl opacity-0 group-hover:opacity-20`}
+                      />
 
-                      {/* Content */}
-                      <h3 className="text-2xl font-bold mb-3 group-hover:text-purple-400 transition-colors">
-                        {feature.title}
-                      </h3>
-                      <p className="text-gray-400 leading-relaxed mb-4">
-                        {feature.description}
-                      </p>
+                      <div className="relative z-10">
+                        {/* Icon */}
+                        <motion.div
+                          whileHover={{ scale: 1.1, rotate: 5 }}
+                          className="w-20 h-20 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl flex items-center justify-center mb-8 group-hover:shadow-2xl group-hover:shadow-purple-500/20 transition-all border border-white/10"
+                        >
+                          <feature.icon className="w-10 h-10 text-white" />
+                        </motion.div>
 
-                      {/* Arrow */}
-                      <div className="flex items-center text-purple-400 font-medium group-hover:gap-2 gap-1 transition-all">
-                        Попробовать
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        {/* Badge */}
+                        <div className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-gray-400 mb-4">
+                          {feature.models}
+                        </div>
+
+                        {/* Content */}
+                        <h3 className="text-3xl font-bold mb-4 group-hover:text-white transition-colors">
+                          {feature.title}
+                        </h3>
+                        <p className="text-gray-400 leading-relaxed mb-6 group-hover:text-gray-300 transition-colors">
+                          {feature.description}
+                        </p>
+
+                        {/* Arrow */}
+                        <div className="flex items-center gap-2 text-purple-400 font-medium group-hover:gap-3 transition-all">
+                          <span>Попробовать</span>
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -179,48 +304,86 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-cyan-500/10" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-500/20 via-transparent to-transparent" />
+      <section className="py-32 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 via-transparent to-transparent" />
         
         <div className="container mx-auto px-6 relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto text-center"
+            transition={{ duration: 0.6 }}
+            className="max-w-5xl mx-auto text-center relative"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-6">
-              <Zap className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-300">Начните бесплатно</span>
-            </div>
+            {/* Glow Effect */}
+            <motion.div
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-cyan-500/20 blur-[100px]"
+            />
 
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Готовы создавать что-то
-              <br />
-              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                удивительное?
-              </span>
-            </h2>
-
-            <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
-              Присоединяйтесь к тысячам создателей, которые уже используют LensRoom для воплощения своих идей
-            </p>
-
-            <Link href="/generator?section=image">
-              <Button 
-                size="lg"
-                className="group bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white px-10 py-7 text-lg rounded-2xl shadow-2xl shadow-purple-500/25 transition-all"
+            <div className="relative z-10">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                whileInView={{ scale: 1, opacity: 1 }}
+                viewport={{ once: true }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 mb-8"
               >
-                <Wand2 className="w-5 h-5 mr-2" />
-                Начать создавать бесплатно
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
+                <Zap className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-medium text-cyan-300">Начните бесплатно</span>
+              </motion.div>
 
-            <p className="text-sm text-gray-500 mt-6">
-              Бесплатные кредиты при регистрации • Не требуется кредитная карта
-            </p>
+              <h2 className="text-5xl md:text-7xl font-bold mb-8 leading-tight">
+                Готовы создавать
+                <br />
+                <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                  что-то удивительное?
+                </span>
+              </h2>
+
+              <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
+                Присоединяйтесь к тысячам создателей, которые уже используют LensRoom
+              </p>
+
+              <Link href="/generator?section=image">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button 
+                    size="lg"
+                    className="group relative bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white px-12 py-8 text-xl rounded-2xl shadow-2xl shadow-purple-500/30 transition-all"
+                  >
+                    <span className="relative z-10 flex items-center">
+                      <Sparkles className="w-6 h-6 mr-3" />
+                      Начать создавать бесплатно
+                      <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform" />
+                    </span>
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                      }}
+                      className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-2xl blur-2xl opacity-50"
+                    />
+                  </Button>
+                </motion.div>
+              </Link>
+
+              <p className="text-sm text-gray-500 mt-8">
+                🎁 Бесплатные кредиты при регистрации • 💳 Не требуется карта
+              </p>
+            </div>
           </motion.div>
         </div>
       </section>
