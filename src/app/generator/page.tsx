@@ -384,10 +384,8 @@ function GeneratorPageContent() {
             {chatHistory.length === 0 ? (
               /* Empty State - SYNTX Style */
               <div className="h-full flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
-                {/* White Star Icon on Black Background */}
-                <div className="w-20 h-20 rounded-2xl bg-black border border-[var(--border)] flex items-center justify-center mb-5 shadow-lg">
-                  <Sparkles className="w-12 h-12 text-white opacity-90" />
-                </div>
+                {/* White Star Icon - No Container */}
+                <Sparkles className="w-16 h-16 text-white opacity-90 mb-5" />
                 <h1 className="text-3xl font-bold mb-2">{modelInfo?.name}</h1>
                 <p className="text-sm text-[var(--muted)] mb-1">{modelInfo?.provider}</p>
                 <p className="text-xs text-[var(--muted)] max-w-md leading-relaxed">{modelInfo?.description}</p>
