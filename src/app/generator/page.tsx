@@ -501,7 +501,7 @@ function GeneratorPageContent() {
             className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0"
             title="Attach file"
           >
-            <Paperclip className="w-5 h-5 text-gray-400" />
+            <Paperclip className="w-5 h-5 text-cyan-400" />
           </button>
           
           {/* File counter */}
