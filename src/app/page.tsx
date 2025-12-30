@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, Zap, Video, Image as ImageIcon, Mic, ArrowRight, 
   Brain, Palette, Music, Star, Users, TrendingUp, Check,
-  ChevronDown, ChevronUp, Send, Gift, Rocket, Target
+  ChevronDown, ChevronUp, Send, Gift, Rocket, Target, Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -23,7 +23,6 @@ export default function HomePage() {
       type: 'AI Generated', 
       image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=500&fit=crop',
       gradient: 'from-purple-500 to-pink-500',
-      position: 'top-left'
     },
     { 
       title: 'AI Family', 
@@ -31,7 +30,6 @@ export default function HomePage() {
       type: 'AI Generated', 
       image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400&h=500&fit=crop',
       gradient: 'from-cyan-500 to-blue-500',
-      position: 'top-right'
     },
     { 
       title: 'AI Video', 
@@ -39,7 +37,6 @@ export default function HomePage() {
       type: 'AI Video', 
       image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=500&fit=crop',
       gradient: 'from-pink-500 to-red-500',
-      position: 'bottom-left'
     },
     { 
       title: 'AI Beauty', 
@@ -47,7 +44,6 @@ export default function HomePage() {
       type: 'AI Generated', 
       image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=500&fit=crop',
       gradient: 'from-orange-500 to-pink-500',
-      position: 'bottom-right'
     },
   ];
 
@@ -89,33 +85,21 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
+    <div className="min-h-screen bg-white text-gray-900">
       
-      {/* Hero Section with Gallery */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20 pb-32">
-        {/* Animated Background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="absolute top-0 -left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-[120px]"
-          />
-          <motion.div
-            animate={{ scale: [1.2, 1, 1.2], rotate: [90, 0, 90] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="absolute bottom-0 -right-1/4 w-96 h-96 bg-cyan-500/30 rounded-full blur-[120px]"
-          />
-        </div>
-
+      {/* Hero Section - Freepik Style */}
+      <section className="relative min-h-[85vh] flex items-center justify-center pt-24 pb-20 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        
         <div className="container mx-auto px-6 relative z-10">
-          {/* Floating AI Examples Gallery */}
-          <div className="absolute inset-0 pointer-events-none hidden lg:block">
+          
+          {/* Floating Images */}
+          <div className="absolute inset-0 pointer-events-none hidden lg:block overflow-hidden">
             {/* Top Left */}
             <motion.div
               initial={{ opacity: 0, x: -100, y: -50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.8 }}
-              className="absolute top-20 left-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="absolute top-10 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
             >
               <Image 
                 src={aiExamples[0].image} 
@@ -123,14 +107,13 @@ export default function HomePage() {
                 fill
                 className="object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <div className="text-xs px-3 py-1 rounded-full bg-cyan-500/90 backdrop-blur-md border border-white/20 w-fit mb-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-white/95 text-gray-900 font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-blue-500" />
                   {aiExamples[0].type}
                 </div>
-                <h4 className="font-bold text-lg text-white">{aiExamples[0].title}</h4>
-                <p className="text-sm text-gray-300">{aiExamples[0].subtitle}</p>
+                <h4 className="font-semibold text-white text-sm">{aiExamples[0].title}</h4>
               </div>
             </motion.div>
 
@@ -138,8 +121,8 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, x: 100, y: -50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              className="absolute top-20 right-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+              transition={{ delay: 0.3, duration: 0.6 }}
+              className="absolute top-10 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
             >
               <Image 
                 src={aiExamples[1].image} 
@@ -147,14 +130,13 @@ export default function HomePage() {
                 fill
                 className="object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <div className="text-xs px-3 py-1 rounded-full bg-cyan-500/90 backdrop-blur-md border border-white/20 w-fit mb-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-white/95 text-gray-900 font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-blue-500" />
                   {aiExamples[1].type}
                 </div>
-                <h4 className="font-bold text-lg text-white">{aiExamples[1].title}</h4>
-                <p className="text-sm text-gray-300">{aiExamples[1].subtitle}</p>
+                <h4 className="font-semibold text-white text-sm">{aiExamples[1].title}</h4>
               </div>
             </motion.div>
 
@@ -162,8 +144,8 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, x: -100, y: 50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
-              className="absolute bottom-40 left-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+              transition={{ delay: 0.4, duration: 0.6 }}
+              className="absolute bottom-32 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
             >
               <Image 
                 src={aiExamples[2].image} 
@@ -171,16 +153,15 @@ export default function HomePage() {
                 fill
                 className="object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute top-4 left-4">
-                <div className="text-xs px-3 py-1 rounded-full bg-pink-500/90 backdrop-blur-md border border-white/20 w-fit flex items-center gap-1">
-                  <Video className="w-3 h-3" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute top-3 left-3">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-pink-500 text-white font-medium w-fit flex items-center gap-1.5">
+                  <Play className="w-3 h-3 fill-white" />
                   {aiExamples[2].type}
                 </div>
               </div>
-              <div className="absolute bottom-4 left-4 right-4">
-                <h4 className="font-bold text-lg text-white">{aiExamples[2].title}</h4>
-                <p className="text-sm text-gray-300">{aiExamples[2].subtitle}</p>
+              <div className="absolute bottom-3 left-3 right-3">
+                <h4 className="font-semibold text-white text-sm">{aiExamples[2].title}</h4>
               </div>
             </motion.div>
 
@@ -188,8 +169,8 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, x: 100, y: 50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.8 }}
-              className="absolute bottom-40 right-10 w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer"
+              transition={{ delay: 0.5, duration: 0.6 }}
+              className="absolute bottom-32 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-gray-200"
             >
               <Image 
                 src={aiExamples[3].image} 
@@ -197,72 +178,80 @@ export default function HomePage() {
                 fill
                 className="object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <div className="text-xs px-3 py-1 rounded-full bg-cyan-500/90 backdrop-blur-md border border-white/20 w-fit mb-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-white/95 text-gray-900 font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-blue-500" />
                   {aiExamples[3].type}
                 </div>
-                <h4 className="font-bold text-lg text-white">{aiExamples[3].title}</h4>
-                <p className="text-sm text-gray-300">{aiExamples[3].subtitle}</p>
+                <h4 className="font-semibold text-white text-sm">{aiExamples[3].title}</h4>
               </div>
             </motion.div>
           </div>
 
-          {/* Hero Text - Centered */}
+          {/* Hero Content */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.7 }}
-            className="text-center max-w-6xl mx-auto relative z-10"
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="text-center max-w-5xl mx-auto relative z-10"
           >
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight">
-              Топовые AI модели
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.7 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-6"
+            >
+              <Sparkles className="w-4 h-4" />
+              Топовые AI модели в одном месте
+            </motion.div>
+
+            {/* Main Heading */}
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
+              Создавайте невероятный
               <br />
-              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                в одном месте
+              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                контент с AI
               </span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-gray-300 mb-4 max-w-4xl mx-auto">
-              Создавайте невероятный контент с AI
-            </p>
-            
-            <p className="text-lg text-gray-400 mb-6">
-              Фото и видео студийного качества • Без навыков дизайна
+            <p className="text-xl md:text-2xl text-gray-600 mb-4 max-w-3xl mx-auto font-normal">
+              Фото и видео студийного качества за секунды
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-10 text-sm">
-              <div className="px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300">
+            {/* Model Tags */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 text-sm">
+              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
                 Nano Banana Pro
               </div>
-              <div className="px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300">
+              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
                 Veo 3.1
               </div>
-              <div className="px-4 py-2 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-300">
+              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
                 Kling
               </div>
-              <div className="px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+              <div className="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-medium shadow-sm">
                 Sora
               </div>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
               <Link href="/generator?section=image">
                 <Button 
                   size="lg"
-                  className="group bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 px-10 py-7 text-lg rounded-2xl shadow-2xl shadow-purple-500/30 hover:scale-105 transition-all"
+                  className="group bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg hover:shadow-xl transition-all"
                 >
                   Начать создавать
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-2 transition-transform" />
+                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link href="/inspiration">
                 <Button 
                   size="lg"
                   variant="outline"
-                  className="px-10 py-7 text-lg rounded-2xl bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/10"
+                  className="px-8 py-6 text-base font-medium rounded-xl bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-900 transition-all"
                 >
                   Смотреть примеры
                 </Button>
@@ -270,21 +259,20 @@ export default function HomePage() {
             </div>
 
             {/* Info Line */}
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400">
-              <div className="flex items-center gap-2">
-                <Gift className="w-4 h-4 text-yellow-400" />
-                <span className="font-semibold text-yellow-300">50⭐ бесплатно</span>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-1.5">
+                <Gift className="w-4 h-4 text-green-600" />
+                <span className="font-medium text-green-700">50⭐ бесплатно</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Send className="w-4 h-4 text-blue-400" />
+              <div className="w-1 h-1 rounded-full bg-gray-300" />
+              <div className="flex items-center gap-1.5">
+                <Send className="w-4 h-4 text-blue-600" />
                 <span>Telegram</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-400" />
+              <div className="w-1 h-1 rounded-full bg-gray-300" />
+              <div className="flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-green-600" />
                 <span>Без карты</span>
-              </div>
-              <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 font-bold text-xs uppercase tracking-wider">
-                Эксклюзив
               </div>
             </div>
           </motion.div>
@@ -292,115 +280,115 @@ export default function HomePage() {
       </section>
 
       {/* Nano Banana Pro Promo */}
-      <section className="py-20 relative">
+      <section className="py-16 bg-gradient-to-br from-yellow-50 to-orange-50">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-5xl mx-auto p-10 md:p-12 rounded-3xl bg-gradient-to-br from-yellow-500/10 via-orange-500/10 to-yellow-600/10 border border-yellow-500/20 relative overflow-hidden"
+            className="max-w-5xl mx-auto p-8 md:p-10 rounded-3xl bg-white shadow-xl border border-gray-200"
           >
-            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-            <div className="relative z-10">
-              <div className="flex items-start justify-between flex-wrap gap-6">
-                <div className="flex-1 min-w-[300px]">
-                  <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                    Nano Banana Pro — бесплатно! 🍌
-                  </h2>
-                  <p className="text-lg text-gray-300 mb-6">
-                    В тарифах <span className="text-purple-400 font-semibold">Creator+</span> и{' '}
-                    <span className="text-cyan-400 font-semibold">Business</span> безлимитные генерации 
-                    Nano Banana Pro без траты звёзд
-                  </p>
-                  
-                  <div className="space-y-3 mb-8">
-                    <div className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span className="text-gray-200">Безлимит 1–2K фото</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span className="text-gray-200">Премиум качество</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span className="text-gray-200">Без траты ⭐</span>
-                    </div>
-                  </div>
-
-                  <Link href="/pricing">
-                    <Button 
-                      size="lg"
-                      className="bg-gradient-to-r from-yellow-600 to-orange-500 hover:from-yellow-500 hover:to-orange-400 px-8 py-6 text-lg rounded-xl"
-                    >
-                      Смотреть тарифы
-                    </Button>
-                  </Link>
+            <div className="flex items-start justify-between flex-wrap gap-6">
+              <div className="flex-1 min-w-[280px]">
+                <div className="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold mb-4">
+                  ЭКСКЛЮЗИВ
                 </div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
+                  Nano Banana Pro — бесплатно! 🍌
+                </h2>
+                <p className="text-lg text-gray-600 mb-6 font-normal">
+                  В тарифах <span className="text-purple-600 font-semibold">Creator+</span> и{' '}
+                  <span className="text-blue-600 font-semibold">Business</span> безлимитные генерации без траты звёзд
+                </p>
                 
-                <div className="text-9xl opacity-20">🍌</div>
+                <div className="space-y-3 mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-green-600" />
+                    </div>
+                    <span className="text-gray-700">Безлимит 1–2K фото</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-green-600" />
+                    </div>
+                    <span className="text-gray-700">Премиум качество</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-green-600" />
+                    </div>
+                    <span className="text-gray-700">Без траты ⭐</span>
+                  </div>
+                </div>
+
+                <Link href="/pricing">
+                  <Button 
+                    size="lg"
+                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-5 text-base font-medium rounded-xl shadow-lg"
+                  >
+                    Смотреть тарифы
+                  </Button>
+                </Link>
               </div>
+              
+              <div className="text-8xl opacity-20 select-none">🍌</div>
             </div>
           </motion.div>
         </div>
       </section>
 
       {/* Advantages Section */}
-      <section className="py-32 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent" />
-        
-        <div className="container mx-auto px-6 relative">
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
-              Всё для{' '}
-              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                контента
-              </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+              Всё для контента
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto font-normal">
               Один инструмент вместо десятка сервисов
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
+          <div className="grid md:grid-cols-3 gap-6 mb-16 max-w-6xl mx-auto">
             {[
               {
                 icon: Palette,
                 title: 'Фото',
                 description: '15+ моделей для создания изображений любого стиля',
-                gradient: 'from-purple-500/20 to-pink-500/20'
+                color: 'text-purple-600'
               },
               {
                 icon: Video,
                 title: 'Видео',
                 description: '10+ моделей для генерации профессиональных видео',
-                gradient: 'from-cyan-500/20 to-blue-500/20'
+                color: 'text-blue-600'
               },
               {
                 icon: Sparkles,
                 title: 'Эффекты',
                 description: 'Апскейл, замена фона, стилизация и многое другое',
-                gradient: 'from-pink-500/20 to-red-500/20'
+                color: 'text-pink-600'
               }
             ].map((item, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="p-8 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all"
+                className="p-6 rounded-2xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-all"
               >
-                <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center mb-6`}>
-                  <item.icon className="w-8 h-8 text-white" />
+                <div className={`w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center mb-4 ${item.color}`}>
+                  <item.icon className="w-6 h-6" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
-                <p className="text-gray-400">{item.description}</p>
+                <h3 className="text-xl font-bold mb-2 text-gray-900">{item.title}</h3>
+                <p className="text-gray-600 font-normal">{item.description}</p>
               </motion.div>
             ))}
           </div>
@@ -410,27 +398,26 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto"
+            className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
           >
             {[
-              { value: '1 000+', label: 'пользователей', icon: Users },
-              { value: '5 000+', label: 'генераций', icon: Zap },
-              { value: '10+', label: 'AI моделей', icon: Brain },
-              { value: '98%', label: 'довольных', icon: Star }
+              { value: '1 000+', label: 'пользователей' },
+              { value: '5 000+', label: 'генераций' },
+              { value: '10+', label: 'AI моделей' },
+              { value: '98%', label: 'довольных' }
             ].map((metric, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="text-center p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl border border-white/10"
+                className="text-center p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 border border-gray-200"
               >
-                <metric.icon className="w-8 h-8 text-purple-400 mx-auto mb-3" />
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent mb-1">
+                <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-1">
                   {metric.value}
                 </div>
-                <div className="text-sm text-gray-400">{metric.label}</div>
+                <div className="text-sm text-gray-600 font-normal">{metric.label}</div>
               </motion.div>
             ))}
           </motion.div>
@@ -438,42 +425,38 @@ export default function HomePage() {
       </section>
 
       {/* Top Models Section */}
-      <section className="py-32 relative">
+      <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
-            <h2 className="text-5xl md:text-6xl font-bold mb-4">
-              Топовые модели{' '}
-              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                мира
-              </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+              Топовые модели мира
             </h2>
-            <p className="text-xl text-gray-400">
+            <p className="text-xl text-gray-600 font-normal">
               Выбирайте лучшее для каждой задачи
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-6xl mx-auto">
             {topModels.map((model, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                whileHover={{ y: -10 }}
-                className="group p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all cursor-pointer text-center"
+                className="group p-5 rounded-2xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all cursor-pointer text-center"
               >
-                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <model.icon className="w-8 h-8 text-white" />
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <model.icon className="w-7 h-7 text-blue-600" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">{model.name}</h3>
-                <p className="text-sm text-gray-400 mb-3">{model.type}</p>
-                <div className={`inline-block px-3 py-1 rounded-full ${model.badgeColor} text-white text-xs font-semibold`}>
+                <h3 className="font-bold text-base mb-1 text-gray-900">{model.name}</h3>
+                <p className="text-sm text-gray-500 mb-3 font-normal">{model.type}</p>
+                <div className={`inline-block px-2.5 py-1 rounded-full ${model.badgeColor} text-white text-xs font-semibold`}>
                   {model.badge}
                 </div>
               </motion.div>
@@ -483,25 +466,27 @@ export default function HomePage() {
       </section>
 
       {/* Referral Section */}
-      <section className="py-20 relative">
+      <section className="py-16 bg-white">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-5xl mx-auto p-10 md:p-12 rounded-3xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-500/20 text-center"
+            className="max-w-4xl mx-auto p-8 md:p-10 rounded-3xl bg-gradient-to-br from-purple-50 to-pink-50 border border-gray-200 text-center"
           >
-            <Rocket className="w-16 h-16 text-purple-400 mx-auto mb-6" />
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center mx-auto mb-6">
+              <Rocket className="w-8 h-8 text-purple-600" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
               Приглашай друзей — получай звёзды!
             </h2>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto font-normal">
               50⭐ за каждого друга + 10% от его пополнений навсегда
             </p>
             <Link href="/profile">
               <Button 
                 size="lg"
-                className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 px-8 py-6 text-lg rounded-xl"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg"
               >
                 Моя реферальная ссылка
               </Button>
@@ -511,34 +496,31 @@ export default function HomePage() {
       </section>
 
       {/* Gallery Section */}
-      <section className="py-32 relative">
+      <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-10"
           >
-            <h2 className="text-5xl md:text-6xl font-bold mb-4">
-              Галерея{' '}
-              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                работ
-              </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+              Галерея работ
             </h2>
-            <p className="text-xl text-gray-400 mb-8">
-              Кликните по примеру, чтобы открыть генератор с этими настройками
+            <p className="text-xl text-gray-600 mb-6 font-normal">
+              Кликните по примеру, чтобы открыть генератор
             </p>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {['Все', 'Фото', 'Видео', 'Nano Banana', 'Veo', 'Kling'].map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setActiveFilter(filter.toLowerCase())}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     activeFilter === filter.toLowerCase()
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   {filter}
@@ -551,13 +533,15 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-20 px-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10"
+            className="text-center py-16 px-6 rounded-2xl bg-white border border-gray-200"
           >
-            <ImageIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-xl text-gray-400 mb-4">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <ImageIcon className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-lg text-gray-600 mb-3 font-normal">
               Галерея эффектов пуста
             </p>
-            <Link href="/generator?section=image" className="text-purple-400 hover:text-purple-300 transition-colors">
+            <Link href="/generator?section=image" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
               Создайте контент в разделе Генератор →
             </Link>
           </motion.div>
@@ -565,63 +549,61 @@ export default function HomePage() {
       </section>
 
       {/* Steps Section */}
-      <section className="py-32 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent" />
-        
-        <div className="container mx-auto px-6 relative">
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
-            <h2 className="text-5xl md:text-6xl font-bold mb-4">
-              Три шага до{' '}
-              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                результата
-              </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+              Три шага до результата
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-12 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
               {
                 number: '01',
                 title: 'Выберите',
                 description: 'Модель или пример из галереи',
-                icon: Target
+                icon: Target,
+                color: 'from-blue-500 to-cyan-500'
               },
               {
                 number: '02',
                 title: 'Опишите',
                 description: 'Что хотите создать в промпте',
-                icon: Sparkles
+                icon: Sparkles,
+                color: 'from-purple-500 to-pink-500'
               },
               {
                 number: '03',
                 title: 'Получите',
                 description: 'Результат за секунды',
-                icon: Zap
+                icon: Zap,
+                color: 'from-orange-500 to-red-500'
               }
             ].map((step, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.2 }}
+                transition={{ delay: i * 0.15 }}
                 className="text-center"
               >
                 <div className="relative inline-block mb-6">
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center backdrop-blur-xl border border-white/10">
-                    <step.icon className="w-12 h-12 text-white" />
+                  <div className="w-20 h-20 rounded-2xl bg-white shadow-lg flex items-center justify-center border border-gray-200">
+                    <step.icon className="w-10 h-10 text-blue-600" />
                   </div>
-                  <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-cyan-500 flex items-center justify-center font-bold text-lg">
+                  <div className={`absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-r ${step.color} flex items-center justify-center font-bold text-white text-sm shadow-lg`}>
                     {step.number}
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{step.title}</h3>
-                <p className="text-gray-400 text-lg">{step.description}</p>
+                <h3 className="text-xl font-bold mb-2 text-gray-900">{step.title}</h3>
+                <p className="text-gray-600 font-normal">{step.description}</p>
               </motion.div>
             ))}
           </div>
@@ -629,45 +611,42 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-32 relative">
+      <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
-            <h2 className="text-5xl md:text-6xl font-bold mb-4">
-              Частые{' '}
-              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                вопросы
-              </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+              Частые вопросы
             </h2>
-            <p className="text-xl text-gray-400">
+            <p className="text-xl text-gray-600 font-normal">
               Не нашли ответ?{' '}
-              <a href="https://t.me/lensroom" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
+              <a href="https://t.me/lensroom" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium">
                 Напишите в Telegram
               </a>
             </p>
           </motion.div>
 
-          <div className="max-w-3xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto space-y-3">
             {faqs.map((faq, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden"
+                transition={{ delay: i * 0.05 }}
+                className="rounded-xl bg-white border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
                 <button
                   onClick={() => setOpenFAQ(openFAQ === i ? null : i)}
-                  className="w-full p-6 text-left flex items-center justify-between hover:bg-white/5 transition-colors"
+                  className="w-full p-5 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
-                  <span className="font-semibold text-lg pr-4">{faq.question}</span>
+                  <span className="font-semibold text-base text-gray-900 pr-4">{faq.question}</span>
                   {openFAQ === i ? (
-                    <ChevronUp className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                    <ChevronUp className="w-5 h-5 text-blue-600 flex-shrink-0" />
                   ) : (
                     <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
                   )}
@@ -678,10 +657,10 @@ export default function HomePage() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-6 pb-6 text-gray-400 leading-relaxed">
+                      <div className="px-5 pb-5 text-gray-600 leading-relaxed font-normal">
                         {faq.answer}
                       </div>
                     </motion.div>
@@ -694,50 +673,38 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-32 relative">
-        <div className="container mx-auto px-6 relative">
+      <section className="py-20 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
+        <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto text-center relative"
+            className="max-w-4xl mx-auto text-center text-white"
           >
-            {/* Glow Effect */}
-            <motion.div
-              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-cyan-500/20 blur-[100px]"
-            />
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+              Готовы создавать?
+            </h2>
 
-            <div className="relative z-10">
-              <h2 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-                Готовы{' '}
-                <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                  создавать?
-                </span>
-              </h2>
+            <p className="text-xl mb-8 opacity-90 font-normal">
+              Получите 50⭐ бесплатно при регистрации
+            </p>
 
-              <p className="text-xl text-gray-300 mb-8">
-                Получите 50⭐ бесплатно при регистрации
-              </p>
+            <Link href="/generator?section=image">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button 
+                  size="lg"
+                  className="bg-white hover:bg-gray-100 text-blue-600 px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl"
+                >
+                  <Sparkles className="w-6 h-6 mr-2" />
+                  Начать бесплатно
+                  <ArrowRight className="w-6 h-6 ml-2" />
+                </Button>
+              </motion.div>
+            </Link>
 
-              <Link href="/generator?section=image">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button 
-                    size="lg"
-                    className="group bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 px-12 py-8 text-xl rounded-2xl shadow-2xl shadow-purple-500/30"
-                  >
-                    <Sparkles className="w-6 h-6 mr-3" />
-                    Начать бесплатно
-                    <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform" />
-                  </Button>
-                </motion.div>
-              </Link>
-
-              <p className="text-sm text-gray-500 mt-6">
-                Вход через Telegram • Без карты
-              </p>
-            </div>
+            <p className="text-sm mt-6 opacity-75">
+              Вход через Telegram • Без карты
+            </p>
           </motion.div>
         </div>
       </section>
