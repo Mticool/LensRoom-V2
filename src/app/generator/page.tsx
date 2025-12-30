@@ -375,7 +375,7 @@ function GeneratorPageContent() {
           {/* Canvas Area - SYNTX (no scroll, centered) */}
           <div className="flex-1 overflow-hidden flex items-center justify-center">
             {chatHistory.length === 0 ? (
-              /* Empty State - SYNTX Style (Centered, No Scroll) */}
+              /* Empty State - SYNTX Style (Centered, No Scroll) */
               <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
                 {/* White Star Icon - No Container */}
                 <Sparkles className="w-16 h-16 text-white opacity-90 mb-5" />
