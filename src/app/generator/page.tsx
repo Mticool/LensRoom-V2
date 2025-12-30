@@ -147,6 +147,8 @@ function GeneratorPageContent() {
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
+  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
+  const [showRightSidebar, setShowRightSidebar] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const telegramAuth = useTelegramAuth();
