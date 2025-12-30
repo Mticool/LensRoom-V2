@@ -473,7 +473,7 @@ function GeneratorPageContent() {
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
             <h3 className="font-semibold flex items-center gap-2 text-[var(--text)]">
               <Settings className="w-4 h-4" />
-              Settings
+              Настройки
             </h3>
             <button 
               onClick={handleReset} 
