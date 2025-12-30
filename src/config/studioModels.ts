@@ -3,10 +3,13 @@ import { computePrice } from "@/lib/pricing/compute-price";
 import type { PriceOptions } from "@/lib/pricing/compute-price";
 
 export type ModelKind = "photo" | "video";
-export type Mode = "t2i" | "i2i" | "t2v" | "i2v" | "start_end" | "storyboard";
+export type Mode = "t2i" | "i2i" | "t2v" | "i2v" | "v2v" | "start_end" | "storyboard";
 export type Quality = string;
 export type Aspect = string;
 export type Duration = number | string;
+
+// Models to hide from UI (but keep in backend for historical generations)
+const HIDDEN_STUDIO_MODEL_KEYS = ['kling-ai-avatar'];
 
 export interface StudioModel {
   // key == production model id (single source of truth)
@@ -164,7 +167,9 @@ function toStudioModel(model: ModelConfig): StudioModel {
 
 export const STUDIO_MODELS: StudioModel[] = [...PHOTO_MODELS, ...VIDEO_MODELS].map(toStudioModel);
 export const STUDIO_PHOTO_MODELS: StudioModel[] = STUDIO_MODELS.filter((m) => m.kind === "photo");
-export const STUDIO_VIDEO_MODELS: StudioModel[] = STUDIO_MODELS.filter((m) => m.kind === "video");
+export const STUDIO_VIDEO_MODELS: StudioModel[] = STUDIO_MODELS
+  .filter((m) => m.kind === "video")
+  .filter((m) => !HIDDEN_STUDIO_MODEL_KEYS.includes(m.key));
 
 export function getStudioModelByKey(key: string): StudioModel | undefined {
   const direct = STUDIO_MODELS.find((m) => m.key === key);

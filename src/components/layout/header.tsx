@@ -28,7 +28,6 @@ export function Header() {
   const { balance, fetchBalance } = useCreditsStore();
 
   useEffect(() => {
-    // Fetch balance for any logged in user (Telegram or Supabase)
     if (telegramUser || supabaseUser) {
       fetchBalance();
     }
@@ -62,16 +61,14 @@ export function Header() {
     supabaseUser?.email ||
     'Пользователь';
 
-  const studioEnabled = process.env.NEXT_PUBLIC_STUDIO_BETA === 'true';
   const navigation = [
-    { name: 'Фото', href: '/create' },
-    { name: 'Видео', href: '/create/video' },
-    ...(studioEnabled ? [{ name: 'Studio (beta)', href: '/create/studio' }] : []),
-    { name: 'E-Com', href: '/create/products' },
+    { name: 'Текст', href: '/generator?section=text' },
+    { name: 'Дизайн', href: '/generator?section=image' },
+    { name: 'Видео', href: '/generator?section=video' },
+    { name: 'Аудио', href: '/generator?section=audio' },
     { name: 'Мои результаты', href: '/library' },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },
-    { name: 'Академия', href: '/academy' },
   ];
 
   return (
@@ -79,7 +76,6 @@ export function Header() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] glass">
         <nav className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-black" />
@@ -87,7 +83,6 @@ export function Header() {
               <span className="text-lg font-bold text-[var(--text)]">LensRoom</span>
             </Link>
 
-            {/* Desktop Nav */}
             <div className="hidden lg:flex items-center gap-1">
               {navigation.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -96,24 +91,25 @@ export function Header() {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      "px-4 py-2 text-sm font-medium transition-colors rounded-lg",
+                      "px-4 py-2 text-sm font-medium transition-colors rounded-lg flex items-center gap-1.5",
                       isActive
                         ? "text-[var(--text)] bg-[var(--surface2)]"
                         : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]"
                     )}
                   >
                     {item.name}
+                    {'badge' in item && item.badge && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
             </div>
 
-            {/* Right side */}
             <div className="hidden lg:flex items-center gap-2">
-              {/* Theme Toggle */}
               <ThemeToggle />
-              
-              {/* Auth */}
               {authLoading ? (
                 <div className="w-24 h-10 bg-[var(--surface)] rounded-xl animate-pulse" />
               ) : (telegramUser || supabaseUser) ? (
@@ -122,7 +118,6 @@ export function Header() {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-white/20 transition-all motion-reduce:transition-none"
                   >
-                    {/* Avatar */}
                     {telegramUser?.photoUrl ? (
                       <Image
                         src={telegramUser.photoUrl}
@@ -145,11 +140,10 @@ export function Header() {
                     )} />
                   </button>
 
-                  {/* User Dropdown */}
                   <AnimatePresence>
                     {userMenuOpen && (
                       <>
-                        <div 
+                        <div
                           className="fixed inset-0 z-40"
                           onClick={() => setUserMenuOpen(false)}
                         />
@@ -159,7 +153,6 @@ export function Header() {
                           exit={{ opacity: 0, y: -8 }}
                           className="absolute right-0 mt-2 w-64 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden"
                         >
-                          {/* User Info */}
                           <div className="px-4 py-3 border-b border-[var(--border)]">
                             <div className="flex items-center gap-3">
                               {telegramUser?.photoUrl ? (
@@ -192,7 +185,6 @@ export function Header() {
                             </div>
                           </div>
 
-                          {/* Menu Items */}
                           <div className="py-1">
                             <Link
                               href="/account/subscription"
@@ -210,8 +202,7 @@ export function Header() {
                               <CreditCard className="w-4 h-4" />
                               Купить кредиты
                             </Link>
-                            
-                            {/* Connect Bot (only relevant for Telegram users) */}
+
                             {telegramUser && !telegramUser.canNotify && (
                               <button
                                 onClick={handleConnectBot}
@@ -222,7 +213,6 @@ export function Header() {
                               </button>
                             )}
 
-                            {/* Admin Link */}
                             {telegramUser?.isAdmin && (
                               <Link
                                 href="/admin/waitlist"
@@ -235,7 +225,6 @@ export function Header() {
                             )}
                           </div>
 
-                          {/* Logout */}
                           <div className="border-t border-[var(--border)] py-1">
                             <button
                               onClick={handleSignOut}
@@ -257,11 +246,9 @@ export function Header() {
               )}
             </div>
 
-            {/* Mobile */}
             <div className="flex lg:hidden items-center gap-1">
-              {/* Theme Toggle - Mobile */}
               <ThemeToggle />
-              
+
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 rounded-lg hover:bg-[var(--surface)] transition-colors"
@@ -277,7 +264,6 @@ export function Header() {
         </nav>
       </header>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -286,7 +272,7 @@ export function Header() {
             exit={{ opacity: 0, y: -10 }}
             className="fixed inset-x-0 top-16 z-40 lg:hidden"
           >
-            <div 
+            <div
               className="absolute inset-0 bg-[var(--bg)] h-screen"
               onClick={() => setMobileMenuOpen(false)}
             />
@@ -300,13 +286,18 @@ export function Header() {
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "block px-4 py-3 rounded-xl text-sm font-medium transition-colors",
+                        "flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                         isActive
                           ? "bg-[var(--surface2)] text-[var(--text)]"
                           : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
                       )}
                     >
                       {item.name}
+                      {'badge' in item && item.badge && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -384,10 +375,8 @@ export function Header() {
         )}
       </AnimatePresence>
 
-      {/* Login Dialog */}
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 
-      {/* Spacer */}
       <div className="h-16" />
     </>
   );

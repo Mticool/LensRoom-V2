@@ -16,6 +16,7 @@ const MODE_LABELS: Record<Mode, string> = {
   i2i: "Фото → Фото",
   t2v: "Текст → Видео",
   i2v: "Фото → Видео",
+  v2v: "Видео → Видео (R2V)",
   start_end: "Старт → Финиш",
   storyboard: "Раскадровка",
 };
@@ -45,6 +46,20 @@ const QUALITY_LABELS: Record<string, string> = {
   "480p": "480p",
   "720p": "720p",
   "1080p": "1080p",
+  "1080p_multi": "Multi-shot 1080p",
+};
+
+// Sound preset labels for WAN
+const SOUND_PRESET_LABELS: Record<string, string> = {
+  // WAN 2.5 presets
+  'native': 'Нативный звук',
+  'lip-sync': 'Lip-sync',
+  'ambient': 'Ambient',
+  'music': 'Музыка',
+  // WAN 2.6 presets
+  'native-dialogues': 'Нативные диалоги',
+  'precise-lip-sync': 'Точный lip-sync',
+  'ambient-atmospheric': 'Атмосферные звуки',
 };
 
 interface SettingsPanelProps {
@@ -65,6 +80,12 @@ interface SettingsPanelProps {
   onResolutionChange?: (r: string) => void;
   referenceImage: File | null;
   onReferenceImageChange: (f: File | null) => void;
+  // WAN-specific: Sound presets
+  soundPreset?: string;
+  onSoundPresetChange?: (s: string) => void;
+  // V2V mode: Reference video URL
+  referenceVideoUrl?: string;
+  onReferenceVideoUrlChange?: (url: string) => void;
 }
 
 export const SettingsPanel = memo(function SettingsPanel({
@@ -85,17 +106,43 @@ export const SettingsPanel = memo(function SettingsPanel({
   onResolutionChange,
   referenceImage,
   onReferenceImageChange,
+  soundPreset,
+  onSoundPresetChange,
+  referenceVideoUrl,
+  onReferenceVideoUrlChange,
 }: SettingsPanelProps) {
   const refId = useId();
 
-  const showDuration = model.kind === "video" && !!model.durationOptions?.length && mode !== "storyboard";
-  const showAudio = model.kind === "video" && !!model.supportsAudio && mode !== "storyboard";
-  const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v");
-  
-  // Check if model has variants (like Kling)
+  // Check if model has variants (like Kling/WAN)
   const modelConfig = getModelById(model.key);
   const hasModelVariants = modelConfig?.type === "video" && (modelConfig as VideoModelConfig).modelVariants?.length;
   const modelVariants = hasModelVariants ? (modelConfig as VideoModelConfig).modelVariants! : [];
+  
+  // Get current variant config for WAN dynamic filtering
+  const isWan = model.key === 'wan';
+  const currentVariant = modelVariants.find(v => v.id === modelVariant);
+  
+  // Dynamic options based on WAN variant
+  const effectiveModes = isWan && currentVariant?.modes 
+    ? (currentVariant.modes as Mode[]) 
+    : model.modes;
+  const effectiveDurations = isWan && currentVariant?.durationOptions 
+    ? currentVariant.durationOptions 
+    : model.durationOptions;
+  const effectiveResolutions = isWan && currentVariant?.resolutionOptions 
+    ? currentVariant.resolutionOptions 
+    : (modelConfig as VideoModelConfig)?.resolutionOptions || [];
+  const effectiveAspectRatios = isWan && currentVariant?.aspectRatios 
+    ? currentVariant.aspectRatios 
+    : model.aspectRatios;
+  const soundOptions = isWan && currentVariant?.soundOptions 
+    ? currentVariant.soundOptions 
+    : [];
+
+  const showDuration = model.kind === "video" && !!effectiveDurations?.length && mode !== "storyboard";
+  const showAudio = model.kind === "video" && !!model.supportsAudio && mode !== "storyboard" && !isWan; // Hide audio toggle for WAN (use sound presets instead)
+  const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v");
+  const showV2vReference = mode === "v2v" && isWan;
 
   return (
     <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
@@ -128,7 +175,7 @@ export const SettingsPanel = memo(function SettingsPanel({
         <div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Режим</div>
           <div className="flex flex-wrap gap-2">
-            {model.modes.map((m) => (
+            {effectiveModes.map((m) => (
               <button
                 key={m}
                 onClick={() => onModeChange(m)}
@@ -171,7 +218,7 @@ export const SettingsPanel = memo(function SettingsPanel({
         <div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Соотношение</div>
           <div className="flex gap-2 flex-wrap">
-            {model.aspectRatios.map((a) => (
+            {effectiveAspectRatios.map((a) => (
               <button
                 key={a}
                 onClick={() => onAspectChange(a)}
@@ -190,11 +237,11 @@ export const SettingsPanel = memo(function SettingsPanel({
         </div>
 
         {/* Resolution selector for models with resolutionOptions (e.g., WAN) */}
-        {model.kind === "video" && modelConfig?.type === "video" && (modelConfig as VideoModelConfig).resolutionOptions?.length && onResolutionChange && (
+        {model.kind === "video" && effectiveResolutions.length > 0 && onResolutionChange && (
           <div>
             <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Разрешение</div>
             <div className="flex gap-2 flex-wrap">
-              {(modelConfig as VideoModelConfig).resolutionOptions!.map((r) => (
+              {effectiveResolutions.map((r) => (
                 <button
                   key={r}
                   onClick={() => onResolutionChange(r)}
@@ -206,18 +253,18 @@ export const SettingsPanel = memo(function SettingsPanel({
                       : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
                   )}
                 >
-                  {r}
+                  {QUALITY_LABELS[r] || r}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {showDuration && model.durationOptions && onDurationChange && (
+        {showDuration && effectiveDurations && onDurationChange && (
           <div>
             <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Длительность</div>
             <div className="flex gap-2">
-              {model.durationOptions.map((d) => (
+              {effectiveDurations.map((d) => (
                 <button
                   key={d}
                   onClick={() => onDurationChange(d)}
@@ -230,6 +277,42 @@ export const SettingsPanel = memo(function SettingsPanel({
                   )}
                 >
                   {d}s
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Sound presets for WAN */}
+        {isWan && soundOptions.length > 0 && onSoundPresetChange && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Звук</div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => onSoundPresetChange('')}
+                className={cn(
+                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
+                  "motion-reduce:transition-none",
+                  !soundPreset
+                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
+                    : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
+                )}
+              >
+                Без звука
+              </button>
+              {soundOptions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => onSoundPresetChange(s)}
+                  className={cn(
+                    "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
+                    "motion-reduce:transition-none",
+                    s === soundPreset
+                      ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
+                      : "bg-transparent border-white/10 text-[var(--text)] hover:border-white/20 hover:bg-[var(--surface2)]"
+                  )}
+                >
+                  {SOUND_PRESET_LABELS[s] || s}
                 </button>
               ))}
             </div>
@@ -297,6 +380,27 @@ export const SettingsPanel = memo(function SettingsPanel({
                 </div>
               </div>
             </label>
+          </div>
+        )}
+
+        {/* Reference video URL for V2V mode (WAN 2.6) */}
+        {showV2vReference && onReferenceVideoUrlChange && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Референс видео (URL)</div>
+            <input
+              type="url"
+              value={referenceVideoUrl || ''}
+              onChange={(e) => onReferenceVideoUrlChange(e.target.value)}
+              placeholder="https://example.com/video.mp4"
+              className={cn(
+                "w-full h-10 rounded-2xl border bg-[var(--surface2)] px-3 text-sm text-[var(--text)]",
+                "border-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--gold)]/20",
+                "placeholder:text-[var(--muted)]"
+              )}
+            />
+            <div className="text-xs text-[var(--muted)] mt-1">
+              URL видео для Reference / Video-to-Video генерации (только WAN 2.6)
+            </div>
           </div>
         )}
       </div>

@@ -93,6 +93,8 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const [audio, setAudio] = useState<boolean>(true);
   const [modelVariant, setModelVariant] = useState<string>(""); // For unified models like Kling/WAN
   const [resolution, setResolution] = useState<string>(""); // For models with resolution selection (e.g., WAN)
+  const [soundPreset, setSoundPreset] = useState<string>(""); // WAN sound presets
+  const [referenceVideoUrl, setReferenceVideoUrl] = useState<string>(""); // V2V reference video URL
 
   const [prompt, setPrompt] = useState<string>("");
   const [scenes, setScenes] = useState<string[]>(["", "", ""]);
@@ -290,20 +292,59 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     setProgress(0);
     setLastError(null);
     setResultUrls([]);
+    setSoundPreset("");
+    setReferenceVideoUrl("");
   }, [studioModel?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-correct settings when WAN variant changes
+  useEffect(() => {
+    if (studioModel?.key !== 'wan' || !modelVariant) return;
+    
+    const model = getModelById('wan') as VideoModelConfig | undefined;
+    const variant = model?.modelVariants?.find(v => v.id === modelVariant);
+    if (!variant) return;
+    
+    // Auto-correct mode if not available in this variant
+    const availableModes = (variant as any).modes || model?.modes || [];
+    if (!availableModes.includes(mode)) {
+      setMode(availableModes[0] || 't2v');
+    }
+    
+    // Auto-correct duration if not available in this variant
+    const availableDurations = (variant as any).durationOptions || model?.durationOptions || [];
+    if (availableDurations.length && !availableDurations.includes(duration)) {
+      setDuration(availableDurations[0]);
+    }
+    
+    // Auto-correct resolution if not available in this variant
+    const availableResolutions = (variant as any).resolutionOptions || model?.resolutionOptions || [];
+    if (availableResolutions.length && !availableResolutions.includes(resolution)) {
+      setResolution(availableResolutions[0]);
+    }
+    
+    // Reset sound preset when variant changes (different presets per version)
+    setSoundPreset("");
+    
+    // Reset v2v reference when switching away from v2v
+    if (!availableModes.includes('v2v')) {
+      setReferenceVideoUrl("");
+    }
+  }, [modelVariant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const needsReference = !!studioModel?.supportsImageInput && (mode === "i2i" || mode === "i2v");
   const needsStartEnd = mode === "start_end";
   const isStoryboard = mode === "storyboard";
+  const needsV2vReference = mode === "v2v" && studioModel?.key === 'wan';
 
   const canGenerate = useMemo(() => {
     if (!modelInfo) return false;
     if (kind === "photo" && !selectedVariant) return false;
     if (needsReference && !referenceImage) return false;
     if (needsStartEnd && (!firstFrame || !lastFrame)) return false;
+    if (needsV2vReference && !referenceVideoUrl?.trim()) return false;
     if (isStoryboard) return scenes.some((s) => s.trim().length > 0);
     return prompt.trim().length > 0;
-  }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, isStoryboard, scenes, prompt]);
+  }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, needsV2vReference, referenceVideoUrl, isStoryboard, scenes, prompt]);
 
   const price = useMemo(() => {
     if (!modelInfo) return { stars: 0, credits: 0 };
@@ -649,6 +690,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         quality: isResolution ? undefined : String(quality || ""),
         resolution: effectiveResolution || undefined, // For WAN per-second pricing
         audio: v.supportsAudio ? audio : undefined,
+        soundPreset: soundPreset || undefined, // WAN sound presets
       };
 
       if (mode === "i2v") {
@@ -660,6 +702,11 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         if (!firstFrame || !lastFrame) throw new Error("start/end frames are required");
         payload.startImage = await fileToDataUrl(firstFrame);
         payload.endImage = await fileToDataUrl(lastFrame);
+      }
+
+      if (mode === "v2v") {
+        if (!referenceVideoUrl?.trim()) throw new Error("referenceVideoUrl is required for v2v");
+        payload.videoUrl = referenceVideoUrl.trim();
       }
 
       const res = await fetch("/api/generate/video", {
@@ -880,6 +927,10 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                 onResolutionChange={setResolution}
                 referenceImage={referenceImage}
                 onReferenceImageChange={setReferenceImage}
+                soundPreset={soundPreset}
+                onSoundPresetChange={setSoundPreset}
+                referenceVideoUrl={referenceVideoUrl}
+                onReferenceVideoUrlChange={setReferenceVideoUrl}
               />
             )}
 
@@ -909,7 +960,6 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     </StudioShell>
   );
 }
-
 
 
 

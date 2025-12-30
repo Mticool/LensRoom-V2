@@ -36,7 +36,7 @@ export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference'
 export type PhotoMode = 't2i' | 'i2i';
 
 // KIE API Provider type
-export type KieProvider = 'kie_market' | 'kie_veo' | 'openai';
+export type KieProvider = 'kie_market' | 'kie_veo' | 'openai' | 'fal';
 
 // Pricing structure: credits per generation
 export type PhotoPricing = 
@@ -80,12 +80,19 @@ export interface PhotoModelConfig {
 }
 
 export interface VideoModelVariant {
-  id: string; // e.g., "kling-2.5-turbo", "kling-2.6", "kling-2.1", "wan-2.5", "wan-2.6", "wan-2.2"
+  id: string; // e.g., "kling-2.5-turbo", "kling-2.6", "kling-2.1", "wan-2.5", "wan-2.6"
   name: string; // Display name
   apiId: string; // For t2v mode
   apiIdI2v?: string; // For i2v mode
+  apiIdV2v?: string; // For v2v mode (reference-guided)
   pricing: VideoPricing; // Pricing for this variant (same structure as VideoModelConfig.pricing)
   perSecondPricing?: { [resolution: string]: number }; // For per-second pricing (e.g., WAN 2.5: { "720p": 18, "1080p": 30 })
+  // Variant-specific options (override parent model defaults)
+  modes?: string[]; // e.g., ['t2v', 'i2v'] for WAN 2.5, ['t2v', 'i2v', 'v2v'] for WAN 2.6
+  durationOptions?: (number | string)[]; // e.g., [5, 10] for WAN 2.5, [5, 10, 15] for WAN 2.6
+  resolutionOptions?: string[]; // e.g., ['720p', '1080p'] for WAN 2.5, ['720p', '1080p', '1080p_multi'] for WAN 2.6
+  aspectRatios?: string[]; // e.g., ['16:9', '9:16', '1:1']
+  soundOptions?: string[]; // e.g., ['native', 'lip-sync', 'ambient', 'music'] for WAN 2.5
 }
 
 export interface VideoModelConfig {
@@ -93,6 +100,7 @@ export interface VideoModelConfig {
   name: string;
   apiId: string; // For t2v mode (default, used if no variants)
   apiIdI2v?: string; // For i2v mode (default, used if no variants)
+  apiIdV2v?: string; // For v2v mode (reference-guided video-to-video)
   type: 'video';
   provider: KieProvider;
   description: string;
@@ -566,74 +574,70 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: '10-25s',
   },
 
-  // === WAN - Unified model with variants (2.2 A14B Turbo / 2.5 / 2.6) ===
+  // === WAN - Unified model with variants (2.5 / 2.6 only) ===
   {
     id: 'wan',
     name: 'WAN',
     apiId: 'wan/2-6-text-to-video', // Default (will be overridden by variant)
     apiIdI2v: 'wan/2-6-image-to-video', // Default
+    apiIdV2v: 'wan/2-6-video-to-video', // V2V (reference-guided)
     type: 'video',
     provider: 'kie_market',
-    description: 'Бюджетная универсальная модель: хорошее качество за адекватную цену. Выбор версии (2.2/2.5/2.6) и разрешения (до 1080p). Поддержка T2V, I2V, V2V.',
+    description: 'Кинематографичное качество для сторителлинга, бренд-роликов и talking-head. Версии 2.5/2.6 с поддержкой T2V, I2V, V2V и звука.',
     rank: 8,
     featured: true,
     speed: 'medium',
     quality: 'high',
     supportsI2v: true,
-    supportsAudio: false,
+    supportsAudio: true, // Sound presets supported
     pricing: {
-      '5': { no_audio: 67 }, // Minimum price (WAN 2.2 480p 5s)
-      '10': { no_audio: 134 }, // Minimum price (WAN 2.2 480p 10s)
-      '15': { no_audio: 200 }, // Minimum price (WAN 2.2 480p 15s)
+      '5': { no_audio: 100 }, // Minimum price (WAN 2.5 720p 5s)
+      '10': { no_audio: 200 },
+      '15': { no_audio: 300 },
     },
     modelVariants: [
       {
-        id: 'wan-2.2',
-        name: 'WAN 2.2 A14B Turbo',
-        apiId: 'wan/2-2-text-to-video',
-        apiIdI2v: 'wan/2-2-image-to-video',
-        pricing: {
-          // NEW PRICING (credits/sec):
-          // 720p (16/sec): 5s=134⭐, 10s=268⭐, 15s=402⭐
-          // 580p (12/sec): 5s=100⭐, 10s=200⭐, 15s=300⭐
-          // 480p (8/sec): 5s=67⭐, 10s=134⭐, 15s=200⭐
-          '720p': { '5': 134, '10': 268, '15': 402 },
-          '580p': { '5': 100, '10': 200, '15': 300 },
-          '480p': { '5': 67, '10': 134, '15': 200 },
-        },
-      },
-      {
         id: 'wan-2.5',
-        name: 'WAN 2.5',
+        name: 'Wan 2.5',
         apiId: 'wan/2-5-text-to-video',
         apiIdI2v: 'wan/2-5-image-to-video',
+        // WAN 2.5: T2V, I2V | 5s, 10s | 720p, 1080p | 16:9, 9:16, 1:1
+        // Sound: native, lip-sync, ambient, music
+        modes: ['t2v', 'i2v'],
+        durationOptions: [5, 10],
+        resolutionOptions: ['720p', '1080p'],
+        aspectRatios: ['16:9', '9:16', '1:1'],
+        soundOptions: ['native', 'lip-sync', 'ambient', 'music'],
         pricing: {
-          // NEW PRICING (credits/sec):
-          // 720p (12/sec): 5s=100⭐, 10s=200⭐, 15s=300⭐
-          // 1080p (20/sec): 5s=168⭐, 10s=335⭐, 15s=500⭐
-          '720p': { '5': 100, '10': 200, '15': 300 },
-          '1080p': { '5': 168, '10': 335, '15': 500 },
+          '720p': { '5': 100, '10': 200 },
+          '1080p': { '5': 168, '10': 335 },
         },
       },
       {
         id: 'wan-2.6',
-        name: 'WAN 2.6',
+        name: 'Wan 2.6',
         apiId: 'wan/2-6-text-to-video',
         apiIdI2v: 'wan/2-6-image-to-video',
+        apiIdV2v: 'wan/2-6-video-to-video',
+        // WAN 2.6: T2V, I2V, V2V (R2V) | 5s, 10s, 15s | 720p, 1080p, Multi-shot 1080p | 16:9, 9:16, 1:1
+        // Sound: native-dialogues, precise-lip-sync, ambient-atmospheric
+        modes: ['t2v', 'i2v', 'v2v'],
+        durationOptions: [5, 10, 15],
+        resolutionOptions: ['720p', '1080p', '1080p_multi'],
+        aspectRatios: ['16:9', '9:16', '1:1'],
+        soundOptions: ['native-dialogues', 'precise-lip-sync', 'ambient-atmospheric'],
         pricing: {
-          // NEW PRICING:
-          // 720p: 5s=118⭐, 10s=235⭐, 15s=351⭐
-          // 1080p: 5s=175⭐, 10s=351⭐, 15s=528⭐
           '720p': { '5': 118, '10': 235, '15': 351 },
           '1080p': { '5': 175, '10': 351, '15': 528 },
+          '1080p_multi': { '5': 220, '10': 440, '15': 660 },
         },
       },
     ],
-    modes: ['t2v', 'i2v', 'v2v'], // Added v2v (reference-guided)
-    durationOptions: [5, 10, 15],
-    resolutionOptions: ['480p', '580p', '720p', '1080p'], // Support all resolutions from all variants
-    aspectRatios: ['16:9', '9:16'],
-    shortLabel: 'от 67⭐',
+    modes: ['t2v', 'i2v', 'v2v'], // All modes (filtered by variant)
+    durationOptions: [5, 10, 15], // All durations (filtered by variant)
+    resolutionOptions: ['720p', '1080p', '1080p_multi'], // All resolutions (filtered by variant)
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: 'от 100⭐',
   },
 
   // === BYTEDANCE (Seedance 1.0 Pro) - Market API (i2v only) ===
@@ -712,6 +716,27 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     aspectRatios: ['16:9', '9:16', '1:1'],
     shortLabel: 'Avatar • 5-15s',
   },
+
+  // === KLING O1 - Video-to-Video Edit (fal.ai) ===
+  {
+    id: 'kling-o1-edit',
+    name: 'Kling O1',
+    apiId: 'fal-ai/kling-video/o1/video-to-video/edit',
+    type: 'video',
+    provider: 'fal',
+    description: 'Kling O1 — редактирование существующих видео с помощью промпта. Поддерживает референс-изображения и элементы для замены персонажей/объектов. Длительность и качество наследуются от исходного видео (3–10 сек, 720p–2160p).',
+    rank: 10,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: false,
+    supportsAudio: true,
+    pricing: 28,
+    modes: ['v2v'],
+    durationOptions: [],
+    aspectRatios: [],
+    shortLabel: 'Video Edit',
+  },
 ];
 
 // ===== ALL MODELS =====
@@ -758,5 +783,4 @@ export function getModelById(id: string): ModelConfig | undefined {
 export function getFeaturedModels(type: ModelType): ModelConfig[] {
   return getModelsByType(type).filter(m => m.featured);
 }
-
 

@@ -1,0 +1,680 @@
+'use client';
+
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useTelegramAuth } from '@/providers/telegram-auth-provider';
+import { useAuth } from '@/providers/auth-provider';
+import { useCreditsStore } from '@/stores/credits-store';
+import { LoginDialog } from '@/components/auth/login-dialog';
+import { cn } from '@/lib/utils';
+import { 
+  MessageSquare, Search, Plus, Settings, RotateCcw, ChevronDown,
+  Paperclip, Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
+  Brain, Bot, Star, FileText
+} from 'lucide-react';
+
+// ===== MODELS CONFIG =====
+const MODELS_CONFIG = {
+  text: {
+    section: 'Текст',
+    icon: FileText,
+    models: [
+      { id: 'chatgpt', name: 'ChatGPT 4.5', icon: Bot, provider: 'OpenAI', cost: 30, description: 'Advanced language model for complex tasks' },
+      { id: 'claude', name: 'Claude 3.5', icon: Brain, provider: 'Anthropic', cost: 35, description: 'Deep reasoning and analysis' },
+      { id: 'gemini', name: 'Gemini Advanced', icon: Sparkles, provider: 'Google', cost: 25, description: 'Multimodal AI assistant' },
+      { id: 'grok', name: 'Grok 3', icon: Zap, provider: 'xAI', cost: 28, description: 'Real-time AI with search' },
+      { id: 'deepseek', name: 'DeepSeek', icon: Search, provider: 'DeepSeek AI', cost: 15, badge: 'Budget', description: 'Cost-effective reasoning' },
+      { id: 'perplexity', name: 'Perplexity', icon: Search, provider: 'Perplexity AI', cost: 20, badge: 'Search', description: 'AI-powered search' },
+    ],
+    parameters: {
+      tone: { label: 'Tone', type: 'select', options: ['Professional', 'Casual', 'Technical', 'Creative'], default: 'Professional' },
+      length: { label: 'Length', type: 'select', options: ['Concise', 'Medium', 'Detailed'], default: 'Medium' },
+      language: { label: 'Language', type: 'select', options: ['English', 'Russian', 'Mixed'], default: 'English' },
+    },
+    examples: [
+      'Generate a comprehensive market analysis for AI SaaS products',
+      'Write technical documentation for REST API implementation',
+      'Create a strategic business plan for B2B expansion'
+    ],
+  },
+  image: {
+    section: 'Design',
+    icon: ImageIcon,
+    models: [
+      { id: 'nano-banana', name: 'Nano Banana', icon: Sparkles, provider: 'Google', cost: 7, badge: 'Fast', description: 'Rapid photorealistic generation' },
+      { id: 'nano-banana-pro', name: 'Nano Banana Pro', icon: Star, provider: 'Google Gemini', cost: 35, badge: 'Premium', description: 'High-fidelity rendering' },
+      { id: 'gpt-image', name: 'GPT Image', icon: Brain, provider: 'OpenAI DALL-E 3', cost: 42, description: 'Precise prompt following' },
+      { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, provider: 'Black Forest Labs', cost: 10, badge: 'Popular', description: 'Sharp, detailed outputs' },
+      { id: 'flux-2-flex', name: 'FLUX.2 Flex', icon: ImageIcon, provider: 'Black Forest Labs', cost: 32, description: 'Flexible style control' },
+      { id: 'seedream', name: 'Seedream 4.5', icon: Sparkles, provider: 'ByteDance', cost: 11, badge: 'Balanced', description: 'Modern visual generation' },
+      { id: 'z-image', name: 'Z-image', icon: ImageIcon, provider: 'Qwen', cost: 2, badge: 'Budget', description: 'Universal image generator' },
+      { id: 'topaz-upscale', name: 'Topaz Upscale', icon: Zap, provider: 'Topaz Labs', cost: 42, description: 'Upscale to 4K/8K resolution' },
+    ],
+    parameters: {
+      quality: { label: 'Quality', type: 'select', options: ['Turbo', 'Balanced', 'Quality', 'HD', '2K', '4K'], default: '2K' },
+      aspectRatio: { label: 'Aspect Ratio', type: 'select', options: ['1:1', '9:16', '16:9', '4:3', '3:4', '21:9'], default: '9:16' },
+      style: { label: 'Style', type: 'select', options: ['Photorealistic', 'Illustration', 'Minimalist', '3D Render', 'Abstract'], default: 'Photorealistic' },
+    },
+    examples: [
+      'Professional headshot with studio lighting and neutral background',
+      'Modern minimalist office interior with floor-to-ceiling windows',
+      'Abstract geometric composition with gradient mesh'
+    ],
+  },
+  video: {
+    section: 'Video',
+    icon: Video,
+    models: [
+      { id: 'veo3', name: 'Veo 3.1', icon: Video, provider: 'Google', cost: 260, badge: 'TOP', description: 'Flagship 8s generation' },
+      { id: 'kling-2.5-turbo', name: 'Kling 2.5 Turbo', icon: Zap, provider: 'Kuaishou', cost: 105, badge: 'Fast', description: 'Rapid universal generation' },
+      { id: 'kling-2.6', name: 'Kling 2.6', icon: Video, provider: 'Kuaishou', cost: 230, badge: 'Audio', description: 'Video with audio synthesis' },
+      { id: 'kling-2.1-pro', name: 'Kling 2.1 Pro', icon: Star, provider: 'Kuaishou', cost: 402, badge: 'Premium', description: 'Maximum quality output' },
+      { id: 'kling-o1', name: 'Kling O1', icon: Video, provider: 'fal.ai', cost: 28, badge: 'V2V', description: 'Video-to-Video editing' },
+      { id: 'sora-2', name: 'Sora 2', icon: Video, provider: 'OpenAI', cost: 50, badge: 'Balanced', description: 'Speed/quality balance' },
+      { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, provider: 'OpenAI', cost: 650, badge: 'Premium', description: 'Cinematic quality' },
+      { id: 'sora-storyboard', name: 'Sora Storyboard', icon: Video, provider: 'OpenAI', cost: 310, description: 'Multi-scene storytelling' },
+      { id: 'wan-2.5', name: 'WAN 2.5', icon: Video, provider: 'WAN AI', cost: 217, description: 'Cinematic T2V/I2V' },
+      { id: 'wan-2.6', name: 'WAN 2.6', icon: Star, provider: 'WAN AI', cost: 389, badge: 'New', description: 'V2V, 15s, Multi-shot' },
+      { id: 'grok-imagine', name: 'Grok Imagine', icon: Sparkles, provider: 'xAI', cost: 100, description: 'Multimodal generation' },
+      { id: 'hailuo-2.3', name: 'Hailuo 2.3', icon: Zap, provider: 'Hailuo', cost: 150, description: 'Fast generation' },
+      { id: 'seedance-pro', name: 'Seedance 1.5 Pro', icon: Video, provider: 'ByteDance', cost: 80, description: 'Universal generation' },
+    ],
+    parameters: {
+      duration: { label: 'Duration', type: 'select', options: ['5', '6', '8', '10', '15', '20'], default: '10', unit: 's' },
+      aspectRatio: { label: 'Aspect Ratio', type: 'select', options: ['9:16', '16:9', '1:1', '4:3', '21:9'], default: '9:16' },
+      quality: { label: 'Quality', type: 'select', options: ['720p', '1080p', '2K', '4K'], default: '1080p' },
+      mode: { label: 'Mode', type: 'select', options: ['Text to Video', 'Image to Video', 'Video to Video'], default: 'Text to Video' },
+    },
+    examples: [
+      'Smooth camera dolly through modern architectural space with natural lighting',
+      'Time-lapse of city skyline transitioning from day to night',
+      'Product showcase with 360° rotation on gradient background'
+    ],
+  },
+  audio: {
+    section: 'Audio',
+    icon: Mic,
+    models: [
+      { id: 'eleven-labs', name: 'ElevenLabs', icon: Mic, provider: 'ElevenLabs', cost: 15, badge: 'Premium', description: 'Natural voice synthesis' },
+      { id: 'google-tts', name: 'Google TTS', icon: Mic, provider: 'Google', cost: 5, badge: 'Budget', description: 'Cloud text-to-speech' },
+      { id: 'azure-tts', name: 'Azure TTS', icon: Mic, provider: 'Microsoft', cost: 8, description: 'Professional synthesis' },
+      { id: 'suno', name: 'Suno AI', icon: Sparkles, provider: 'Suno', cost: 25, badge: 'Music', description: 'Music generation' },
+    ],
+    parameters: {
+      voice: { label: 'Voice', type: 'select', options: ['Female 1', 'Female 2', 'Male 1', 'Male 2', 'Neutral'], default: 'Female 1' },
+      speed: { label: 'Speed', type: 'slider', min: 0.5, max: 2, step: 0.1, default: 1 },
+      tone: { label: 'Tone', type: 'select', options: ['Neutral', 'Energetic', 'Calm', 'Professional'], default: 'Neutral' },
+    },
+    examples: [
+      'Professional voiceover for corporate presentation',
+      'Podcast intro with upbeat background music',
+      'Ambient soundscape for meditation app'
+    ],
+  },
+};
+
+type SectionType = 'text' | 'image' | 'video' | 'audio';
+
+interface ChatMessage {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface GenerationResult {
+  id: number;
+  type: SectionType;
+  content: string;
+  prompt: string;
+  model: string;
+  timestamp: Date;
+}
+
+export default function GeneratorPage() {
+  const searchParams = useSearchParams();
+  const sectionFromUrl = (searchParams.get('section') || 'text') as SectionType;
+  
+  const [activeSection, setActiveSection] = useState<SectionType>(sectionFromUrl);
+  const [currentModel, setCurrentModel] = useState('chatgpt');
+  const [showModelModal, setShowModelModal] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [results, setResults] = useState<GenerationResult[]>([]);
+  const [currentResult, setCurrentResult] = useState<GenerationResult | null>(null);
+  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const telegramAuth = useTelegramAuth();
+  
+  // Update section from URL
+  useEffect(() => {
+    const section = searchParams.get('section') as SectionType;
+    if (section && ['text', 'image', 'video', 'audio'].includes(section)) {
+      setActiveSection(section);
+      // Set default model for section
+      const firstModel = MODELS_CONFIG[section]?.models[0]?.id;
+      if (firstModel) setCurrentModel(firstModel);
+    }
+  }, [searchParams]);
+  const supabaseAuth = useAuth();
+  const { balance } = useCreditsStore();
+
+  const telegramUser = telegramAuth.user;
+  const supabaseUser = supabaseAuth.user;
+  const user = telegramUser || supabaseUser;
+
+  const sectionConfig = MODELS_CONFIG[activeSection];
+
+  // Initialize settings when section changes
+  useEffect(() => {
+    if (sectionConfig) {
+      const newSettings: Record<string, any> = {};
+      Object.entries(sectionConfig.parameters).forEach(([key, param]) => {
+        newSettings[key] = param.default;
+      });
+      setSettings(newSettings);
+      setCurrentModel(sectionConfig.models[0].id);
+      setChatHistory([]);
+      setCurrentResult(null);
+    }
+  }, [activeSection, sectionConfig]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const maxFiles = activeSection === 'video' ? 1 : 4;
+    if (uploadedFiles.length + files.length <= maxFiles) {
+      setUploadedFiles([...uploadedFiles, ...files]);
+    } else {
+      alert(`Максимум ${maxFiles} ${maxFiles === 1 ? 'файл' : 'файлов'}!`);
+    }
+  }, [uploadedFiles, activeSection]);
+
+  const removeFile = useCallback((index: number) => {
+    setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+  }, [uploadedFiles]);
+
+  const handleGenerate = useCallback(async () => {
+    if (!prompt.trim()) return;
+    if (!user) {
+      setLoginOpen(true);
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationProgress(10);
+
+    try {
+      const userMessage: ChatMessage = {
+        id: Date.now(),
+        role: 'user',
+        content: prompt,
+        timestamp: new Date(),
+      };
+
+      setChatHistory((prev) => [...prev, userMessage]);
+
+      // Simulate generation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setGenerationProgress(50);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setGenerationProgress(100);
+
+      const result: GenerationResult = {
+        id: Date.now() + 1,
+        type: activeSection,
+        content: `Результат генерации для: "${prompt}"`,
+        prompt,
+        model: currentModel,
+        timestamp: new Date(),
+      };
+
+      setResults((prev) => [...prev, result]);
+      setCurrentResult(result);
+
+      const assistantMessage: ChatMessage = {
+        id: Date.now() + 2,
+        role: 'assistant',
+        content: result.content,
+        timestamp: new Date(),
+      };
+
+      setChatHistory((prev) => [...prev, assistantMessage]);
+      setPrompt('');
+      setUploadedFiles([]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsGenerating(false);
+      setGenerationProgress(0);
+    }
+  }, [prompt, currentModel, activeSection, user]);
+
+  const handleReset = useCallback(() => {
+    setPrompt('');
+    setUploadedFiles([]);
+    setChatHistory([]);
+    setCurrentResult(null);
+  }, []);
+
+  const modelInfo = sectionConfig?.models.find(m => m.id === currentModel);
+
+  // Group results by date
+  const groupedResults = results.reduce((acc: [string, GenerationResult[]][], result) => {
+    const date = new Date(result.timestamp).toLocaleDateString('ru-RU');
+    const existingGroup = acc.find(([d]) => d === date);
+    if (existingGroup) {
+      existingGroup[1].push(result);
+    } else {
+      acc.push([date, [result]]);
+    }
+    return acc;
+  }, []).reverse();
+
+  return (
+    <div className="h-screen flex flex-col bg-[var(--bg)] pt-16">
+      {/* SYNTX Style 3-Column Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* LEFT COLUMN - History */}
+        <aside className="w-72 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col">
+          {/* Search */}
+          <div className="p-4 border-b border-[var(--border)]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+              <input
+                type="text"
+                placeholder="Search history..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--accent-primary)] transition"
+              />
+            </div>
+          </div>
+
+          {/* History List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+            {groupedResults.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <div className="w-16 h-16 rounded-2xl bg-[var(--surface2)] flex items-center justify-center mb-3">
+                  <MessageSquare className="w-8 h-8 text-[var(--muted)]" />
+                </div>
+                <p className="text-sm font-medium text-[var(--text)] mb-1">No history yet</p>
+                <p className="text-xs text-[var(--muted)]">Your generations will appear here</p>
+              </div>
+            ) : (
+              groupedResults.map(([date, dayResults]) => (
+                <div key={date} className="mb-3">
+                  <div className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wide mb-2 px-3">{date}</div>
+                  <div className="space-y-0.5">
+                    {dayResults.map((result) => (
+                      <button
+                        key={result.id}
+                        onClick={() => setCurrentResult(result)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
+                          currentResult?.id === result.id
+                            ? "bg-[var(--gold)]/10 border border-[var(--gold)]/30"
+                            : "hover:bg-[var(--surface2)]"
+                        )}
+                      >
+                        {result.type === 'text' ? <FileText className="w-5 h-5" /> : result.type === 'image' ? <ImageIcon className="w-5 h-5" /> : result.type === 'video' ? <Video className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-[var(--text)] truncate">{result.prompt.substring(0, 30)}...</div>
+                          <div className="text-xs text-[var(--muted)] truncate">{result.model}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Bottom Actions */}
+          <div className="p-4 border-t border-[var(--border)] space-y-3">
+            {user && (
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface2)]">
+                <span className="text-sm text-[var(--muted)]">Balance</span>
+                <span className="text-sm font-bold text-[var(--accent-primary)]">{balance} ⭐</span>
+              </div>
+            )}
+            <button 
+              onClick={handleReset} 
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white hover:opacity-90 transition font-semibold shadow-lg shadow-purple-500/30"
+            >
+              <Plus className="w-5 h-5" />
+              New Chat
+            </button>
+          </div>
+        </aside>
+
+        {/* CENTER COLUMN - Canvas + Prompt Bar */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+          {/* Section Tabs */}
+          <div className="border-b border-[var(--border)] bg-[var(--surface)] px-6 py-3">
+            <div className="flex items-center gap-2">
+              {(Object.entries(MODELS_CONFIG) as [SectionType, typeof MODELS_CONFIG.text][]).map(([key, config]) => {
+                const IconComponent = config.icon;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveSection(key)}
+                    className={cn(
+                      "px-4 py-2.5 text-sm font-semibold rounded-xl transition-all flex items-center gap-2",
+                      activeSection === key
+                        ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white shadow-lg shadow-purple-500/30"
+                        : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+                    )}
+                  >
+                    <IconComponent className="w-4 h-4" />
+                    <span>{config.section}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Canvas Area */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {chatHistory.length === 0 ? (
+              /* Empty State */
+              <div className="h-full flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 flex items-center justify-center mb-6 shadow-lg">
+                  {modelInfo?.icon && (
+                    <modelInfo.icon className="w-12 h-12 text-[var(--accent-primary)]" />
+                  )}
+                </div>
+                <h1 className="text-3xl font-bold mb-3">{modelInfo?.name}</h1>
+                <p className="text-lg text-[var(--muted)] mb-2">{modelInfo?.provider}</p>
+                <p className="text-sm text-[var(--muted)] max-w-lg leading-relaxed">{modelInfo?.description}</p>
+
+                {/* Example Prompts */}
+                <div className="grid grid-cols-1 gap-3 mt-10 w-full max-w-2xl">
+                  {sectionConfig?.examples?.slice(0, 3).map((example, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPrompt(example)}
+                      className="group p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-primary)] hover:bg-[var(--surface2)] transition-all text-left"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Sparkles className="mt-1 w-5 h-5 text-[var(--muted)] group-hover:text-[var(--accent-primary)] transition" />
+                        <p className="text-sm text-[var(--muted)] group-hover:text-[var(--text)] transition leading-relaxed">
+                          {example}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Chat History */
+              <div className="space-y-6 max-w-5xl mx-auto pb-6">
+                {chatHistory.map((msg) => (
+                  <div key={msg.id} className={cn("flex gap-4", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                    <div className={cn(
+                      "max-w-[75%] rounded-2xl p-5 shadow-sm",
+                      msg.role === 'user'
+                        ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white"
+                        : "bg-[var(--surface)] border border-[var(--border)]"
+                    )}>
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                    </div>
+                  </div>
+                ))}
+                {isGenerating && (
+                  <div className="flex items-center gap-4 p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-[var(--accent-secondary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                    <span className="text-sm font-medium text-[var(--muted)]">Generating {generationProgress}%</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Prompt Bar - Bottom of Center */}
+          <div className="border-t border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="max-w-5xl mx-auto">
+              {/* File Previews */}
+              {uploadedFiles.length > 0 && (
+                <div className="flex gap-2 mb-3 flex-wrap">
+                  {uploadedFiles.map((file, i) => (
+                    <div key={i} className="relative group">
+                      <div className="w-20 h-20 rounded-xl bg-[var(--surface2)] border border-[var(--border)] flex items-center justify-center overflow-hidden">
+                        <span className="text-xs text-[var(--muted)] text-center px-2 leading-tight">{file.name.slice(0, 12)}</span>
+                      </div>
+                      <button
+                        onClick={() => removeFile(i)}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Input Row */}
+              <div className="flex gap-3 items-end">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3.5 rounded-xl bg-[var(--surface2)] hover:bg-[var(--surface3)] border border-[var(--border)] transition flex-shrink-0"
+                  title="Attach file"
+                >
+                  <Paperclip className="w-5 h-5 text-[var(--muted)]" />
+                </button>
+                
+                <div className="flex-1 relative">
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleGenerate();
+                      }
+                    }}
+                    placeholder="Describe what you want to create..."
+                    rows={1}
+                    className="w-full px-5 py-3.5 rounded-xl bg-[var(--surface2)] border border-[var(--border)] resize-none focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 transition text-sm"
+                    style={{ minHeight: '52px', maxHeight: '120px' }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleGenerate}
+                  disabled={!prompt.trim() || isGenerating}
+                  className={cn(
+                    "px-6 py-3.5 rounded-xl flex items-center gap-2.5 font-semibold transition-all flex-shrink-0",
+                    prompt.trim() && !isGenerating
+                      ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white hover:opacity-90 shadow-lg shadow-purple-500/30"
+                      : "bg-[var(--surface3)] text-[var(--muted)] cursor-not-allowed"
+                  )}
+                >
+                  <Send className="w-5 h-5" />
+                  <span>Generate</span>
+                </button>
+              </div>
+
+              <p className="text-xs text-[var(--muted)] text-center mt-3">
+                <kbd className="px-2 py-0.5 rounded bg-[var(--surface2)] border border-[var(--border)] font-mono text-[10px]">Enter</kbd> generate • <kbd className="px-2 py-0.5 rounded bg-[var(--surface2)] border border-[var(--border)] font-mono text-[10px]">Shift+Enter</kbd> new line
+              </p>
+            </div>
+          </div>
+        </main>
+
+        {/* RIGHT COLUMN - Settings */}
+        <aside className="w-80 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
+            <h3 className="font-semibold flex items-center gap-2 text-[var(--text)]">
+              <Settings className="w-4 h-4" />
+              Settings
+            </h3>
+            <button 
+              onClick={handleReset} 
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface2)] transition"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset
+            </button>
+          </div>
+
+          {/* Settings Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Model Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Model</label>
+              <button
+                onClick={() => setShowModelModal(true)}
+                className="w-full flex items-center justify-between px-3 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-primary)] transition"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 flex items-center justify-center">
+                    {modelInfo?.icon && (
+                      <modelInfo.icon className="w-5 h-5 text-[var(--accent-primary)]" />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-semibold text-[var(--text)]">{modelInfo?.name}</div>
+                    <div className="text-xs text-[var(--muted)]">{modelInfo?.provider}</div>
+                  </div>
+                </div>
+                <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
+              </button>
+            </div>
+
+            {/* Dynamic Parameters */}
+            {Object.entries(sectionConfig?.parameters || {}).map(([key, param]: [string, any]) => (
+              <div key={key} className="space-y-2">
+                <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                  {param.label} {param.unit && `(${param.unit})`}
+                </label>
+                {param.type === 'select' && (
+                  <select
+                    value={settings[key] || param.default}
+                    onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--gold)] transition"
+                  >
+                    {param.options?.map((opt: string) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                )}
+                {param.type === 'slider' && (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={param.min}
+                      max={param.max}
+                      step={param.step}
+                      value={settings[key] || param.default}
+                      onChange={(e) => setSettings({ ...settings, [key]: parseFloat(e.target.value) })}
+                      className="flex-1 accent-[var(--gold)]"
+                    />
+                    <span className="text-sm font-semibold w-12 text-right">{settings[key] || param.default}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Generate Button - Bottom of Right Column */}
+          <div className="p-4 border-t border-[var(--border)]">
+            <button
+              onClick={handleGenerate}
+              disabled={!prompt.trim() || isGenerating}
+              className={cn(
+                "w-full px-4 py-3.5 rounded-xl flex items-center justify-center gap-2.5 font-semibold transition-all",
+                prompt.trim() && !isGenerating
+                  ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white hover:opacity-90 shadow-lg shadow-purple-500/30"
+                  : "bg-[var(--surface2)] text-[var(--muted)] cursor-not-allowed"
+              )}
+            >
+              <Zap className="w-5 h-5" />
+              <span>Generate</span>
+            </button>
+            
+            {modelInfo && (
+              <div className="mt-3 flex items-center justify-between text-xs px-2">
+                <span className="text-[var(--muted)]">Cost:</span>
+                <span className="font-bold text-[var(--accent-primary)]">{modelInfo.cost} ⭐</span>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple={activeSection !== 'video'}
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+        accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : activeSection === 'audio' ? 'audio/*' : ''}
+      />
+
+      {/* Model Modal */}
+      {showModelModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModelModal(false)}>
+          <div className="w-full max-w-3xl max-h-[85vh] bg-[var(--surface)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
+              <h2 className="text-xl font-bold">Select Model</h2>
+              <button onClick={() => setShowModelModal(false)} className="p-2 rounded-xl hover:bg-[var(--surface2)] transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto max-h-[calc(85vh-80px)]">
+              <div className="grid grid-cols-2 gap-3">
+                {sectionConfig?.models.map(model => {
+                  const ModelIcon = model.icon;
+                  return (
+                    <button
+                      key={model.id}
+                      onClick={() => { setCurrentModel(model.id); setShowModelModal(false); }}
+                      className={cn(
+                        "flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all",
+                        currentModel === model.id
+                          ? "border-[var(--accent-primary)] bg-gradient-to-br from-[var(--accent-primary)]/10 to-[var(--accent-secondary)]/10 shadow-md"
+                          : "border-transparent bg-[var(--surface2)] hover:border-[var(--border)] hover:shadow"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 flex items-center justify-center flex-shrink-0">
+                        <ModelIcon className="w-5 h-5 text-[var(--accent-primary)]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-sm">{model.name}</span>
+                          {'badge' in model && model.badge && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white rounded-full">
+                              {model.badge}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[var(--muted)] mb-1">{model.provider}</div>
+                        <div className="text-xs font-bold text-[var(--accent-primary)]">{model.cost} ⭐</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Login Dialog */}
+      <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+    </div>
+  );
+}

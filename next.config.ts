@@ -121,6 +121,38 @@ const nextConfig: NextConfig = {
       "@tanstack/react-query",
     ],
   },
+
+  // Redirects for old routes
+  async redirects() {
+    return [
+      {
+        source: '/create',
+        destination: '/generator',
+        permanent: false,
+      },
+      {
+        source: '/create/video',
+        destination: '/generator',
+        permanent: false,
+      },
+      {
+        source: '/design',
+        destination: '/generator',
+        permanent: false,
+      },
+      {
+        source: '/video',
+        destination: '/generator',
+        permanent: false,
+      },
+      // Redirect /create/studio to /studio (preserve existing route)
+      {
+        source: '/create/studio',
+        destination: '/studio',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);

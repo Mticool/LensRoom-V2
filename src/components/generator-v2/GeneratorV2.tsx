@@ -7,16 +7,13 @@ import { PromptBar } from './PromptBar';
 import { SettingsPanel } from './SettingsPanel';
 import { HistorySidebar } from './HistorySidebar';
 import { StyleGallery } from './StyleGallery';
-import { BatchImageUploader, type UploadedImage } from './BatchImageUploader';
-import { HistoryImagePicker } from './HistoryImagePicker';
-import { BatchProgressBar, type BatchProgress } from './BatchProgressBar';
 import { useAuth } from './hooks/useAuth';
 import { useGeneration } from './hooks/useGeneration';
 import { useHistory } from './hooks/useHistory';
 import { useCostCalculation } from './hooks/useCostCalculation';
 import { 
   Sparkles, Image as ImageIcon, Video, PanelLeft, Palette, 
-  LogIn, Loader2, ArrowUpCircle, Settings2, X, Menu, Wand2, Layers
+  LogIn, Loader2, ArrowUpCircle, Home, Settings2, X, Menu
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { celebrateGeneration } from '@/lib/confetti';
@@ -73,25 +70,11 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   const [currentResult, setCurrentResult] = useState<GenerationResult | null>(null);
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  
-  // Batch mode state
-  const [batchMode, setBatchMode] = useState(false);
-  const [batchImages, setBatchImages] = useState<UploadedImage[]>([]);
-  const [showHistoryPicker, setShowHistoryPicker] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
-    total: 0,
-    completed: 0,
-    failed: 0,
-    current: 0,
-    status: 'idle',
-  });
 
   // Check if mobile
   const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
-    setMounted(true);
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
       // Hide history on mobile by default
@@ -106,13 +89,6 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  // Sync mode with defaultMode on mount (fixes refresh issue)
-  useEffect(() => {
-    if (defaultMode !== mode) {
-      setMode(defaultMode);
-    }
-  }, [defaultMode]);
   
   // Auth hook
   const { isAuthenticated, isLoading: authLoading, credits, username, refreshCredits } = useAuth();
@@ -156,36 +132,29 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
 
   // Load settings from localStorage
   const [settings, setSettings] = useState<GenerationSettings>(() => {
-    return {
-      model: defaultMode === 'video' ? 'veo-3.1' : 'nano-banana',
-      size: '1:1',
-      quality: defaultMode === 'video' ? 'fast' : 'turbo',
-      duration: 5,
-    };
-  });
-
-  // Hydrate settings from localStorage after mount
-  useEffect(() => {
-    if (typeof window !== 'undefined' && mounted) {
+    if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('lensroom-generator-v2-settings');
       if (saved) {
         try {
-          const parsed = JSON.parse(saved);
-          setSettings(parsed);
+          return JSON.parse(saved);
         } catch {
           // ignore
         }
       }
     }
-  }, [mounted]);
+    return {
+      model: mode === 'video' ? 'veo-3.1' : 'nano-banana',
+      size: '1:1',
+      quality: mode === 'video' ? 'fast' : 'turbo',
+      duration: 5,
+    };
+  });
 
   // Cost calculation (must be after settings)
   const { stars: estimatedCost } = useCostCalculation(mode, settings);
 
   // Update default model when mode changes
   useEffect(() => {
-    if (!mounted) return;
-    
     if (mode === 'video' && !settings.model.includes('kling') && !settings.model.includes('veo') && !settings.model.includes('wan') && !settings.model.includes('sora')) {
       setSettings(prev => ({
         ...prev,
@@ -200,14 +169,14 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
         quality: 'turbo',
       }));
     }
-  }, [mode, mounted, settings.model]);
+  }, [mode]);
 
   // Save settings to localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined' && mounted) {
+    if (typeof window !== 'undefined') {
       localStorage.setItem('lensroom-generator-v2-settings', JSON.stringify(settings));
     }
-  }, [settings, mounted]);
+  }, [settings]);
 
   // Hotkeys
   useEffect(() => {
@@ -238,117 +207,8 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     }
 
     clearError();
-
-    // Batch режим - обрабатываем несколько изображений
-    if (batchMode && batchImages.length > 0) {
-      const totalCost = estimatedCost * batchImages.length;
-      
-      // Проверяем баланс
-      if (credits < totalCost) {
-        toast.error(`Недостаточно кредитов. Нужно: ${totalCost}⭐, у вас: ${credits}⭐`);
-        return;
-      }
-
-      // Подтверждение
-      const confirmed = window.confirm(
-        `Обработать ${batchImages.length} изображений?\n` +
-        `Стоимость: ${totalCost}⭐\n` +
-        `У вас: ${credits}⭐`
-      );
-
-      if (!confirmed) return;
-
-      // Инициализируем прогресс
-      setBatchProgress({
-        total: batchImages.length,
-        completed: 0,
-        failed: 0,
-        current: 0,
-        status: 'processing',
-        currentPrompt: prompt,
-      });
-
-      let successCount = 0;
-      let failCount = 0;
-
-      // Обрабатываем последовательно
-      for (let i = 0; i < batchImages.length; i++) {
-        const image = batchImages[i];
-        
-        // Обновляем текущий индекс
-        setBatchProgress(prev => ({
-          ...prev,
-          current: i + 1,
-        }));
-        
-        try {
-          await generate(prompt, mode, settings, image.preview);
-          
-          successCount++;
-          
-          // Обновляем прогресс
-          setBatchProgress(prev => ({
-            ...prev,
-            completed: successCount,
-          }));
-
-          // Небольшая пауза между запросами
-          if (i < batchImages.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        } catch (error) {
-          failCount++;
-          
-          // Обновляем прогресс с ошибкой
-          setBatchProgress(prev => ({
-            ...prev,
-            failed: failCount,
-          }));
-          
-          console.error(`Batch image ${i} failed:`, error);
-        }
-      }
-
-      // Завершаем прогресс
-      setBatchProgress(prev => ({
-        ...prev,
-        status: successCount > 0 ? 'completed' : 'error',
-      }));
-
-      // Итоговое уведомление
-      if (successCount > 0) {
-        toast.success(
-          `Готово! Обработано: ${successCount}/${batchImages.length}`,
-          { duration: 5000 }
-        );
-        celebrateGeneration();
-      }
-
-      if (failCount > 0) {
-        toast.error(`Не удалось обработать: ${failCount}`);
-      }
-
-      // Сбрасываем прогресс через 3 секунды
-      setTimeout(() => {
-        setBatchProgress({
-          total: 0,
-          completed: 0,
-          failed: 0,
-          current: 0,
-          status: 'idle',
-        });
-      }, 3000);
-
-      // Обновляем кредиты
-      refreshCredits();
-      refreshHistory();
-
-      return;
-    }
-
-    // Обычная генерация (single image или без референса)
     await generate(prompt, mode, settings, referenceImage);
-  }, [mode, settings, isGenerating, isAuthenticated, generate, clearError, referenceImage, batchMode, batchImages, estimatedCost, credits, refreshCredits, refreshHistory]);
+  }, [mode, settings, isGenerating, isAuthenticated, generate, clearError, referenceImage]);
 
   const handleSelectFromHistory = useCallback((result: GenerationResult) => {
     setCurrentResult(result);
@@ -377,93 +237,22 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     setMode(result.mode);
   }, []);
 
-  const handleEditFromHistory = useCallback(async (result: GenerationResult) => {
-    try {
-      // Загружаем изображение как blob
-      const imageUrl = result.previewUrl || result.url;
-      if (!imageUrl) {
-        toast.error('Изображение недоступно');
-        return;
-      }
-
-      toast.loading('Загрузка изображения...', { id: 'edit-load' });
-
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      
-      // Конвертируем в base64 dataURL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        
-        if (batchMode) {
-          // Добавляем в batch режим
-          const newImage: UploadedImage = {
-            id: crypto.randomUUID(),
-            preview: dataUrl,
-            status: 'ready',
-            source: 'history',
-          };
-          setBatchImages(prev => [...prev, newImage]);
-          toast.success('Изображение добавлено в Batch', { id: 'edit-load' });
-        } else {
-          // Включаем Remix режим
-          setReferenceImage(dataUrl);
-          toast.success('Изображение загружено для редактирования', { id: 'edit-load' });
-        }
-
-        // Заполняем промпт
-        setCurrentPrompt(result.prompt);
-
-        // Скроллим к промпт-бару
-        setTimeout(() => {
-          const textarea = document.querySelector('textarea');
-          if (textarea) {
-            textarea.scrollIntoView({ 
-              behavior: 'smooth',
-              block: 'center'
-            });
-            textarea.focus();
-          }
-        }, 100);
-      };
-
-      reader.onerror = () => {
-        toast.error('Ошибка загрузки изображения', { id: 'edit-load' });
-      };
-
-      reader.readAsDataURL(blob);
-
-    } catch (error) {
-      console.error('Edit from history error:', error);
-      toast.error('Не удалось загрузить изображение', { id: 'edit-load' });
-    }
-  }, [batchMode]);
-
   const handleLogin = () => {
     router.push('/login');
   };
 
-  // Show minimal loading state during hydration
-  if (!mounted) {
-    return (
-      <div 
-        data-generator-v2="true"
-        className="h-screen w-screen overflow-hidden bg-[var(--gen-bg)] flex items-center justify-center font-[Inter,system-ui,sans-serif]"
-      >
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--gen-primary)]" />
-          <span className="text-sm text-[var(--gen-muted)]">Загрузка...</span>
-        </div>
+  // Conditional render AFTER all hooks
+  return authLoading ? (
+    <div className="h-screen w-screen bg-[#0F0F10] flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 text-[#00D9FF] animate-spin mx-auto" />
+        <p className="mt-4 text-[#A1A1AA]">Загрузка...</p>
       </div>
-    );
-  }
-
-  // Always render full UI - no loading screen
-  return (
+    </div>
+  ) : (
     <div 
       data-generator-v2="true"
-      className="h-[calc(100vh-64px)] w-screen overflow-hidden bg-[var(--gen-bg)] flex font-[Inter,system-ui,sans-serif] mt-16"
+      className="h-screen w-screen overflow-hidden bg-[#0F0F10] flex font-[Inter,system-ui,sans-serif]"
     >
       {/* Settings Panel - Left (hidden on mobile, shown via overlay) */}
       {!isMobile && (
@@ -480,14 +269,14 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       {isMobile && showSettings && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSettings(false)}>
           <div 
-            className="absolute left-0 top-0 bottom-0 w-[85%] max-w-xs bg-[var(--gen-surface)] animate-in slide-in-from-left duration-300"
+            className="absolute left-0 top-0 bottom-0 w-[85%] max-w-xs bg-[#18181B] animate-in slide-in-from-left duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-[var(--gen-border)]">
-              <span className="text-sm font-medium text-[var(--gen-text)]">Настройки</span>
+            <div className="flex items-center justify-between p-4 border-b border-[#27272A]">
+              <span className="text-sm font-medium text-white">Настройки</span>
               <button
                 onClick={() => setShowSettings(false)}
-                className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] text-[var(--gen-muted2)]"
+                className="p-1.5 rounded-lg hover:bg-[#27272A] text-[#71717A]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -506,30 +295,46 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative bg-[var(--gen-bg)]">
+      <div className="flex-1 flex flex-col relative bg-[#0F0F10]">
         {/* Header - Responsive */}
-        <div className="h-12 md:h-12 border-b border-[var(--gen-border)] bg-[var(--gen-surface)] flex items-center justify-between px-3 md:px-4">
-          {/* Left: Menu (mobile) + Mode Indicator */}
+        <div className="h-12 md:h-12 border-b border-[#27272A] bg-[#18181B] flex items-center justify-between px-3 md:px-4">
+          {/* Left: Menu (mobile) + Logo & Home */}
           <div className="flex items-center gap-2 md:gap-3">
             {/* Mobile menu button */}
             {isMobile && (
               <button
                 onClick={() => setShowSettings(true)}
-                className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-colors"
+                className="p-1.5 rounded-lg hover:bg-[#27272A] text-[#A1A1AA] hover:text-white transition-colors"
               >
                 <Menu className="w-5 h-5" />
               </button>
             )}
+            
+            <button
+              onClick={() => router.push('/')}
+              className="p-1.5 rounded-lg hover:bg-[#27272A] text-[#52525B] hover:text-white transition-colors hidden md:block"
+              title="На главную"
+            >
+              <Home className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#00D9FF]" />
+              <span className="text-sm font-semibold text-white hidden sm:block">LensRoom</span>
+              <span className="px-1.5 py-0.5 rounded bg-[#27272A] text-[#71717A] text-[10px] font-medium hidden sm:block">
+                2.0
+              </span>
+            </div>
+          </div>
 
           {/* Center: Mode Switcher & Styles */}
           <div className="flex items-center gap-1 md:gap-2">
-            <div className="flex items-center bg-[var(--gen-surface2)] rounded-lg p-0.5">
+            <div className="flex items-center bg-[#27272A] rounded-lg p-0.5">
               <button
                 onClick={() => setMode('image')}
                 className={`px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 ${
                   mode === 'image'
-                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
-                    : 'text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
+                    ? 'bg-[#00D9FF] text-[#0F0F10] shadow-lg shadow-[#00D9FF]/20'
+                    : 'text-[#A1A1AA] hover:text-white'
                 }`}
               >
                 <ImageIcon className="w-3.5 h-3.5" />
@@ -539,106 +344,22 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 onClick={() => setMode('video')}
                 className={`px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 ${
                   mode === 'video'
-                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
-                    : 'text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
+                    ? 'bg-[#00D9FF] text-[#0F0F10] shadow-lg shadow-[#00D9FF]/20'
+                    : 'text-[#A1A1AA] hover:text-white'
                 }`}
               >
                 <Video className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline">Видео</span>
               </button>
-              <button
-                onClick={() => router.push('/create/products')}
-                className="px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 md:gap-1.5 text-[var(--gen-muted)] hover:text-[var(--gen-text)]"
-              >
-                <span className="text-sm">🛍️</span>
-                <span className="hidden xs:inline">E-com</span>
-              </button>
             </div>
 
             <button
               onClick={() => setShowStyleGallery(true)}
-              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-all flex items-center gap-1.5 text-xs"
+              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white transition-all flex items-center gap-1.5 text-xs"
             >
               <Palette className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Стили</span>
             </button>
-
-            {/* Remix button - включает режим редактирования */}
-            {mode === 'image' && !batchMode && (
-              <button
-                onClick={() => {
-                  if (!referenceImage) {
-                    // Если нет референса - показываем подсказку
-                    toast.info('Загрузите изображение в настройках для редактирования');
-                    // Можно открыть input для загрузки
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setReferenceImage(reader.result as string);
-                          toast.success('Изображение загружено. Опишите изменения!');
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    };
-                    input.click();
-                  } else {
-                    // Если есть референс - очищаем (toggle)
-                    setReferenceImage(null);
-                    toast.info('Режим Remix выключен');
-                  }
-                }}
-                className={`p-1.5 md:px-3 md:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs ${
-                  referenceImage
-                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
-                    : 'bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
-                }`}
-              >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">{referenceImage ? 'Remix ON' : 'Remix'}</span>
-              </button>
-            )}
-
-            {/* Batch button - включает пакетный режим */}
-            {mode === 'image' && (
-              <button
-                onClick={() => {
-                  const newBatchMode = !batchMode;
-                  setBatchMode(newBatchMode);
-                  if (newBatchMode) {
-                    // Переходим в batch режим
-                    if (referenceImage) {
-                      // Конвертируем текущий референс в batch
-                      setBatchImages([{
-                        id: crypto.randomUUID(),
-                        preview: referenceImage,
-                        status: 'ready',
-                      }]);
-                      setReferenceImage(null);
-                    }
-                    toast.info('Batch режим включен - загрузите несколько изображений');
-                  } else {
-                    // Выключаем batch режим
-                    setBatchImages([]);
-                    toast.info('Batch режим выключен');
-                  }
-                }}
-                className={`p-1.5 md:px-3 md:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs ${
-                  batchMode
-                    ? 'bg-[var(--gen-primary)] text-[#0F0F10] shadow-lg shadow-[var(--gen-primary)]/20'
-                    : 'bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)]'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">
-                  {batchMode ? `Batch (${batchImages.length})` : 'Batch'}
-                </span>
-              </button>
-            )}
 
             <button
               onClick={() => {
@@ -646,7 +367,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 setMode('image');
                 toast.info('Выберите изображение для апскейла');
               }}
-              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-all flex items-center gap-1.5 text-xs hidden sm:flex"
+              className="p-1.5 md:px-3 md:py-1.5 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white transition-all flex items-center gap-1.5 text-xs hidden sm:flex"
             >
               <ArrowUpCircle className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Upscale</span>
@@ -657,20 +378,20 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
           <div className="flex items-center gap-2 md:gap-3">
             {isAuthenticated ? (
               <>
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--gen-surface2)]">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#27272A]">
                   <div className="w-1 h-1 rounded-full bg-emerald-400" />
-                  <span className="text-[11px] font-medium text-[var(--gen-text)]">
+                  <span className="text-[11px] font-medium text-white">
                     {credits.toLocaleString()} ⭐
                   </span>
                 </div>
                 {username && !isMobile && (
-                  <span className="text-[11px] text-[var(--gen-muted2)]">@{username}</span>
+                  <span className="text-[11px] text-[#71717A]">@{username}</span>
                 )}
               </>
             ) : (
               <button
                 onClick={handleLogin}
-                className="px-2 md:px-3 py-1.5 rounded-lg bg-[var(--gen-primary)] hover:bg-[#22D3EE] text-[#0F0F10] text-xs font-medium transition-all flex items-center gap-1.5"
+                className="px-2 md:px-3 py-1.5 rounded-lg bg-[#00D9FF] hover:bg-[#22D3EE] text-[#0F0F10] text-xs font-medium transition-all flex items-center gap-1.5"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">Войти</span>
@@ -679,7 +400,7 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="p-1.5 rounded-lg hover:bg-[var(--gen-surface2)] transition-colors text-[var(--gen-muted2)] hover:text-[var(--gen-text)] hidden md:block"
+              className="p-1.5 rounded-lg hover:bg-[#27272A] transition-colors text-[#52525B] hover:text-white hidden md:block"
               title={showHistory ? "Скрыть историю" : "Показать историю"}
             >
               <PanelLeft className={`w-4 h-4 transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`} />
@@ -688,22 +409,17 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 overflow-hidden bg-[var(--gen-bg)]">
+        <div className="flex-1 overflow-hidden bg-[#0F0F10]">
           <Canvas
             result={currentResult}
             isGenerating={isGenerating}
             mode={mode}
             onExampleClick={handleExampleClick}
-            referenceImage={referenceImage}
-            onReferenceImageChange={setReferenceImage}
-            batchMode={batchMode}
-            batchImages={batchImages}
-            onBatchImagesChange={setBatchImages}
           />
         </div>
 
         {/* Prompt Bar */}
-        <div className="px-3 md:px-6 pt-3 md:pt-4 pb-4 md:pb-8 bg-[var(--gen-bg)]">
+        <div className="px-3 md:px-6 pt-3 md:pt-4 pb-4 md:pb-8 bg-[#0F0F10]">
           <PromptBar
             onGenerate={handleGenerate}
             isGenerating={isGenerating}
@@ -714,68 +430,34 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
             credits={credits}
             estimatedCost={estimatedCost}
           />
-
-          {/* Batch Image Uploader - под промптом */}
-          {batchMode && mode === 'image' && (
-            <div className="mt-4 max-w-3xl mx-auto">
-              <BatchImageUploader
-                images={batchImages}
-                onImagesChange={setBatchImages}
-                maxImages={10}
-                showHistoryButton
-                onSelectFromHistory={() => setShowHistoryPicker(true)}
-              />
-            </div>
-          )}
           
           {/* Mobile: History button below prompt */}
-          {isMobile && history.length > 0 && !batchMode && (
+          {isMobile && history.length > 0 && (
             <button
               onClick={() => setShowHistory(true)}
-              className="mt-3 w-full py-2 rounded-lg bg-[var(--gen-surface2)] hover:bg-[var(--gen-surface3)] text-[var(--gen-muted)] hover:text-[var(--gen-text)] transition-all flex items-center justify-center gap-2 text-xs"
+              className="mt-3 w-full py-2 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#A1A1AA] hover:text-white transition-all flex items-center justify-center gap-2 text-xs"
             >
               <PanelLeft className="w-3.5 h-3.5" />
               История ({history.length})
             </button>
           )}
         </div>
-
-        {/* History Image Picker Modal */}
-        {batchMode && (
-          <HistoryImagePicker
-            isOpen={showHistoryPicker}
-            onClose={() => setShowHistoryPicker(false)}
-            onSelect={(selected) => {
-              const historyImages: UploadedImage[] = selected.map(img => ({
-                id: img.id,
-                preview: img.preview,
-                status: 'ready',
-                source: 'history',
-              }));
-              setBatchImages(prev => [...prev, ...historyImages]);
-              toast.success(`Добавлено ${selected.length} изображений из истории`);
-            }}
-            maxSelect={10 - batchImages.length}
-            mode="image"
-          />
-        )}
       </div>
 
       {/* History Sidebar - Right (Desktop) */}
       {showHistory && !isMobile && (
         <div className="animate-in slide-in-from-right duration-300">
-            <HistorySidebar
-              isOpen={showHistory}
-              history={history}
-              onSelect={handleSelectFromHistory}
-              onClose={() => setShowHistory(false)}
-              onCopyPrompt={handleCopyPrompt}
-              onRepeat={handleRepeatGeneration}
-              onEdit={handleEditFromHistory}
-              isLoading={historyLoading}
-              onRefresh={refreshHistory}
-              onConnectBot={botPopup.showPopup}
-            />
+          <HistorySidebar
+            isOpen={showHistory}
+            history={history}
+            onSelect={handleSelectFromHistory}
+            onClose={() => setShowHistory(false)}
+            onCopyPrompt={handleCopyPrompt}
+            onRepeat={handleRepeatGeneration}
+            isLoading={historyLoading}
+            onRefresh={refreshHistory}
+            onConnectBot={botPopup.showPopup}
+          />
         </div>
       )}
 
@@ -796,7 +478,6 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
               onClose={() => setShowHistory(false)}
               onCopyPrompt={handleCopyPrompt}
               onRepeat={handleRepeatGeneration}
-              onEdit={handleEditFromHistory}
               isLoading={historyLoading}
               onRefresh={refreshHistory}
               onConnectBot={botPopup.showPopup}
@@ -815,8 +496,8 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       {/* Hotkeys Modal */}
       {showHotkeys && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowHotkeys(false)}>
-          <div className="bg-[var(--gen-surface)] rounded-2xl border border-[var(--gen-border)] p-6 max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-[var(--gen-text)] mb-4">⌨️ Горячие клавиши</h3>
+          <div className="bg-[#18181B] rounded-2xl border border-[#27272A] p-6 max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-4">⌨️ Горячие клавиши</h3>
             <div className="space-y-3">
               {[
                 { keys: ['⌘/Ctrl', 'Enter'], desc: 'Создать' },
@@ -825,10 +506,10 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 { keys: ['?'], desc: 'Показать подсказки' },
               ].map((hotkey, i) => (
                 <div key={i} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-[var(--gen-muted)]">{hotkey.desc}</span>
+                  <span className="text-sm text-[#A1A1AA]">{hotkey.desc}</span>
                   <div className="flex gap-1">
                     {hotkey.keys.map((key, j) => (
-                      <kbd key={j} className="px-2 py-1 rounded bg-[var(--gen-surface2)] text-[var(--gen-text)] text-xs font-mono border border-[#3F3F46]">
+                      <kbd key={j} className="px-2 py-1 rounded bg-[#27272A] text-white text-xs font-mono border border-[#3F3F46]">
                         {key}
                       </kbd>
                     ))}
@@ -850,21 +531,6 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
         onSuccess={() => {
           setHasNotifications(true);
           refreshCredits();
-        }}
-      />
-
-      {/* Batch Progress Bar */}
-      <BatchProgressBar
-        progress={batchProgress}
-        onCancel={() => {
-          setBatchProgress({
-            total: 0,
-            completed: 0,
-            failed: 0,
-            current: 0,
-            status: 'idle',
-          });
-          toast.info('Обработка отменена');
         }}
       />
     </div>
