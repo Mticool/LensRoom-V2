@@ -349,7 +349,6 @@ function GeneratorPageContent() {
           <div className="text-center">
             <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
-            <p className="text-sm text-gray-400 mb-1">{modelInfo?.provider || 'OpenAI'}</p>
             <p className="text-xs text-gray-500">{modelInfo?.description || 'Advanced language model for complex tasks'}</p>
           </div>
         </main>
