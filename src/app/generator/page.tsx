@@ -289,7 +289,7 @@ function GeneratorPageContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
               <input
                 type="text"
-                placeholder="Search history..."
+                placeholder="Поиск в истории..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--accent-primary)] transition"
@@ -349,7 +349,8 @@ function GeneratorPageContent() {
       {/* Toggle Left Sidebar Button */}
       <button
         onClick={() => setShowLeftSidebar(!showLeftSidebar)}
-        className="w-6 bg-[var(--surface)] border-r border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
+        className="w-8 bg-[var(--surface)] border-r border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
+        title={showLeftSidebar ? 'Скрыть историю' : 'Показать историю'}
       >
         {showLeftSidebar ? (
           <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
@@ -455,7 +456,8 @@ function GeneratorPageContent() {
       {/* Toggle Right Sidebar Button */}
       <button
         onClick={() => setShowRightSidebar(!showRightSidebar)}
-        className="w-6 bg-[var(--surface)] border-l border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
+        className="w-8 bg-[var(--surface)] border-l border-[var(--border)] hover:bg-[var(--surface2)] transition flex items-center justify-center"
+        title={showRightSidebar ? 'Скрыть настройки' : 'Показать настройки'}
       >
         {showRightSidebar ? (
           <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
