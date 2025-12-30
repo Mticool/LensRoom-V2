@@ -15,27 +15,6 @@ import {
 
 // ===== MODELS CONFIG =====
 const MODELS_CONFIG = {
-  text: {
-    section: 'Текст',
-    icon: FileText,
-    models: [
-      { id: 'chatgpt', name: 'ChatGPT 4.5', icon: Bot, provider: 'OpenAI', cost: 30, description: 'Advanced language model for complex tasks' },
-      { id: 'claude', name: 'Claude 3.5', icon: Brain, provider: 'Anthropic', cost: 35, description: 'Deep reasoning and analysis' },
-      { id: 'gemini', name: 'Gemini Advanced', icon: Sparkles, provider: 'Google', cost: 25, description: 'Multimodal AI assistant' },
-      { id: 'grok', name: 'Grok 3', icon: Zap, provider: 'xAI', cost: 28, description: 'Real-time AI with search' },
-      { id: 'deepseek', name: 'DeepSeek', icon: Search, provider: 'DeepSeek AI', cost: 15, badge: 'Budget', description: 'Cost-effective reasoning' },
-      { id: 'perplexity', name: 'Perplexity', icon: Search, provider: 'Perplexity AI', cost: 20, badge: 'Search', description: 'AI-powered search' },
-    ],
-    parameters: {
-      creativity: { label: 'Креативность', type: 'slider', min: 0, max: 1, step: 0.1, default: 0.7 },
-      length: { label: 'Длина ответа', type: 'select', options: ['Short', 'Medium', 'Long'], default: 'Medium' },
-    },
-    examples: [
-      'Generate a comprehensive market analysis for AI SaaS products',
-      'Write technical documentation for REST API implementation',
-      'Create a strategic business plan for B2B expansion'
-    ],
-  },
   image: {
     section: 'Design',
     icon: ImageIcon,
@@ -112,7 +91,7 @@ const MODELS_CONFIG = {
   },
 };
 
-type SectionType = 'text' | 'image' | 'video' | 'audio';
+type SectionType = 'image' | 'video' | 'audio';
 
 interface ChatMessage {
   id: number;
@@ -132,7 +111,7 @@ interface GenerationResult {
 
 function GeneratorPageContent() {
   const searchParams = useSearchParams();
-  const sectionFromUrl = (searchParams.get('section') || 'text') as SectionType;
+  const sectionFromUrl = (searchParams.get('section') || 'image') as SectionType;
   
   const [activeSection, setActiveSection] = useState<SectionType>(sectionFromUrl);
   const [currentModel, setCurrentModel] = useState('chatgpt');
@@ -156,7 +135,7 @@ function GeneratorPageContent() {
   // Update section from URL
   useEffect(() => {
     const section = searchParams.get('section') as SectionType;
-    if (section && ['text', 'image', 'video', 'audio'].includes(section)) {
+    if (section && ['image', 'video', 'audio'].includes(section)) {
       setActiveSection(section);
       // Set default model for section
       const firstModel = MODELS_CONFIG[section]?.models[0]?.id;
@@ -503,7 +482,6 @@ function GeneratorPageContent() {
                   </div>
                   <div className="text-left">
                     <div className="text-sm font-semibold text-[var(--text)]">{modelInfo?.name}</div>
-                    <div className="text-xs text-[var(--muted)]">{modelInfo?.provider}</div>
                   </div>
                 </div>
                 <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
