@@ -491,31 +491,7 @@ function GeneratorPageContent() {
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-
-          {/* Generate Button - Bottom of Right Column */}
-          <div className="p-4 border-t border-[var(--border)]">
-            <button
-              onClick={handleGenerate}
-              disabled={!prompt.trim() || isGenerating}
-              className={cn(
-                "w-full px-4 py-3.5 rounded-xl flex items-center justify-center gap-2.5 font-semibold transition-all",
-                prompt.trim() && !isGenerating
-                  ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white hover:opacity-90 shadow-lg shadow-purple-500/30"
-                  : "bg-[var(--surface2)] text-[var(--muted)] cursor-not-allowed"
-              )}
-            >
-              <Zap className="w-5 h-5" />
-              <span>Generate</span>
-            </button>
-            
-            {modelInfo && (
-              <div className="mt-3 flex items-center justify-between text-xs px-2">
-                <span className="text-[var(--muted)]">Cost:</span>
-                <span className="font-bold text-[var(--accent-primary)]">{modelInfo.cost} ⭐</span>
-              </div>
-            )}
+            )            )}
           </div>
         </aside>
       </div>
