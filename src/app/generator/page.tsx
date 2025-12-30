@@ -27,9 +27,8 @@ const MODELS_CONFIG = {
       { id: 'perplexity', name: 'Perplexity', icon: Search, provider: 'Perplexity AI', cost: 20, badge: 'Search', description: 'AI-powered search' },
     ],
     parameters: {
-      tone: { label: 'Tone', type: 'select', options: ['Professional', 'Casual', 'Technical', 'Creative'], default: 'Professional' },
-      length: { label: 'Length', type: 'select', options: ['Concise', 'Medium', 'Detailed'], default: 'Medium' },
-      language: { label: 'Language', type: 'select', options: ['English', 'Russian', 'Mixed'], default: 'English' },
+      creativity: { label: 'Креативность', type: 'slider', min: 0, max: 1, step: 0.1, default: 0.7 },
+      length: { label: 'Длина ответа', type: 'select', options: ['Short', 'Medium', 'Long'], default: 'Medium' },
     },
     examples: [
       'Generate a comprehensive market analysis for AI SaaS products',
@@ -281,8 +280,8 @@ function GeneratorPageContent() {
       {/* SYNTX Style 3-Column Layout */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* LEFT COLUMN - History */}
-        <aside className="w-72 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col">
+        {/* LEFT COLUMN - History (240px for SYNTX) */}
+        <aside className="w-60 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col">
           {/* Search */}
           <div className="p-4 border-b border-[var(--border)]">
             <div className="relative">
@@ -356,9 +355,9 @@ function GeneratorPageContent() {
 
         {/* CENTER COLUMN - Canvas + Prompt Bar */}
         <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
-          {/* Section Tabs */}
+          {/* Section Tabs - SYNTX Style (transparent, no blue bg) */}
           <div className="border-b border-[var(--border)] bg-[var(--surface)] px-6 py-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {(Object.entries(MODELS_CONFIG) as [SectionType, typeof MODELS_CONFIG.text][]).map(([key, config]) => {
                 const IconComponent = config.icon;
                 return (
@@ -366,10 +365,10 @@ function GeneratorPageContent() {
                     key={key}
                     onClick={() => setActiveSection(key)}
                     className={cn(
-                      "px-4 py-2.5 text-sm font-semibold rounded-xl transition-all flex items-center gap-2",
+                      "px-3 py-2 text-sm font-medium transition-all flex items-center gap-2",
                       activeSection === key
-                        ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white shadow-lg shadow-purple-500/30"
-                        : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+                        ? "text-white"
+                        : "text-[var(--muted)] hover:text-[var(--text)]"
                     )}
                   >
                     <IconComponent className="w-4 h-4" />
@@ -380,37 +379,19 @@ function GeneratorPageContent() {
             </div>
           </div>
 
-          {/* Canvas Area */}
-          <div className="flex-1 overflow-y-auto p-6">
+          {/* Canvas Area - SYNTX padding */}
+          <div className="flex-1 overflow-y-auto px-16 py-10">
             {chatHistory.length === 0 ? (
-              /* Empty State */
+              /* Empty State - SYNTX Style */
               <div className="h-full flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 flex items-center justify-center mb-6 shadow-lg">
-                  {modelInfo?.icon && (
-                    <modelInfo.icon className="w-12 h-12 text-[var(--accent-primary)]" />
-                  )}
+                {/* White Star Icon on Black Background */}
+                <div className="w-20 h-20 rounded-2xl bg-black border border-[var(--border)] flex items-center justify-center mb-5 shadow-lg">
+                  <Sparkles className="w-12 h-12 text-white opacity-90" />
                 </div>
-                <h1 className="text-3xl font-bold mb-3">{modelInfo?.name}</h1>
-                <p className="text-lg text-[var(--muted)] mb-2">{modelInfo?.provider}</p>
-                <p className="text-sm text-[var(--muted)] max-w-lg leading-relaxed">{modelInfo?.description}</p>
-
-                {/* Example Prompts */}
-                <div className="grid grid-cols-1 gap-3 mt-10 w-full max-w-2xl">
-                  {sectionConfig?.examples?.slice(0, 3).map((example, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPrompt(example)}
-                      className="group p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-primary)] hover:bg-[var(--surface2)] transition-all text-left"
-                    >
-                      <div className="flex items-start gap-3">
-                        <Sparkles className="mt-1 w-5 h-5 text-[var(--muted)] group-hover:text-[var(--accent-primary)] transition" />
-                        <p className="text-sm text-[var(--muted)] group-hover:text-[var(--text)] transition leading-relaxed">
-                          {example}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <h1 className="text-3xl font-bold mb-2">{modelInfo?.name}</h1>
+                <p className="text-sm text-[var(--muted)] mb-1">{modelInfo?.provider}</p>
+                <p className="text-xs text-[var(--muted)] max-w-md leading-relaxed">{modelInfo?.description}</p>
+                {/* Removed Example Prompts for SYNTX minimalism */}
               </div>
             ) : (
               /* Chat History */
@@ -441,8 +422,8 @@ function GeneratorPageContent() {
             )}
           </div>
 
-          {/* Prompt Bar - Bottom of Center */}
-          <div className="border-t border-[var(--border)] bg-[var(--surface)] p-5">
+          {/* Prompt Bar - Bottom of Center (reduced padding) */}
+          <div className="border-t border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="max-w-5xl mx-auto">
               {/* File Previews */}
               {uploadedFiles.length > 0 && (
@@ -474,19 +455,18 @@ function GeneratorPageContent() {
                 </button>
                 
                 <div className="flex-1 relative">
-                  <textarea
+                  <input
+                    type="text"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                      if (e.key === 'Enter') {
                         e.preventDefault();
                         handleGenerate();
                       }
                     }}
                     placeholder="Describe what you want to create..."
-                    rows={1}
-                    className="w-full px-5 py-3.5 rounded-xl bg-[var(--surface2)] border border-[var(--border)] resize-none focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 transition text-sm"
-                    style={{ minHeight: '52px', maxHeight: '120px' }}
+                    className="w-full px-4 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 transition text-sm"
                   />
                 </div>
 
@@ -506,14 +486,14 @@ function GeneratorPageContent() {
               </div>
 
               <p className="text-xs text-[var(--muted)] text-center mt-3">
-                <kbd className="px-2 py-0.5 rounded bg-[var(--surface2)] border border-[var(--border)] font-mono text-[10px]">Enter</kbd> generate • <kbd className="px-2 py-0.5 rounded bg-[var(--surface2)] border border-[var(--border)] font-mono text-[10px]">Shift+Enter</kbd> new line
+                <kbd className="px-2 py-0.5 rounded bg-[var(--surface2)] border border-[var(--border)] font-mono text-[10px]">Enter</kbd> to generate
               </p>
             </div>
           </div>
         </main>
 
-        {/* RIGHT COLUMN - Settings */}
-        <aside className="w-80 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col">
+        {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
+        <aside className="w-70 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
             <h3 className="font-semibold flex items-center gap-2 text-[var(--text)]">

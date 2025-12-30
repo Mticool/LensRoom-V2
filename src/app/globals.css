@@ -4,12 +4,12 @@
 /* Apple-like Minimal Black (default site-wide) */
 
 :root {
-  /* SYNTX Dark Theme */
-  --bg: #0a0a0a;
-  --surface: #1a1a1a;
-  --surface2: #222222;
+  /* SYNTX Dark Theme - Ultra Dark Mode */
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface2: #1a1a1a;
   --surface3: #2a2a2a;
-  --border: #2a2a2a;
+  --border: #1a1a1a;
   --border-strong: rgba(139, 92, 246, 0.3);
   --text: #ffffff;
   --text2: #f3f4f6;
@@ -17,7 +17,7 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.5);
   --radius: 16px;
-  --glass-bg: rgba(10, 10, 10, 0.95);
+  --glass-bg: rgba(0, 0, 0, 0.95);
   
   /* SYNTX ACCENT COLORS */
   --accent-primary: #8b5cf6;
@@ -31,18 +31,18 @@
   /* Button colors */
   --btn-primary-bg: #8b5cf6;
   --btn-primary-text: #ffffff;
-  --btn-secondary-bg: #1a1a1a;
+  --btn-secondary-bg: #0a0a0a;
   --btn-secondary-text: #ffffff;
   
   color-scheme: dark;
 }
 
 html[data-theme="dark"] {
-  --bg: #0a0a0a;
-  --surface: #1a1a1a;
-  --surface2: #222222;
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface2: #1a1a1a;
   --surface3: #2a2a2a;
-  --border: #2a2a2a;
+  --border: #1a1a1a;
   --border-strong: rgba(139, 92, 246, 0.3);
   --text: #ffffff;
   --text2: #f3f4f6;
