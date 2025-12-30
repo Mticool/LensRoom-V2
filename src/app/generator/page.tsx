@@ -376,7 +376,7 @@ function GeneratorPageContent() {
           </div>
 
           {/* Canvas Area - SYNTX (no scroll, centered) */}
-          <div className="flex-1 overflow-hidden flex items-center justify-center">
+          <div className="flex-1 overflow-hidden flex items-center justify-center pb-32">
             {chatHistory.length === 0 ? (
               /* Empty State - SYNTX Style (Centered, No Scroll) */
               <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
@@ -518,6 +518,93 @@ function GeneratorPageContent() {
             )}
           </div>
         </aside>
+      </div>
+
+      {/* PROMPT BAR - SYNTX Style (Fixed Bottom) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#1a1a1a] bg-[#0a0a0a]">
+        {/* File Previews (above main bar) */}
+        {uploadedFiles.length > 0 && (
+          <div className="flex gap-2 px-4 pt-3 flex-wrap">
+            {uploadedFiles.map((file, i) => (
+              <div key={i} className="relative group">
+                <div className="w-20 h-20 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center overflow-hidden">
+                  <span className="text-xs text-gray-500 text-center px-2 leading-tight">{file.name.slice(0, 12)}</span>
+                </div>
+                <button
+                  onClick={() => removeFile(i)}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Main input row */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            multiple={activeSection !== 'video'}
+            className="hidden"
+            accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : activeSection === 'audio' ? 'audio/*' : ''}
+          />
+          
+          {/* Attach button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0"
+            title="Attach file"
+          >
+            <Paperclip className="w-5 h-5 text-gray-400" />
+          </button>
+          
+          {/* File counter */}
+          <span className="text-xs text-gray-500 flex-shrink-0">{uploadedFiles.length}/4</span>
+          
+          {/* Input */}
+          <input
+            type="text"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleGenerate();
+              }
+            }}
+            placeholder="Напишите ваш промпт..."
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-600"
+          />
+          
+          {/* Microphone button */}
+          <button className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0">
+            <Mic className="w-5 h-5 text-gray-400" />
+          </button>
+          
+          {/* Send button (just arrow, no text) */}
+          <button
+            onClick={handleGenerate}
+            disabled={!prompt.trim() || isGenerating}
+            className={cn(
+              "p-2.5 rounded-lg transition flex-shrink-0",
+              prompt.trim() && !isGenerating
+                ? "bg-gradient-to-r from-purple-600 to-cyan-500 hover:opacity-90"
+                : "bg-[#1a1a1a] text-gray-600 cursor-not-allowed"
+            )}
+          >
+            <Send className="w-5 h-5 text-white" />
+          </button>
+        </div>
+        
+        {/* Cost row (right aligned) */}
+        <div className="flex justify-end px-4 pb-2">
+          <span className="text-xs text-gray-400">
+            Стоимость: <span className="text-purple-400">⚡ {modelInfo?.cost || 0}</span>
+          </span>
+        </div>
       </div>
 
       {/* Model Modal */}
