@@ -26,7 +26,7 @@ export function Footer() {
   const pathname = usePathname();
   
   // Скрываем футер на страницах генератора
-  if (pathname === '/create' || pathname.startsWith('/create/')) {
+  if (pathname === '/create' || pathname.startsWith('/create/') || pathname === '/generator' || pathname.startsWith('/generator/')) {
     return null;
   }
 
