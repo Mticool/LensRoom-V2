@@ -543,3 +543,4 @@ http://localhost:3000/create
 *Разработано для LensRoom V2 - AI Image & Video Generation Platform*
 *Дата завершения: 27 декабря 2025*
 
+

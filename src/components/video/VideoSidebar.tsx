@@ -48,3 +48,4 @@ export function VideoSidebar({ settings, onSettingsChange }: VideoSidebarProps) 
     </div>
   );
 }
+

@@ -23,3 +23,4 @@ export function GenerationMetadata({ generation }: GenerationMetadataProps) {
     </div>
   );
 }
+

@@ -332,3 +332,4 @@ ALTER TABLE generations ADD COLUMN batch_id TEXT;
 - `src/components/generator-v2/BatchImageUploader.tsx`
 - `src/components/generator-v2/HistoryImagePicker.tsx`
 
+

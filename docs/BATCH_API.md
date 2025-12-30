@@ -417,3 +417,4 @@ WHERE batch_id = 'batch_123';
 - `/src/app/api/generate/batch/route.ts` - batch endpoint
 - `/src/components/generator-v2/GeneratorV2.tsx` - client logic
 
+
