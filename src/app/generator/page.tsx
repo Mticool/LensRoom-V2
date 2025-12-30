@@ -562,7 +562,7 @@ function GeneratorPageContent() {
           </button>
           
           {/* File counter */}
-          <span className="text-xs text-gray-500 flex-shrink-0">{uploadedFiles.length}/4</span>
+          <span className="text-xs text-gray-500 flex-shrink-0">0/4</span>
           
           {/* Input */}
           <input
@@ -576,12 +576,12 @@ function GeneratorPageContent() {
               }
             }}
             placeholder="Напишите ваш промпт..."
-            className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-600"
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-500"
           />
           
           {/* Microphone button */}
-          <button className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0">
-            <Mic className="w-5 h-5 text-gray-400" />
+          <button className="p-2 hover:bg-[#1a1a1a] rounded">
+            <Mic className="w-5 h-5 text-cyan-400" />
           </button>
           
           {/* Send button (just arrow, no text) */}
@@ -589,13 +589,13 @@ function GeneratorPageContent() {
             onClick={handleGenerate}
             disabled={!prompt.trim() || isGenerating}
             className={cn(
-              "p-2.5 rounded-lg transition flex-shrink-0",
+              "p-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg",
               prompt.trim() && !isGenerating
-                ? "bg-gradient-to-r from-purple-600 to-cyan-500 hover:opacity-90"
-                : "bg-[#1a1a1a] text-gray-600 cursor-not-allowed"
+                ? "hover:opacity-90"
+                : "opacity-50 cursor-not-allowed"
             )}
           >
-            <Send className="w-5 h-5 text-white" />
+            <Send className="w-4 h-4" />
           </button>
         </div>
         
