@@ -458,19 +458,28 @@ function GeneratorPageContent() {
       {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
       {showRightSidebar && (
         <aside className="w-70 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col">
-          {/* Header */}
+          {/* Header with collapse button */}
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
             <h3 className="font-semibold flex items-center gap-2 text-[var(--text)]">
               <Settings className="w-4 h-4" />
               Настройки
             </h3>
-            <button 
-              onClick={handleReset} 
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface2)] transition"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Сбросить
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleReset} 
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface2)] transition"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Сбросить
+              </button>
+              <button
+                onClick={() => setShowRightSidebar(false)}
+                className="p-1.5 rounded-lg hover:bg-[var(--surface2)] transition"
+                title="Скрыть настройки"
+              >
+                <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
+              </button>
+            </div>
           </div>
 
           {/* Settings Content */}
