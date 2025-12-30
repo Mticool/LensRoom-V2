@@ -535,13 +535,14 @@ function GeneratorPageContent() {
                       className="flex-1 accent-[var(--gold)]"
                     />
                     <span className="text-sm font-semibold w-12 text-right">{settings[key] || param.default}</span>
-                  </div>
-                )}
-              </div>
-            )            )}
-          </div>
-        </aside>
-      </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </aside>
+      )}
+    </div>
 
       {/* PROMPT BAR - SYNTX Style (Fixed Bottom) */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#1a1a1a] bg-[#0a0a0a]">
