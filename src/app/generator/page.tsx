@@ -344,45 +344,14 @@ function GeneratorPageContent() {
           </div>
         </aside>
 
-        {/* CENTER COLUMN - Canvas + Prompt Bar */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
-          {/* Section Tabs - SYNTX Style (transparent, no blue bg) */}
-          <div className="border-b border-[var(--border)] bg-[var(--surface)] px-6 py-3">
-            <div className="flex items-center gap-1">
-              {(Object.entries(MODELS_CONFIG) as [SectionType, typeof MODELS_CONFIG.text][]).map(([key, config]) => {
-                const IconComponent = config.icon;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      setActiveSection(key);
-                      setShowModelModal(true);
-                    }}
-                    className={cn(
-                      "px-3 py-2 text-sm font-medium transition-all flex items-center gap-2",
-                      activeSection === key
-                        ? "text-white"
-                        : "text-[var(--muted)] hover:text-[var(--text)]"
-                    )}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                    <span>{config.section}</span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* CENTER COLUMN - Canvas */}
+        <main className="flex-1 flex items-center justify-center overflow-hidden bg-[var(--bg)]">
+          <div className="text-center">
+            <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
+            <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
+            <p className="text-sm text-gray-400 mb-1">{modelInfo?.provider || 'OpenAI'}</p>
+            <p className="text-xs text-gray-500">{modelInfo?.description || 'Advanced language model for complex tasks'}</p>
           </div>
-
-          {/* Canvas Area - SYNTX (no scroll, centered) */}
-          <main className="flex-1 flex items-center justify-center overflow-hidden">
-            <div className="text-center">
-              <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
-              <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
-              <p className="text-sm text-gray-400 mb-1">{modelInfo?.provider || 'OpenAI'}</p>
-              <p className="text-xs text-gray-500">{modelInfo?.description || 'Advanced language model for complex tasks'}</p>
-            </div>
-          </main>
-
         </main>
 
         {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
