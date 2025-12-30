@@ -302,7 +302,7 @@ function GeneratorPageContent() {
                             : "hover:bg-[var(--surface2)]"
                         )}
                       >
-                        {result.type === 'text' ? <FileText className="w-5 h-5" /> : result.type === 'image' ? <ImageIcon className="w-5 h-5" /> : result.type === 'video' ? <Video className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        {result.type === 'image' ? <ImageIcon className="w-5 h-5" /> : result.type === 'video' ? <Video className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-[var(--text)] truncate">{result.prompt.substring(0, 30)}...</div>
                           <div className="text-xs text-[var(--muted)] truncate">{result.model}</div>
