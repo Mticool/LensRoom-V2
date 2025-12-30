@@ -376,45 +376,14 @@ function GeneratorPageContent() {
           </div>
 
           {/* Canvas Area - SYNTX (no scroll, centered) */}
-          <div className="flex-1 overflow-hidden flex items-center justify-center pb-32">
-            {chatHistory.length === 0 ? (
-              /* Empty State - SYNTX Style (Centered, No Scroll) */
-              <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
-                {/* White Star Icon - No Container */}
-                <Sparkles className="w-16 h-16 text-white opacity-90 mb-5" />
-                <h1 className="text-3xl font-bold mb-2">{modelInfo?.name}</h1>
-                <p className="text-sm text-[var(--muted)] mb-1">{modelInfo?.provider}</p>
-                <p className="text-xs text-[var(--muted)] max-w-md leading-relaxed">{modelInfo?.description}</p>
-                {/* Removed Example Prompts for SYNTX minimalism */}
-              </div>
-            ) : (
-              /* Chat History */
-              <div className="space-y-6 max-w-5xl mx-auto pb-6">
-                {chatHistory.map((msg) => (
-                  <div key={msg.id} className={cn("flex gap-4", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                    <div className={cn(
-                      "max-w-[75%] rounded-2xl p-5 shadow-sm",
-                      msg.role === 'user'
-                        ? "bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white"
-                        : "bg-[var(--surface)] border border-[var(--border)]"
-                    )}>
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
-                    </div>
-                  </div>
-                ))}
-                {isGenerating && (
-                  <div className="flex items-center gap-4 p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-                    <div className="flex gap-1.5">
-                      <div className="w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-[var(--accent-secondary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                    <span className="text-sm font-medium text-[var(--muted)]">Generating {generationProgress}%</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <main className="flex-1 flex items-center justify-center overflow-hidden">
+            <div className="text-center">
+              <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
+              <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
+              <p className="text-sm text-gray-400 mb-1">{modelInfo?.provider || 'OpenAI'}</p>
+              <p className="text-xs text-gray-500">{modelInfo?.description || 'Advanced language model for complex tasks'}</p>
+            </div>
+          </main>
 
         </main>
 
