@@ -580,7 +580,6 @@ function GeneratorPageContent() {
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-[var(--muted)] mb-1">{model.provider}</div>
                         <div className="text-xs font-bold text-[var(--accent-primary)]">{model.cost} ⭐</div>
                       </div>
                     </button>
