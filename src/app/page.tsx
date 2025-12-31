@@ -339,7 +339,7 @@ export default function HomePage() {
       </section>
 
       {/* Advantages Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-black">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -347,10 +347,10 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
               Всё для контента
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto font-normal">
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto font-normal">
               Один инструмент вместо десятка сервисов
             </p>
           </motion.div>
@@ -382,13 +382,13 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="p-6 rounded-2xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-all"
+                className="p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all"
               >
-                <div className={`w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center mb-4 ${item.color}`}>
-                  <item.icon className="w-6 h-6" />
+                <div className={`w-12 h-12 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center mb-4`}>
+                  <item.icon className="w-6 h-6 text-cyan-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-gray-900">{item.title}</h3>
-                <p className="text-gray-600 font-normal">{item.description}</p>
+                <h3 className="text-xl font-bold mb-2 text-white">{item.title}</h3>
+                <p className="text-gray-400 font-normal">{item.description}</p>
               </motion.div>
             ))}
           </div>
