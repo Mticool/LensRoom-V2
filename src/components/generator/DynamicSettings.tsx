@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { getModelConfig, type ModelSetting } from '@/config/image-models-config';
+import { getVideoModelConfig, type VideoModelSetting, type VideoModelConfig } from '@/config/video-models-config';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Info } from 'lucide-react';
 
@@ -11,6 +12,7 @@ interface DynamicSettingsProps {
   values: Record<string, any>;
   onChange: (key: string, value: any) => void;
   onValidationChange?: (isValid: boolean) => void;
+  type?: 'image' | 'video'; // Тип генератора
 }
 
 // LocalStorage ключ для сохранения настроек
@@ -49,9 +51,11 @@ const AspectRatioPreview = ({ ratio }: { ratio: string }) => {
   );
 };
 
-export function DynamicSettings({ modelId, values, onChange, onValidationChange }: DynamicSettingsProps) {
+export function DynamicSettings({ modelId, values, onChange, onValidationChange, type = 'image' }: DynamicSettingsProps) {
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
-  const config = getModelConfig(modelId);
+  
+  // Получаем конфигурацию в зависимости от типа
+  const config = type === 'video' ? getVideoModelConfig(modelId) : getModelConfig(modelId);
 
   // Загрузка настроек из localStorage при монтировании
   useEffect(() => {
@@ -123,7 +127,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange 
     return (a.order || 999) - (b.order || 999);
   });
 
-  const renderSetting = (key: string, setting: ModelSetting) => {
+  const renderSetting = (key: string, setting: ModelSetting | VideoModelSetting) => {
     const value = values[key] ?? setting.default;
 
     return (
@@ -175,8 +179,13 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange 
 
         {setting.type === 'select' && (
           <select
-            value={value}
-            onChange={(e) => onChange(key, e.target.value)}
+            value={String(value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              // Пытаемся преобразовать в число, если это число
+              const numVal = Number(val);
+              onChange(key, !isNaN(numVal) && val !== '' ? numVal : val);
+            }}
             className={cn(
               "w-full px-3 py-2.5 rounded-xl bg-[var(--surface2)] border text-[var(--text)] text-sm focus:outline-none transition-all",
               setting.required && !value
@@ -185,7 +194,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange 
             )}
           >
             {setting.options?.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={String(option.value)} value={String(option.value)}>
                 {option.label}
               </option>
             ))}
@@ -196,7 +205,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange 
           <div className="grid grid-cols-4 gap-2">
             {setting.options?.map((option) => (
               <button
-                key={option.value}
+                key={String(option.value)}
                 onClick={() => onChange(key, option.value)}
                 className={cn(
                   "px-2 py-2.5 rounded-lg text-xs font-medium transition-all duration-200",
@@ -273,6 +282,30 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange 
               <span>{setting.min}</span>
               <span>{setting.max}</span>
             </div>
+          </div>
+        )}
+
+        {setting.type === 'checkbox' && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onChange(key, !value)}
+              className={cn(
+                "relative w-12 h-6 rounded-full transition-all duration-300 border",
+                value
+                  ? "bg-gradient-to-r from-purple-600 to-cyan-500 border-transparent shadow-lg shadow-purple-500/25"
+                  : "bg-[var(--surface2)] border-[var(--border)]"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-lg",
+                  value ? "transform translate-x-6" : ""
+                )}
+              />
+            </button>
+            <span className="text-sm text-gray-400">
+              {value ? 'Включено' : 'Выключено'}
+            </span>
           </div>
         )}
       </motion.div>

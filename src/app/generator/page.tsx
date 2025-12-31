@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { DynamicSettings } from '@/components/generator/DynamicSettings';
 import { getDefaultSettings } from '@/config/image-models-config';
+import { getDefaultVideoSettings } from '@/config/video-models-config';
 
 // ===== MODELS CONFIG =====
 const MODELS_CONFIG = {
@@ -162,8 +163,12 @@ function GeneratorPageContent() {
       if (activeSection === 'image' && currentModel) {
         const defaults = getDefaultSettings(currentModel);
         setSettings(defaults);
+      } else if (activeSection === 'video' && currentModel) {
+        // For video section, use dynamic settings from video model config
+        const defaults = getDefaultVideoSettings(currentModel);
+        setSettings(defaults);
       } else {
-        // For video/audio, use old static config
+        // For audio, use old static config
         const newSettings: Record<string, any> = {};
         Object.entries(sectionConfig.parameters).forEach(([key, param]) => {
           newSettings[key] = param.default;
@@ -176,10 +181,13 @@ function GeneratorPageContent() {
     }
   }, [activeSection, sectionConfig]);
 
-  // Update settings when model changes (for image section)
+  // Update settings when model changes (for image and video sections)
   useEffect(() => {
     if (activeSection === 'image' && currentModel) {
       const defaults = getDefaultSettings(currentModel);
+      setSettings(defaults);
+    } else if (activeSection === 'video' && currentModel) {
+      const defaults = getDefaultVideoSettings(currentModel);
       setSettings(defaults);
     }
   }, [currentModel, activeSection]);
@@ -269,8 +277,8 @@ function GeneratorPageContent() {
       return;
     }
 
-    // Валидация настроек (только для image section)
-    if (activeSection === 'image' && !isSettingsValid) {
+    // Валидация настроек для image и video sections
+    if ((activeSection === 'image' || activeSection === 'video') && !isSettingsValid) {
       alert('Пожалуйста, заполните все обязательные поля в настройках');
       return;
     }
@@ -666,9 +674,18 @@ function GeneratorPageContent() {
                 values={settings}
                 onChange={(key, value) => setSettings({ ...settings, [key]: value })}
                 onValidationChange={setIsSettingsValid}
+                type="image"
+              />
+            ) : activeSection === 'video' ? (
+              <DynamicSettings
+                modelId={currentModel}
+                values={settings}
+                onChange={(key, value) => setSettings({ ...settings, [key]: value })}
+                onValidationChange={setIsSettingsValid}
+                type="video"
               />
             ) : (
-              /* Old static parameters for video/audio */
+              /* Old static parameters for audio */
               Object.entries(sectionConfig?.parameters || {}).map(([key, param]: [string, any]) => (
                 <div key={key} className="space-y-2">
                   <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
