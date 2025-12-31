@@ -104,7 +104,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "1K", label: "1K" },
           { value: "2K", label: "2K" }
         ],
-        default: "2K"
+        default: "2K",
+        description: "Разрешение выходного изображения",
+        required: true,
+        order: 1
       },
       aspectRatio: {
         label: "Соотношение сторон",
@@ -119,7 +122,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "2:3", label: "2:3" },
           { value: "auto", label: "Auto" }
         ],
-        default: "9:16"
+        default: "9:16",
+        description: "Пропорции итогового изображения",
+        required: true,
+        order: 2
       }
     }
   },
@@ -134,7 +140,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "1K", label: "1K" },
           { value: "2K", label: "2K" }
         ],
-        default: "2K"
+        default: "2K",
+        description: "Разрешение выходного изображения",
+        required: true,
+        order: 1
       },
       aspectRatio: {
         label: "Соотношение сторон",
@@ -144,9 +153,14 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "4:3", label: "4:3" },
           { value: "3:4", label: "3:4" },
           { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" }
+          { value: "9:16", label: "9:16" },
+          { value: "3:2", label: "3:2" },
+          { value: "2:3", label: "2:3" }
         ],
-        default: "9:16"
+        default: "9:16",
+        description: "Пропорции итогового изображения. Flex поддерживает больше гибкости в стилях.",
+        required: true,
+        order: 2
       }
     }
   },
@@ -161,11 +175,14 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "basic", label: "Basic (2K)" },
           { value: "high", label: "High (4K)" }
         ],
-        default: "basic"
+        default: "basic",
+        description: "Basic для быстрой генерации, High для максимального качества",
+        required: true,
+        order: 1
       },
       aspectRatio: {
         label: "Соотношение сторон",
-        type: "select",
+        type: "buttons",
         options: [
           { value: "1:1", label: "1:1" },
           { value: "4:3", label: "4:3" },
@@ -176,7 +193,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "3:2", label: "3:2" },
           { value: "21:9", label: "21:9" }
         ],
-        default: "9:16"
+        default: "9:16",
+        description: "Пропорции итогового изображения. Поддерживает широкий спектр форматов.",
+        required: true,
+        order: 2
       }
     }
   },
@@ -242,7 +262,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "medium", label: "Medium (1536×1536)" },
           { value: "high", label: "High (2048×2048)" }
         ],
-        default: "medium"
+        default: "medium",
+        description: "Качество и разрешение изображения от OpenAI GPT-4",
+        required: true,
+        order: 1
       },
       aspectRatio: {
         label: "Соотношение сторон",
@@ -252,7 +275,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "16:9", label: "16:9" },
           { value: "9:16", label: "9:16" }
         ],
-        default: "1:1"
+        default: "1:1",
+        description: "Пропорции изображения. GPT Image поддерживает ограниченный набор форматов.",
+        required: true,
+        order: 2
       }
     }
   },
@@ -267,7 +293,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "6", label: "V6" },
           { value: "7", label: "V7" }
         ],
-        default: "7"
+        default: "7",
+        description: "Версия модели Midjourney. V7 - последняя с улучшенным качеством.",
+        required: true,
+        order: 1
       },
       aspectRatio: {
         label: "Соотношение сторон",
@@ -279,7 +308,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
           { value: "4:3", label: "4:3" },
           { value: "3:4", label: "3:4" }
         ],
-        default: "1:1"
+        default: "1:1",
+        description: "Пропорции итогового изображения",
+        required: true,
+        order: 2
       },
       stylization: {
         label: "Стилизация",
@@ -287,7 +319,10 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
         min: 0,
         max: 1000,
         step: 50,
-        default: 100
+        default: 100,
+        description: "Насколько сильно Midjourney применяет свой художественный стиль. 0 = минимум, 1000 = максимум.",
+        optional: true,
+        order: 3
       },
       chaos: {
         label: "Хаос",
@@ -296,7 +331,9 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
         max: 100,
         step: 10,
         default: 0,
-        optional: true
+        optional: true,
+        description: "Разнообразие результатов. 0 = предсказуемо, 100 = очень разнообразно.",
+        order: 4
       }
     }
   }
