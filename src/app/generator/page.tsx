@@ -12,6 +12,8 @@ import {
   Paperclip, Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
   Brain, Bot, Star, FileText, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { DynamicSettings } from '@/components/generator/DynamicSettings';
+import { getDefaultSettings } from '@/config/image-models-config';
 
 // ===== MODELS CONFIG =====
 const MODELS_CONFIG = {
@@ -154,16 +156,31 @@ function GeneratorPageContent() {
   // Initialize settings when section changes
   useEffect(() => {
     if (sectionConfig) {
-      const newSettings: Record<string, any> = {};
-      Object.entries(sectionConfig.parameters).forEach(([key, param]) => {
-        newSettings[key] = param.default;
-      });
-      setSettings(newSettings);
+      // For image section, use dynamic settings from model config
+      if (activeSection === 'image' && currentModel) {
+        const defaults = getDefaultSettings(currentModel);
+        setSettings(defaults);
+      } else {
+        // For video/audio, use old static config
+        const newSettings: Record<string, any> = {};
+        Object.entries(sectionConfig.parameters).forEach(([key, param]) => {
+          newSettings[key] = param.default;
+        });
+        setSettings(newSettings);
+      }
       setCurrentModel(sectionConfig.models[0].id);
       setChatHistory([]);
       setCurrentResult(null);
     }
   }, [activeSection, sectionConfig]);
+
+  // Update settings when model changes (for image section)
+  useEffect(() => {
+    if (activeSection === 'image' && currentModel) {
+      const defaults = getDefaultSettings(currentModel);
+      setSettings(defaults);
+    }
+  }, [currentModel, activeSection]);
 
   // Load generation history on mount
   useEffect(() => {
@@ -617,39 +634,48 @@ function GeneratorPageContent() {
               </button>
             </div>
 
-            {/* Dynamic Parameters */}
-            {Object.entries(sectionConfig?.parameters || {}).map(([key, param]: [string, any]) => (
-              <div key={key} className="space-y-2">
-                <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
-                  {param.label} {param.unit && `(${param.unit})`}
-                </label>
-                {param.type === 'select' && (
-                  <select
-                    value={settings[key] || param.default}
-                    onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--gold)] transition"
-                  >
-                    {param.options?.map((opt: string) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                )}
-                {param.type === 'slider' && (
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={param.min}
-                      max={param.max}
-                      step={param.step}
+            {/* Dynamic Settings */}
+            {activeSection === 'image' ? (
+              <DynamicSettings
+                modelId={currentModel}
+                values={settings}
+                onChange={(key, value) => setSettings({ ...settings, [key]: value })}
+              />
+            ) : (
+              /* Old static parameters for video/audio */
+              Object.entries(sectionConfig?.parameters || {}).map(([key, param]: [string, any]) => (
+                <div key={key} className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                    {param.label} {param.unit && `(${param.unit})`}
+                  </label>
+                  {param.type === 'select' && (
+                    <select
                       value={settings[key] || param.default}
-                      onChange={(e) => setSettings({ ...settings, [key]: parseFloat(e.target.value) })}
-                      className="flex-1 accent-[var(--gold)]"
-                    />
-                    <span className="text-sm font-semibold w-12 text-right">{settings[key] || param.default}</span>
-                </div>
-              )}
-            </div>
-          ))}
+                      onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--gold)] transition"
+                    >
+                      {param.options?.map((opt: string) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  )}
+                  {param.type === 'slider' && (
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={param.min}
+                        max={param.max}
+                        step={param.step}
+                        value={settings[key] || param.default}
+                        onChange={(e) => setSettings({ ...settings, [key]: parseFloat(e.target.value) })}
+                        className="flex-1 accent-[var(--gold)]"
+                      />
+                      <span className="text-sm font-semibold w-12 text-right">{settings[key] || param.default}</span>
+                  </div>
+                )}
+              </div>
+            ))
+            )}
         </div>
       </aside>
       )}
