@@ -130,6 +130,7 @@ function GeneratorPageContent() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [showRightSidebar, setShowRightSidebar] = useState(true);
+  const [isSettingsValid, setIsSettingsValid] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const telegramAuth = useTelegramAuth();
@@ -257,9 +258,19 @@ function GeneratorPageContent() {
   }, [uploadedFiles]);
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim()) {
+      alert('Пожалуйста, введите промпт');
+      return;
+    }
+    
     if (!user) {
       setLoginOpen(true);
+      return;
+    }
+
+    // Валидация настроек (только для image section)
+    if (activeSection === 'image' && !isSettingsValid) {
+      alert('Пожалуйста, заполните все обязательные поля в настройках');
       return;
     }
 
@@ -275,6 +286,17 @@ function GeneratorPageContent() {
       };
 
       setChatHistory((prev) => [...prev, userMessage]);
+
+      // Подготовка параметров для API
+      const apiParams = {
+        prompt,
+        model: currentModel,
+        ...settings,
+        // Добавляем файлы если есть
+        ...(uploadedFiles.length > 0 && { files: uploadedFiles.map(f => f.name) })
+      };
+
+      console.log('[Generator] API Request:', apiParams);
 
       // Simulate generation
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -305,12 +327,13 @@ function GeneratorPageContent() {
       setPrompt('');
       setUploadedFiles([]);
     } catch (error) {
-      console.error(error);
+      console.error('[Generator] Error:', error);
+      alert('Произошла ошибка при генерации. Попробуйте еще раз.');
     } finally {
       setIsGenerating(false);
       setGenerationProgress(0);
     }
-  }, [prompt, currentModel, activeSection, user]);
+  }, [prompt, currentModel, activeSection, user, isSettingsValid, settings, uploadedFiles]);
 
   const handleReset = useCallback(() => {
     setPrompt('');
@@ -552,13 +575,14 @@ function GeneratorPageContent() {
             
             <button
               onClick={handleGenerate}
-              disabled={!prompt.trim() || isGenerating}
+              disabled={!prompt.trim() || isGenerating || (activeSection === 'image' && !isSettingsValid)}
               className={cn(
-                "p-2.5 rounded-lg transition flex-shrink-0",
-                prompt.trim() && !isGenerating
+                "p-2.5 rounded-lg transition flex-shrink-0 relative group",
+                prompt.trim() && !isGenerating && (activeSection !== 'image' || isSettingsValid)
                   ? "bg-gradient-to-r from-purple-600 to-cyan-500 hover:opacity-90"
                   : "bg-[#1a1a1a] text-gray-600 cursor-not-allowed"
               )}
+              title={!isSettingsValid ? 'Заполните все обязательные поля' : 'Генерировать'}
             >
               <Send className="w-4 h-4 text-white" />
             </button>
@@ -640,6 +664,7 @@ function GeneratorPageContent() {
                 modelId={currentModel}
                 values={settings}
                 onChange={(key, value) => setSettings({ ...settings, [key]: value })}
+                onValidationChange={setIsSettingsValid}
               />
             ) : (
               /* Old static parameters for video/audio */
