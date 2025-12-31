@@ -143,6 +143,9 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-gray-400 uppercase tracking-wide flex items-center gap-2">
             {setting.label}
+            {setting.required && (
+              <span className="text-red-400 text-sm">*</span>
+            )}
             {setting.optional && (
               <span className="text-gray-600 text-xs normal-case">(опционально)</span>
             )}
