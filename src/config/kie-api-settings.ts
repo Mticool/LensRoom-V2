@@ -297,9 +297,68 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
   }
 };
 
+// ===== ТИПЫ ДЛЯ ДИНАМИЧЕСКОГО ЦЕНООБРАЗОВАНИЯ =====
+
+export interface PriceModifier {
+  settingKey: string;
+  values: Record<string, number>; // value -> множитель или фиксированная цена
+  type: 'multiplier' | 'fixed' | 'perSecond';
+}
+
+export interface KieModelSettingsWithPricing extends KieModelSettings {
+  baseCost?: number; // Базовая стоимость в звёздах
+  priceModifiers?: PriceModifier[]; // Модификаторы цены
+  provider?: 'kie' | 'fal'; // Провайдер API
+}
+
 // ===== ВИДЕО МОДЕЛИ =====
 
-export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
+export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
+  // Kling O1 - FAL.ai (First Frame Last Frame)
+  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
+  "kling-o1": {
+    name: "Kling O1",
+    apiModel: "fal-ai/kling-video/o1/image-to-video",
+    provider: "fal",
+    baseCost: 56, // $0.56 = 56⭐ за 5 сек (курс примерно 1:100)
+    priceModifiers: [
+      {
+        settingKey: "duration",
+        type: "fixed",
+        values: {
+          "5": 56,   // $0.56 = 56⭐
+          "10": 112  // $1.12 = 112⭐
+        }
+      }
+    ],
+    settings: {
+      duration: {
+        label: "Длительность",
+        type: "buttons",
+        options: [
+          { value: "5", label: "5 сек • 56⭐" },
+          { value: "10", label: "10 сек • 112⭐" }
+        ],
+        default: "5",
+        description: "$0.112/сек. First Frame → Last Frame анимация",
+        required: true,
+        order: 1
+      },
+      mode: {
+        label: "Режим",
+        type: "buttons",
+        options: [
+          { value: "start-end", label: "Старт + Финиш" },
+          { value: "start-only", label: "Только старт" }
+        ],
+        default: "start-end",
+        description: "С финальным кадром - точный контроль перехода",
+        required: true,
+        order: 2
+      }
+    }
+  },
+
   // Veo 3.1 - Google
   "veo-3.1": {
     name: "Veo 3.1",
@@ -592,6 +651,57 @@ export function getDefaultVideoSettings(modelId: string): Record<string, unknown
     }
   });
   return defaults;
+}
+
+// ===== ДИНАМИЧЕСКОЕ ЦЕНООБРАЗОВАНИЕ =====
+
+/**
+ * Рассчитать стоимость генерации в звёздах на основе настроек
+ */
+export function calculateDynamicPrice(
+  modelId: string, 
+  settings: Record<string, unknown>,
+  type: 'image' | 'video' = 'video'
+): number {
+  const model = type === 'video' 
+    ? KIE_VIDEO_MODELS[modelId] as KieModelSettingsWithPricing
+    : KIE_IMAGE_MODELS[modelId] as KieModelSettingsWithPricing;
+  
+  if (!model) return 0;
+  
+  let price = model.baseCost || 0;
+  
+  // Применяем модификаторы цены
+  if (model.priceModifiers) {
+    for (const modifier of model.priceModifiers) {
+      const settingValue = String(settings[modifier.settingKey] || '');
+      const modifierValue = modifier.values[settingValue];
+      
+      if (modifierValue !== undefined) {
+        switch (modifier.type) {
+          case 'fixed':
+            price = modifierValue;
+            break;
+          case 'multiplier':
+            price *= modifierValue;
+            break;
+          case 'perSecond':
+            const seconds = Number(settingValue) || 5;
+            price = modifierValue * seconds;
+            break;
+        }
+      }
+    }
+  }
+  
+  return Math.round(price);
+}
+
+/**
+ * Получить информацию о модели с ценообразованием
+ */
+export function getVideoModelWithPricing(modelId: string): KieModelSettingsWithPricing | undefined {
+  return KIE_VIDEO_MODELS[modelId] as KieModelSettingsWithPricing;
 }
 
 // Получить apiModel для Kling в зависимости от версии

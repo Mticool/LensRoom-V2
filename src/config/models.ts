@@ -720,13 +720,13 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   // === KLING O1 - Video-to-Video Edit (fal.ai) ===
   {
     id: 'kling-o1-edit',
-    name: 'Kling O1',
+    name: 'Kling O1 Edit',
     apiId: 'fal-ai/kling-video/o1/video-to-video/edit',
     type: 'video',
     provider: 'fal',
-    description: 'Kling O1 — редактирование существующих видео с помощью промпта. Поддерживает референс-изображения и элементы для замены персонажей/объектов. Длительность и качество наследуются от исходного видео (3–10 сек, 720p–2160p).',
+    description: 'Kling O1 — редактирование существующих видео с помощью промпта. Поддерживает референс-изображения и элементы для замены персонажей/объектов.',
     rank: 10,
-    featured: true,
+    featured: false,
     speed: 'medium',
     quality: 'high',
     supportsI2v: false,
@@ -735,7 +735,35 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modes: ['v2v'],
     durationOptions: [],
     aspectRatios: [],
-    shortLabel: 'Video Edit',
+    shortLabel: 'V2V Edit',
+  },
+
+  // === KLING O1 - Image-to-Video First/Last Frame (fal.ai) ===
+  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
+  // Цена: $0.112/сек → 5s = $0.56 (56⭐), 10s = $1.12 (112⭐)
+  {
+    id: 'kling-o1',
+    name: 'Kling O1',
+    apiId: 'fal-ai/kling-video/o1/image-to-video',
+    type: 'video',
+    provider: 'fal',
+    description: 'First Frame → Last Frame анимация. Точный контроль перехода между двумя кадрами. Идеально для таймлапсов, морфинга, трансформаций.',
+    rank: 5,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: true, // Требует изображение
+    supportsAudio: false,
+    // Pricing: $0.112/сек → 5s = $0.56 (56⭐), 10s = $1.12 (112⭐)
+    pricing: {
+      '5': 56,
+      '10': 112,
+    },
+    modes: ['i2v', 'start_end'], // Поддерживает start + end frames
+    durationOptions: [5, 10],
+    fixedDuration: undefined,
+    aspectRatios: ['auto', '16:9', '9:16', '1:1', '4:3', '3:4'],
+    shortLabel: 'First→Last • 5-10s',
   },
 ];
 

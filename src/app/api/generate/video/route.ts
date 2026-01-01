@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getKieClient } from '@/lib/api/kie-client';
+import { getFalClient } from '@/lib/api/fal-client';
 import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
@@ -313,22 +314,77 @@ export async function POST(request: NextRequest) {
     let response: any;
     let usedFallback = false;
     
-    try {
-      response = await kieClient.generateVideo({
-        model: apiModelId,
-        provider: modelInfo.provider,
-        prompt: fullPrompt,
-        imageUrl: imageUrl,
-        lastFrameUrl: lastFrameUrl,
-        duration: duration || modelInfo.fixedDuration || 5,
-        aspectRatio: aspectRatio,
-        sound: alwaysSound,
-        mode: mode,
-        resolution: resolution,
-        quality: quality,
-        shots: shots, // For storyboard mode
-      });
-    } catch (error: any) {
+    // === FAL.ai PROVIDER (Kling O1) ===
+    if (modelInfo.provider === 'fal') {
+      try {
+        const falClient = getFalClient();
+        
+        // Kling O1 Image-to-Video (First/Last Frame)
+        if (model === 'kling-o1') {
+          if (!startImage) {
+            return NextResponse.json(
+              { error: 'Start image is required for Kling O1' },
+              { status: 400 }
+            );
+          }
+          
+          const falResponse = await falClient.submitKlingO1ImageToVideo({
+            prompt: fullPrompt,
+            start_image_url: startImage,
+            end_image_url: endImage || undefined, // Optional last frame
+            duration: String(duration || 5) as '5' | '10',
+          });
+          
+          response = {
+            id: falResponse.request_id,
+            status: 'queued',
+            estimatedTime: duration === 10 ? 180 : 120,
+          };
+        }
+        // Kling O1 Video-to-Video Edit
+        else if (model === 'kling-o1-edit') {
+          if (!referenceImage) { // referenceImage используется как video_url
+            return NextResponse.json(
+              { error: 'Video URL is required for Kling O1 Edit' },
+              { status: 400 }
+            );
+          }
+          
+          const falResponse = await falClient.submitKlingO1Job({
+            prompt: fullPrompt,
+            video_url: referenceImage,
+            image_urls: startImage ? [startImage] : undefined,
+          });
+          
+          response = {
+            id: falResponse.request_id,
+            status: 'queued',
+            estimatedTime: 120,
+          };
+        }
+      } catch (error: any) {
+        console.error('[API] FAL.ai error:', error);
+        throw error;
+      }
+    }
+    // === KIE.ai PROVIDER ===
+    else {
+      try {
+        response = await kieClient.generateVideo({
+          model: apiModelId,
+          provider: modelInfo.provider,
+          prompt: fullPrompt,
+          imageUrl: imageUrl,
+          lastFrameUrl: lastFrameUrl,
+          duration: duration || modelInfo.fixedDuration || 5,
+          aspectRatio: aspectRatio,
+          sound: alwaysSound,
+          mode: mode,
+          resolution: resolution,
+          quality: quality,
+          shots: shots, // For storyboard mode
+        });
+      } catch (error: any) {
       // Обработка ошибки политики контента Google Veo
       const errorMessage = error?.message || String(error);
       const isContentPolicyError = 
@@ -408,6 +464,7 @@ export async function POST(request: NextRequest) {
         throw error;
       }
     }
+    } // Close else block for KIE provider
 
     // Update generation with task ID
     if (generation?.id) {

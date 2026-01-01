@@ -13,6 +13,7 @@ import {
   Brain, Bot, Star, FileText, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { DynamicSettings, getDefaultSettings, getDefaultVideoSettings } from '@/components/generator/DynamicSettings';
+import { calculateDynamicPrice, getVideoModelWithPricing } from '@/config/kie-api-settings';
 
 // ===== MODELS CONFIG =====
 const MODELS_CONFIG = {
@@ -45,7 +46,8 @@ const MODELS_CONFIG = {
     icon: Video,
     models: [
       { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'TOP', description: 'Быстрая генерация видео' },
-      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Popular', description: '4 версии: Turbo, 2.6, Pro, O1' },
+      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Popular', description: '3 версии: Turbo, 2.6, Pro' },
+      { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: 'First→Last Frame анимация', dynamicPrice: true },
       { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'Balanced', description: 'Speed/quality balance' },
       { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 650, badge: 'Premium', description: 'Cinematic quality' },
       { id: 'sora-storyboard', name: 'Sora Storyboard', icon: Video, cost: 310, description: 'Multi-scene storytelling' },
@@ -342,6 +344,11 @@ function GeneratorPageContent() {
   }, []);
 
   const modelInfo = sectionConfig?.models.find(m => m.id === currentModel);
+  
+  // Calculate dynamic price for models with dynamic pricing
+  const dynamicCost = (activeSection === 'video' && modelInfo?.dynamicPrice) 
+    ? calculateDynamicPrice(currentModel, settings, 'video')
+    : modelInfo?.cost || 0;
 
   // Group results by date
   const groupedResults = results.reduce((acc: [string, GenerationResult[]][], result) => {
@@ -590,7 +597,11 @@ function GeneratorPageContent() {
           {/* Cost Display */}
           <div className="flex justify-end mt-2">
             <span className="text-xs text-gray-400">
-              Стоимость: <span className="text-purple-400">⚡ {modelInfo?.cost || 0}</span>
+              Стоимость: <span className={cn(
+                "transition-all duration-300",
+                modelInfo?.dynamicPrice ? "text-cyan-400 font-medium" : "text-purple-400"
+              )}>⚡ {dynamicCost}</span>
+              {modelInfo?.dynamicPrice && <span className="ml-1 text-gray-500">(динамическая)</span>}
             </span>
           </div>
         </div>

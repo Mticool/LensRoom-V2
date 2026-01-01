@@ -1,21 +1,37 @@
 /**
- * Fal.ai Client for Kling O1 Video-to-Video Edit
+ * Fal.ai Client for Kling O1
  * 
- * API: fal-ai/kling-video/o1/video-to-video/edit
- * Docs: https://fal.ai/models/fal-ai/kling-video/o1/video-to-video/edit
+ * APIs:
+ * - Video-to-Video: fal-ai/kling-video/o1/video-to-video/edit
+ * - Image-to-Video (First/Last Frame): fal-ai/kling-video/o1/image-to-video
+ * 
+ * Docs: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
  */
 
+// ===== VIDEO-TO-VIDEO TYPES =====
+
 export interface FalKlingO1Element {
-  frontal_image_url: string; // Required: frontal image of character/object
-  reference_image_urls?: string[]; // Optional: additional reference images
+  frontal_image_url: string;
+  reference_image_urls?: string[];
 }
 
 export interface FalKlingO1Request {
   prompt: string;
-  video_url: string; // Required: input video URL
-  image_urls?: string[]; // Optional: reference images (0-4 total with elements)
-  elements?: FalKlingO1Element[]; // Optional: characters/objects to replace
-  keep_audio?: boolean; // Optional: preserve original audio (default: false)
+  video_url: string;
+  image_urls?: string[];
+  elements?: FalKlingO1Element[];
+  keep_audio?: boolean;
+}
+
+// ===== IMAGE-TO-VIDEO (First/Last Frame) TYPES =====
+// Документация: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
+
+export interface FalKlingO1I2VRequest {
+  prompt: string;
+  start_image_url: string; // Required: первый кадр
+  end_image_url?: string; // Optional: последний кадр (для First→Last анимации)
+  duration?: '5' | '10'; // 5 сек ($0.56) или 10 сек ($1.12)
+  aspect_ratio?: string; // Default: auto (из изображения)
 }
 
 export interface FalKlingO1Response {
@@ -75,7 +91,84 @@ export class FalAIClient {
   }
 
   /**
-   * Submit a video edit job to fal.ai queue
+   * Submit Kling O1 Image-to-Video (First/Last Frame) job
+   * Цена: $0.112/сек → 5s = $0.56 (56⭐), 10s = $1.12 (112⭐)
+   */
+  async submitKlingO1ImageToVideo(params: FalKlingO1I2VRequest): Promise<{ request_id: string; status_url: string }> {
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/image-to-video`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData: any;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new FalAPIError(
+          errorData.message || errorData.detail || `Fal.ai API error: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+
+      const data = await response.json();
+      
+      if (!data.request_id) {
+        throw new FalAPIError('Invalid response: missing request_id', response.status, data);
+      }
+
+      console.log('[Fal.ai] Kling O1 I2V job submitted:', data.request_id);
+      return data;
+    } catch (error) {
+      if (error instanceof FalAPIError) throw error;
+      throw new FalAPIError(
+        `Failed to submit Kling O1 I2V job: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Query Kling O1 I2V job status
+   */
+  async queryKlingO1I2VStatus(requestId: string): Promise<FalJobStatus> {
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/image-to-video/requests/${requestId}/status`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new FalAPIError(`Failed to query I2V job status: ${response.status}`, response.status, errorText);
+      }
+
+      const data = await response.json();
+      return data as FalJobStatus;
+    } catch (error) {
+      if (error instanceof FalAPIError) throw error;
+      throw new FalAPIError(
+        `Failed to query I2V job status: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Submit a video edit job to fal.ai queue (V2V)
    */
   async submitKlingO1Job(params: FalKlingO1Request): Promise<{ request_id: string; status_url: string }> {
     const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/video-to-video/edit`;
