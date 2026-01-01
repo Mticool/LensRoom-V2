@@ -138,7 +138,7 @@ function GeneratorPageContent() {
   // Calculate cost
   const calculateCost = useCallback(() => {
     if (!modelInfo) return 0;
-    if (modelInfo.dynamicPrice && activeSection === 'video') {
+    if ('dynamicPrice' in modelInfo && modelInfo.dynamicPrice && activeSection === 'video') {
       return calculateDynamicPrice(currentModel, settings, 'video');
     }
     return modelInfo.cost;
