@@ -65,7 +65,6 @@ export function Header() {
     { name: 'Дизайн', href: '/generator?section=image' },
     { name: 'Видео', href: '/generator?section=video' },
     { name: 'Аудио', href: '/generator?section=audio' },
-    { name: 'Мои результаты', href: '/library' },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },
   ];
@@ -180,6 +179,14 @@ export function Header() {
                           </div>
 
                           <div className="py-1">
+                            <Link
+                              href="/library"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                              Мои результаты
+                            </Link>
                             <Link
                               href="/account/subscription"
                               onClick={() => setUserMenuOpen(false)}
