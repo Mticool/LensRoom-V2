@@ -25,11 +25,11 @@ const MODELS_CONFIG = {
     models: [
       { id: 'nano-banana', name: 'Nano Banana', icon: Sparkles, cost: 7, badge: 'Fast', description: 'Быстрая генерация' },
       { id: 'nano-banana-pro', name: 'Nano Banana Pro', icon: Star, cost: 35, badge: 'Premium', description: '4K качество' },
-      { id: 'gpt-image', name: 'GPT Image', icon: Brain, cost: 42, badge: 'Новинка', description: 'Точные цвета' },
+      { id: 'gpt-image', name: 'GPT Image', icon: Brain, cost: 42, badge: 'OpenAI', description: 'Точные цвета' },
       { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, cost: 10, badge: 'Popular', description: 'Детализация' },
       { id: 'flux-2-flex', name: 'FLUX.2 Flex', icon: ImageIcon, cost: 32, description: 'Гибкий стиль' },
       { id: 'seedream-4.5', name: 'Seedream 4.5', icon: Sparkles, cost: 11, badge: 'Новинка', description: '4K нового поколения' },
-      { id: 'midjourney', name: 'Midjourney V7', icon: Star, cost: 50, badge: 'Pro', description: 'Художественные стили' },
+      { id: 'z-image', name: 'Z-Image', icon: ImageIcon, cost: 2, badge: 'Быстрый', description: 'Самый дешёвый' },
     ],
   },
   video: {
