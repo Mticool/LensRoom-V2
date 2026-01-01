@@ -230,7 +230,7 @@ export default function HomePage() {
               <Link href="/generator?section=image">
                 <Button 
                   size="lg"
-                  className="group bg-white hover:bg-gray-100 text-black px-8 py-6 text-base font-semibold rounded-xl shadow-2xl shadow-white/20 hover:shadow-white/30 transition-all"
+                  className="group bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white px-8 py-6 text-base font-semibold rounded-xl shadow-2xl shadow-cyan-500/30 hover:shadow-cyan-500/40 transition-all"
                 >
                   Начать создавать
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -525,7 +525,7 @@ export default function HomePage() {
               </div>
               
               <Link href="/pricing">
-                <Button className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-semibold px-6 py-5">
+                <Button className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-semibold px-6 py-5">
                   Смотреть тарифы
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -685,7 +685,7 @@ export default function HomePage() {
             <Link href="/generator?section=image">
               <Button 
                 size="lg"
-                className="bg-white hover:bg-gray-100 text-black px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl shadow-white/20"
+                className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl shadow-purple-500/30"
               >
                 <Sparkles className="w-5 h-5 mr-2" />
                 Начать бесплатно
