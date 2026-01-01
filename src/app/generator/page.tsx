@@ -332,33 +332,14 @@ function GeneratorPageContent() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col">
-      {/* Top Section Tabs */}
+      {/* Model Bar */}
       <div className="border-b border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl sticky top-14 z-30">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-1">
-              {(['image', 'video', 'audio'] as const).map((section) => {
-                const config = MODELS_CONFIG[section];
-                const Icon = config.icon;
-                return (
-                  <button
-                    key={section}
-                    onClick={() => {
-                      setActiveSection(section);
-                      setCurrentModel(config.models[0]?.id);
-                    }}
-                    className={cn(
-                      "btn-smooth flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium",
-                      activeSection === section
-                        ? "bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white border border-purple-500/30"
-                        : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
-                    )}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {config.section}
-                  </button>
-                );
-              })}
+            {/* Current Section Label */}
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <sectionConfig.icon className="w-4 h-4" />
+              <span>{sectionConfig.section}</span>
             </div>
             
             {/* Model Selector */}
