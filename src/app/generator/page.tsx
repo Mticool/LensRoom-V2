@@ -348,9 +348,9 @@ function GeneratorPageContent() {
                       setCurrentModel(config.models[0]?.id);
                     }}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                      "btn-smooth flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium",
                       activeSection === section
-                        ? "bg-white/10 text-white"
+                        ? "bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white border border-purple-500/30"
                         : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
                     )}
                   >
@@ -366,7 +366,7 @@ function GeneratorPageContent() {
               <select
                 value={currentModel}
                 onChange={(e) => setCurrentModel(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-[var(--text)] outline-none focus:border-purple-500/50"
+                className="input-smooth bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-[var(--text)] cursor-pointer hover:bg-white/10"
               >
                 {sectionConfig.models.map((model) => (
                   <option key={model.id} value={model.id} className="bg-[#1a1a1a]">
@@ -378,7 +378,7 @@ function GeneratorPageContent() {
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 className={cn(
-                  "p-2 rounded-lg transition",
+                  "btn-icon p-2 rounded-xl",
                   showSettings ? "bg-purple-500/20 text-purple-400" : "bg-white/5 text-gray-400 hover:text-white"
                 )}
               >
@@ -419,7 +419,7 @@ function GeneratorPageContent() {
                       <button
                         key={i}
                         onClick={() => setPrompt(suggestion)}
-                        className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/20 transition"
+                        className="btn-smooth px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-400 hover:text-white hover:border-purple-500/30 hover:bg-purple-500/10"
                       >
                         {suggestion}
                       </button>
@@ -505,11 +505,11 @@ function GeneratorPageContent() {
                                 )}
 
                                 {/* Actions */}
-                                <div className="flex items-center gap-2 ml-1">
+                                <div className="flex items-center gap-1 ml-1">
                                   {message.url && (
                                     <button
                                       onClick={() => handleDownload(message.url!, message.type || 'image')}
-                                      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                      className="btn-icon p-2 rounded-xl text-gray-500 hover:text-emerald-400"
                                       title="Скачать"
                                     >
                                       <Download className="w-4 h-4" />
@@ -518,14 +518,14 @@ function GeneratorPageContent() {
                                   {message.url && (
                                     <button 
                                       onClick={() => handleCopy(message.url!)}
-                                      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                      className="btn-icon p-2 rounded-xl text-gray-500 hover:text-blue-400"
                                       title="Копировать ссылку"
                                     >
                                       <Copy className="w-4 h-4" />
                                     </button>
                                   )}
                                   <button 
-                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-cyan-400 transition"
+                                    className="btn-icon p-2 rounded-xl text-gray-500 hover:text-pink-400"
                                     title="Нравится"
                                   >
                                     <ThumbsUp className="w-4 h-4" />
@@ -537,7 +537,7 @@ function GeneratorPageContent() {
                                       const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
                                       if (userMsg) handleRegenerate(userMsg.content);
                                     }}
-                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                    className="btn-icon p-2 rounded-xl text-gray-500 hover:text-purple-400"
                                     title="Повторить"
                                   >
                                     <RotateCcw className="w-4 h-4" />
@@ -593,7 +593,7 @@ function GeneratorPageContent() {
               </AnimatePresence>
 
               {/* Input */}
-              <div className="flex items-end gap-2 p-2 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 transition-all">
+              <div className="flex items-end gap-2 p-3 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 focus-within:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -605,7 +605,7 @@ function GeneratorPageContent() {
                 
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 rounded-lg hover:bg-white/10 transition text-gray-400 hover:text-white flex-shrink-0"
+                  className="btn-icon p-2 rounded-xl text-gray-400 hover:text-cyan-400 flex-shrink-0"
                 >
                   <Paperclip className="w-5 h-5" />
                 </button>
@@ -635,13 +635,13 @@ function GeneratorPageContent() {
                     onClick={handleGenerate}
                     disabled={!prompt.trim() || isGenerating}
                     className={cn(
-                      "p-2.5 rounded-xl transition-all",
+                      "btn-glow p-2.5 rounded-xl",
                       prompt.trim() && !isGenerating
-                        ? "bg-gradient-to-r from-purple-500 to-cyan-500 hover:opacity-90 shadow-lg shadow-purple-500/25"
+                        ? "bg-gradient-to-r from-purple-500 to-cyan-500 shadow-lg shadow-purple-500/25 text-white"
                         : "bg-white/10 text-gray-600 cursor-not-allowed"
                     )}
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className={cn("w-4 h-4 transition-transform", isGenerating && "animate-pulse")} />
                   </button>
                 </div>
               </div>
