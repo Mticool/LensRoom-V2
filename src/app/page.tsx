@@ -1,247 +1,236 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Sparkles, Zap, Video, Image as ImageIcon, Mic, ArrowRight, 
-  Brain, Palette, Music, Star, Users, TrendingUp, Check,
-  ChevronDown, ChevronUp, Send, Gift, Rocket, Target, Play
+  Sparkles, Zap, Video, Image as ImageIcon, ArrowRight, 
+  Play, Star, Users, Check, ChevronDown, ChevronUp, 
+  Gift, Rocket, Crown, Wand2, Camera, Film, Music2,
+  MousePointer, Layers, Paintbrush, Clapperboard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeCategory, setActiveCategory] = useState('all');
 
-  // AI Examples для галереи
-  const aiExamples = [
+  // Инструменты как на Higgsfield
+  const tools = [
     { 
-      title: 'AI Portrait', 
-      subtitle: 'Cozy Vibes', 
-      type: 'AI Generated', 
-      image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=500&fit=crop',
+      name: 'Создать изображение', 
+      description: 'AI генерация фото',
+      icon: ImageIcon,
+      href: '/generator?section=image',
       gradient: 'from-purple-500 to-pink-500',
+      badge: 'Популярно'
     },
     { 
-      title: 'AI Family', 
-      subtitle: 'Winter Joy', 
-      type: 'AI Generated', 
-      image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400&h=500&fit=crop',
+      name: 'Создать видео', 
+      description: 'AI генерация видео',
+      icon: Video,
+      href: '/generator?section=video',
       gradient: 'from-cyan-500 to-blue-500',
+      badge: 'Новинка'
     },
     { 
-      title: 'AI Video', 
-      subtitle: 'Motion', 
-      type: 'AI Video', 
-      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=500&fit=crop',
-      gradient: 'from-pink-500 to-red-500',
+      name: 'Nano Banana Pro', 
+      description: 'Лучшая 4K модель',
+      icon: Sparkles,
+      href: '/generator?section=image&model=nano-banana-pro',
+      gradient: 'from-yellow-500 to-orange-500',
+      badge: 'Безлимит'
     },
     { 
-      title: 'AI Beauty', 
-      subtitle: 'Editorial', 
-      type: 'AI Generated', 
-      image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=500&fit=crop',
-      gradient: 'from-orange-500 to-pink-500',
+      name: 'Veo 3.1', 
+      description: 'Google видео со звуком',
+      icon: Film,
+      href: '/generator?section=video&model=veo-3.1',
+      gradient: 'from-blue-500 to-indigo-500',
+      badge: 'Google'
+    },
+    { 
+      name: 'Kling AI', 
+      description: 'Кинематографичные видео',
+      icon: Clapperboard,
+      href: '/generator?section=video&model=kling',
+      gradient: 'from-emerald-500 to-cyan-500',
+      badge: 'Trending'
+    },
+    { 
+      name: 'Sora 2', 
+      description: 'OpenAI видео модель',
+      icon: Wand2,
+      href: '/generator?section=video&model=sora-2',
+      gradient: 'from-rose-500 to-pink-500',
+      badge: 'OpenAI'
     },
   ];
 
-  // Топовые модели
-  const topModels = [
-    { name: 'Nano Banana Pro', type: 'Фото', badge: 'Бесплатно', badgeColor: 'bg-green-500', icon: ImageIcon },
-    { name: 'Veo 3.1', type: 'Видео', badge: 'Google', badgeColor: 'bg-blue-500', icon: Video },
-    { name: 'Kling 2.6', type: 'Видео', badge: 'Trending', badgeColor: 'bg-purple-500', icon: TrendingUp },
-    { name: 'Sora Pro', type: 'Видео', badge: 'OpenAI', badgeColor: 'bg-cyan-500', icon: Sparkles },
-    { name: 'Seedance', type: 'Видео', badge: 'Fast', badgeColor: 'bg-pink-500', icon: Zap },
+  // Модели изображений
+  const imageModels = [
+    { id: 'nano-banana-pro', name: 'Nano Banana Pro', badge: 'Безлимит', badgeColor: 'bg-green-500', description: '4K фото высшего качества', cost: 35 },
+    { id: 'gpt-image', name: 'GPT Image', badge: 'Новинка', badgeColor: 'bg-blue-500', description: 'Точная цветопередача', cost: 42 },
+    { id: 'flux-2-pro', name: 'FLUX.2 Pro', badge: 'Быстро', badgeColor: 'bg-purple-500', description: 'Высокая детализация', cost: 10 },
+    { id: 'midjourney', name: 'Midjourney V7', badge: 'Pro', badgeColor: 'bg-orange-500', description: 'Художественные стили', cost: 50 },
+    { id: 'seedream-4.5', name: 'Seedream 4.5', badge: 'Новинка', badgeColor: 'bg-cyan-500', description: '4K нового поколения', cost: 11 },
+  ];
+
+  // Модели видео
+  const videoModels = [
+    { id: 'veo-3.1', name: 'Veo 3.1', badge: 'Google', badgeColor: 'bg-blue-500', description: 'Видео со звуком', cost: 260 },
+    { id: 'kling', name: 'Kling AI', badge: 'Trending', badgeColor: 'bg-emerald-500', description: 'Кинематограф', cost: 105 },
+    { id: 'sora-2-pro', name: 'Sora 2 Pro', badge: 'OpenAI', badgeColor: 'bg-rose-500', description: '1080p качество', cost: 650 },
+    { id: 'wan', name: 'WAN AI', badge: 'Новинка', badgeColor: 'bg-purple-500', description: 'До 15 секунд', cost: 217 },
+    { id: 'kling-o1', name: 'Kling O1', badge: 'FAL.ai', badgeColor: 'bg-pink-500', description: 'First → Last Frame', cost: 56 },
+  ];
+
+  // Примеры работ
+  const showcaseItems = [
+    { image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=500&fit=crop', title: 'AI Portrait', model: 'Nano Banana Pro', type: 'image' },
+    { image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop', title: 'Cinematic', model: 'Veo 3.1', type: 'video' },
+    { image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=500&fit=crop', title: 'Fashion', model: 'Midjourney', type: 'image' },
+    { image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=500&fit=crop', title: 'Editorial', model: 'FLUX.2 Pro', type: 'image' },
+    { image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=500&fit=crop', title: 'Beauty', model: 'Nano Banana Pro', type: 'image' },
+    { image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=500&fit=crop', title: 'Lifestyle', model: 'Kling AI', type: 'video' },
   ];
 
   // FAQ
   const faqs = [
-    {
-      question: 'Как начать работу?',
-      answer: 'Зарегистрируйтесь через Telegram, получите 50⭐ бесплатно и начните создавать контент прямо сейчас. Карта не требуется!'
-    },
-    {
-      question: 'Что такое звёзды (⭐)?',
-      answer: 'Звёзды — внутренняя валюта LensRoom. 1⭐ = 1 рубль. Используйте звёзды для генерации контента любыми AI моделями.'
-    },
-    {
-      question: 'Почему Nano Banana Pro бесплатно?',
-      answer: 'В тарифах Creator+ и Business вы получаете безлимитные генерации Nano Banana Pro без траты звёзд. Это наш эксклюзив!'
-    },
-    {
-      question: 'Какие видео-модели доступны?',
-      answer: 'У нас 10+ моделей: Veo 3.1, Kling 2.6, Sora 2 Pro, WAN 2.6, Seedance и другие топовые модели со всего мира.'
-    },
-    {
-      question: 'Безопасны ли мои данные?',
-      answer: 'Да! Мы не храним ваши промпты и генерации дольше необходимого. Все данные защищены и доступны только вам.'
-    },
-    {
-      question: 'Можно использовать для коммерции?',
-      answer: 'Да! Весь контент, созданный в LensRoom, принадлежит вам и может использоваться в коммерческих целях без ограничений.'
-    },
+    { question: 'Как начать работу?', answer: 'Войдите через Telegram и получите 50⭐ бесплатно. Никакой карты не нужно!' },
+    { question: 'Что такое звёзды (⭐)?', answer: 'Звёзды — внутренняя валюта. 1⭐ ≈ 1₽. Используйте для генерации контента.' },
+    { question: 'Почему Nano Banana Pro бесплатно?', answer: 'В тарифах Creator+ и Business — безлимитные генерации без траты звёзд!' },
+    { question: 'Какие модели доступны?', answer: '25+ моделей: Veo 3.1, Kling 2.6, Sora 2, WAN, Midjourney, FLUX и другие.' },
+    { question: 'Данные безопасны?', answer: 'Да! Мы не храним промпты и генерации. Всё защищено и принадлежит вам.' },
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] overflow-x-hidden">
       
-      {/* Hero Section - Freepik Style Dark */}
-      <section className="relative min-h-[85vh] flex items-center justify-center pt-24 pb-20 bg-[var(--bg)]">
+      {/* ===== HERO SECTION - Higgsfield Style ===== */}
+      <section className="relative min-h-[100vh] flex items-center justify-center overflow-hidden">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-[var(--bg)] to-cyan-900/20" />
         
-        <div className="container mx-auto px-6 relative z-10">
-          
-          {/* Floating Images */}
-          <div className="absolute inset-0 pointer-events-none hidden lg:block overflow-hidden">
-            {/* Top Left */}
-            <motion.div
-              initial={{ opacity: 0, x: -100, y: -50 }}
-              animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="absolute top-10 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
-            >
-              <Image 
-                src={aiExamples[0].image} 
-                alt={aiExamples[0].title}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-[var(--text)] font-medium w-fit mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3" />
-                  {aiExamples[0].type}
-                </div>
-                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[0].title}</h4>
-              </div>
-            </motion.div>
+        {/* Animated Orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div 
+            animate={{ 
+              x: [0, 100, 0], 
+              y: [0, -50, 0],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+          />
+          <motion.div 
+            animate={{ 
+              x: [0, -100, 0], 
+              y: [0, 50, 0],
+              scale: [1, 1.3, 1]
+            }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"
+          />
+        </div>
 
-            {/* Top Right */}
-            <motion.div
-              initial={{ opacity: 0, x: 100, y: -50 }}
-              animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-              className="absolute top-10 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
-            >
-              <Image 
-                src={aiExamples[1].image} 
-                alt={aiExamples[1].title}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-[var(--text)] font-medium w-fit mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3" />
-                  {aiExamples[1].type}
-                </div>
-                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[1].title}</h4>
-              </div>
-            </motion.div>
-
-            {/* Bottom Left */}
-            <motion.div
-              initial={{ opacity: 0, x: -100, y: 50 }}
-              animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="absolute bottom-32 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
-            >
-              <Image 
-                src={aiExamples[2].image} 
-                alt={aiExamples[2].title}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute top-3 left-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-pink-500 text-[var(--text)] font-medium w-fit flex items-center gap-1.5">
-                  <Play className="w-3 h-3 fill-white" />
-                  {aiExamples[2].type}
-                </div>
-              </div>
-              <div className="absolute bottom-3 left-3 right-3">
-                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[2].title}</h4>
-              </div>
-            </motion.div>
-
-            {/* Bottom Right */}
-            <motion.div
-              initial={{ opacity: 0, x: 100, y: 50 }}
-              animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-              className="absolute bottom-32 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
-            >
-              <Image 
-                src={aiExamples[3].image} 
-                alt={aiExamples[3].title}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-[var(--text)] font-medium w-fit mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3" />
-                  {aiExamples[3].type}
-                </div>
-                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[3].title}</h4>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Hero Content */}
+        {/* Floating Preview Cards - Like Higgsfield */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Left cards */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, x: -100, rotate: -12 }}
+            animate={{ opacity: 1, x: 0, rotate: -12 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+            className="absolute top-[15%] left-[5%] w-44 h-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 pointer-events-auto hover:scale-105 transition-transform hidden lg:block"
+          >
+            <Image src={showcaseItems[0].image} alt="" fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-3 left-3">
+              <span className="text-[10px] px-2 py-0.5 bg-cyan-500 rounded-full font-medium">AI Generated</span>
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, x: -100, rotate: 6 }}
+            animate={{ opacity: 1, x: 0, rotate: 6 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="absolute bottom-[20%] left-[8%] w-40 h-52 rounded-2xl overflow-hidden shadow-2xl border border-white/10 pointer-events-auto hover:scale-105 transition-transform hidden lg:block"
+          >
+            <Image src={showcaseItems[2].image} alt="" fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-3 left-3">
+              <span className="text-[10px] px-2 py-0.5 bg-pink-500 rounded-full font-medium flex items-center gap-1">
+                <Play className="w-2.5 h-2.5 fill-white" />AI Video
+              </span>
+            </div>
+          </motion.div>
+
+          {/* Right cards */}
+          <motion.div
+            initial={{ opacity: 0, x: 100, rotate: 12 }}
+            animate={{ opacity: 1, x: 0, rotate: 12 }}
+            transition={{ delay: 0.4, duration: 0.8 }}
+            className="absolute top-[18%] right-[5%] w-44 h-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 pointer-events-auto hover:scale-105 transition-transform hidden lg:block"
+          >
+            <Image src={showcaseItems[1].image} alt="" fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-3 left-3">
+              <span className="text-[10px] px-2 py-0.5 bg-purple-500 rounded-full font-medium">Cinematic</span>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 100, rotate: -8 }}
+            animate={{ opacity: 1, x: 0, rotate: -8 }}
+            transition={{ delay: 0.6, duration: 0.8 }}
+            className="absolute bottom-[22%] right-[8%] w-40 h-52 rounded-2xl overflow-hidden shadow-2xl border border-white/10 pointer-events-auto hover:scale-105 transition-transform hidden lg:block"
+          >
+            <Image src={showcaseItems[3].image} alt="" fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-3 left-3">
+              <span className="text-[10px] px-2 py-0.5 bg-emerald-500 rounded-full font-medium">Editorial</span>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Hero Content */}
+        <div className="container mx-auto px-6 relative z-10 text-center pt-20">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="text-center max-w-5xl mx-auto relative z-10"
+            transition={{ duration: 0.8 }}
           >
             {/* Badge */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.7 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--surface)]/10 backdrop-blur-xl border border-[var(--border)]/20 text-[var(--text)] text-sm font-medium mb-6"
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mb-8"
             >
-              <Sparkles className="w-4 h-4" />
-              Топовые AI модели в одном месте
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-gray-300">25+ AI моделей • Работает сейчас</span>
             </motion.div>
 
             {/* Main Heading */}
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-[var(--text)]">
-              Создавайте невероятный
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-[1.1] tracking-tight">
+              <span className="text-[var(--text)]">Что создадите</span>
               <br />
-              <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                контент с AI
+              <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                сегодня?
               </span>
             </h1>
-            
-            <p className="text-xl md:text-2xl text-gray-400 mb-4 max-w-3xl mx-auto font-normal">
-              Фото и видео студийного качества за секунды
+
+            <p className="text-xl md:text-2xl text-gray-400 mb-10 max-w-2xl mx-auto font-light">
+              Фото и видео студийного качества с лучшими AI моделями мира
             </p>
 
-            {/* Model Tags */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 text-sm">
-              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
-                Nano Banana Pro
-              </div>
-              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
-                Veo 3.1
-              </div>
-              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
-                Kling
-              </div>
-              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
-                Sora
-              </div>
-            </div>
-
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
               <Link href="/generator?section=image">
                 <Button 
                   size="lg"
-                  className="group bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-[var(--text)] px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 transition-all"
+                  className="group bg-white hover:bg-gray-100 text-black px-8 py-6 text-base font-semibold rounded-xl shadow-2xl shadow-white/20 hover:shadow-white/30 transition-all"
                 >
                   Начать создавать
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -251,95 +240,99 @@ export default function HomePage() {
                 <Button 
                   size="lg"
                   variant="outline"
-                  className="px-8 py-6 text-base font-medium rounded-xl bg-[var(--surface)]/5 backdrop-blur-xl border-2 border-[var(--border)]/10 hover:border-[var(--border)]/20 hover:bg-[var(--surface)]/10 text-[var(--text)] transition-all"
+                  className="px-8 py-6 text-base font-medium rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white"
                 >
+                  <Play className="w-4 h-4 mr-2" />
                   Смотреть примеры
                 </Button>
               </Link>
             </div>
 
-            {/* Info Line */}
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-400">
-              <div className="flex items-center gap-1.5">
+            {/* Trust badges */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400">
+              <div className="flex items-center gap-2">
                 <Gift className="w-4 h-4 text-yellow-400" />
                 <span className="font-medium text-yellow-300">50⭐ бесплатно</span>
               </div>
-              <div className="w-1 h-1 rounded-full bg-gray-600" />
-              <div className="flex items-center gap-1.5">
-                <Send className="w-4 h-4 text-blue-400" />
-                <span>Telegram</span>
-              </div>
-              <div className="w-1 h-1 rounded-full bg-gray-600" />
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-green-400" />
                 <span>Без карты</span>
               </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-cyan-400" />
+                <span>1000+ создателей</span>
+              </div>
             </div>
           </motion.div>
         </div>
+
+        {/* Scroll indicator */}
+        <motion.div 
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+        >
+          <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center pt-2">
+            <div className="w-1 h-2 bg-white/40 rounded-full" />
+          </div>
+        </motion.div>
       </section>
 
-      {/* Nano Banana Pro Promo */}
-      <section className="py-16 bg-gradient-to-br from-yellow-900/10 to-orange-900/10">
+      {/* ===== TOOLS SECTION - Like Higgsfield "What will you create" ===== */}
+      <section className="py-24 relative">
         <div className="container mx-auto px-6">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-5xl mx-auto p-8 md:p-10 rounded-3xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10"
+            className="text-center mb-16"
           >
-            <div className="flex items-start justify-between flex-wrap gap-6">
-              <div className="flex-1 min-w-[280px]">
-                <div className="inline-block px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-semibold mb-4">
-                  ЭКСКЛЮЗИВ
-                </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text)]">
-                  Nano Banana Pro — бесплатно! 🍌
-                </h2>
-                <p className="text-lg text-gray-300 mb-6 font-normal">
-                  В тарифах <span className="text-purple-600 font-semibold">Creator+</span> и{' '}
-                  <span className="text-blue-600 font-semibold">Business</span> безлимитные генерации без траты звёзд
-                </p>
-                
-                <div className="space-y-3 mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-400" />
-                    </div>
-                    <span className="text-gray-200">Безлимит 1–2K фото</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-400" />
-                    </div>
-                    <span className="text-gray-200">Премиум качество</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-400" />
-                    </div>
-                    <span className="text-gray-200">Без траты ⭐</span>
-                  </div>
-                </div>
-
-                <Link href="/pricing">
-                  <Button 
-                    size="lg"
-                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-[var(--text)] px-6 py-5 text-base font-medium rounded-xl shadow-lg"
-                  >
-                    Смотреть тарифы
-                  </Button>
-                </Link>
-              </div>
-              
-              <div className="text-8xl opacity-20 select-none">🍌</div>
-            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Инструменты для{' '}
+              <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                создателей
+              </span>
+            </h2>
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              Всё для создания контента в одном месте
+            </p>
           </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {tools.map((tool, i) => (
+              <motion.div
+                key={tool.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <Link href={tool.href}>
+                  <div className="group relative p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all cursor-pointer h-full">
+                    {/* Badge */}
+                    {tool.badge && (
+                      <span className={`absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r ${tool.gradient} text-white font-medium`}>
+                        {tool.badge}
+                      </span>
+                    )}
+                    
+                    {/* Icon */}
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tool.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                      <tool.icon className="w-6 h-6 text-white" />
+                    </div>
+                    
+                    <h3 className="font-semibold text-sm mb-1 text-[var(--text)]">{tool.name}</h3>
+                    <p className="text-xs text-gray-500">{tool.description}</p>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Advantages Section */}
-      <section className="py-20 bg-[var(--bg)]">
+      {/* ===== SHOWCASE GALLERY ===== */}
+      <section className="py-24 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -347,271 +340,268 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
-              Всё для контента
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Создано в{' '}
+              <span className="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                LensRoom
+              </span>
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto font-normal">
-              Один инструмент вместо десятка сервисов
+            <p className="text-xl text-gray-400">
+              Вдохновляйтесь работами сообщества
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-6 mb-16 max-w-6xl mx-auto">
-            {[
-              {
-                icon: Palette,
-                title: 'Фото',
-                description: '15+ моделей для создания изображений любого стиля',
-                color: 'text-purple-600'
-              },
-              {
-                icon: Video,
-                title: 'Видео',
-                description: '10+ моделей для генерации профессиональных видео',
-                color: 'text-blue-600'
-              },
-              {
-                icon: Sparkles,
-                title: 'Эффекты',
-                description: 'Апскейл, замена фона, стилизация и многое другое',
-                color: 'text-pink-600'
-              }
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="p-6 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all"
-              >
-                <div className={`w-12 h-12 rounded-xl bg-[var(--surface)]/10 backdrop-blur-xl border border-[var(--border)]/20 flex items-center justify-center mb-4`}>
-                  <item.icon className="w-6 h-6 text-cyan-400" />
-                </div>
-                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">{item.title}</h3>
-                <p className="text-gray-400 font-normal">{item.description}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Metrics */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
-          >
-            {[
-              { value: '1 000+', label: 'пользователей' },
-              { value: '5 000+', label: 'генераций' },
-              { value: '10+', label: 'AI моделей' },
-              { value: '98%', label: 'довольных' }
-            ].map((metric, i) => (
+          {/* Gallery Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {showcaseItems.map((item, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center p-6 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10"
+                transition={{ delay: i * 0.05 }}
+                className="group relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer"
               >
-                <div className="text-3xl md:text-4xl font-bold text-[var(--text)] mb-1">
-                  {metric.value}
+                <Image src={item.image} alt={item.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform">
+                  <p className="font-semibold text-sm text-white">{item.title}</p>
+                  <p className="text-xs text-gray-400">{item.model}</p>
                 </div>
-                <div className="text-sm text-gray-400 font-normal">{metric.label}</div>
+                {item.type === 'video' && (
+                  <div className="absolute top-2 right-2">
+                    <div className="w-6 h-6 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
+                      <Play className="w-3 h-3 text-white fill-white" />
+                    </div>
+                  </div>
+                )}
               </motion.div>
             ))}
-          </motion.div>
-        </div>
-      </section>
+          </div>
 
-      {/* Top Models Section */}
-      <section className="py-20 bg-gray-950">
-        <div className="container mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
-              Топовые модели мира
-            </h2>
-            <p className="text-xl text-gray-400 font-normal">
-              Выбирайте лучшее для каждой задачи
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-6xl mx-auto">
-            {topModels.map((model, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="group p-5 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer text-center"
-              >
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <model.icon className="w-7 h-7 text-cyan-400" />
-                </div>
-                <h3 className="font-bold text-base mb-1 text-[var(--text)]">{model.name}</h3>
-                <p className="text-sm text-gray-400 mb-3 font-normal">{model.type}</p>
-                <div className={`inline-block px-2.5 py-1 rounded-full ${model.badgeColor} text-[var(--text)] text-xs font-semibold`}>
-                  {model.badge}
-                </div>
-              </motion.div>
-            ))}
+          <div className="text-center mt-10">
+            <Link href="/inspiration">
+              <Button variant="outline" className="border-white/20 hover:bg-white/10">
+                Смотреть все работы
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Referral Section */}
-      <section className="py-16 bg-[var(--bg)]">
+      {/* ===== MODELS SECTION ===== */}
+      <section className="py-24">
+        <div className="container mx-auto px-6">
+          {/* Image Models */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-20"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <ImageIcon className="w-5 h-5 text-white" />
+                  </div>
+                  Фото модели
+                </h3>
+              </div>
+              <Link href="/generator?section=image" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1">
+                Все модели <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {imageModels.map((model, i) => (
+                <motion.div
+                  key={model.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <Link href={`/generator?section=image&model=${model.id}`}>
+                    <div className="group p-4 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${model.badgeColor} text-white font-medium`}>
+                          {model.badge}
+                        </span>
+                        <span className="text-xs text-gray-500">{model.cost}⭐</span>
+                      </div>
+                      <h4 className="font-semibold text-sm mb-1 text-[var(--text)] group-hover:text-purple-400 transition-colors">{model.name}</h4>
+                      <p className="text-xs text-gray-500">{model.description}</p>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Video Models */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+                    <Video className="w-5 h-5 text-white" />
+                  </div>
+                  Видео модели
+                </h3>
+              </div>
+              <Link href="/generator?section=video" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1">
+                Все модели <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {videoModels.map((model, i) => (
+                <motion.div
+                  key={model.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <Link href={`/generator?section=video&model=${model.id}`}>
+                    <div className="group p-4 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all cursor-pointer">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${model.badgeColor} text-white font-medium`}>
+                          {model.badge}
+                        </span>
+                        <span className="text-xs text-gray-500">{model.cost}⭐</span>
+                      </div>
+                      <h4 className="font-semibold text-sm mb-1 text-[var(--text)] group-hover:text-cyan-400 transition-colors">{model.name}</h4>
+                      <p className="text-xs text-gray-500">{model.description}</p>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ===== NANO BANANA PROMO ===== */}
+      <section className="py-20">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto p-8 md:p-10 rounded-3xl bg-gradient-to-br from-purple-900/20 to-pink-900/20 backdrop-blur-xl border border-[var(--border)]/10 text-center"
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-500/20 via-orange-500/10 to-transparent border border-yellow-500/20 p-8 md:p-12"
           >
-            <div className="w-16 h-16 rounded-2xl bg-[var(--surface)]/10 backdrop-blur-xl border border-[var(--border)]/20 flex items-center justify-center mx-auto mb-6">
-              <Rocket className="w-8 h-8 text-purple-400" />
+            <div className="absolute top-0 right-0 text-[200px] leading-none opacity-10 select-none pointer-events-none">
+              🍌
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text)]">
-              Приглашай друзей — получай звёзды!
-            </h2>
-            <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto font-normal">
-              50⭐ за каждого друга + 10% от его пополнений навсегда
-            </p>
-            <Link href="/profile">
-              <Button 
-                size="lg"
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-[var(--text)] px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all"
-              >
-                Моя реферальная ссылка
-              </Button>
-            </Link>
+            
+            <div className="relative z-10 max-w-2xl">
+              <span className="inline-block px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-semibold mb-4">
+                ЭКСКЛЮЗИВ
+              </span>
+              
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Nano Banana Pro{' '}
+                <span className="text-yellow-400">бесплатно</span>
+              </h2>
+              
+              <p className="text-lg text-gray-300 mb-6">
+                В тарифах Creator+ и Business — безлимитные генерации 4K фото без траты звёзд
+              </p>
+              
+              <div className="flex flex-wrap gap-4 mb-8">
+                {['Безлимит 4K', 'Премиум качество', 'Без траты ⭐'].map((item) => (
+                  <div key={item} className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-400" />
+                    <span className="text-gray-200">{item}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <Link href="/pricing">
+                <Button className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-semibold px-6 py-5">
+                  Смотреть тарифы
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Gallery Section */}
-      <section className="py-20 bg-gray-950">
+      {/* ===== FEATURES SECTION ===== */}
+      <section className="py-24 bg-gradient-to-b from-transparent via-cyan-900/10 to-transparent">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-10"
+            className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
-              Галерея работ
-            </h2>
-            <p className="text-xl text-gray-400 mb-6 font-normal">
-              Кликните по примеру, чтобы открыть генератор
-            </p>
-
-            {/* Filters */}
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {['Все', 'Фото', 'Видео', 'Nano Banana', 'Veo', 'Kling'].map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter.toLowerCase())}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    activeFilter === filter.toLowerCase()
-                      ? 'bg-cyan-500 text-[var(--text)] shadow-md shadow-cyan-500/25'
-                      : 'bg-[var(--surface)]/5 backdrop-blur-xl text-gray-300 border border-[var(--border)]/10 hover:border-[var(--border)]/20'
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Empty State */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16 px-6 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10"
-          >
-            <div className="w-16 h-16 rounded-full bg-[var(--surface)]/5 border border-[var(--border)]/10 flex items-center justify-center mx-auto mb-4">
-              <ImageIcon className="w-8 h-8 text-gray-500" />
-            </div>
-            <p className="text-lg text-gray-400 mb-3 font-normal">
-              Галерея эффектов пуста
-            </p>
-            <Link href="/generator?section=image" className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
-              Создайте контент в разделе Генератор →
-            </Link>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Steps Section */}
-      <section className="py-20 bg-[var(--bg)]">
-        <div className="container mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
-              Три шага до результата
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Почему{' '}
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                LensRoom
+              </span>
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {[
-              {
-                number: '01',
-                title: 'Выберите',
-                description: 'Модель или пример из галереи',
-                icon: Target,
-                color: 'from-blue-500 to-cyan-500'
-              },
-              {
-                number: '02',
-                title: 'Опишите',
-                description: 'Что хотите создать в промпте',
-                icon: Sparkles,
-                color: 'from-purple-500 to-pink-500'
-              },
-              {
-                number: '03',
-                title: 'Получите',
-                description: 'Результат за секунды',
-                icon: Zap,
-                color: 'from-orange-500 to-red-500'
-              }
-            ].map((step, i) => (
+              { icon: Sparkles, title: '25+ моделей', description: 'Лучшие AI модели мира в одном месте', color: 'from-purple-500 to-pink-500' },
+              { icon: Zap, title: 'Быстро', description: 'Результат за секунды, а не минуты', color: 'from-yellow-500 to-orange-500' },
+              { icon: Crown, title: 'Безлимит', description: 'Nano Banana Pro бесплатно в подписках', color: 'from-cyan-500 to-blue-500' },
+              { icon: Rocket, title: 'Простота', description: 'Вход через Telegram, без карты', color: 'from-emerald-500 to-cyan-500' },
+            ].map((feature, i) => (
               <motion.div
-                key={i}
+                key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className="text-center"
+                transition={{ delay: i * 0.1 }}
+                className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all"
               >
-                <div className="relative inline-block mb-6">
-                  <div className="w-20 h-20 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 flex items-center justify-center">
-                    <step.icon className="w-10 h-10 text-cyan-400" />
-                  </div>
-                  <div className={`absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-r ${step.color} flex items-center justify-center font-bold text-[var(--text)] text-sm shadow-lg`}>
-                    {step.number}
-                  </div>
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4`}>
+                  <feature.icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">{step.title}</h3>
-                <p className="text-gray-400 font-normal">{step.description}</p>
+                <h3 className="text-lg font-bold mb-2 text-[var(--text)]">{feature.title}</h3>
+                <p className="text-sm text-gray-400">{feature.description}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-16">
+            {[
+              { value: '1,000+', label: 'создателей' },
+              { value: '5,000+', label: 'генераций' },
+              { value: '25+', label: 'моделей' },
+              { value: '98%', label: 'довольных' }
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center p-6"
+              >
+                <div className="text-3xl md:text-4xl font-bold text-[var(--text)] mb-1">{stat.value}</div>
+                <div className="text-sm text-gray-500">{stat.label}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-20 bg-gray-950">
+      {/* ===== FAQ SECTION ===== */}
+      <section className="py-24">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -619,13 +609,13 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
               Частые вопросы
             </h2>
-            <p className="text-xl text-gray-400 font-normal">
+            <p className="text-gray-400">
               Не нашли ответ?{' '}
-              <a href="https://t.me/lensroom" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 font-medium">
-                Напишите в Telegram
+              <a href="https://t.me/lensroom" target="_blank" className="text-cyan-400 hover:underline">
+                Напишите нам
               </a>
             </p>
           </motion.div>
@@ -638,17 +628,17 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="rounded-xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 overflow-hidden hover:border-[var(--border)]/20 transition-all"
+                className="rounded-xl bg-white/5 border border-white/10 overflow-hidden"
               >
                 <button
                   onClick={() => setOpenFAQ(openFAQ === i ? null : i)}
-                  className="w-full p-5 text-left flex items-center justify-between hover:bg-[var(--surface)]/5 transition-colors"
+                  className="w-full p-5 text-left flex items-center justify-between hover:bg-white/5 transition-colors"
                 >
-                  <span className="font-semibold text-base text-[var(--text)] pr-4">{faq.question}</span>
+                  <span className="font-medium text-[var(--text)]">{faq.question}</span>
                   {openFAQ === i ? (
-                    <ChevronUp className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                    <ChevronUp className="w-5 h-5 text-cyan-400" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
                   )}
                 </button>
                 <AnimatePresence>
@@ -657,12 +647,9 @@ export default function HomePage() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-5 pb-5 text-gray-400 leading-relaxed font-normal">
-                        {faq.answer}
-                      </div>
+                      <div className="px-5 pb-5 text-gray-400">{faq.answer}</div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -672,38 +659,42 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-cyan-900 via-blue-900 to-purple-900">
-        <div className="container mx-auto px-6">
+      {/* ===== FINAL CTA ===== */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/30 via-purple-900/30 to-pink-900/30" />
+        
+        <div className="container mx-auto px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto text-center text-[var(--text)]"
+            className="text-center max-w-3xl mx-auto"
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-              Готовы создавать?
+            <h2 className="text-4xl md:text-6xl font-bold mb-6">
+              Готовы{' '}
+              <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                создавать
+              </span>
+              ?
             </h2>
-
-            <p className="text-xl mb-8 opacity-90 font-normal">
+            
+            <p className="text-xl text-gray-300 mb-8">
               Получите 50⭐ бесплатно при регистрации
             </p>
-
+            
             <Link href="/generator?section=image">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button 
-                  size="lg"
-                  className="bg-[var(--btn-primary-bg)] hover:opacity-90 text-[var(--btn-primary-text)] px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl"
-                >
-                  <Sparkles className="w-6 h-6 mr-2" />
-                  Начать бесплатно
-                  <ArrowRight className="w-6 h-6 ml-2" />
-                </Button>
-              </motion.div>
+              <Button 
+                size="lg"
+                className="bg-white hover:bg-gray-100 text-black px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl shadow-white/20"
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                Начать бесплатно
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
             </Link>
-
-            <p className="text-sm mt-6 opacity-75">
-              Вход через Telegram • Без карты
+            
+            <p className="text-sm text-gray-500 mt-6">
+              Вход через Telegram • Без карты • Коммерческое использование
             </p>
           </motion.div>
         </div>
