@@ -554,7 +554,7 @@ function GeneratorPageContent() {
                 </h3>
                 <DynamicSettings
                   modelId={currentModel}
-                  type={activeSection}
+                  type={activeSection === 'audio' ? 'image' : activeSection}
                   values={settings}
                   onChange={handleSettingChange}
                   onValidationChange={setIsSettingsValid}
