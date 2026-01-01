@@ -7,10 +7,11 @@ import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  MessageSquare, Search, Plus, Settings, RotateCcw, ChevronDown,
-  Paperclip, Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
-  Brain, Bot, Star, FileText, ChevronLeft, ChevronRight
+  Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
+  Brain, Star, ChevronDown, Paperclip, Play, Download,
+  RotateCcw, Settings2, Layers, Clock, Check
 } from 'lucide-react';
 import { DynamicSettings, getDefaultSettings, getDefaultVideoSettings } from '@/components/generator/DynamicSettings';
 import { calculateDynamicPrice, getVideoModelWithPricing } from '@/config/kie-api-settings';
@@ -18,83 +19,41 @@ import { calculateDynamicPrice, getVideoModelWithPricing } from '@/config/kie-ap
 // ===== MODELS CONFIG =====
 const MODELS_CONFIG = {
   image: {
-    section: 'Design',
+    section: 'Дизайн',
     icon: ImageIcon,
     models: [
-      { id: 'nano-banana', name: 'Nano Banana', icon: Sparkles, cost: 7, badge: 'Fast', description: 'Rapid photorealistic generation' },
-      { id: 'nano-banana-pro', name: 'Nano Banana Pro', icon: Star, cost: 35, badge: 'Premium', description: 'High-fidelity rendering' },
-      { id: 'gpt-image', name: 'GPT Image', icon: Brain, cost: 42, description: 'Precise prompt following' },
-      { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, cost: 10, badge: 'Popular', description: 'Sharp, detailed outputs' },
-      { id: 'flux-2-flex', name: 'FLUX.2 Flex', icon: ImageIcon, cost: 32, description: 'Flexible style control' },
-      { id: 'seedream-4.5', name: 'Seedream 4.5', icon: Sparkles, cost: 11, badge: 'Balanced', description: 'Modern visual generation' },
-      { id: 'z-image', name: 'Z-image', icon: ImageIcon, cost: 2, badge: 'Budget', description: 'Universal image generator' },
-      { id: 'topaz-image-upscale', name: 'Topaz Upscale', icon: Zap, cost: 42, description: 'Upscale to 4K/8K resolution' },
-    ],
-    parameters: {
-      quality: { label: 'Качество', type: 'select', options: ['Turbo', 'Balanced', 'Quality', 'HD', '2K', '4K'], default: '2K' },
-      aspectRatio: { label: 'Соотношение сторон', type: 'select', options: ['1:1', '9:16', '16:9', '4:3', '3:4', '21:9'], default: '9:16' },
-      style: { label: 'Style', type: 'select', options: ['Photorealistic', 'Illustration', 'Minimalist', '3D Render', 'Abstract'], default: 'Photorealistic' },
-    },
-    examples: [
-      'Professional headshot with studio lighting and neutral background',
-      'Modern minimalist office interior with floor-to-ceiling windows',
-      'Abstract geometric composition with gradient mesh'
+      { id: 'nano-banana', name: 'Nano Banana', icon: Sparkles, cost: 7, badge: 'Fast', description: 'Быстрая генерация' },
+      { id: 'nano-banana-pro', name: 'Nano Banana Pro', icon: Star, cost: 35, badge: 'Premium', description: '4K качество' },
+      { id: 'gpt-image', name: 'GPT Image', icon: Brain, cost: 42, badge: 'Новинка', description: 'Точные цвета' },
+      { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, cost: 10, badge: 'Popular', description: 'Детализация' },
+      { id: 'flux-2-flex', name: 'FLUX.2 Flex', icon: ImageIcon, cost: 32, description: 'Гибкий стиль' },
+      { id: 'seedream-4.5', name: 'Seedream 4.5', icon: Sparkles, cost: 11, badge: 'Новинка', description: '4K нового поколения' },
+      { id: 'midjourney', name: 'Midjourney V7', icon: Star, cost: 50, badge: 'Pro', description: 'Художественные стили' },
     ],
   },
   video: {
-    section: 'Video',
+    section: 'Видео',
     icon: Video,
     models: [
-      { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'TOP', description: 'Быстрая генерация видео' },
-      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Popular', description: '3 версии: Turbo, 2.6, Pro' },
-      { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: 'First→Last Frame анимация', dynamicPrice: true },
-      { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'Balanced', description: 'Speed/quality balance' },
-      { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 650, badge: 'Premium', description: 'Cinematic quality' },
-      { id: 'sora-storyboard', name: 'Sora Storyboard', icon: Video, cost: 310, description: 'Multi-scene storytelling' },
-      { id: 'wan', name: 'WAN AI', icon: Video, cost: 217, badge: 'Cinematic', description: '2 версии: WAN 2.5, WAN 2.6' },
-    ],
-    parameters: {
-      duration: { label: 'Длительность', type: 'select', options: ['5', '6', '8', '10', '15', '20'], default: '10', unit: 'с' },
-      aspectRatio: { label: 'Соотношение сторон', type: 'select', options: ['9:16', '16:9', '1:1', '4:3', '21:9'], default: '9:16' },
-      quality: { label: 'Качество', type: 'select', options: ['720p', '1080p', '2K', '4K'], default: '1080p' },
-      mode: { label: 'Режим', type: 'select', options: ['Текст в видео', 'Изображение в видео', 'Видео в видео'], default: 'Текст в видео' },
-    },
-    examples: [
-      'Smooth camera dolly through modern architectural space with natural lighting',
-      'Time-lapse of city skyline transitioning from day to night',
-      'Product showcase with 360° rotation on gradient background'
+      { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'Google', description: 'Со звуком' },
+      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Trending', description: '3 версии' },
+      { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: 'First→Last', dynamicPrice: true },
+      { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'OpenAI', description: 'Баланс' },
+      { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 650, badge: 'Premium', description: '1080p' },
+      { id: 'wan', name: 'WAN AI', icon: Video, cost: 217, badge: 'Новинка', description: 'До 15 сек' },
     ],
   },
   audio: {
-    section: 'Audio',
+    section: 'Аудио',
     icon: Mic,
     models: [
-      { id: 'eleven-labs', name: 'ElevenLabs', icon: Mic, cost: 15, badge: 'Premium', description: 'Natural voice synthesis' },
-      { id: 'google-tts', name: 'Google TTS', icon: Mic, cost: 5, badge: 'Budget', description: 'Cloud text-to-speech' },
-      { id: 'azure-tts', name: 'Azure TTS', icon: Mic, cost: 8, description: 'Professional synthesis' },
-      { id: 'suno', name: 'Suno AI', icon: Sparkles, cost: 25, badge: 'Music', description: 'Music generation' },
-    ],
-    parameters: {
-      voice: { label: 'Voice', type: 'select', options: ['Female 1', 'Female 2', 'Male 1', 'Male 2', 'Neutral'], default: 'Female 1' },
-      speed: { label: 'Speed', type: 'slider', min: 0.5, max: 2, step: 0.1, default: 1 },
-      tone: { label: 'Tone', type: 'select', options: ['Neutral', 'Energetic', 'Calm', 'Professional'], default: 'Neutral' },
-    },
-    examples: [
-      'Professional voiceover for corporate presentation',
-      'Podcast intro with upbeat background music',
-      'Ambient soundscape for meditation app'
+      { id: 'eleven-labs', name: 'ElevenLabs', icon: Mic, cost: 15, badge: 'Premium', description: 'Голоса' },
+      { id: 'suno', name: 'Suno AI', icon: Sparkles, cost: 25, badge: 'Music', description: 'Музыка' },
     ],
   },
 };
 
 type SectionType = 'image' | 'video' | 'audio';
-
-interface ChatMessage {
-  id: number;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
 
 interface GenerationResult {
   id: number;
@@ -103,154 +62,96 @@ interface GenerationResult {
   prompt: string;
   model: string;
   timestamp: Date;
+  url?: string;
 }
 
 function GeneratorPageContent() {
   const searchParams = useSearchParams();
   const sectionFromUrl = (searchParams.get('section') || 'image') as SectionType;
+  const modelFromUrl = searchParams.get('model');
   
   const [activeSection, setActiveSection] = useState<SectionType>(sectionFromUrl);
-  const [currentModel, setCurrentModel] = useState('chatgpt');
+  const [currentModel, setCurrentModel] = useState(modelFromUrl || MODELS_CONFIG[sectionFromUrl].models[0]?.id || 'nano-banana');
   const [showModelModal, setShowModelModal] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [results, setResults] = useState<GenerationResult[]>([]);
   const [currentResult, setCurrentResult] = useState<GenerationResult | null>(null);
   const [settings, setSettings] = useState<Record<string, any>>({});
-  const [searchQuery, setSearchQuery] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
-  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-  const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [isSettingsValid, setIsSettingsValid] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const telegramAuth = useTelegramAuth();
-  
-  // Update section from URL
-  useEffect(() => {
-    const section = searchParams.get('section') as SectionType;
-    if (section && ['image', 'video', 'audio'].includes(section)) {
-      setActiveSection(section);
-      // Set default model for section
-      const firstModel = MODELS_CONFIG[section]?.models[0]?.id;
-      if (firstModel) setCurrentModel(firstModel);
-    }
-  }, [searchParams]);
   const supabaseAuth = useAuth();
-  const { balance } = useCreditsStore();
+  const { balance, fetchBalance } = useCreditsStore();
 
   const telegramUser = telegramAuth.user;
   const supabaseUser = supabaseAuth.user;
   const user = telegramUser || supabaseUser;
 
-  const sectionConfig = MODELS_CONFIG[activeSection];
-
-  // Initialize settings when section changes
+  // Update section and model from URL
   useEffect(() => {
-    if (sectionConfig) {
-      // For image section, use dynamic settings from model config
-      if (activeSection === 'image' && currentModel) {
-        const defaults = getDefaultSettings(currentModel);
-        setSettings(defaults);
-      } else if (activeSection === 'video' && currentModel) {
-        // For video section, use dynamic settings from video model config
-        const defaults = getDefaultVideoSettings(currentModel);
-        setSettings(defaults);
+    const section = searchParams.get('section') as SectionType;
+    const model = searchParams.get('model');
+    
+    if (section && ['image', 'video', 'audio'].includes(section)) {
+      setActiveSection(section);
+      if (model) {
+        const modelExists = MODELS_CONFIG[section]?.models.find(m => m.id === model);
+        if (modelExists) {
+          setCurrentModel(model);
+        } else {
+          setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
+        }
       } else {
-        // For audio, use old static config
-        const newSettings: Record<string, any> = {};
-        Object.entries(sectionConfig.parameters).forEach(([key, param]) => {
-          newSettings[key] = param.default;
-        });
-        setSettings(newSettings);
+        setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
       }
-      setCurrentModel(sectionConfig.models[0].id);
-      setChatHistory([]);
-      setCurrentResult(null);
     }
-  }, [activeSection, sectionConfig]);
+  }, [searchParams]);
 
-  // Update settings when model changes (for image and video sections)
+  // Load history from localStorage
   useEffect(() => {
-    if (activeSection === 'image' && currentModel) {
-      const defaults = getDefaultSettings(currentModel);
-      setSettings(defaults);
-    } else if (activeSection === 'video' && currentModel) {
-      const defaults = getDefaultVideoSettings(currentModel);
-      setSettings(defaults);
-    }
-  }, [currentModel, activeSection]);
-
-  // Load generation history on mount
-  useEffect(() => {
-    const loadHistory = async () => {
-      if (!user) return;
-
+    const saved = localStorage.getItem('lensroom_generation_history');
+    if (saved) {
       try {
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
-
-        // Get user ID
-        let userId: string | null = null;
-        if ('id' in user) {
-          userId = String(user.id);
-        }
-
-        if (!userId) return;
-
-        // Load generations from Supabase
-        const { data: generations, error } = await supabase
-          .from('generations')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('type', activeSection)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (error) {
-          console.error('Failed to load history:', error);
-          return;
-        }
-
-        if (generations && generations.length > 0) {
-          // Convert to GenerationResult format
-          const loadedResults: GenerationResult[] = generations.map((gen: any) => ({
-            id: gen.id,
-            type: activeSection,
-            content: gen.result_urls?.[0] || `Генерация ${gen.model_name}`,
-            prompt: gen.prompt || '',
-            model: gen.model_id || '',
-            timestamp: new Date(gen.created_at),
-          }));
-
-          setResults(loadedResults);
-          
-          // Set most recent as current if exists
-          if (loadedResults[0]) {
-            setCurrentResult(loadedResults[0]);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading history:', error);
+        const parsed = JSON.parse(saved);
+        setResults(parsed.map((r: any) => ({ ...r, timestamp: new Date(r.timestamp) })));
+      } catch (e) {
+        console.error('Failed to load history:', e);
       }
-    };
+    }
+  }, []);
 
-    loadHistory();
-  }, [user, activeSection]);
+  // Save history to localStorage
+  useEffect(() => {
+    if (results.length > 0) {
+      localStorage.setItem('lensroom_generation_history', JSON.stringify(results));
+    }
+  }, [results]);
 
+  const sectionConfig = MODELS_CONFIG[activeSection];
+  const modelInfo = sectionConfig?.models.find(m => m.id === currentModel);
+
+  // Calculate cost
+  const calculateCost = useCallback(() => {
+    if (!modelInfo) return 0;
+    if (modelInfo.dynamicPrice && activeSection === 'video') {
+      return calculateDynamicPrice(currentModel, settings, 'video');
+    }
+    return modelInfo.cost;
+  }, [modelInfo, currentModel, settings, activeSection]);
+
+  const currentCost = calculateCost();
+
+  // File handling
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const maxFiles = activeSection === 'video' ? 1 : 4;
+    const maxFiles = activeSection === 'video' ? 2 : 4;
     if (uploadedFiles.length + files.length <= maxFiles) {
       setUploadedFiles([...uploadedFiles, ...files]);
-    } else {
-      alert(`Максимум ${maxFiles} ${maxFiles === 1 ? 'файл' : 'файлов'}!`);
     }
   }, [uploadedFiles, activeSection]);
 
@@ -258,524 +159,422 @@ function GeneratorPageContent() {
     setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
   }, [uploadedFiles]);
 
+  // Generation
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) {
-      alert('Пожалуйста, введите промпт');
-      return;
-    }
+    if (!prompt.trim() || isGenerating) return;
     
     if (!user) {
       setLoginOpen(true);
       return;
     }
 
-    // Валидация настроек для image и video sections
-    if ((activeSection === 'image' || activeSection === 'video') && !isSettingsValid) {
-      alert('Пожалуйста, заполните все обязательные поля в настройках');
+    if (balance < currentCost) {
+      alert('Недостаточно звёзд');
       return;
     }
 
     setIsGenerating(true);
-    setGenerationProgress(10);
+    setGenerationProgress(0);
+
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setGenerationProgress(prev => Math.min(prev + Math.random() * 15, 95));
+    }, 500);
 
     try {
-      const userMessage: ChatMessage = {
-        id: Date.now(),
-        role: 'user',
-        content: prompt,
-        timestamp: new Date(),
-      };
+      const endpoint = activeSection === 'image' ? '/api/generate/photo' : '/api/generate/video';
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          model: currentModel,
+          settings,
+          ...(uploadedFiles.length > 0 && { files: uploadedFiles.map(f => f.name) })
+        }),
+      });
 
-      setChatHistory((prev) => [...prev, userMessage]);
+      if (!response.ok) throw new Error('Generation failed');
 
-      // Подготовка параметров для API
-      const apiParams = {
-        prompt,
-        model: currentModel,
-        ...settings,
-        // Добавляем файлы если есть
-        ...(uploadedFiles.length > 0 && { files: uploadedFiles.map(f => f.name) })
-      };
-
-      console.log('[Generator] API Request:', apiParams);
-
-      // Simulate generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setGenerationProgress(50);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const data = await response.json();
+      
       setGenerationProgress(100);
-
-      const result: GenerationResult = {
-        id: Date.now() + 1,
+      
+      const newResult: GenerationResult = {
+        id: Date.now(),
         type: activeSection,
-        content: `Результат генерации для: "${prompt}"`,
+        content: data.result || 'Генерация завершена',
         prompt,
-        model: currentModel,
+        model: modelInfo?.name || currentModel,
         timestamp: new Date(),
+        url: data.url,
       };
 
-      setResults((prev) => [...prev, result]);
-      setCurrentResult(result);
-
-      const assistantMessage: ChatMessage = {
-        id: Date.now() + 2,
-        role: 'assistant',
-        content: result.content,
-        timestamp: new Date(),
-      };
-
-      setChatHistory((prev) => [...prev, assistantMessage]);
+      setResults(prev => [newResult, ...prev]);
+      setCurrentResult(newResult);
+      fetchBalance();
       setPrompt('');
       setUploadedFiles([]);
+
     } catch (error) {
-      console.error('[Generator] Error:', error);
-      alert('Произошла ошибка при генерации. Попробуйте еще раз.');
+      console.error('Generation error:', error);
+      alert('Ошибка генерации');
     } finally {
+      clearInterval(progressInterval);
       setIsGenerating(false);
       setGenerationProgress(0);
     }
-  }, [prompt, currentModel, activeSection, user, isSettingsValid, settings, uploadedFiles]);
+  }, [prompt, user, balance, currentCost, activeSection, currentModel, settings, uploadedFiles, modelInfo, fetchBalance]);
 
-  const handleReset = useCallback(() => {
-    setPrompt('');
-    setUploadedFiles([]);
-    setChatHistory([]);
-    setCurrentResult(null);
+  const handleSettingChange = useCallback((key: string, value: any) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const modelInfo = sectionConfig?.models.find(m => m.id === currentModel) as 
-    | (typeof sectionConfig.models[number] & { dynamicPrice?: boolean })
-    | undefined;
-  
-  // Calculate dynamic price for models with dynamic pricing
-  const dynamicCost = (activeSection === 'video' && modelInfo?.dynamicPrice) 
-    ? calculateDynamicPrice(currentModel, settings, 'video')
-    : modelInfo?.cost || 0;
-
-  // Group results by date
-  const groupedResults = results.reduce((acc: [string, GenerationResult[]][], result) => {
-    const date = new Date(result.timestamp).toLocaleDateString('ru-RU');
-    const existingGroup = acc.find(([d]) => d === date);
-    if (existingGroup) {
-      existingGroup[1].push(result);
-    } else {
-      acc.push([date, [result]]);
-    }
-    return acc;
-  }, []).reverse();
-
   return (
-    <div className="h-screen flex flex-col bg-[var(--bg)] pt-16">
-      {/* SYNTX Style 3-Column Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* LEFT COLUMN - History (240px for SYNTX) */}
-        {showLeftSidebar && (
-        <aside className="w-60 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col">
-          {/* Header with collapse button */}
-          <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
-            <h3 className="font-semibold text-sm text-[var(--text)]">История</h3>
-            <button
-              onClick={() => setShowLeftSidebar(false)}
-              className="p-1.5 rounded-lg hover:bg-[var(--surface2)] transition"
-              title="Скрыть историю"
-            >
-              <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
-            </button>
-          </div>
-          
-          {/* Search */}
-          <div className="p-4 border-b border-[var(--border)]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
-              <input
-                type="text"
-                placeholder="Поиск в истории..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--accent-primary)] transition"
-              />
-            </div>
-          </div>
-
-          {/* History List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
-            {groupedResults.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)]">
-                {/* 3D коробка (SYNTX style) */}
-                <div className="text-6xl mb-4 opacity-50">📦</div>
-                <p className="text-gray-400 text-sm">Нет данных</p>
-              </div>
-            ) : (
-              groupedResults.map(([date, dayResults]) => (
-                <div key={date} className="mb-3">
-                  <div className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wide mb-2 px-3">{date}</div>
-                  <div className="space-y-0.5">
-                    {dayResults.map((result) => (
-                      <button
-                        key={result.id}
-                        onClick={() => setCurrentResult(result)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
-                          currentResult?.id === result.id
-                            ? "bg-[var(--gold)]/10 border border-[var(--gold)]/30"
-                            : "hover:bg-[var(--surface2)]"
-                        )}
-                      >
-                        {result.type === 'image' ? <ImageIcon className="w-5 h-5" /> : result.type === 'video' ? <Video className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-[var(--text)] truncate">{result.prompt.substring(0, 30)}...</div>
-                          <div className="text-xs text-[var(--muted)] truncate">{result.model}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Bottom Actions */}
-          <div className="p-4 border-t border-[var(--border)]">
-            {user && (
-            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface2)]">
-              <span className="text-sm text-[var(--muted)]">Баланс</span>
-              <span className="text-sm font-bold text-[var(--accent-primary)]">{balance} ⭐</span>
-            </div>
-          )}
-        </div>
-      </aside>
-        )}
-
-      {/* Show Left Sidebar Button (when hidden) */}
-      {!showLeftSidebar && (
-        <button
-          onClick={() => setShowLeftSidebar(true)}
-          className="fixed left-4 top-20 z-40 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface2)] transition shadow-lg"
-          title="Показать историю"
-        >
-          <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
-        </button>
-      )}
-
-      {/* CENTER COLUMN - Canvas */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
-        {/* Canvas Content - Centered */}
-        <div className="flex-1 flex items-center justify-center p-8">
-          {isGenerating ? (
-            /* Генерация в процессе */
-            <div className="text-center max-w-md w-full">
-              <div className="relative w-24 h-24 mx-auto mb-6">
-                {/* Анимированное кольцо */}
-                <div className="absolute inset-0 rounded-full border-4 border-purple-500/20"></div>
-                <div 
-                  className="absolute inset-0 rounded-full border-4 border-t-purple-500 border-r-cyan-500 border-b-transparent border-l-transparent animate-spin"
-                  style={{ animationDuration: '1s' }}
-                ></div>
-                {/* Иконка в центре */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles className="w-10 h-10 text-purple-400 animate-pulse" />
-                </div>
-              </div>
-              
-              <h3 className="text-xl font-semibold mb-3 text-[var(--text)]">Генерация...</h3>
-              <p className="text-sm text-gray-400 mb-6">{modelInfo?.name || 'ChatGPT 4.5'}</p>
-              
-              {/* Прогресс бар */}
-              <div className="w-full bg-[#1a1a1a] rounded-full h-2 mb-3 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-purple-600 to-cyan-500 transition-all duration-500 ease-out rounded-full"
-                  style={{ width: `${generationProgress}%` }}
-                ></div>
-              </div>
-              
-              <p className="text-xs text-gray-500">
-                {generationProgress < 30 && 'Отправка запроса...'}
-                {generationProgress >= 30 && generationProgress < 70 && 'Обработка промпта...'}
-                {generationProgress >= 70 && 'Финализация...'}
-              </p>
-            </div>
-          ) : currentResult ? (
-            /* Показываем результат */
-            <div className="text-center max-w-2xl">
-              <div className="mb-6 p-6 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a]">
-                <div className="text-green-400 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-3">
-                    <Sparkles className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Готово!</h3>
-                  <p className="text-sm text-gray-400">{currentResult.content}</p>
-                </div>
-                <div className="text-xs text-gray-500 mt-4">
-                  Модель: {currentResult.model} • {new Date(currentResult.timestamp).toLocaleString('ru-RU')}
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Пустое состояние */
-            <div className="text-center">
-              <Sparkles className="w-16 h-16 text-[var(--text)] opacity-90 mx-auto mb-6" />
-              <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
-              <p className="text-xs text-gray-500">{modelInfo?.description || 'Продвинутая языковая модель для сложных задач'}</p>
-            </div>
-          )}
-        </div>
-
-        {/* PROMPT BAR - Centered in Canvas */}
-        <div className="border-t border-[#1a1a1a] bg-[#0a0a0a] p-4">
-          {/* File Previews */}
-          {uploadedFiles.length > 0 && (
-            <div className="flex gap-2 mb-3 flex-wrap">
-              {uploadedFiles.map((file, i) => (
-                <div key={i} className="relative group">
-                  <div className="w-20 h-20 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center overflow-hidden">
-                    <span className="text-xs text-gray-500 text-center px-2 leading-tight">{file.name.slice(0, 12)}</span>
-                  </div>
-                  <button
-                    onClick={() => removeFile(i)}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-[var(--text)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Input Row */}
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              multiple={activeSection !== 'video'}
-              className="hidden"
-              accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : activeSection === 'audio' ? 'audio/*' : ''}
-            />
-            
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0"
-              title="Прикрепить файл"
-            >
-              <Paperclip className="w-5 h-5 text-cyan-400" />
-            </button>
-            
-            <span className="text-xs text-gray-500 flex-shrink-0">{uploadedFiles.length}/4</span>
-            
-            <input
-              type="text"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleGenerate();
-                }
-              }}
-              placeholder="Напишите ваш промпт..."
-              className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-500"
-            />
-            
-            <button className="p-2 hover:bg-[#1a1a1a] rounded transition flex-shrink-0">
-              <Mic className="w-5 h-5 text-cyan-400" />
-            </button>
-            
-            <button
-              onClick={handleGenerate}
-              disabled={!prompt.trim() || isGenerating || (activeSection === 'image' && !isSettingsValid)}
-              className={cn(
-                "p-2.5 rounded-lg transition flex-shrink-0 relative group",
-                prompt.trim() && !isGenerating && (activeSection !== 'image' || isSettingsValid)
-                  ? "bg-gradient-to-r from-purple-600 to-cyan-500 hover:opacity-90"
-                  : "bg-[#1a1a1a] text-gray-600 cursor-not-allowed"
-              )}
-              title={!isSettingsValid ? 'Заполните все обязательные поля' : 'Генерировать'}
-            >
-              <Send className="w-4 h-4 text-[var(--text)]" />
-            </button>
-          </div>
-          
-          {/* Cost Display */}
-          <div className="flex justify-end mt-2">
-            <span className="text-xs text-gray-400">
-              Стоимость: <span className={cn(
-                "transition-all duration-300",
-                modelInfo?.dynamicPrice ? "text-cyan-400 font-medium" : "text-purple-400"
-              )}>⚡ {dynamicCost}</span>
-              {modelInfo?.dynamicPrice && <span className="ml-1 text-gray-500">(динамическая)</span>}
-            </span>
-          </div>
-        </div>
-      </main>
-
-      {/* Show Right Sidebar Button (when hidden) */}
-      {!showRightSidebar && (
-        <button
-          onClick={() => setShowRightSidebar(true)}
-          className="fixed right-4 top-20 z-40 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface2)] transition shadow-lg"
-          title="Показать настройки"
-        >
-          <ChevronLeft className="w-4 h-4 text-[var(--muted)]" />
-        </button>
-      )}
-
-      {/* RIGHT COLUMN - Settings (280px for SYNTX) */}
-      {showRightSidebar && (
-        <aside className="w-70 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col">
-          {/* Header with collapse button */}
-          <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
-            <h3 className="font-semibold flex items-center gap-2 text-[var(--text)]">
-              <Settings className="w-4 h-4" />
-              Настройки
-            </h3>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={handleReset} 
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface2)] transition"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Сбросить
-              </button>
-              <button
-                onClick={() => setShowRightSidebar(false)}
-                className="p-1.5 rounded-lg hover:bg-[var(--surface2)] transition"
-                title="Скрыть настройки"
-              >
-                <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
-              </button>
-            </div>
-          </div>
-
-          {/* Settings Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            {/* Model Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">МОДЕЛЬ</label>
-              <button
-                onClick={() => setShowModelModal(true)}
-                className="w-full flex items-center justify-between px-3 py-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-primary)] transition"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 flex items-center justify-center">
-                    {modelInfo?.icon && (
-                      <modelInfo.icon className="w-5 h-5 text-[var(--accent-primary)]" />
-                    )}
-                  </div>
-                  <div className="text-left">
-                    <div className="text-sm font-semibold text-[var(--text)]">{modelInfo?.name}</div>
-                  </div>
-                </div>
-                <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
-              </button>
-            </div>
-
-            {/* Dynamic Settings */}
-            {activeSection === 'image' ? (
-              <DynamicSettings
-                modelId={currentModel}
-                values={settings}
-                onChange={(key, value) => setSettings({ ...settings, [key]: value })}
-                onValidationChange={setIsSettingsValid}
-                type="image"
-              />
-            ) : activeSection === 'video' ? (
-              <DynamicSettings
-                modelId={currentModel}
-                values={settings}
-                onChange={(key, value) => setSettings({ ...settings, [key]: value })}
-                onValidationChange={setIsSettingsValid}
-                type="video"
-              />
-            ) : (
-              /* Old static parameters for audio */
-              Object.entries(sectionConfig?.parameters || {}).map(([key, param]: [string, any]) => (
-                <div key={key} className="space-y-2">
-                  <label className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
-                    {param.label} {param.unit && `(${param.unit})`}
-                  </label>
-                  {param.type === 'select' && (
-                    <select
-                      value={settings[key] || param.default}
-                      onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--surface2)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--gold)] transition"
-                    >
-                      {param.options?.map((opt: string) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+    <div className="min-h-screen bg-[var(--bg)] pt-14">
+      {/* Top Section Tabs */}
+      <div className="border-b border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl sticky top-14 z-30">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center gap-1 py-2">
+            {(['image', 'video', 'audio'] as const).map((section) => {
+              const config = MODELS_CONFIG[section];
+              const Icon = config.icon;
+              return (
+                <button
+                  key={section}
+                  onClick={() => {
+                    setActiveSection(section);
+                    setCurrentModel(config.models[0]?.id);
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                    activeSection === section
+                      ? "bg-white/10 text-white"
+                      : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
                   )}
-                  {param.type === 'slider' && (
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min={param.min}
-                        max={param.max}
-                        step={param.step}
-                        value={settings[key] || param.default}
-                        onChange={(e) => setSettings({ ...settings, [key]: parseFloat(e.target.value) })}
-                        className="flex-1 accent-[var(--gold)]"
-                      />
-                      <span className="text-sm font-semibold w-12 text-right">{settings[key] || param.default}</span>
-                  </div>
-                )}
-              </div>
-            ))
-            )}
+                >
+                  <Icon className="w-4 h-4" />
+                  {config.section}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </aside>
-      )}
-    </div>
+      </div>
 
-      {/* Model Modal */}
-      {showModelModal && (
-        <div className="fixed inset-0 bg-[var(--bg)]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModelModal(false)}>
-          <div className="w-full max-w-3xl max-h-[85vh] bg-[var(--surface)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-              <h2 className="text-xl font-bold">Выбор модели</h2>
-              <button onClick={() => setShowModelModal(false)} className="p-2 rounded-xl hover:bg-[var(--surface2)] transition">
-                <X className="w-5 h-5" />
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* LEFT - Models */}
+          <div className="lg:col-span-2 space-y-2">
+            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider px-1 mb-3">Модели</h3>
+            {sectionConfig.models.map((model) => (
+              <button
+                key={model.id}
+                onClick={() => setCurrentModel(model.id)}
+                className={cn(
+                  "w-full p-3 rounded-xl text-left transition-all group",
+                  currentModel === model.id
+                    ? "bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30"
+                    : "bg-white/5 border border-transparent hover:border-white/10 hover:bg-white/10"
+                )}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-sm text-[var(--text)]">{model.name}</span>
+                  {model.badge && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gray-400">
+                      {model.badge}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">{model.description}</span>
+                  <span className="text-xs text-cyan-400">{model.cost}⭐</span>
+                </div>
               </button>
-            </div>
-            <div className="p-5 overflow-y-auto max-h-[calc(85vh-80px)]">
-              <div className="grid grid-cols-2 gap-3">
-                {sectionConfig?.models.map(model => {
-                  const ModelIcon = model.icon;
-                  return (
-                    <button
-                      key={model.id}
-                      onClick={() => { setCurrentModel(model.id); setShowModelModal(false); }}
-                      className={cn(
-                        "flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all",
-                        currentModel === model.id
-                          ? "border-[var(--accent-primary)] bg-gradient-to-br from-[var(--accent-primary)]/10 to-[var(--accent-secondary)]/10 shadow-md"
-                          : "border-transparent bg-[var(--surface2)] hover:border-[var(--border)] hover:shadow"
-                      )}
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 flex items-center justify-center flex-shrink-0">
-                        <ModelIcon className="w-5 h-5 text-[var(--accent-primary)]" />
+            ))}
+          </div>
+
+          {/* CENTER - Canvas */}
+          <div className="lg:col-span-7">
+            {/* Canvas Area */}
+            <div className="relative aspect-[4/3] rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 overflow-hidden mb-4">
+              
+              <AnimatePresence mode="wait">
+                {isGenerating ? (
+                  /* Generating State */
+                  <motion.div
+                    key="generating"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center"
+                  >
+                    <div className="relative w-24 h-24 mb-6">
+                      <div className="absolute inset-0 rounded-full border-4 border-white/10"></div>
+                      <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 rounded-full border-4 border-t-purple-500 border-r-cyan-500 border-b-transparent border-l-transparent"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Sparkles className="w-10 h-10 text-purple-400" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm">{model.name}</span>
-                          {'badge' in model && model.badge && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-[var(--text)] rounded-full">
-                              {model.badge}
-                            </span>
+                    </div>
+                    
+                    <h3 className="text-xl font-semibold mb-2 text-[var(--text)]">Генерация...</h3>
+                    <p className="text-sm text-gray-500 mb-6">{modelInfo?.name}</p>
+                    
+                    <div className="w-64 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                      <motion.div 
+                        className="h-full bg-gradient-to-r from-purple-500 to-cyan-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${generationProgress}%` }}
+                      />
+                    </div>
+                  </motion.div>
+                ) : currentResult ? (
+                  /* Result State */
+                  <motion.div
+                    key="result"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center p-8"
+                  >
+                    {currentResult.url ? (
+                      currentResult.type === 'video' ? (
+                        <video 
+                          src={currentResult.url} 
+                          controls 
+                          className="max-w-full max-h-full rounded-xl shadow-2xl"
+                        />
+                      ) : (
+                        <img 
+                          src={currentResult.url} 
+                          alt={currentResult.prompt}
+                          className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+                        />
+                      )
+                    ) : (
+                      <div className="text-center">
+                        <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                          <Check className="w-8 h-8 text-green-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2 text-[var(--text)]">Готово!</h3>
+                        <p className="text-sm text-gray-400 max-w-md">{currentResult.content}</p>
+                      </div>
+                    )}
+                    
+                    {/* Actions */}
+                    <div className="absolute bottom-4 right-4 flex gap-2">
+                      {currentResult.url && (
+                        <a 
+                          href={currentResult.url} 
+                          download 
+                          className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition"
+                        >
+                          <Download className="w-5 h-5" />
+                        </a>
+                      )}
+                      <button 
+                        onClick={() => setCurrentResult(null)}
+                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition"
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  /* Empty State */
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center"
+                  >
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mb-6">
+                      {activeSection === 'image' ? (
+                        <ImageIcon className="w-10 h-10 text-purple-400" />
+                      ) : activeSection === 'video' ? (
+                        <Video className="w-10 h-10 text-cyan-400" />
+                      ) : (
+                        <Mic className="w-10 h-10 text-pink-400" />
+                      )}
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2 text-[var(--text)]">{modelInfo?.name}</h2>
+                    <p className="text-sm text-gray-500 mb-6">{modelInfo?.description}</p>
+                    <p className="text-xs text-gray-600">Введите промпт для начала</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Prompt Bar */}
+            <div className="relative">
+              {/* File Previews */}
+              <AnimatePresence>
+                {uploadedFiles.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex gap-2 mb-3 overflow-hidden"
+                  >
+                    {uploadedFiles.map((file, i) => (
+                      <div key={i} className="relative group">
+                        <div className="w-16 h-16 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                          {file.type.startsWith('image/') ? (
+                            <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[10px] text-gray-500 text-center px-1">{file.name.slice(0, 10)}</span>
                           )}
                         </div>
-                        <div className="text-xs font-bold text-[var(--accent-primary)]">{model.cost} ⭐</div>
+                        <button
+                          onClick={() => removeFile(i)}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
                       </div>
-                    </button>
-                  );
-                })}
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Input */}
+              <div className="flex items-center gap-2 p-2 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 transition-all">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  multiple={activeSection !== 'video'}
+                  className="hidden"
+                  accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : 'audio/*'}
+                />
+                
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 rounded-lg hover:bg-white/10 transition text-gray-400 hover:text-white"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+                
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                  placeholder={`Опишите ${activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}...`}
+                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-600"
+                />
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{currentCost}⭐</span>
+                  
+                  <button
+                    onClick={handleGenerate}
+                    disabled={!prompt.trim() || isGenerating}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-all",
+                      prompt.trim() && !isGenerating
+                        ? "bg-gradient-to-r from-purple-500 to-cyan-500 hover:opacity-90 shadow-lg shadow-purple-500/25"
+                        : "bg-white/10 text-gray-600 cursor-not-allowed"
+                    )}
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
+            </div>
+
+            {/* Recent Results */}
+            {results.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Недавние</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {results.slice(0, 4).map((result) => (
+                    <button
+                      key={result.id}
+                      onClick={() => setCurrentResult(result)}
+                      className={cn(
+                        "aspect-square rounded-lg overflow-hidden border transition-all hover:scale-105",
+                        currentResult?.id === result.id
+                          ? "border-purple-500 ring-2 ring-purple-500/20"
+                          : "border-white/10 hover:border-white/20"
+                      )}
+                    >
+                      {result.url ? (
+                        result.type === 'video' ? (
+                          <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                            <Play className="w-6 h-6 text-gray-400" />
+                          </div>
+                        ) : (
+                          <img src={result.url} alt="" className="w-full h-full object-cover" />
+                        )
+                      ) : (
+                        <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                          <Sparkles className="w-6 h-6 text-gray-400" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT - Settings */}
+          <div className="lg:col-span-3">
+            <div className="sticky top-32 space-y-4">
+              {/* Model Info Card */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-white/10">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                    {modelInfo?.icon && <modelInfo.icon className="w-5 h-5 text-purple-400" />}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-[var(--text)]">{modelInfo?.name}</h3>
+                    <p className="text-xs text-gray-500">{modelInfo?.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                  <span className="text-sm text-gray-400">Стоимость</span>
+                  <span className="text-lg font-bold text-cyan-400">{currentCost}⭐</span>
+                </div>
+              </div>
+
+              {/* Dynamic Settings */}
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <h3 className="text-sm font-medium text-gray-400 mb-4 flex items-center gap-2">
+                  <Settings2 className="w-4 h-4" />
+                  Настройки
+                </h3>
+                <DynamicSettings
+                  modelId={currentModel}
+                  type={activeSection}
+                  values={settings}
+                  onChange={handleSettingChange}
+                  onValidationChange={setIsSettingsValid}
+                />
+              </div>
+
+              {/* Balance */}
+              {user && (
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Баланс</span>
+                    <span className="text-lg font-bold text-[var(--text)]">{balance}⭐</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Login Dialog */}
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
@@ -783,7 +582,11 @@ function GeneratorPageContent() {
 
 export default function GeneratorPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-[var(--muted)]">Загрузка...</div></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
       <GeneratorPageContent />
     </Suspense>
   );
