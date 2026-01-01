@@ -28,9 +28,8 @@ const MODELS_CONFIG = {
       { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, cost: 10, badge: 'Popular', description: 'Sharp, detailed outputs' },
       { id: 'flux-2-flex', name: 'FLUX.2 Flex', icon: ImageIcon, cost: 32, description: 'Flexible style control' },
       { id: 'seedream-4.5', name: 'Seedream 4.5', icon: Sparkles, cost: 11, badge: 'Balanced', description: 'Modern visual generation' },
-      { id: 'imagen-4', name: 'Imagen 4', icon: ImageIcon, cost: 20, badge: 'New', description: 'Google advanced image generation' },
       { id: 'z-image', name: 'Z-image', icon: ImageIcon, cost: 2, badge: 'Budget', description: 'Universal image generator' },
-      { id: 'topaz-upscale', name: 'Topaz Upscale', icon: Zap, cost: 42, description: 'Upscale to 4K/8K resolution' },
+      { id: 'topaz-image-upscale', name: 'Topaz Upscale', icon: Zap, cost: 42, description: 'Upscale to 4K/8K resolution' },
     ],
     parameters: {
       quality: { label: 'Качество', type: 'select', options: ['Turbo', 'Balanced', 'Quality', 'HD', '2K', '4K'], default: '2K' },

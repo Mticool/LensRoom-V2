@@ -201,56 +201,7 @@ export const IMAGE_MODELS_CONFIG: Record<string, ModelConfig> = {
     }
   },
 
-  "imagen-4": {
-    name: "Imagen 4",
-    settings: {
-      aspectRatio: {
-        label: "Соотношение сторон",
-        type: "buttons",
-        options: [
-          { value: "1:1", label: "1:1" },
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" },
-          { value: "3:4", label: "3:4" },
-          { value: "4:3", label: "4:3" }
-        ],
-        default: "9:16",
-        description: "Пропорции итогового изображения",
-        required: true,
-        order: 1
-      },
-      numImages: {
-        label: "Количество изображений",
-        type: "select",
-        options: [
-          { value: 1, label: "1" },
-          { value: 2, label: "2" },
-          { value: 3, label: "3" },
-          { value: 4, label: "4" }
-        ],
-        default: 1,
-        description: "Сколько вариантов изображений сгенерировать",
-        required: true,
-        order: 2
-      },
-      negativePrompt: {
-        label: "Негативный промпт",
-        type: "textarea",
-        placeholder: "Что не должно быть на изображении...",
-        optional: true,
-        description: "Опишите элементы, которые не должны появиться на изображении",
-        order: 3
-      },
-      seed: {
-        label: "Seed",
-        type: "number",
-        placeholder: "Оставьте пустым для случайного",
-        optional: true,
-        description: "Число для воспроизводимой генерации. Одинаковый seed = одинаковый результат",
-        order: 4
-      }
-    }
-  },
+  // imagen-4 удалён - отсутствует в API
 
   "gpt-image": {
     name: "GPT Image",
