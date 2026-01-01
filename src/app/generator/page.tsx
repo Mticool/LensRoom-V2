@@ -47,16 +47,12 @@ const MODELS_CONFIG = {
     section: 'Video',
     icon: Video,
     models: [
-      { id: 'veo3', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'TOP', description: 'Быстрая генерация видео' },
+      { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'TOP', description: 'Быстрая генерация видео' },
       { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Popular', description: '4 версии: Turbo, 2.6, Pro, O1' },
       { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'Balanced', description: 'Speed/quality balance' },
       { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 650, badge: 'Premium', description: 'Cinematic quality' },
       { id: 'sora-storyboard', name: 'Sora Storyboard', icon: Video, cost: 310, description: 'Multi-scene storytelling' },
-      { id: 'wan-2.5', name: 'WAN 2.5', icon: Video, cost: 217, description: 'Cinematic T2V/I2V' },
-      { id: 'wan-2.6', name: 'WAN 2.6', icon: Star, cost: 389, badge: 'New', description: 'V2V, 15s, Multi-shot' },
-      { id: 'grok-imagine', name: 'Grok Imagine', icon: Sparkles, cost: 100, description: 'Multimodal generation' },
-      { id: 'hailuo-2.3', name: 'Hailuo 2.3', icon: Zap, cost: 150, description: 'Fast generation' },
-      { id: 'seedance-pro', name: 'Seedance 1.5 Pro', icon: Video, cost: 80, description: 'Universal generation' },
+      { id: 'wan', name: 'WAN AI', icon: Video, cost: 217, badge: 'Cinematic', description: '2 версии: WAN 2.5, WAN 2.6' },
     ],
     parameters: {
       duration: { label: 'Длительность', type: 'select', options: ['5', '6', '8', '10', '15', '20'], default: '10', unit: 'с' },

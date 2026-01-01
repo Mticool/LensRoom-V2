@@ -28,7 +28,7 @@ export interface VideoModelConfig {
 }
 
 export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
-  "veo3": {
+  "veo-3.1": {
     name: "Veo 3.1",
     settings: {
       model: {
@@ -287,32 +287,47 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
     }
   },
 
-  "wan-2.5": {
-    name: "WAN 2.5",
+  // Объединённая модель WAN - заменяет wan-2.5 и wan-2.6
+  "wan": {
+    name: "WAN AI",
     settings: {
-      modelType: {
+      version: {
+        label: "Версия",
+        type: "select",
+        options: [
+          { value: "2.5", label: "WAN 2.5 (217⭐) - Кинематографика" },
+          { value: "2.6", label: "WAN 2.6 (389⭐) - V2V, 15s" }
+        ],
+        default: "2.5",
+        description: "Выберите версию WAN для генерации",
+        required: true,
+        order: 1
+      },
+      mode: {
         label: "Режим",
         type: "buttons",
         options: [
           { value: "text-to-video", label: "Текст в видео" },
-          { value: "image-to-video", label: "Изображение в видео" }
+          { value: "image-to-video", label: "Изображение в видео" },
+          { value: "video-to-video", label: "Видео в видео" }
         ],
         default: "text-to-video",
-        description: "Кинематографическая генерация T2V/I2V",
+        description: "V2V доступен только для WAN 2.6",
         required: true,
-        order: 1
+        order: 2
       },
       duration: {
         label: "Длительность (с)",
         type: "buttons",
         options: [
           { value: 5, label: "5с" },
-          { value: 10, label: "10с" }
+          { value: 10, label: "10с" },
+          { value: 15, label: "15с" }
         ],
         default: 10,
-        description: "Длительность видео",
+        description: "15с доступно только для WAN 2.6",
         required: true,
-        order: 2
+        order: 3
       },
       resolution: {
         label: "Разрешение",
@@ -323,8 +338,20 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         ],
         default: "1080p",
         description: "Качество выходного видео",
-        required: true,
-        order: 3
+        optional: true,
+        order: 4
+      },
+      aspectRatio: {
+        label: "Соотношение сторон",
+        type: "buttons",
+        options: [
+          { value: "16:9", label: "16:9" },
+          { value: "9:16", label: "9:16" }
+        ],
+        default: "16:9",
+        description: "Пропорции видео",
+        optional: true,
+        order: 5
       },
       negativePrompt: {
         label: "Негативный промпт",
@@ -332,15 +359,7 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         placeholder: "Что не должно быть в видео...",
         description: "Нежелательные элементы в видео",
         optional: true,
-        order: 4
-      },
-      enablePromptExpansion: {
-        label: "Расширение промпта с помощью LLM",
-        type: "checkbox",
-        default: false,
-        description: "AI автоматически улучшит ваш промпт",
-        optional: true,
-        order: 5
+        order: 6
       },
       seed: {
         label: "Seed",
@@ -350,144 +369,7 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         max: 999999999,
         description: "Число для получения одинаковых результатов",
         optional: true,
-        order: 6
-      }
-    }
-  },
-
-  "wan-2.6": {
-    name: "WAN 2.6",
-    settings: {
-      mode: {
-        label: "Режим",
-        type: "buttons",
-        options: [
-          { value: "text-to-video", label: "T2V" },
-          { value: "image-to-video", label: "I2V" },
-          { value: "video-to-video", label: "V2V" }
-        ],
-        default: "text-to-video",
-        description: "Новая версия с поддержкой V2V и Multi-shot",
-        required: true,
-        order: 1
-      },
-      duration: {
-        label: "Длительность",
-        type: "buttons",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 10, label: "10с" },
-          { value: 15, label: "15с" }
-        ],
-        default: 10,
-        description: "До 15 секунд видео",
-        required: true,
-        order: 2
-      },
-      aspectRatio: {
-        label: "Соотношение сторон",
-        type: "buttons",
-        options: [
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" }
-        ],
-        default: "16:9",
-        description: "Пропорции видео",
-        required: true,
-        order: 3
-      }
-    }
-  },
-
-  "hailuo-2.3": {
-    name: "Hailuo 2.3",
-    settings: {
-      duration: {
-        label: "Длительность",
-        type: "buttons",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 10, label: "10с" }
-        ],
-        default: 5,
-        description: "Быстрая генерация видео",
-        required: true,
-        order: 1
-      },
-      aspectRatio: {
-        label: "Соотношение сторон",
-        type: "buttons",
-        options: [
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" },
-          { value: "1:1", label: "1:1" }
-        ],
-        default: "9:16",
-        description: "Пропорции видео",
-        required: true,
-        order: 2
-      }
-    }
-  },
-
-  "seedance-pro": {
-    name: "Seedance 1.5 Pro",
-    settings: {
-      duration: {
-        label: "Длительность",
-        type: "buttons",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 10, label: "10с" }
-        ],
-        default: 5,
-        description: "Универсальная генерация видео",
-        required: true,
-        order: 1
-      },
-      aspectRatio: {
-        label: "Соотношение сторон",
-        type: "buttons",
-        options: [
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" }
-        ],
-        default: "9:16",
-        description: "Пропорции видео",
-        required: true,
-        order: 2
-      }
-    }
-  },
-
-  "grok-imagine": {
-    name: "Grok Imagine",
-    settings: {
-      duration: {
-        label: "Длительность",
-        type: "select",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 8, label: "8с" },
-          { value: 10, label: "10с" }
-        ],
-        default: 8,
-        description: "Мультимодальная генерация от xAI",
-        required: true,
-        order: 1
-      },
-      aspectRatio: {
-        label: "Соотношение сторон",
-        type: "buttons",
-        options: [
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" },
-          { value: "1:1", label: "1:1" }
-        ],
-        default: "16:9",
-        description: "Пропорции видео",
-        required: true,
-        order: 2
+        order: 7
       }
     }
   },
