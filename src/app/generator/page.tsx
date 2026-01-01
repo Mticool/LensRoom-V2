@@ -343,7 +343,9 @@ function GeneratorPageContent() {
     setCurrentResult(null);
   }, []);
 
-  const modelInfo = sectionConfig?.models.find(m => m.id === currentModel);
+  const modelInfo = sectionConfig?.models.find(m => m.id === currentModel) as 
+    | (typeof sectionConfig.models[number] & { dynamicPrice?: boolean })
+    | undefined;
   
   // Calculate dynamic price for models with dynamic pricing
   const dynamicCost = (activeSection === 'video' && modelInfo?.dynamicPrice) 
