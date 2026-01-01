@@ -242,11 +242,14 @@ export async function POST(request: NextRequest) {
       return pub.publicUrl;
     };
 
-    if (mode === 'i2v' && referenceImage) {
+    if ((mode === 'i2v' || mode === 'ref') && referenceImage) {
       imageUrl = await uploadDataUrlToStorage(referenceImage, 'i2v');
     } else if (mode === 'start_end') {
       if (startImage) imageUrl = await uploadDataUrlToStorage(startImage, 'start');
       if (endImage) lastFrameUrl = await uploadDataUrlToStorage(endImage, 'end');
+    } else if (startImage) {
+      // Fallback: use startImage as reference for i2v modes
+      imageUrl = await uploadDataUrlToStorage(startImage, 'ref');
     }
 
     // Select correct API model ID based on mode and variant

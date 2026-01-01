@@ -13,25 +13,25 @@ import { Button } from '@/components/ui/button';
 // Примеры Nano Banana Pro - профессиональные AI генерации
 const nanaExamples = [
   // Студийные портреты
-  { url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&h=1000&fit=crop&q=90', prompt: 'Professional studio portrait, soft lighting, 4K', model: 'Nano Banana Pro', badge: 'Portrait' },
-  { url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&h=1000&fit=crop&q=90', prompt: 'Beauty close-up, perfect skin, editorial', model: 'Nano Banana Pro', badge: 'Beauty' },
+  { url: 'https://picsum.photos/seed/portrait1/800/1000', prompt: 'Professional studio portrait, soft lighting, 4K', model: 'Nano Banana Pro', badge: 'Portrait' },
+  { url: 'https://picsum.photos/seed/beauty1/800/1000', prompt: 'Beauty close-up, perfect skin, editorial', model: 'Nano Banana Pro', badge: 'Beauty' },
   // Fashion & Editorial
-  { url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&h=1000&fit=crop&q=90', prompt: 'High fashion editorial, dramatic lighting', model: 'FLUX.2 Pro', badge: 'Fashion' },
-  { url: 'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=800&h=1000&fit=crop&q=90', prompt: 'Vogue style, cinematic portrait', model: 'Midjourney', badge: 'Editorial' },
+  { url: 'https://picsum.photos/seed/fashion1/800/1000', prompt: 'High fashion editorial, dramatic lighting', model: 'FLUX.2 Pro', badge: 'Fashion' },
+  { url: 'https://picsum.photos/seed/editorial1/800/1000', prompt: 'Vogue style, cinematic portrait', model: 'Midjourney', badge: 'Editorial' },
   // Cinematic
-  { url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=1000&fit=crop&q=90', prompt: 'Cinematic male portrait, film grain', model: 'Nano Banana Pro', badge: 'Cinematic' },
-  { url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1000&fit=crop&q=90', prompt: 'Natural light portrait, warm tones', model: 'Nano Banana Pro', badge: '4K' },
+  { url: 'https://picsum.photos/seed/cinema1/800/1000', prompt: 'Cinematic male portrait, film grain', model: 'Nano Banana Pro', badge: 'Cinematic' },
+  { url: 'https://picsum.photos/seed/natural1/800/1000', prompt: 'Natural light portrait, warm tones', model: 'Nano Banana Pro', badge: '4K' },
   // Artistic
-  { url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&h=1000&fit=crop&q=90', prompt: 'Artistic portrait, soft focus', model: 'GPT Image', badge: 'Art' },
-  { url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&h=1000&fit=crop&q=90', prompt: 'Street fashion, urban style', model: 'Seedream 4.5', badge: 'Street' },
+  { url: 'https://picsum.photos/seed/art1/800/1000', prompt: 'Artistic portrait, soft focus', model: 'GPT Image', badge: 'Art' },
+  { url: 'https://picsum.photos/seed/street1/800/1000', prompt: 'Street fashion, urban style', model: 'Seedream 4.5', badge: 'Street' },
 ];
 
 // Видео примеры - кинематографичные превью
 const videoExamples = [
-  { url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200&h=675&fit=crop&q=90', title: 'Cinematic Scene', desc: 'Со звуком и музыкой', model: 'Veo 3.1', duration: '8s', badge: 'Google' },
-  { url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1200&h=675&fit=crop&q=90', title: 'Film Production', desc: 'Профессиональное качество', model: 'Kling AI', duration: '10s', badge: 'Trending' },
-  { url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1200&h=675&fit=crop&q=90', title: 'Documentary', desc: 'Реалистичная съёмка', model: 'Sora 2', duration: '15s', badge: 'OpenAI' },
-  { url: 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=1200&h=675&fit=crop&q=90', title: 'Fashion Film', desc: 'Стильная презентация', model: 'WAN AI', duration: '10s', badge: 'New' },
+  { url: 'https://picsum.photos/seed/video1/1200/675', title: 'Cinematic Scene', desc: 'Со звуком и музыкой', model: 'Veo 3.1', duration: '8s', badge: 'Google' },
+  { url: 'https://picsum.photos/seed/video2/1200/675', title: 'Film Production', desc: 'Профессиональное качество', model: 'Kling AI', duration: '10s', badge: 'Trending' },
+  { url: 'https://picsum.photos/seed/video3/1200/675', title: 'Documentary', desc: 'Реалистичная съёмка', model: 'Sora 2', duration: '15s', badge: 'OpenAI' },
+  { url: 'https://picsum.photos/seed/video4/1200/675', title: 'Fashion Film', desc: 'Стильная презентация', model: 'WAN AI', duration: '10s', badge: 'New' },
 ];
 
 export default function HomePage() {

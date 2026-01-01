@@ -14,7 +14,7 @@ import {
   Brain, Star, Paperclip, Play, Download, Copy, ThumbsUp,
   RotateCcw, Settings2, User, Bot
 } from 'lucide-react';
-import { DynamicSettings, getDefaultSettings, getDefaultVideoSettings } from '@/components/generator/DynamicSettings';
+import { DynamicSettings, getDefaultSettings, getDefaultVideoSettings, getDefaultAudioSettings } from '@/components/generator/DynamicSettings';
 import { calculateDynamicPrice } from '@/config/kie-api-settings';
 
 // ===== MODELS CONFIG =====
@@ -48,8 +48,7 @@ const MODELS_CONFIG = {
     section: 'Аудио',
     icon: Mic,
     models: [
-      { id: 'eleven-labs', name: 'ElevenLabs', icon: Mic, cost: 15, badge: 'Premium', description: 'Голоса' },
-      { id: 'suno', name: 'Suno AI', icon: Sparkles, cost: 25, badge: 'Music', description: 'Музыка' },
+      { id: 'suno', name: 'Suno AI', icon: Sparkles, cost: 12, badge: 'V5', description: '🎵 Создать • ⏩ Продлить • 🎤 Кавер' },
     ],
   },
 };
@@ -233,7 +232,11 @@ function GeneratorPageContent() {
     setUploadedFiles([]);
 
     try {
-      const endpoint = activeSection === 'image' ? '/api/generate/photo' : '/api/generate/video';
+      const endpoint = activeSection === 'image' 
+        ? '/api/generate/photo' 
+        : activeSection === 'video' 
+        ? '/api/generate/video'
+        : '/api/generate/audio';
       
       // Build request body with flattened settings
       const requestBody: Record<string, any> = {
@@ -249,12 +252,17 @@ function GeneratorPageContent() {
         if (settings.resolution) requestBody.resolution = settings.resolution;
         if (settings.duration) requestBody.duration = Number(settings.duration);
         if (settings.generation_type) {
-          // Map generation_type to mode
-          const genType = settings.generation_type;
-          if (genType === 'text-to-video') requestBody.mode = 't2v';
-          else if (genType === 'image-to-video') requestBody.mode = 'i2v';
-          else if (genType === 'video-to-video') requestBody.mode = 'v2v';
-          else if (genType === 'reference-to-video') requestBody.mode = 'ref';
+          // For video: Map generation_type to mode
+          if (activeSection === 'video') {
+            const genType = settings.generation_type;
+            if (genType === 'text-to-video') requestBody.mode = 't2v';
+            else if (genType === 'image-to-video') requestBody.mode = 'i2v';
+            else if (genType === 'video-to-video') requestBody.mode = 'v2v';
+            else if (genType === 'reference-to-video') requestBody.mode = 'ref';
+          } else if (activeSection === 'audio') {
+            // For audio: pass generation_type directly
+            requestBody.generation_type = settings.generation_type;
+          }
         }
         if (settings.version) requestBody.modelVariant = settings.version;
         if (settings.negative_prompt) requestBody.negativePrompt = settings.negative_prompt;
@@ -264,6 +272,20 @@ function GeneratorPageContent() {
           // For Kling O1 start-end mode
           if (settings.mode === 'start-end') requestBody.mode = 'start_end';
           else if (settings.mode === 'start-only') requestBody.mode = 'i2v';
+        }
+        
+        // Audio-specific settings
+        if (activeSection === 'audio') {
+          if (settings.model) requestBody.suno_model = settings.model;
+          if (settings.custom_mode !== undefined) requestBody.custom_mode = settings.custom_mode;
+          if (settings.title) requestBody.title = settings.title;
+          if (settings.style) requestBody.style = settings.style;
+          if (settings.instrumental !== undefined) requestBody.instrumental = settings.instrumental;
+          if (settings.lyrics) requestBody.lyrics = settings.lyrics;
+          if (settings.vocal_gender) requestBody.vocal_gender = settings.vocal_gender;
+          if (settings.negative_tags) requestBody.negative_tags = settings.negative_tags;
+          if (settings.style_weight) requestBody.style_weight = settings.style_weight;
+          if (settings.weirdness) requestBody.weirdness = settings.weirdness;
         }
       }
       

@@ -5,8 +5,10 @@ import { cn } from '@/lib/utils';
 import { 
   KIE_IMAGE_MODELS, 
   KIE_VIDEO_MODELS, 
+  KIE_AUDIO_MODELS,
   getImageModelSettings, 
   getVideoModelSettings,
+  getAudioModelSettings,
   requiresImageUpload,
   requiresVideoUpload,
   type ModelSetting 
@@ -19,7 +21,7 @@ interface DynamicSettingsProps {
   values: Record<string, any>;
   onChange: (key: string, value: any) => void;
   onValidationChange?: (isValid: boolean) => void;
-  type?: 'image' | 'video';
+  type?: 'image' | 'video' | 'audio';
 }
 
 // LocalStorage ключ для сохранения настроек
@@ -66,6 +68,8 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
   // Получаем конфигурацию из KIE API settings
   const config = type === 'video' 
     ? getVideoModelSettings(modelId) 
+    : type === 'audio'
+    ? getAudioModelSettings(modelId)
     : getImageModelSettings(modelId);
 
   // Загрузка настроек из localStorage при монтировании
@@ -393,6 +397,19 @@ export function getDefaultSettings(modelId: string): Record<string, unknown> {
 
 export function getDefaultVideoSettings(modelId: string): Record<string, unknown> {
   const model = KIE_VIDEO_MODELS[modelId];
+  if (!model) return {};
+  
+  const defaults: Record<string, unknown> = {};
+  Object.entries(model.settings).forEach(([key, setting]) => {
+    if (setting.default !== undefined) {
+      defaults[key] = setting.default;
+    }
+  });
+  return defaults;
+}
+
+export function getDefaultAudioSettings(modelId: string): Record<string, unknown> {
+  const model = KIE_AUDIO_MODELS[modelId];
   if (!model) return {};
   
   const defaults: Record<string, unknown> = {};

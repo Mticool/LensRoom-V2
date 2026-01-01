@@ -942,3 +942,368 @@ export function requiresImageUpload(generationType: string): boolean {
 export function requiresVideoUpload(generationType: string): boolean {
   return generationType === 'video-to-video';
 }
+
+// ===== АУДИО МОДЕЛИ (SUNO) =====
+
+export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
+  // Suno AI Music - Generate
+  "suno": {
+    name: "Suno AI",
+    apiModel: "ai-music-api/generate",
+    settings: {
+      generation_type: {
+        label: "Тип генерации",
+        type: "buttons",
+        options: [
+          { value: "generate", label: "🎵 Создать" },
+          { value: "extend", label: "⏩ Продлить" },
+          { value: "cover", label: "🎤 Кавер" },
+          { value: "add-vocals", label: "🎙️ Вокал" },
+          { value: "separate", label: "🎚️ Разделить" }
+        ],
+        default: "generate",
+        description: "Выберите тип генерации музыки",
+        required: true,
+        order: 1
+      },
+      model: {
+        label: "Версия модели",
+        type: "buttons",
+        options: [
+          { value: "V5", label: "V5 (новая)" },
+          { value: "V4_5PLUS", label: "V4.5+" },
+          { value: "V4", label: "V4" },
+          { value: "V3_5", label: "V3.5" }
+        ],
+        default: "V4_5PLUS",
+        description: "V5 - лучшее качество, V4.5+ - оптимальный баланс",
+        required: true,
+        order: 2
+      },
+      custom_mode: {
+        label: "Режим",
+        type: "buttons",
+        options: [
+          { value: false, label: "Простой" },
+          { value: true, label: "Кастомный" }
+        ],
+        default: false,
+        description: "Простой - только промпт, Кастомный - стиль + текст песни",
+        required: false,
+        order: 3,
+        apiKey: "customMode"
+      },
+      title: {
+        label: "Название трека",
+        type: "textarea",
+        placeholder: "Введите название песни...",
+        optional: true,
+        description: "Название вашего трека",
+        order: 4
+      },
+      style: {
+        label: "Стиль музыки",
+        type: "textarea",
+        placeholder: "pop, energetic, female vocals, acoustic guitar...",
+        optional: true,
+        description: "Жанр, инструменты, настроение (до 1000 символов)",
+        order: 5
+      },
+      instrumental: {
+        label: "Инструментал",
+        type: "checkbox",
+        default: false,
+        description: "Без вокала - только инструменты",
+        optional: true,
+        order: 6
+      },
+      lyrics: {
+        label: "Текст песни",
+        type: "textarea",
+        placeholder: "[Verse 1]\nНапишите текст песни...\n\n[Chorus]\nПрипев...",
+        optional: true,
+        description: "Текст песни с разметкой [Verse], [Chorus], [Bridge] (до 5000 символов)",
+        order: 7,
+        apiKey: "prompt"
+      },
+      vocal_gender: {
+        label: "Пол вокала",
+        type: "buttons",
+        options: [
+          { value: "not_specified", label: "Авто" },
+          { value: "male", label: "Мужской" },
+          { value: "female", label: "Женский" }
+        ],
+        default: "not_specified",
+        description: "Выберите голос для вокала",
+        optional: true,
+        order: 8,
+        apiKey: "vocalGender"
+      },
+      negative_tags: {
+        label: "Исключить",
+        type: "textarea",
+        placeholder: "autotune, screaming, heavy metal...",
+        optional: true,
+        description: "Теги которые НЕ должны быть в музыке",
+        order: 9,
+        apiKey: "negativeTags"
+      },
+      style_weight: {
+        label: "Сила стиля",
+        type: "slider",
+        min: 0,
+        max: 100,
+        step: 5,
+        default: 50,
+        optional: true,
+        description: "Насколько сильно применять указанный стиль",
+        order: 10,
+        apiKey: "styleWeight"
+      },
+      weirdness: {
+        label: "Уникальность",
+        type: "slider",
+        min: 0,
+        max: 100,
+        step: 5,
+        default: 30,
+        optional: true,
+        description: "Больше = более экспериментальный результат",
+        order: 11,
+        apiKey: "weirdnessConstraint"
+      }
+    }
+  },
+
+  // Suno Extend - для продления
+  "suno-extend": {
+    name: "Suno Extend",
+    apiModel: "ai-music-api/extend",
+    settings: {
+      audio_id: {
+        label: "ID аудио",
+        type: "textarea",
+        placeholder: "Вставьте ID предыдущей генерации...",
+        required: true,
+        description: "ID трека который нужно продлить",
+        order: 1,
+        apiKey: "audioId"
+      },
+      continue_prompt: {
+        label: "Продолжение",
+        type: "textarea",
+        placeholder: "[Verse 2]\nТекст продолжения...",
+        optional: true,
+        description: "Текст для продолжения песни",
+        order: 2,
+        apiKey: "prompt"
+      },
+      default_param_flag: {
+        label: "Использовать параметры оригинала",
+        type: "checkbox",
+        default: true,
+        optional: true,
+        order: 3,
+        apiKey: "defaultParamFlag"
+      }
+    }
+  },
+
+  // Suno Cover - для каверов
+  "suno-cover": {
+    name: "Suno Cover",
+    apiModel: "ai-music-api/upload-and-cover-audio",
+    settings: {
+      model: {
+        label: "Версия модели",
+        type: "buttons",
+        options: [
+          { value: "V5", label: "V5" },
+          { value: "V4_5PLUS", label: "V4.5+" },
+          { value: "V4", label: "V4" }
+        ],
+        default: "V4_5PLUS",
+        required: true,
+        order: 1
+      },
+      custom_mode: {
+        label: "Режим",
+        type: "buttons",
+        options: [
+          { value: false, label: "Авто" },
+          { value: true, label: "Кастомный" }
+        ],
+        default: false,
+        order: 2,
+        apiKey: "customMode"
+      },
+      cover_prompt: {
+        label: "Описание кавера",
+        type: "textarea",
+        placeholder: "Сделай в стиле джаз с женским вокалом...",
+        optional: true,
+        description: "Как должен звучать кавер",
+        order: 3,
+        apiKey: "prompt"
+      },
+      instrumental: {
+        label: "Только инструментал",
+        type: "checkbox",
+        default: false,
+        optional: true,
+        order: 4
+      },
+      vocal_gender: {
+        label: "Пол вокала",
+        type: "buttons",
+        options: [
+          { value: "not_specified", label: "Авто" },
+          { value: "male", label: "Муж" },
+          { value: "female", label: "Жен" }
+        ],
+        default: "not_specified",
+        optional: true,
+        order: 5,
+        apiKey: "vocalGender"
+      },
+      style_weight: {
+        label: "Сила стиля",
+        type: "slider",
+        min: 0,
+        max: 100,
+        step: 5,
+        default: 50,
+        optional: true,
+        order: 6,
+        apiKey: "styleWeight"
+      },
+      audio_weight: {
+        label: "Сохранение оригинала",
+        type: "slider",
+        min: 0,
+        max: 100,
+        step: 5,
+        default: 70,
+        optional: true,
+        description: "Больше = ближе к оригиналу",
+        order: 7,
+        apiKey: "audioWeight"
+      }
+    }
+  },
+
+  // Suno Add Vocals - добавление вокала
+  "suno-vocals": {
+    name: "Suno Add Vocals",
+    apiModel: "ai-music-api/add-vocals",
+    settings: {
+      title: {
+        label: "Название",
+        type: "textarea",
+        placeholder: "Название трека...",
+        required: true,
+        order: 1
+      },
+      style: {
+        label: "Стиль",
+        type: "textarea",
+        placeholder: "pop, emotional, powerful...",
+        required: true,
+        order: 2
+      },
+      lyrics: {
+        label: "Текст для вокала",
+        type: "textarea",
+        placeholder: "[Verse]\nТекст песни...",
+        required: true,
+        order: 3,
+        apiKey: "prompt"
+      },
+      vocal_gender: {
+        label: "Пол вокала",
+        type: "buttons",
+        options: [
+          { value: "male", label: "Мужской" },
+          { value: "female", label: "Женский" }
+        ],
+        default: "female",
+        required: true,
+        order: 4,
+        apiKey: "vocalGender"
+      },
+      negative_tags: {
+        label: "Исключить",
+        type: "textarea",
+        placeholder: "autotune, screaming...",
+        optional: true,
+        order: 5,
+        apiKey: "negativeTags"
+      }
+    }
+  },
+
+  // Suno Separate - разделение вокала и инструментов
+  "suno-separate": {
+    name: "Suno Separate",
+    apiModel: "ai-music-api/separate-vocals",
+    settings: {
+      separation_type: {
+        label: "Тип разделения",
+        type: "buttons",
+        options: [
+          { value: "vocals", label: "🎤 Вокал" },
+          { value: "instrumental", label: "🎸 Инструментал" },
+          { value: "both", label: "🎵 Оба" }
+        ],
+        default: "both",
+        required: true,
+        description: "Что извлечь из трека",
+        order: 1,
+        apiKey: "separationType"
+      }
+    }
+  }
+};
+
+/**
+ * Получить настройки для аудио модели
+ */
+export function getAudioModelSettings(modelId: string): KieModelSettings | null {
+  return KIE_AUDIO_MODELS[modelId] || null;
+}
+
+/**
+ * Получить дефолтные настройки для аудио модели
+ */
+export function getDefaultAudioSettings(modelId: string): Record<string, any> {
+  const modelConfig = KIE_AUDIO_MODELS[modelId];
+  if (!modelConfig) return {};
+  
+  const defaults: Record<string, any> = {};
+  for (const [key, setting] of Object.entries(modelConfig.settings)) {
+    if (setting.default !== undefined) {
+      defaults[key] = setting.default;
+    }
+  }
+  return defaults;
+}
+
+/**
+ * Рассчитать стоимость аудио генерации
+ */
+export function calculateAudioPrice(modelId: string, settings: Record<string, any>): number {
+  // Базовые цены в кредитах KIE
+  const basePrices: Record<string, number> = {
+    'suno': 12,           // Generate
+    'suno-extend': 12,    // Extend
+    'suno-cover': 12,     // Cover
+    'suno-vocals': 12,    // Add Vocals
+    'suno-separate': 1,   // Separate (дёшево)
+  };
+  
+  const kieCredits = basePrices[modelId] || 12;
+  
+  // Конвертация: 1 KIE credit ≈ 2 звезды (примерно)
+  return Math.ceil(kieCredits * 2);
+}
