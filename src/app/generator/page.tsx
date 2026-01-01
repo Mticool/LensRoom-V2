@@ -224,6 +224,9 @@ function GeneratorPageContent() {
       isGenerating: true,
     };
 
+    // Save files before clearing
+    const filesToUpload = [...uploadedFiles];
+    
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setIsGenerating(true);
     setPrompt('');
@@ -232,14 +235,66 @@ function GeneratorPageContent() {
     try {
       const endpoint = activeSection === 'image' ? '/api/generate/photo' : '/api/generate/video';
       
+      // Build request body with flattened settings
+      const requestBody: Record<string, any> = {
+        prompt: userMessage.content,
+        model: currentModel,
+      };
+      
+      // Flatten settings to top level for API compatibility
+      if (settings) {
+        // Map setting keys to API parameter names
+        if (settings.aspect_ratio) requestBody.aspectRatio = settings.aspect_ratio;
+        if (settings.quality) requestBody.quality = settings.quality;
+        if (settings.resolution) requestBody.resolution = settings.resolution;
+        if (settings.duration) requestBody.duration = Number(settings.duration);
+        if (settings.generation_type) {
+          // Map generation_type to mode
+          const genType = settings.generation_type;
+          if (genType === 'text-to-video') requestBody.mode = 't2v';
+          else if (genType === 'image-to-video') requestBody.mode = 'i2v';
+          else if (genType === 'video-to-video') requestBody.mode = 'v2v';
+          else if (genType === 'reference-to-video') requestBody.mode = 'ref';
+        }
+        if (settings.version) requestBody.modelVariant = settings.version;
+        if (settings.negative_prompt) requestBody.negativePrompt = settings.negative_prompt;
+        if (settings.sound !== undefined) requestBody.audio = settings.sound;
+        if (settings.seed) requestBody.seed = Number(settings.seed);
+        if (settings.mode) {
+          // For Kling O1 start-end mode
+          if (settings.mode === 'start-end') requestBody.mode = 'start_end';
+          else if (settings.mode === 'start-only') requestBody.mode = 'i2v';
+        }
+      }
+      
+      // Handle uploaded files for i2v mode
+      if (filesToUpload.length > 0) {
+        const file = filesToUpload[0];
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        
+        if (requestBody.mode === 'i2v' || requestBody.mode === 'start_end') {
+          requestBody.startImage = base64;
+          if (filesToUpload.length > 1) {
+            const reader2 = new FileReader();
+            const base64_2 = await new Promise<string>((resolve) => {
+              reader2.onload = () => resolve(reader2.result as string);
+              reader2.readAsDataURL(filesToUpload[1]);
+            });
+            requestBody.endImage = base64_2;
+          }
+        } else {
+          requestBody.referenceImage = base64;
+        }
+      }
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: userMessage.content,
-          model: currentModel,
-          settings,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) throw new Error('Generation failed');
