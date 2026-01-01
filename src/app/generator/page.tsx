@@ -12,9 +12,7 @@ import {
   Paperclip, Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
   Brain, Bot, Star, FileText, ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { DynamicSettings } from '@/components/generator/DynamicSettings';
-import { getDefaultSettings } from '@/config/image-models-config';
-import { getDefaultVideoSettings } from '@/config/video-models-config';
+import { DynamicSettings, getDefaultSettings, getDefaultVideoSettings } from '@/components/generator/DynamicSettings';
 
 // ===== MODELS CONFIG =====
 const MODELS_CONFIG = {

@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { getModelConfig, type ModelSetting } from '@/config/image-models-config';
-import { getVideoModelConfig, type VideoModelSetting, type VideoModelConfig } from '@/config/video-models-config';
+import { 
+  KIE_IMAGE_MODELS, 
+  KIE_VIDEO_MODELS, 
+  getImageModelSettings, 
+  getVideoModelSettings,
+  type ModelSetting 
+} from '@/config/kie-api-settings';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Info } from 'lucide-react';
 
@@ -12,7 +17,7 @@ interface DynamicSettingsProps {
   values: Record<string, any>;
   onChange: (key: string, value: any) => void;
   onValidationChange?: (isValid: boolean) => void;
-  type?: 'image' | 'video'; // Тип генератора
+  type?: 'image' | 'video';
 }
 
 // LocalStorage ключ для сохранения настроек
@@ -31,7 +36,9 @@ const AspectRatioPreview = ({ ratio }: { ratio: string }) => {
     '2:3': { width: 32, height: 48 },
     '4:5': { width: 36, height: 45 },
     '5:4': { width: 45, height: 36 },
-    'auto': { width: 40, height: 40 }
+    'auto': { width: 40, height: 40 },
+    'landscape': { width: 56, height: 32 },
+    'portrait': { width: 28, height: 50 }
   };
 
   const dimensions = ratioMap[ratio] || ratioMap['1:1'];
@@ -54,18 +61,20 @@ const AspectRatioPreview = ({ ratio }: { ratio: string }) => {
 export function DynamicSettings({ modelId, values, onChange, onValidationChange, type = 'image' }: DynamicSettingsProps) {
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   
-  // Получаем конфигурацию в зависимости от типа
-  const config = type === 'video' ? getVideoModelConfig(modelId) : getModelConfig(modelId);
+  // Получаем конфигурацию из KIE API settings
+  const config = type === 'video' 
+    ? getVideoModelSettings(modelId) 
+    : getImageModelSettings(modelId);
 
   // Загрузка настроек из localStorage при монтировании
   useEffect(() => {
-    const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    const storageKey = `${SETTINGS_STORAGE_KEY}_${type}`;
+    const savedSettings = localStorage.getItem(storageKey);
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
         const modelSettings = parsed[modelId];
         if (modelSettings) {
-          // Восстанавливаем сохраненные настройки
           Object.entries(modelSettings).forEach(([key, value]) => {
             onChange(key, value);
           });
@@ -74,13 +83,23 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
         console.error('Failed to load settings from localStorage:', e);
       }
     }
-  }, [modelId]);
+    
+    // Если нет сохранённых настроек, устанавливаем дефолтные
+    if (config && !savedSettings) {
+      Object.entries(config.settings).forEach(([key, setting]) => {
+        if (setting.default !== undefined && values[key] === undefined) {
+          onChange(key, setting.default);
+        }
+      });
+    }
+  }, [modelId, type]);
 
   // Сохранение настроек в localStorage при изменении
   useEffect(() => {
     if (Object.keys(values).length > 0) {
-      const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      let allSettings = {};
+      const storageKey = `${SETTINGS_STORAGE_KEY}_${type}`;
+      const savedSettings = localStorage.getItem(storageKey);
+      let allSettings: Record<string, any> = {};
       
       if (savedSettings) {
         try {
@@ -95,9 +114,9 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
         [modelId]: values
       };
 
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(allSettings));
+      localStorage.setItem(storageKey, JSON.stringify(allSettings));
     }
-  }, [values, modelId]);
+  }, [values, modelId, type]);
 
   // Валидация обязательных полей
   useEffect(() => {
@@ -117,7 +136,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
   if (!config) {
     return (
       <div className="text-center py-8 text-gray-500">
-        <p>Модель не найдена</p>
+        <p className="text-sm">Настройки не доступны для этой модели</p>
       </div>
     );
   }
@@ -127,7 +146,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
     return (a.order || 999) - (b.order || 999);
   });
 
-  const renderSetting = (key: string, setting: ModelSetting | VideoModelSetting) => {
+  const renderSetting = (key: string, setting: ModelSetting) => {
     const value = values[key] ?? setting.default;
 
     return (
@@ -147,7 +166,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
               <span className="text-red-400 text-sm">*</span>
             )}
             {setting.optional && (
-              <span className="text-gray-600 text-xs normal-case">(опционально)</span>
+              <span className="text-gray-600 text-xs normal-case">(опц.)</span>
             )}
             {setting.description && (
               <div className="relative">
@@ -173,9 +192,9 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
             )}
           </label>
           {/* Превью для aspect ratio */}
-          {key === 'aspectRatio' && value && (
+          {(key === 'aspect_ratio' || key === 'aspectRatio') && value && (
             <div className="w-16 h-12">
-              <AspectRatioPreview ratio={value} />
+              <AspectRatioPreview ratio={String(value)} />
             </div>
           )}
         </div>
@@ -185,9 +204,8 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
             value={String(value)}
             onChange={(e) => {
               const val = e.target.value;
-              // Пытаемся преобразовать в число, если это число
               const numVal = Number(val);
-              onChange(key, !isNaN(numVal) && val !== '' ? numVal : val);
+              onChange(key, !isNaN(numVal) && val !== '' && !val.includes(':') ? numVal : val);
             }}
             className={cn(
               "w-full px-3 py-2.5 rounded-xl bg-[var(--surface2)] border text-[var(--text)] text-sm focus:outline-none transition-all",
@@ -205,7 +223,10 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
         )}
 
         {setting.type === 'buttons' && (
-          <div className="grid grid-cols-4 gap-2">
+          <div className={cn(
+            "grid gap-2",
+            (setting.options?.length || 0) <= 3 ? "grid-cols-3" : "grid-cols-4"
+          )}>
             {setting.options?.map((option) => (
               <button
                 key={String(option.value)}
@@ -266,7 +287,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
             <div className="relative">
               <input
                 type="range"
-                value={value ?? setting.default}
+                value={Number(value ?? setting.default)}
                 onChange={(e) => onChange(key, Number(e.target.value))}
                 min={setting.min}
                 max={setting.max}
@@ -275,8 +296,8 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
                 style={{
                   background: `linear-gradient(to right, 
                     rgb(168, 85, 247) 0%, 
-                    rgb(6, 182, 212) ${((value ?? setting.default ?? 0) / (setting.max ?? 100)) * 100}%, 
-                    rgb(30, 30, 30) ${((value ?? setting.default ?? 0) / (setting.max ?? 100)) * 100}%, 
+                    rgb(6, 182, 212) ${((Number(value ?? setting.default ?? 0)) / (setting.max ?? 100)) * 100}%, 
+                    rgb(30, 30, 30) ${((Number(value ?? setting.default ?? 0)) / (setting.max ?? 100)) * 100}%, 
                     rgb(30, 30, 30) 100%)`
                 }}
               />
@@ -307,7 +328,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
               />
             </button>
             <span className="text-sm text-gray-400">
-              {value ? 'Включено' : 'Выключено'}
+              {value ? 'Вкл' : 'Выкл'}
             </span>
           </div>
         )}
@@ -322,4 +343,31 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
       </AnimatePresence>
     </div>
   );
+}
+
+// Экспорт для обратной совместимости
+export function getDefaultSettings(modelId: string): Record<string, unknown> {
+  const model = KIE_IMAGE_MODELS[modelId];
+  if (!model) return {};
+  
+  const defaults: Record<string, unknown> = {};
+  Object.entries(model.settings).forEach(([key, setting]) => {
+    if (setting.default !== undefined) {
+      defaults[key] = setting.default;
+    }
+  });
+  return defaults;
+}
+
+export function getDefaultVideoSettings(modelId: string): Record<string, unknown> {
+  const model = KIE_VIDEO_MODELS[modelId];
+  if (!model) return {};
+  
+  const defaults: Record<string, unknown> = {};
+  Object.entries(model.settings).forEach(([key, setting]) => {
+    if (setting.default !== undefined) {
+      defaults[key] = setting.default;
+    }
+  });
+  return defaults;
 }
