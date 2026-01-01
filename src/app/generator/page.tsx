@@ -478,7 +478,7 @@ function GeneratorPageContent() {
                 </div>
               </div>
               
-              <h3 className="text-xl font-semibold mb-3 text-white">Генерация...</h3>
+              <h3 className="text-xl font-semibold mb-3 text-[var(--text)]">Генерация...</h3>
               <p className="text-sm text-gray-400 mb-6">{modelInfo?.name || 'ChatGPT 4.5'}</p>
               
               {/* Прогресс бар */}
@@ -514,7 +514,7 @@ function GeneratorPageContent() {
           ) : (
             /* Пустое состояние */
             <div className="text-center">
-              <Sparkles className="w-16 h-16 text-white opacity-90 mx-auto mb-6" />
+              <Sparkles className="w-16 h-16 text-[var(--text)] opacity-90 mx-auto mb-6" />
               <h2 className="text-3xl font-bold mb-2">{modelInfo?.name || 'ChatGPT 4.5'}</h2>
               <p className="text-xs text-gray-500">{modelInfo?.description || 'Продвинутая языковая модель для сложных задач'}</p>
             </div>
@@ -533,7 +533,7 @@ function GeneratorPageContent() {
                   </div>
                   <button
                     onClick={() => removeFile(i)}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-[var(--text)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -592,7 +592,7 @@ function GeneratorPageContent() {
               )}
               title={!isSettingsValid ? 'Заполните все обязательные поля' : 'Генерировать'}
             >
-              <Send className="w-4 h-4 text-white" />
+              <Send className="w-4 h-4 text-[var(--text)]" />
             </button>
           </div>
           
@@ -729,7 +729,7 @@ function GeneratorPageContent() {
 
       {/* Model Modal */}
       {showModelModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModelModal(false)}>
+        <div className="fixed inset-0 bg-[var(--bg)]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModelModal(false)}>
           <div className="w-full max-w-3xl max-h-[85vh] bg-[var(--surface)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
               <h2 className="text-xl font-bold">Выбор модели</h2>
@@ -759,7 +759,7 @@ function GeneratorPageContent() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-sm">{model.name}</span>
                           {'badge' in model && model.badge && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white rounded-full">
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-[var(--text)] rounded-full">
                               {model.badge}
                             </span>
                           )}

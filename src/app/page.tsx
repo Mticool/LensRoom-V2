@@ -85,10 +85,10 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       
       {/* Hero Section - Freepik Style Dark */}
-      <section className="relative min-h-[85vh] flex items-center justify-center pt-24 pb-20 bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      <section className="relative min-h-[85vh] flex items-center justify-center pt-24 pb-20 bg-[var(--bg)]">
         
         <div className="container mx-auto px-6 relative z-10">
           
@@ -99,7 +99,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: -100, y: -50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
-              className="absolute top-10 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
+              className="absolute top-10 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
             >
               <Image 
                 src={aiExamples[0].image} 
@@ -109,11 +109,11 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-white font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-[var(--text)] font-medium w-fit mb-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" />
                   {aiExamples[0].type}
                 </div>
-                <h4 className="font-semibold text-white text-sm">{aiExamples[0].title}</h4>
+                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[0].title}</h4>
               </div>
             </motion.div>
 
@@ -122,7 +122,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: 100, y: -50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="absolute top-10 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
+              className="absolute top-10 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
             >
               <Image 
                 src={aiExamples[1].image} 
@@ -132,11 +132,11 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-white font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-[var(--text)] font-medium w-fit mb-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" />
                   {aiExamples[1].type}
                 </div>
-                <h4 className="font-semibold text-white text-sm">{aiExamples[1].title}</h4>
+                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[1].title}</h4>
               </div>
             </motion.div>
 
@@ -145,7 +145,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: -100, y: 50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="absolute bottom-32 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
+              className="absolute bottom-32 left-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
             >
               <Image 
                 src={aiExamples[2].image} 
@@ -155,13 +155,13 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute top-3 left-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-pink-500 text-white font-medium w-fit flex items-center gap-1.5">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-pink-500 text-[var(--text)] font-medium w-fit flex items-center gap-1.5">
                   <Play className="w-3 h-3 fill-white" />
                   {aiExamples[2].type}
                 </div>
               </div>
               <div className="absolute bottom-3 left-3 right-3">
-                <h4 className="font-semibold text-white text-sm">{aiExamples[2].title}</h4>
+                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[2].title}</h4>
               </div>
             </motion.div>
 
@@ -170,7 +170,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: 100, y: 50 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ delay: 0.5, duration: 0.6 }}
-              className="absolute bottom-32 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-white/10"
+              className="absolute bottom-32 right-10 w-56 h-72 rounded-3xl overflow-hidden shadow-2xl pointer-events-auto hover:scale-105 transition-transform cursor-pointer border border-[var(--border)]/10"
             >
               <Image 
                 src={aiExamples[3].image} 
@@ -180,11 +180,11 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3 right-3">
-                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-white font-medium w-fit mb-1.5 flex items-center gap-1.5">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/90 text-[var(--text)] font-medium w-fit mb-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" />
                   {aiExamples[3].type}
                 </div>
-                <h4 className="font-semibold text-white text-sm">{aiExamples[3].title}</h4>
+                <h4 className="font-semibold text-[var(--text)] text-sm">{aiExamples[3].title}</h4>
               </div>
             </motion.div>
           </div>
@@ -201,14 +201,14 @@ export default function HomePage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-white text-sm font-medium mb-6"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--surface)]/10 backdrop-blur-xl border border-[var(--border)]/20 text-[var(--text)] text-sm font-medium mb-6"
             >
               <Sparkles className="w-4 h-4" />
               Топовые AI модели в одном месте
             </motion.div>
 
             {/* Main Heading */}
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-white">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-[var(--text)]">
               Создавайте невероятный
               <br />
               <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -222,16 +222,16 @@ export default function HomePage() {
 
             {/* Model Tags */}
             <div className="flex flex-wrap items-center justify-center gap-2 mb-8 text-sm">
-              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
+              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
                 Nano Banana Pro
               </div>
-              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
+              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
                 Veo 3.1
               </div>
-              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
+              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
                 Kling
               </div>
-              <div className="px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 font-medium">
+              <div className="px-3 py-1.5 rounded-full bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 text-gray-300 font-medium">
                 Sora
               </div>
             </div>
@@ -241,7 +241,7 @@ export default function HomePage() {
               <Link href="/generator?section=image">
                 <Button 
                   size="lg"
-                  className="group bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 transition-all"
+                  className="group bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-[var(--text)] px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 transition-all"
                 >
                   Начать создавать
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -251,7 +251,7 @@ export default function HomePage() {
                 <Button 
                   size="lg"
                   variant="outline"
-                  className="px-8 py-6 text-base font-medium rounded-xl bg-white/5 backdrop-blur-xl border-2 border-white/10 hover:border-white/20 hover:bg-white/10 text-white transition-all"
+                  className="px-8 py-6 text-base font-medium rounded-xl bg-[var(--surface)]/5 backdrop-blur-xl border-2 border-[var(--border)]/10 hover:border-[var(--border)]/20 hover:bg-[var(--surface)]/10 text-[var(--text)] transition-all"
                 >
                   Смотреть примеры
                 </Button>
@@ -286,14 +286,14 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-5xl mx-auto p-8 md:p-10 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10"
+            className="max-w-5xl mx-auto p-8 md:p-10 rounded-3xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10"
           >
             <div className="flex items-start justify-between flex-wrap gap-6">
               <div className="flex-1 min-w-[280px]">
                 <div className="inline-block px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-semibold mb-4">
                   ЭКСКЛЮЗИВ
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text)]">
                   Nano Banana Pro — бесплатно! 🍌
                 </h2>
                 <p className="text-lg text-gray-300 mb-6 font-normal">
@@ -325,7 +325,7 @@ export default function HomePage() {
                 <Link href="/pricing">
                   <Button 
                     size="lg"
-                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-5 text-base font-medium rounded-xl shadow-lg"
+                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-[var(--text)] px-6 py-5 text-base font-medium rounded-xl shadow-lg"
                   >
                     Смотреть тарифы
                   </Button>
@@ -339,7 +339,7 @@ export default function HomePage() {
       </section>
 
       {/* Advantages Section */}
-      <section className="py-20 bg-black">
+      <section className="py-20 bg-[var(--bg)]">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -347,7 +347,7 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
               Всё для контента
             </h2>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto font-normal">
@@ -382,12 +382,12 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all"
+                className="p-6 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all"
               >
-                <div className={`w-12 h-12 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center mb-4`}>
+                <div className={`w-12 h-12 rounded-xl bg-[var(--surface)]/10 backdrop-blur-xl border border-[var(--border)]/20 flex items-center justify-center mb-4`}>
                   <item.icon className="w-6 h-6 text-cyan-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-white">{item.title}</h3>
+                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">{item.title}</h3>
                 <p className="text-gray-400 font-normal">{item.description}</p>
               </motion.div>
             ))}
@@ -412,9 +412,9 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="text-center p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10"
+                className="text-center p-6 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10"
               >
-                <div className="text-3xl md:text-4xl font-bold text-white mb-1">
+                <div className="text-3xl md:text-4xl font-bold text-[var(--text)] mb-1">
                   {metric.value}
                 </div>
                 <div className="text-sm text-gray-400 font-normal">{metric.label}</div>
@@ -433,7 +433,7 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
               Топовые модели мира
             </h2>
             <p className="text-xl text-gray-400 font-normal">
@@ -449,14 +449,14 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group p-5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer text-center"
+                className="group p-5 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer text-center"
               >
                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                   <model.icon className="w-7 h-7 text-cyan-400" />
                 </div>
-                <h3 className="font-bold text-base mb-1 text-white">{model.name}</h3>
+                <h3 className="font-bold text-base mb-1 text-[var(--text)]">{model.name}</h3>
                 <p className="text-sm text-gray-400 mb-3 font-normal">{model.type}</p>
-                <div className={`inline-block px-2.5 py-1 rounded-full ${model.badgeColor} text-white text-xs font-semibold`}>
+                <div className={`inline-block px-2.5 py-1 rounded-full ${model.badgeColor} text-[var(--text)] text-xs font-semibold`}>
                   {model.badge}
                 </div>
               </motion.div>
@@ -466,18 +466,18 @@ export default function HomePage() {
       </section>
 
       {/* Referral Section */}
-      <section className="py-16 bg-black">
+      <section className="py-16 bg-[var(--bg)]">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto p-8 md:p-10 rounded-3xl bg-gradient-to-br from-purple-900/20 to-pink-900/20 backdrop-blur-xl border border-white/10 text-center"
+            className="max-w-4xl mx-auto p-8 md:p-10 rounded-3xl bg-gradient-to-br from-purple-900/20 to-pink-900/20 backdrop-blur-xl border border-[var(--border)]/10 text-center"
           >
-            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center mx-auto mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-[var(--surface)]/10 backdrop-blur-xl border border-[var(--border)]/20 flex items-center justify-center mx-auto mb-6">
               <Rocket className="w-8 h-8 text-purple-400" />
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text)]">
               Приглашай друзей — получай звёзды!
             </h2>
             <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto font-normal">
@@ -486,7 +486,7 @@ export default function HomePage() {
             <Link href="/profile">
               <Button 
                 size="lg"
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all"
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-[var(--text)] px-8 py-6 text-base font-medium rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all"
               >
                 Моя реферальная ссылка
               </Button>
@@ -504,7 +504,7 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-10"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
               Галерея работ
             </h2>
             <p className="text-xl text-gray-400 mb-6 font-normal">
@@ -519,8 +519,8 @@ export default function HomePage() {
                   onClick={() => setActiveFilter(filter.toLowerCase())}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     activeFilter === filter.toLowerCase()
-                      ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/25'
-                      : 'bg-white/5 backdrop-blur-xl text-gray-300 border border-white/10 hover:border-white/20'
+                      ? 'bg-cyan-500 text-[var(--text)] shadow-md shadow-cyan-500/25'
+                      : 'bg-[var(--surface)]/5 backdrop-blur-xl text-gray-300 border border-[var(--border)]/10 hover:border-[var(--border)]/20'
                   }`}
                 >
                   {filter}
@@ -533,9 +533,9 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16 px-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10"
+            className="text-center py-16 px-6 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10"
           >
-            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-full bg-[var(--surface)]/5 border border-[var(--border)]/10 flex items-center justify-center mx-auto mb-4">
               <ImageIcon className="w-8 h-8 text-gray-500" />
             </div>
             <p className="text-lg text-gray-400 mb-3 font-normal">
@@ -549,7 +549,7 @@ export default function HomePage() {
       </section>
 
       {/* Steps Section */}
-      <section className="py-20 bg-black">
+      <section className="py-20 bg-[var(--bg)]">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -557,7 +557,7 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
               Три шага до результата
             </h2>
           </motion.div>
@@ -595,14 +595,14 @@ export default function HomePage() {
                 className="text-center"
               >
                 <div className="relative inline-block mb-6">
-                  <div className="w-20 h-20 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-2xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 flex items-center justify-center">
                     <step.icon className="w-10 h-10 text-cyan-400" />
                   </div>
-                  <div className={`absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-r ${step.color} flex items-center justify-center font-bold text-white text-sm shadow-lg`}>
+                  <div className={`absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-r ${step.color} flex items-center justify-center font-bold text-[var(--text)] text-sm shadow-lg`}>
                     {step.number}
                   </div>
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-white">{step.title}</h3>
+                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">{step.title}</h3>
                 <p className="text-gray-400 font-normal">{step.description}</p>
               </motion.div>
             ))}
@@ -619,7 +619,7 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[var(--text)]">
               Частые вопросы
             </h2>
             <p className="text-xl text-gray-400 font-normal">
@@ -638,13 +638,13 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden hover:border-white/20 transition-all"
+                className="rounded-xl bg-[var(--surface)]/5 backdrop-blur-xl border border-[var(--border)]/10 overflow-hidden hover:border-[var(--border)]/20 transition-all"
               >
                 <button
                   onClick={() => setOpenFAQ(openFAQ === i ? null : i)}
-                  className="w-full p-5 text-left flex items-center justify-between hover:bg-white/5 transition-colors"
+                  className="w-full p-5 text-left flex items-center justify-between hover:bg-[var(--surface)]/5 transition-colors"
                 >
-                  <span className="font-semibold text-base text-white pr-4">{faq.question}</span>
+                  <span className="font-semibold text-base text-[var(--text)] pr-4">{faq.question}</span>
                   {openFAQ === i ? (
                     <ChevronUp className="w-5 h-5 text-cyan-400 flex-shrink-0" />
                   ) : (
@@ -679,7 +679,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto text-center text-white"
+            className="max-w-4xl mx-auto text-center text-[var(--text)]"
           >
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
               Готовы создавать?
@@ -693,7 +693,7 @@ export default function HomePage() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button 
                   size="lg"
-                  className="bg-white hover:bg-gray-100 text-black px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl"
+                  className="bg-[var(--btn-primary-bg)] hover:opacity-90 text-[var(--btn-primary-text)] px-10 py-7 text-lg font-semibold rounded-xl shadow-2xl"
                 >
                   <Sparkles className="w-6 h-6 mr-2" />
                   Начать бесплатно

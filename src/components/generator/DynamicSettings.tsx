@@ -181,10 +181,10 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -5 }}
-                      className="absolute left-0 top-6 z-50 w-64 p-3 bg-black border border-white/20 rounded-lg shadow-xl text-xs text-gray-300 font-normal"
+                      className="absolute left-0 top-6 z-50 w-64 p-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl text-xs text-[var(--muted)] font-normal"
                     >
                       {setting.description}
-                      <div className="absolute -top-1 left-4 w-2 h-2 bg-black border-l border-t border-white/20 transform rotate-45" />
+                      <div className="absolute -top-1 left-4 w-2 h-2 bg-[var(--surface)] border-l border-t border-[var(--border)] transform rotate-45" />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -234,8 +234,8 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
                 className={cn(
                   "px-2 py-2.5 rounded-lg text-xs font-medium transition-all duration-200",
                   value === option.value
-                    ? "bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-lg shadow-purple-500/25 scale-105"
-                    : "bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:border-cyan-500/50 hover:text-white"
+                    ? "bg-[var(--accent-gradient)] text-[var(--btn-primary-text)] shadow-lg shadow-[var(--accent-primary)]/25 scale-105"
+                    : "bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent-secondary)]/50 hover:text-[var(--text)]"
                 )}
               >
                 {option.label}
@@ -322,7 +322,7 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
             >
               <div
                 className={cn(
-                  "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-lg",
+                  "absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--text)] rounded-full transition-transform duration-300 shadow-lg",
                   value ? "transform translate-x-6" : ""
                 )}
               />

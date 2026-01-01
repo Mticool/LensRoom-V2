@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
@@ -110,19 +110,20 @@ export function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] glass">
-        <nav className="container mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
+      {/* Header - Freepik style */}
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-xl">
+        <nav className="container mx-auto px-4 lg:px-6">
+          <div className="flex items-center justify-between h-14">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-black" />
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-[var(--btn-primary-text)]" />
               </div>
-              <span className="text-lg font-bold text-[var(--text)]">LensRoom</span>
+              <span className="text-base font-semibold text-[var(--text)]">LensRoom</span>
             </Link>
 
-            {/* Desktop Nav */}
-            <div className="hidden lg:flex items-center gap-1" ref={dropdownRef}>
+            {/* Desktop Nav - Freepik style */}
+            <div className="hidden lg:flex items-center gap-0.5" ref={dropdownRef}>
               {navigation.map((item) => {
                 const isActive = item.href && (pathname === item.href || pathname.startsWith(item.href + '/'));
                 
@@ -133,28 +134,28 @@ export function Header() {
                       <button
                         onClick={() => setActiveDropdown(isDropdownOpen ? null : item.dropdown!)}
                         className={cn(
-                          "px-4 py-2 text-sm font-medium transition-colors rounded-lg flex items-center gap-1.5",
+                          "px-3 py-1.5 text-sm font-medium transition-colors rounded-md flex items-center gap-1",
                           isDropdownOpen
                             ? "text-[var(--text)] bg-[var(--surface2)]"
-                            : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]"
+                            : "text-[var(--muted)] hover:text-[var(--text)]"
                         )}
                       >
                         {item.name}
                         <ChevronDown className={cn(
-                          "w-3.5 h-3.5 transition-transform",
+                          "w-3.5 h-3.5 transition-transform duration-200",
                           isDropdownOpen && "rotate-180"
                         )} />
                       </button>
                       
-                      {/* Dropdown */}
+                      {/* Dropdown - Freepik style */}
                       <AnimatePresence>
                         {isDropdownOpen && (
                           <motion.div
-                            initial={{ opacity: 0, y: -8 }}
+                            initial={{ opacity: 0, y: 4 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
+                            exit={{ opacity: 0, y: 4 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute top-full left-0 mt-2 w-56 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden"
+                            className="absolute top-full left-0 mt-1 w-52 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg overflow-hidden"
                           >
                             <div className="py-1">
                               {MODELS[item.dropdown].map((model) => (
@@ -162,10 +163,10 @@ export function Header() {
                                   key={model.id}
                                   href={`/generator?section=${item.dropdown === 'design' ? 'image' : item.dropdown}&model=${model.id}`}
                                   onClick={() => setActiveDropdown(null)}
-                                  className="flex items-center justify-between px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                                  className="flex items-center justify-between px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                                 >
                                   <span>{model.name}</span>
-                                  <span className="text-xs text-[var(--muted)]">{model.cost}⭐</span>
+                                  <span className="text-xs opacity-60">{model.cost}⭐</span>
                                 </Link>
                               ))}
                             </div>
@@ -181,10 +182,10 @@ export function Header() {
                     key={item.name}
                     href={item.href!}
                     className={cn(
-                      "px-4 py-2 text-sm font-medium transition-colors rounded-lg flex items-center gap-1.5",
+                      "px-3 py-1.5 text-sm font-medium transition-colors rounded-md",
                       isActive
-                        ? "text-[var(--text)] bg-[var(--surface2)]"
-                        : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]"
+                        ? "text-[var(--text)]"
+                        : "text-[var(--muted)] hover:text-[var(--text)]"
                     )}
                   >
                     {item.name}
@@ -193,36 +194,36 @@ export function Header() {
               })}
             </div>
 
-            {/* Right side */}
+            {/* Right side - Freepik style */}
             <div className="hidden lg:flex items-center gap-2">
               <ThemeToggle />
               
               {authLoading ? (
-                <div className="w-24 h-10 bg-[var(--surface)] rounded-xl animate-pulse" />
+                <div className="w-20 h-8 bg-[var(--surface2)] rounded-lg animate-pulse" />
               ) : (telegramUser || supabaseUser) ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-white/20 transition-all"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-strong)] transition-colors"
                   >
                     {telegramUser?.photoUrl ? (
                       <Image
                         src={telegramUser.photoUrl}
                         alt={displayName}
-                        width={28}
-                        height={28}
+                        width={24}
+                        height={24}
                         className="rounded-full"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white text-sm font-bold">
+                      <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center text-[var(--accent-primary)] text-xs font-semibold">
                         {displayName[0].toUpperCase()}
                       </div>
                     )}
-                    <span className="text-sm font-semibold text-white">
-                      {balance} ⭐
+                    <span className="text-sm font-medium text-[var(--text)]">
+                      {balance} <Star className="w-3 h-3 inline text-[var(--gold)]" />
                     </span>
                     <ChevronDown className={cn(
-                      "w-4 h-4 text-[var(--muted)] transition-transform",
+                      "w-3.5 h-3.5 text-[var(--muted)] transition-transform duration-200",
                       userMenuOpen && "rotate-180"
                     )} />
                   </button>
@@ -236,24 +237,25 @@ export function Header() {
                           onClick={() => setUserMenuOpen(false)}
                         />
                         <motion.div
-                          initial={{ opacity: 0, y: -8 }}
+                          initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -8 }}
-                          className="absolute right-0 mt-2 w-64 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden"
+                          exit={{ opacity: 0, y: 4 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-1 w-56 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden"
                         >
                           {/* User Info */}
-                          <div className="px-4 py-3 border-b border-[var(--border)]">
-                            <div className="flex items-center gap-3">
+                          <div className="px-3 py-2.5 border-b border-[var(--border)]">
+                            <div className="flex items-center gap-2.5">
                               {telegramUser?.photoUrl ? (
                                 <Image
                                   src={telegramUser.photoUrl}
                                   alt={displayName}
-                                  width={40}
-                                  height={40}
+                                  width={32}
+                                  height={32}
                                   className="rounded-full"
                                 />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] font-bold">
+                                <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center text-[var(--accent-primary)] font-semibold text-sm">
                                   {displayName[0].toUpperCase()}
                                 </div>
                               )}
@@ -261,16 +263,10 @@ export function Header() {
                                 <p className="text-sm font-medium text-[var(--text)] truncate">
                                   {displayName}
                                 </p>
-                                {telegramUser?.username ? (
-                                  <p className="text-xs text-[var(--muted)]">@{telegramUser.username}</p>
-                                ) : supabaseUser?.email ? (
-                                  <p className="text-xs text-[var(--muted)]">{supabaseUser.email}</p>
-                                ) : null}
+                                <p className="text-xs text-[var(--muted)]">
+                                  {balance} ⭐ кредитов
+                                </p>
                               </div>
-                            </div>
-                            <div className="mt-2 flex items-center gap-1">
-                              <span className="text-sm font-semibold text-white">{balance} ⭐</span>
-                              <span className="text-xs text-[var(--muted)]">кредитов</span>
                             </div>
                           </div>
 
@@ -279,7 +275,7 @@ export function Header() {
                             <Link
                               href="/library"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                             >
                               <ImageIcon className="w-4 h-4" />
                               Мои результаты
@@ -287,7 +283,7 @@ export function Header() {
                             <Link
                               href="/account/subscription"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                             >
                               <Crown className="w-4 h-4" />
                               Подписка
@@ -295,7 +291,7 @@ export function Header() {
                             <Link
                               href="/pricing"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                             >
                               <CreditCard className="w-4 h-4" />
                               Купить кредиты
@@ -304,10 +300,10 @@ export function Header() {
                             {telegramUser && !telegramUser.canNotify && (
                               <button
                                 onClick={handleConnectBot}
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-white/5 transition-colors w-full"
+                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors w-full"
                               >
                                 <MessageCircle className="w-4 h-4" />
-                                Подключить уведомления
+                                Уведомления
                               </button>
                             )}
 
@@ -315,10 +311,10 @@ export function Header() {
                               <Link
                                 href="/admin/waitlist"
                                 onClick={() => setUserMenuOpen(false)}
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
                               >
                                 <Settings className="w-4 h-4" />
-                                Админ: Waitlist
+                                Админ
                               </Link>
                             )}
                           </div>
@@ -327,7 +323,7 @@ export function Header() {
                           <div className="border-t border-[var(--border)] py-1">
                             <button
                               onClick={handleSignOut}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-colors w-full"
                             >
                               <LogOut className="w-4 h-4" />
                               Выйти
@@ -339,7 +335,12 @@ export function Header() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <Button variant="outline" onClick={() => setLoginOpen(true)}>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setLoginOpen(true)}
+                  className="h-8"
+                >
                   Войти
                 </Button>
               )}
@@ -351,12 +352,12 @@ export function Header() {
               
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg hover:bg-[var(--surface)] transition-colors"
+                className="p-2 rounded-lg text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
               >
                 {mobileMenuOpen ? (
-                  <X className="w-6 h-6 text-[var(--text)]" />
+                  <X className="w-5 h-5" />
                 ) : (
-                  <Menu className="w-6 h-6 text-[var(--text)]" />
+                  <Menu className="w-5 h-5" />
                 )}
               </button>
             </div>
@@ -371,18 +372,18 @@ export function Header() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-x-0 top-16 z-40 lg:hidden"
+            className="fixed inset-x-0 top-14 z-40 lg:hidden"
           >
             <div 
               className="absolute inset-0 bg-[var(--bg)] h-screen"
               onClick={() => setMobileMenuOpen(false)}
             />
-            <div className="relative bg-[var(--surface)] border-b border-[var(--border)] shadow-xl">
-              <div className="container mx-auto px-6 py-4 space-y-1">
+            <div className="relative bg-[var(--surface)] border-b border-[var(--border)] shadow-lg max-h-[80vh] overflow-y-auto">
+              <div className="container mx-auto px-4 py-3 space-y-1">
                 {/* Mobile Dropdowns */}
                 {(['design', 'video', 'audio'] as const).map((section) => (
-                  <div key={section} className="space-y-1">
-                    <div className="px-4 py-2 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                  <div key={section} className="space-y-0.5">
+                    <div className="px-3 py-1.5 text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                       {section === 'design' ? 'Дизайн' : section === 'video' ? 'Видео' : 'Аудио'}
                     </div>
                     {MODELS[section].map((model) => (
@@ -390,52 +391,52 @@ export function Header() {
                         key={model.id}
                         href={`/generator?section=${section === 'design' ? 'image' : section}&model=${model.id}`}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-between px-4 py-2.5 rounded-lg text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                        className="flex items-center justify-between px-3 py-2 rounded-md text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                       >
                         <span>{model.name}</span>
-                        <span className="text-xs">{model.cost}⭐</span>
+                        <span className="text-xs opacity-60">{model.cost}⭐</span>
                       </Link>
                     ))}
                   </div>
                 ))}
 
-                <div className="pt-4 border-t border-[var(--border)]">
+                <div className="pt-2 border-t border-[var(--border)]">
                   <Link
                     href="/inspiration"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
                   >
                     Вдохновение
                   </Link>
                   <Link
                     href="/pricing"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
+                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
                   >
                     Тарифы
                   </Link>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-[var(--border)] space-y-2">
+                <div className="pt-2 border-t border-[var(--border)] space-y-1">
                   {(telegramUser || supabaseUser) ? (
                     <>
-                      <div className="px-4 py-3 rounded-xl bg-[var(--surface2)]">
-                        <div className="flex items-center gap-3">
+                      <div className="px-3 py-2 rounded-md bg-[var(--surface2)]">
+                        <div className="flex items-center gap-2">
                           {telegramUser?.photoUrl ? (
                             <Image
                               src={telegramUser.photoUrl}
                               alt={displayName}
-                              width={32}
-                              height={32}
+                              width={28}
+                              height={28}
                               className="rounded-full"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm">
+                            <div className="w-7 h-7 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center text-[var(--accent-primary)] font-semibold text-sm">
                               {displayName[0].toUpperCase()}
                             </div>
                           )}
                           <div>
-                            <p className="text-sm font-semibold text-white">
+                            <p className="text-sm font-medium text-[var(--text)]">
                               {balance} ⭐
                             </p>
                             <p className="text-xs text-[var(--muted)]">{displayName}</p>
@@ -445,7 +446,7 @@ export function Header() {
                       <Link
                         href="/library"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--muted)] hover:bg-[var(--surface2)] transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[var(--muted)] hover:bg-[var(--surface2)] transition-colors"
                       >
                         <ImageIcon className="w-4 h-4" />
                         Мои результаты
@@ -453,14 +454,14 @@ export function Header() {
                       <Link
                         href="/account/subscription"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[var(--muted)] hover:bg-[var(--surface2)] transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[var(--muted)] hover:bg-[var(--surface2)] transition-colors"
                       >
                         <Crown className="w-4 h-4" />
                         Подписка
                       </Link>
                       <button
                         onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-red-500 hover:bg-red-500/10 transition-colors w-full"
                       >
                         <LogOut className="w-4 h-4" />
                         Выйти
@@ -482,7 +483,7 @@ export function Header() {
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 
       {/* Spacer */}
-      <div className="h-16" />
+      <div className="h-14" />
     </>
   );
 }
