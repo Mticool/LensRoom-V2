@@ -71,7 +71,7 @@ export default function HomePage() {
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
             >
-              <Image src={nanaExamples[0].url} alt="" fill className="object-cover" />
+              <img src={nanaExamples[0].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3">
                 <span className="text-[10px] px-2 py-1 bg-cyan-500/90 rounded-full font-medium text-white">AI Portrait</span>
@@ -91,7 +91,7 @@ export default function HomePage() {
               transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
               className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
             >
-              <Image src={nanaExamples[2].url} alt="" fill className="object-cover" />
+              <img src={nanaExamples[2].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3 flex items-center gap-1">
                 <Play className="w-2.5 h-2.5 fill-white text-white" />
@@ -112,7 +112,7 @@ export default function HomePage() {
               transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
               className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
             >
-              <Image src={nanaExamples[1].url} alt="" fill className="object-cover" />
+              <img src={nanaExamples[1].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3">
                 <span className="text-[10px] px-2 py-1 bg-purple-500/90 rounded-full font-medium text-white">Fashion</span>
@@ -132,7 +132,7 @@ export default function HomePage() {
               transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
               className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
             >
-              <Image src={nanaExamples[3].url} alt="" fill className="object-cover" />
+              <img src={nanaExamples[3].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3">
                 <span className="text-[10px] px-2 py-1 bg-yellow-500/90 rounded-full font-medium text-black">4K</span>
@@ -152,7 +152,7 @@ export default function HomePage() {
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
               className="w-full h-full rounded-xl overflow-hidden shadow-xl border border-white/5 opacity-60"
             >
-              <Image src={nanaExamples[4].url} alt="" fill className="object-cover" />
+              <img src={nanaExamples[4].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
             </motion.div>
           </motion.div>
 
@@ -167,7 +167,7 @@ export default function HomePage() {
               transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
               className="w-full h-full rounded-xl overflow-hidden shadow-xl border border-white/5 opacity-60"
             >
-              <Image src={nanaExamples[5].url} alt="" fill className="object-cover" />
+              <img src={nanaExamples[5].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
             </motion.div>
           </motion.div>
         </div>
