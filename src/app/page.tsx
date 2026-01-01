@@ -50,6 +50,121 @@ export default function HomePage() {
         {/* Subtle gradient background */}
         <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-cyan-500/5" />
         
+        {/* Floating Cards - Left Side */}
+        <div className="absolute inset-0 pointer-events-none hidden lg:block">
+          {/* Top Left */}
+          <motion.div
+            initial={{ opacity: 0, x: -100, rotate: -12 }}
+            animate={{ opacity: 1, x: 0, rotate: -12 }}
+            transition={{ delay: 0.5, duration: 1, ease: "easeOut" }}
+            className="absolute top-[15%] left-[5%] w-44 h-56 pointer-events-auto"
+          >
+            <motion.div 
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image src={nanaExamples[0].url} alt="" fill className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3">
+                <span className="text-[10px] px-2 py-1 bg-cyan-500/90 rounded-full font-medium text-white">AI Portrait</span>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Bottom Left */}
+          <motion.div
+            initial={{ opacity: 0, x: -100, rotate: 8 }}
+            animate={{ opacity: 1, x: 0, rotate: 8 }}
+            transition={{ delay: 0.7, duration: 1, ease: "easeOut" }}
+            className="absolute bottom-[18%] left-[8%] w-36 h-48 pointer-events-auto"
+          >
+            <motion.div 
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image src={nanaExamples[2].url} alt="" fill className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3 flex items-center gap-1">
+                <Play className="w-2.5 h-2.5 fill-white text-white" />
+                <span className="text-[10px] text-white font-medium">Video</span>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Top Right */}
+          <motion.div
+            initial={{ opacity: 0, x: 100, rotate: 12 }}
+            animate={{ opacity: 1, x: 0, rotate: 12 }}
+            transition={{ delay: 0.6, duration: 1, ease: "easeOut" }}
+            className="absolute top-[12%] right-[5%] w-44 h-56 pointer-events-auto"
+          >
+            <motion.div 
+              animate={{ y: [0, -12, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image src={nanaExamples[1].url} alt="" fill className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3">
+                <span className="text-[10px] px-2 py-1 bg-purple-500/90 rounded-full font-medium text-white">Fashion</span>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Bottom Right */}
+          <motion.div
+            initial={{ opacity: 0, x: 100, rotate: -8 }}
+            animate={{ opacity: 1, x: 0, rotate: -8 }}
+            transition={{ delay: 0.8, duration: 1, ease: "easeOut" }}
+            className="absolute bottom-[20%] right-[8%] w-36 h-48 pointer-events-auto"
+          >
+            <motion.div 
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
+            >
+              <Image src={nanaExamples[3].url} alt="" fill className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3">
+                <span className="text-[10px] px-2 py-1 bg-yellow-500/90 rounded-full font-medium text-black">4K</span>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Extra floating cards for more depth */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.6, scale: 1 }}
+            transition={{ delay: 1, duration: 1 }}
+            className="absolute top-[35%] left-[2%] w-24 h-32 pointer-events-auto"
+          >
+            <motion.div 
+              animate={{ y: [0, -8, 0], rotate: [15, 18, 15] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full h-full rounded-xl overflow-hidden shadow-xl border border-white/5 opacity-60"
+            >
+              <Image src={nanaExamples[4].url} alt="" fill className="object-cover" />
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.6, scale: 1 }}
+            transition={{ delay: 1.1, duration: 1 }}
+            className="absolute top-[38%] right-[2%] w-24 h-32 pointer-events-auto"
+          >
+            <motion.div 
+              animate={{ y: [0, 8, 0], rotate: [-15, -12, -15] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full h-full rounded-xl overflow-hidden shadow-xl border border-white/5 opacity-60"
+            >
+              <Image src={nanaExamples[5].url} alt="" fill className="object-cover" />
+            </motion.div>
+          </motion.div>
+        </div>
+        
         {/* Content */}
         <div className="relative z-10 text-center max-w-5xl mx-auto">
           {/* Badge */}
