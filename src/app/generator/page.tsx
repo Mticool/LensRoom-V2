@@ -165,6 +165,32 @@ function GeneratorPageContent() {
     setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
   }, [uploadedFiles]);
 
+  // Poll for generation result
+  const pollForResult = async (jobId: string, provider: string): Promise<any> => {
+    const maxAttempts = 60;
+    const interval = 3000;
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, interval));
+      
+      try {
+        const res = await fetch(`/api/jobs/${jobId}?provider=${provider}`);
+        if (!res.ok) continue;
+        
+        const data = await res.json();
+        if (data.status === 'completed' || data.status === 'success') {
+          return data;
+        }
+        if (data.status === 'failed' || data.status === 'error') {
+          throw new Error(data.error || 'Generation failed');
+        }
+      } catch (e) {
+        console.error('Poll error:', e);
+      }
+    }
+    throw new Error('Generation timeout');
+  };
+
   // Generation
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || isGenerating) return;
@@ -220,13 +246,22 @@ function GeneratorPageContent() {
 
       const data = await response.json();
       
+      // Handle different response formats
+      let resultUrl = data.url || data.results?.[0]?.url;
+      
+      // If we have a jobId but no immediate result, poll for completion
+      if (!resultUrl && data.jobId) {
+        const pollResult = await pollForResult(data.jobId, data.provider || 'kie');
+        resultUrl = pollResult?.url || pollResult?.results?.[0]?.url;
+      }
+      
       // Update assistant message with result
       setMessages(prev => prev.map(m => 
         m.id === assistantMessage.id 
           ? { 
               ...m, 
-              content: data.result || 'Генерация завершена',
-              url: data.url,
+              content: resultUrl ? 'Готово!' : 'Генерация завершена',
+              url: resultUrl,
               isGenerating: false 
             }
           : m
