@@ -320,7 +320,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
     name: "Kling O1",
     apiModel: "fal-ai/kling-video/o1/image-to-video",
     provider: "fal",
-    baseCost: 56, // $0.56 = 56⭐ за 5 сек (курс примерно 1:100)
+    baseCost: 56, // $0.56 = 56⭐ за 5 сек
     priceModifiers: [
       {
         settingKey: "duration",
@@ -360,38 +360,68 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
   },
 
   // Veo 3.1 - Google
+  // Поддерживает: text-to-video, image-to-video, reference-to-video
   "veo-3.1": {
     name: "Veo 3.1",
     apiModel: "veo3",
     settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "Текст → Видео" },
+          { value: "image-to-video", label: "Фото → Видео" },
+          { value: "reference-to-video", label: "Референс" }
+        ],
+        default: "text-to-video",
+        description: "Выберите тип генерации",
+        required: true,
+        order: 1,
+        apiKey: "generationType"
+      },
       quality: {
         label: "Качество",
         type: "buttons",
         options: [
           { value: "fast", label: "Fast (быстро)" },
-          { value: "quality", label: "Quality (качество)" }
+          { value: "quality", label: "Quality (детали)" }
         ],
         default: "fast",
-        description: "Fast = ~1 мин, Quality = ~3 мин",
+        description: "Fast ~1 мин, Quality ~3 мин",
         required: true,
-        order: 1
+        order: 2,
+        apiKey: "model"
       },
       aspect_ratio: {
-        label: "Соотношение сторон",
+        label: "Соотношение",
         type: "buttons",
         options: [
+          { value: "auto", label: "Auto" },
           { value: "16:9", label: "16:9" },
           { value: "9:16", label: "9:16" }
         ],
         default: "16:9",
-        description: "Veo поддерживает только 16:9 и 9:16",
+        description: "Пропорции видео",
         required: true,
-        order: 2
+        order: 3,
+        apiKey: "ratio"
+      },
+      seed: {
+        label: "Seed",
+        type: "number",
+        placeholder: "10000-99999",
+        min: 10000,
+        max: 99999,
+        description: "Для воспроизводимых результатов",
+        optional: true,
+        order: 4
       }
     }
   },
 
   // Kling - объединённая модель
+  // Поддерживает: text-to-video, image-to-video
+  // 2.1 Pro дополнительно: master-image-to-video, master-text-to-video
   "kling": {
     name: "Kling AI",
     apiModel: "kling-2.6/text-to-video",
@@ -400,15 +430,28 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         label: "Версия",
         type: "select",
         options: [
-          { value: "2.5-turbo", label: "2.5 Turbo - быстро" },
-          { value: "2.6", label: "2.6 - со звуком" },
-          { value: "2.1-pro", label: "2.1 Pro - премиум" }
+          { value: "2.5-turbo", label: "2.5 Turbo (быстро)" },
+          { value: "2.6", label: "2.6 (со звуком)" },
+          { value: "2.1-pro", label: "2.1 Pro (премиум)" }
         ],
         default: "2.5-turbo",
         description: "Выберите версию Kling",
         required: true,
         order: 1,
-        apiKey: "model" // Будет использоваться для выбора apiModel
+        apiKey: "model"
+      },
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "Текст → Видео" },
+          { value: "image-to-video", label: "Фото → Видео" }
+        ],
+        default: "text-to-video",
+        description: "Тип генерации видео",
+        required: true,
+        order: 2,
+        apiKey: "modelType"
       },
       duration: {
         label: "Длительность",
@@ -418,12 +461,12 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
           { value: "10", label: "10 сек" }
         ],
         default: "5",
-        description: "Длительность видео в секундах",
+        description: "Длительность видео",
         required: true,
-        order: 2
+        order: 3
       },
       aspect_ratio: {
-        label: "Соотношение сторон",
+        label: "Соотношение",
         type: "buttons",
         options: [
           { value: "1:1", label: "1:1" },
@@ -433,24 +476,47 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         default: "16:9",
         description: "Пропорции видео",
         required: true,
-        order: 3
+        order: 4
       },
       sound: {
         label: "Звук",
         type: "checkbox",
         default: false,
-        description: "Добавить звук (только для Kling 2.6)",
+        description: "Добавить звук (только Kling 2.6)",
         optional: true,
-        order: 4
+        order: 5
+      },
+      negative_prompt: {
+        label: "Негативный промпт",
+        type: "textarea",
+        placeholder: "blur, distort, low quality...",
+        description: "Что НЕ должно быть в видео",
+        optional: true,
+        order: 6,
+        apiKey: "negativePrompt"
       }
     }
   },
 
   // Sora 2
+  // Поддерживает: text-to-video, image-to-video
   "sora-2": {
     name: "Sora 2",
-    apiModel: "sora-2-image-to-video",
+    apiModel: "sora-2-text-to-video",
     settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "Текст → Видео" },
+          { value: "image-to-video", label: "Фото → Видео" }
+        ],
+        default: "text-to-video",
+        description: "Тип генерации видео",
+        required: true,
+        order: 1,
+        apiKey: "modelType"
+      },
       n_frames: {
         label: "Длительность",
         type: "buttons",
@@ -461,53 +527,20 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         default: "10",
         description: "Длительность видео",
         required: true,
-        order: 1,
-        apiKey: "n_frames"
+        order: 2,
+        apiKey: "nFrames"
       },
       aspect_ratio: {
         label: "Ориентация",
         type: "buttons",
         options: [
-          { value: "landscape", label: "Альбомная" },
-          { value: "portrait", label: "Портретная" }
+          { value: "landscape", label: "Альбомная (16:9)" },
+          { value: "portrait", label: "Портретная (9:16)" }
         ],
         default: "landscape",
         description: "Ориентация видео",
         required: true,
-        order: 2
-      }
-    }
-  },
-
-  // Sora 2 Pro
-  "sora-2-pro": {
-    name: "Sora 2 Pro",
-    apiModel: "sora-2-pro-image-to-video",
-    settings: {
-      n_frames: {
-        label: "Длительность",
-        type: "buttons",
-        options: [
-          { value: "10", label: "10 сек" },
-          { value: "15", label: "15 сек" }
-        ],
-        default: "10",
-        description: "Длительность видео",
-        required: true,
-        order: 1,
-        apiKey: "n_frames"
-      },
-      aspect_ratio: {
-        label: "Ориентация",
-        type: "buttons",
-        options: [
-          { value: "landscape", label: "Альбомная" },
-          { value: "portrait", label: "Портретная" }
-        ],
-        default: "landscape",
-        description: "Ориентация видео",
-        required: true,
-        order: 2
+        order: 3
       },
       size: {
         label: "Качество",
@@ -519,7 +552,85 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         default: "standard",
         description: "Разрешение видео",
         required: true,
+        order: 4
+      },
+      remove_watermark: {
+        label: "Убрать водяной знак",
+        type: "checkbox",
+        default: true,
+        description: "Удалить водяной знак OpenAI",
+        optional: true,
+        order: 5,
+        apiKey: "removeWatermark"
+      }
+    }
+  },
+
+  // Sora 2 Pro
+  // Поддерживает: text-to-video, image-to-video, characters
+  "sora-2-pro": {
+    name: "Sora 2 Pro",
+    apiModel: "sora-2-pro-text-to-video",
+    settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "Текст → Видео" },
+          { value: "image-to-video", label: "Фото → Видео" },
+          { value: "characters", label: "Персонажи" }
+        ],
+        default: "text-to-video",
+        description: "Тип генерации видео",
+        required: true,
+        order: 1,
+        apiKey: "modelType"
+      },
+      n_frames: {
+        label: "Длительность",
+        type: "buttons",
+        options: [
+          { value: "10", label: "10 сек" },
+          { value: "15", label: "15 сек" }
+        ],
+        default: "10",
+        description: "Длительность видео",
+        required: true,
+        order: 2,
+        apiKey: "nFrames"
+      },
+      aspect_ratio: {
+        label: "Ориентация",
+        type: "buttons",
+        options: [
+          { value: "landscape", label: "Альбомная (16:9)" },
+          { value: "portrait", label: "Портретная (9:16)" }
+        ],
+        default: "landscape",
+        description: "Ориентация видео",
+        required: true,
         order: 3
+      },
+      size: {
+        label: "Качество",
+        type: "buttons",
+        options: [
+          { value: "standard", label: "720p" },
+          { value: "high", label: "1080p" }
+        ],
+        default: "high",
+        description: "Разрешение видео",
+        required: true,
+        order: 4
+      },
+      remove_watermark: {
+        label: "Убрать водяной знак",
+        type: "checkbox",
+        default: true,
+        description: "Удалить водяной знак OpenAI",
+        optional: true,
+        order: 5,
+        apiKey: "removeWatermark"
       }
     }
   },
@@ -559,6 +670,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
   },
 
   // WAN - объединённая модель
+  // Поддерживает: text-to-video, image-to-video, video-to-video (только 2.6)
   "wan": {
     name: "WAN AI",
     apiModel: "wan/2-5-text-to-video",
@@ -568,12 +680,26 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         type: "select",
         options: [
           { value: "2.5", label: "WAN 2.5" },
-          { value: "2.6", label: "WAN 2.6 (V2V, 15s)" }
+          { value: "2.6", label: "WAN 2.6 (до 15с)" }
         ],
         default: "2.5",
         description: "Выберите версию WAN",
         required: true,
         order: 1
+      },
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "Текст → Видео" },
+          { value: "image-to-video", label: "Фото → Видео" },
+          { value: "video-to-video", label: "Видео → Видео" }
+        ],
+        default: "text-to-video",
+        description: "V2V только для WAN 2.6",
+        required: true,
+        order: 2,
+        apiKey: "modelType"
       },
       duration: {
         label: "Длительность",
@@ -586,10 +712,10 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         default: "5",
         description: "15 сек только для WAN 2.6",
         required: true,
-        order: 2
+        order: 3
       },
       aspect_ratio: {
-        label: "Соотношение сторон",
+        label: "Соотношение",
         type: "buttons",
         options: [
           { value: "16:9", label: "16:9" },
@@ -599,7 +725,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         default: "16:9",
         description: "Пропорции видео",
         required: true,
-        order: 3
+        order: 4
       },
       resolution: {
         label: "Разрешение",
@@ -611,7 +737,33 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         default: "720p",
         description: "Качество видео",
         optional: true,
-        order: 4
+        order: 5
+      },
+      negative_prompt: {
+        label: "Негативный промпт",
+        type: "textarea",
+        placeholder: "blur, distort, low quality...",
+        description: "Что НЕ должно быть в видео",
+        optional: true,
+        order: 6,
+        apiKey: "negativePrompt"
+      },
+      enable_prompt_expansion: {
+        label: "Расширение промпта (LLM)",
+        type: "checkbox",
+        default: false,
+        description: "Улучшить промпт с помощью AI",
+        optional: true,
+        order: 7,
+        apiKey: "enablePromptExpansion"
+      },
+      seed: {
+        label: "Seed",
+        type: "number",
+        placeholder: "Оставьте пустым для случайного",
+        description: "Для воспроизводимых результатов",
+        optional: true,
+        order: 8
       }
     }
   }
@@ -704,39 +856,89 @@ export function getVideoModelWithPricing(modelId: string): KieModelSettingsWithP
   return KIE_VIDEO_MODELS[modelId] as KieModelSettingsWithPricing;
 }
 
-// Получить apiModel для Kling в зависимости от версии
-export function getKlingApiModel(version: string, mode: 't2v' | 'i2v' = 't2v'): string {
-  const models: Record<string, { t2v: string; i2v: string }> = {
+// ===== API MODEL HELPERS =====
+
+/**
+ * Получить apiModel для Kling в зависимости от версии и режима
+ */
+export function getKlingApiModel(version: string, generationType: string): string {
+  const models: Record<string, Record<string, string>> = {
     '2.5-turbo': {
-      t2v: 'kling-2.5-turbo/text-to-video',
-      i2v: 'kling-2.5-turbo/image-to-video'
+      'text-to-video': 'kling-2.5-turbo/text-to-video',
+      'image-to-video': 'kling-2.5-turbo/image-to-video'
     },
     '2.6': {
-      t2v: 'kling-2.6/text-to-video',
-      i2v: 'kling-2.6/image-to-video'
+      'text-to-video': 'kling-2.6/text-to-video',
+      'image-to-video': 'kling-2.6/image-to-video'
     },
     '2.1-pro': {
-      t2v: 'kling/v2-1-pro',
-      i2v: 'kling/v2-1-pro'
+      'text-to-video': 'kling/v2-1-pro-text-to-video',
+      'image-to-video': 'kling/v2-1-pro-image-to-video',
+      'master-text-to-video': 'kling/v2-1-master-text-to-video',
+      'master-image-to-video': 'kling/v2-1-master-image-to-video'
     }
   };
-  return models[version]?.[mode] || models['2.5-turbo'][mode];
+  return models[version]?.[generationType] || models['2.5-turbo']['text-to-video'];
 }
 
-// Получить apiModel для WAN в зависимости от версии
-export function getWanApiModel(version: string, mode: 't2v' | 'i2v' | 'v2v' = 't2v'): string {
-  const models: Record<string, { t2v: string; i2v: string; v2v: string }> = {
+/**
+ * Получить apiModel для WAN в зависимости от версии и режима
+ */
+export function getWanApiModel(version: string, generationType: string): string {
+  const models: Record<string, Record<string, string>> = {
     '2.5': {
-      t2v: 'wan/2-5-text-to-video',
-      i2v: 'wan/2-5-image-to-video',
-      v2v: 'wan/2-5-text-to-video' // 2.5 не поддерживает v2v
+      'text-to-video': 'wan/2-5-text-to-video',
+      'image-to-video': 'wan/2-5-image-to-video',
+      'video-to-video': 'wan/2-5-text-to-video' // 2.5 не поддерживает v2v
     },
     '2.6': {
-      t2v: 'wan/2-6-text-to-video',
-      i2v: 'wan/2-6-image-to-video',
-      v2v: 'wan/2-6-video-to-video'
+      'text-to-video': 'wan/2-6-text-to-video',
+      'image-to-video': 'wan/2-6-image-to-video',
+      'video-to-video': 'wan/2-6-video-to-video'
     }
   };
-  return models[version]?.[mode] || models['2.5'][mode];
+  return models[version]?.[generationType] || models['2.5']['text-to-video'];
 }
 
+/**
+ * Получить apiModel для Sora в зависимости от типа и режима
+ */
+export function getSoraApiModel(isPro: boolean, generationType: string): string {
+  if (isPro) {
+    const models: Record<string, string> = {
+      'text-to-video': 'sora-2-pro-text-to-video',
+      'image-to-video': 'sora-2-pro-image-to-video',
+      'characters': 'sora-2-characters'
+    };
+    return models[generationType] || models['text-to-video'];
+  } else {
+    const models: Record<string, string> = {
+      'text-to-video': 'sora-2-text-to-video',
+      'image-to-video': 'sora-2-image-to-video'
+    };
+    return models[generationType] || models['text-to-video'];
+  }
+}
+
+/**
+ * Получить apiModel для Veo в зависимости от режима
+ */
+export function getVeoApiModel(generationType: string, quality: string): string {
+  // veo3 использует параметр generationType для определения режима
+  // и model для качества (fast/quality)
+  return 'veo3';
+}
+
+/**
+ * Проверить, требует ли режим загрузку изображения
+ */
+export function requiresImageUpload(generationType: string): boolean {
+  return ['image-to-video', 'reference-to-video', 'start-end', 'start-only'].includes(generationType);
+}
+
+/**
+ * Проверить, требует ли режим загрузку видео
+ */
+export function requiresVideoUpload(generationType: string): boolean {
+  return generationType === 'video-to-video';
+}

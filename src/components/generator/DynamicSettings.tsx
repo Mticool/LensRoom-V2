@@ -7,10 +7,12 @@ import {
   KIE_VIDEO_MODELS, 
   getImageModelSettings, 
   getVideoModelSettings,
+  requiresImageUpload,
+  requiresVideoUpload,
   type ModelSetting 
 } from '@/config/kie-api-settings';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Info } from 'lucide-react';
+import { Info, ImageIcon, Video, AlertCircle } from 'lucide-react';
 
 interface DynamicSettingsProps {
   modelId: string;
@@ -223,25 +225,55 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
         )}
 
         {setting.type === 'buttons' && (
-          <div className={cn(
-            "grid gap-2",
-            (setting.options?.length || 0) <= 3 ? "grid-cols-3" : "grid-cols-4"
-          )}>
-            {setting.options?.map((option) => (
-              <button
-                key={String(option.value)}
-                onClick={() => onChange(key, option.value)}
-                className={cn(
-                  "px-2 py-2.5 rounded-lg text-xs font-medium transition-all duration-200",
-                  value === option.value
-                    ? "bg-[var(--accent-gradient)] text-[var(--btn-primary-text)] shadow-lg shadow-[var(--accent-primary)]/25 scale-105"
-                    : "bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent-secondary)]/50 hover:text-[var(--text)]"
+          <>
+            <div className={cn(
+              "grid gap-2",
+              (setting.options?.length || 0) <= 3 ? "grid-cols-3" : "grid-cols-4"
+            )}>
+              {setting.options?.map((option) => (
+                <button
+                  key={String(option.value)}
+                  onClick={() => onChange(key, option.value)}
+                  className={cn(
+                    "px-2 py-2.5 rounded-lg text-xs font-medium transition-all duration-200",
+                    value === option.value
+                      ? "bg-[var(--accent-gradient)] text-[var(--btn-primary-text)] shadow-lg shadow-[var(--accent-primary)]/25 scale-105"
+                      : "bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent-secondary)]/50 hover:text-[var(--text)]"
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Подсказка для режима генерации */}
+            {key === 'generation_type' && value && (
+              <AnimatePresence mode="wait">
+                {requiresImageUpload(String(value)) && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 p-2 mt-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Загрузите изображение через скрепку 📎 в промпт-баре</span>
+                  </motion.div>
                 )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+                {requiresVideoUpload(String(value)) && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 p-2 mt-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs"
+                  >
+                    <Video className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Загрузите видео через скрепку 📎 в промпт-баре</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+          </>
         )}
 
         {setting.type === 'textarea' && (
