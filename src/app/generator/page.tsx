@@ -291,6 +291,45 @@ function GeneratorPageContent() {
     localStorage.removeItem('lensroom_chat_history');
   }, []);
 
+  // Download file
+  const handleDownload = useCallback(async (url: string, type: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `lensroom-${Date.now()}.${type === 'video' ? 'mp4' : 'png'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      // Fallback: open in new tab
+      window.open(url, '_blank');
+    }
+  }, []);
+
+  // Copy URL to clipboard
+  const handleCopy = useCallback(async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Ссылка скопирована!');
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
+  }, []);
+
+  // Regenerate with same prompt
+  const handleRegenerate = useCallback((originalPrompt: string) => {
+    setPrompt(originalPrompt);
+    // Auto-submit after setting prompt
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      form?.dispatchEvent(new Event('submit', { bubbles: true }));
+    }, 100);
+  }, []);
+
   return (
     <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col">
       {/* Top Section Tabs */}
@@ -468,28 +507,36 @@ function GeneratorPageContent() {
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 ml-1">
                                   {message.url && (
-                                    <a
-                                      href={message.url}
-                                      download
+                                    <button
+                                      onClick={() => handleDownload(message.url!, message.type || 'image')}
                                       className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
                                       title="Скачать"
                                     >
                                       <Download className="w-4 h-4" />
-                                    </a>
+                                    </button>
+                                  )}
+                                  {message.url && (
+                                    <button 
+                                      onClick={() => handleCopy(message.url!)}
+                                      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                      title="Копировать ссылку"
+                                    >
+                                      <Copy className="w-4 h-4" />
+                                    </button>
                                   )}
                                   <button 
-                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
-                                    title="Копировать"
-                                  >
-                                    <Copy className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-cyan-400 transition"
                                     title="Нравится"
                                   >
                                     <ThumbsUp className="w-4 h-4" />
                                   </button>
                                   <button 
+                                    onClick={() => {
+                                      // Find previous user message
+                                      const idx = messages.findIndex(m => m.id === message.id);
+                                      const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
+                                      if (userMsg) handleRegenerate(userMsg.content);
+                                    }}
                                     className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
                                     title="Повторить"
                                   >
