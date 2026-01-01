@@ -82,9 +82,41 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
     }
   },
 
-  "kling-2.6": {
-    name: "Kling 2.6",
+  // Объединённая модель Kling - заменяет kling-2.6, kling-2.5-turbo, kling-2.1-pro, kling-o1
+  "kling": {
+    name: "Kling AI",
     settings: {
+      version: {
+        label: "Версия",
+        type: "select",
+        options: [
+          { value: "2.5-turbo", label: "2.5 Turbo (105⭐) - Быстро" },
+          { value: "2.6", label: "2.6 (230⭐) - С аудио" },
+          { value: "2.1-pro", label: "2.1 Pro (402⭐) - Премиум" },
+          { value: "o1", label: "O1 (28⭐) - Video-to-Video" }
+        ],
+        default: "2.5-turbo",
+        description: "Выберите версию Kling для генерации",
+        required: true,
+        order: 1
+      },
+      modelType: {
+        label: "Режим",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "Текст в видео" },
+          { value: "image-to-video", label: "Изображение в видео" },
+          { value: "video-to-video", label: "Видео в видео" },
+          { value: "standard", label: "Standard" },
+          { value: "pro", label: "Pro" },
+          { value: "master-text-to-video", label: "Master T2V" },
+          { value: "master-image-to-video", label: "Master I2V" }
+        ],
+        default: "text-to-video",
+        description: "Создание видео из текста, изображения или видео",
+        required: true,
+        order: 2
+      },
       duration: {
         label: "Длительность (с)",
         type: "buttons",
@@ -95,45 +127,7 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         default: 10,
         description: "Длительность видео в секундах",
         required: true,
-        order: 1
-      },
-      sound: {
-        label: "Включить звук",
-        type: "checkbox",
-        default: true,
-        description: "Автоматическая генерация звука для видео",
-        optional: true,
-        order: 2
-      }
-    }
-  },
-
-  "kling-2.5-turbo": {
-    name: "Kling 2.5 Turbo",
-    settings: {
-      modelType: {
-        label: "Режим",
-        type: "buttons",
-        options: [
-          { value: "text-to-video", label: "Текст в видео" },
-          { value: "image-to-video", label: "Изображение в видео" }
-        ],
-        default: "text-to-video",
-        description: "Создание видео из текста или изображения",
-        required: true,
-        order: 1
-      },
-      duration: {
-        label: "Длительность (с)",
-        type: "buttons",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 10, label: "10с" }
-        ],
-        default: 10,
-        description: "Быстрая генерация коротких видео",
-        required: true,
-        order: 2
+        order: 3
       },
       aspectRatio: {
         label: "Соотношение сторон",
@@ -145,8 +139,16 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         ],
         default: "16:9",
         description: "Пропорции видео",
-        required: true,
-        order: 3
+        optional: true,
+        order: 4
+      },
+      sound: {
+        label: "Включить звук",
+        type: "checkbox",
+        default: false,
+        description: "Автоматическая генерация звука (только для версии 2.6)",
+        optional: true,
+        order: 5
       },
       negativePrompt: {
         label: "Негативный промпт",
@@ -154,7 +156,7 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         placeholder: "blur, distort, and low quality",
         description: "Что НЕ должно быть в видео",
         optional: true,
-        order: 4
+        order: 6
       },
       cfgScale: {
         label: "CFG Scale",
@@ -165,90 +167,11 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         default: 0.5,
         description: "Насколько точно следовать промпту (0 = свобода, 1 = точность)",
         optional: true,
-        order: 5
+        order: 7
       }
     }
   },
 
-  "kling-2.1-pro": {
-    name: "Kling 2.1 Pro",
-    settings: {
-      modelType: {
-        label: "Режим",
-        type: "buttons",
-        options: [
-          { value: "master-image-to-video", label: "Master I2V" },
-          { value: "standard", label: "Standard" },
-          { value: "pro", label: "Pro" },
-          { value: "master-text-to-video", label: "Master T2V" }
-        ],
-        default: "pro",
-        description: "Выберите режим генерации. Master - максимальное качество.",
-        required: true,
-        order: 1
-      },
-      duration: {
-        label: "Длительность (с)",
-        type: "buttons",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 10, label: "10с" }
-        ],
-        default: 10,
-        description: "Длительность видео",
-        required: true,
-        order: 2
-      },
-      negativePrompt: {
-        label: "Негативный промпт",
-        type: "textarea",
-        placeholder: "blur, distort, and low quality",
-        description: "Что НЕ должно быть в видео",
-        optional: true,
-        order: 3
-      },
-      cfgScale: {
-        label: "CFG Scale",
-        type: "slider",
-        min: 0,
-        max: 1,
-        step: 0.1,
-        default: 0.5,
-        description: "Насколько точно следовать промпту",
-        optional: true,
-        order: 4
-      }
-    }
-  },
-
-  "kling-o1": {
-    name: "Kling O1",
-    settings: {
-      mode: {
-        label: "Режим",
-        type: "buttons",
-        options: [
-          { value: "video-to-video", label: "Video to Video" }
-        ],
-        default: "video-to-video",
-        description: "Редактирование и трансформация существующих видео",
-        required: true,
-        order: 1
-      },
-      duration: {
-        label: "Длительность",
-        type: "select",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 10, label: "10с" }
-        ],
-        default: 5,
-        description: "Длительность выходного видео",
-        required: true,
-        order: 2
-      }
-    }
-  },
 
   "sora-2": {
     name: "Sora 2",

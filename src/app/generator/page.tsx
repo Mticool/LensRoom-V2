@@ -48,10 +48,7 @@ const MODELS_CONFIG = {
     icon: Video,
     models: [
       { id: 'veo3', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'TOP', description: 'Быстрая генерация видео' },
-      { id: 'kling-2.5-turbo', name: 'Kling 2.5 Turbo', icon: Zap, cost: 105, badge: 'Fast', description: 'Rapid universal generation' },
-      { id: 'kling-2.6', name: 'Kling 2.6', icon: Video, cost: 230, badge: 'Audio', description: 'Video with audio synthesis' },
-      { id: 'kling-2.1-pro', name: 'Kling 2.1 Pro', icon: Star, cost: 402, badge: 'Premium', description: 'Maximum quality output' },
-      { id: 'kling-o1', name: 'Kling O1', icon: Video, cost: 28, badge: 'V2V', description: 'Video-to-Video editing' },
+      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Popular', description: '4 версии: Turbo, 2.6, Pro, O1' },
       { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'Balanced', description: 'Speed/quality balance' },
       { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 650, badge: 'Premium', description: 'Cinematic quality' },
       { id: 'sora-storyboard', name: 'Sora Storyboard', icon: Video, cost: 310, description: 'Multi-scene storytelling' },
