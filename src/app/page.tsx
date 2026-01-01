@@ -10,21 +10,28 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// Примеры Nano Banana Pro - реальные генерации
+// Примеры Nano Banana Pro - профессиональные AI генерации
 const nanaExamples = [
-  { url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1000&fit=crop', prompt: 'Professional portrait, studio lighting', model: 'Nano Banana Pro' },
-  { url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&h=1000&fit=crop', prompt: 'Fashion editorial, soft light', model: 'Nano Banana Pro' },
-  { url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&h=1000&fit=crop', prompt: 'Cinematic portrait, dramatic', model: 'Nano Banana Pro' },
-  { url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&h=1000&fit=crop', prompt: 'Beauty close-up, 4K detail', model: 'Nano Banana Pro' },
-  { url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&h=1000&fit=crop', prompt: 'High fashion, editorial style', model: 'Nano Banana Pro' },
-  { url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=800&h=1000&fit=crop', prompt: 'Street style portrait', model: 'Nano Banana Pro' },
+  // Студийные портреты
+  { url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&h=1000&fit=crop&q=90', prompt: 'Professional studio portrait, soft lighting, 4K', model: 'Nano Banana Pro', badge: 'Portrait' },
+  { url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&h=1000&fit=crop&q=90', prompt: 'Beauty close-up, perfect skin, editorial', model: 'Nano Banana Pro', badge: 'Beauty' },
+  // Fashion & Editorial
+  { url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&h=1000&fit=crop&q=90', prompt: 'High fashion editorial, dramatic lighting', model: 'FLUX.2 Pro', badge: 'Fashion' },
+  { url: 'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=800&h=1000&fit=crop&q=90', prompt: 'Vogue style, cinematic portrait', model: 'Midjourney', badge: 'Editorial' },
+  // Cinematic
+  { url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=1000&fit=crop&q=90', prompt: 'Cinematic male portrait, film grain', model: 'Nano Banana Pro', badge: 'Cinematic' },
+  { url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1000&fit=crop&q=90', prompt: 'Natural light portrait, warm tones', model: 'Nano Banana Pro', badge: '4K' },
+  // Artistic
+  { url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&h=1000&fit=crop&q=90', prompt: 'Artistic portrait, soft focus', model: 'GPT Image', badge: 'Art' },
+  { url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&h=1000&fit=crop&q=90', prompt: 'Street fashion, urban style', model: 'Seedream 4.5', badge: 'Street' },
 ];
 
-// Видео примеры
+// Видео примеры - кинематографичные превью
 const videoExamples = [
-  { url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&h=450&fit=crop', title: 'Cinematic Scene', model: 'Veo 3.1', duration: '8s' },
-  { url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&h=450&fit=crop', title: 'Documentary Style', model: 'Kling AI', duration: '10s' },
-  { url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800&h=450&fit=crop', title: 'Film Noir', model: 'Sora 2', duration: '15s' },
+  { url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200&h=675&fit=crop&q=90', title: 'Cinematic Scene', desc: 'Со звуком и музыкой', model: 'Veo 3.1', duration: '8s', badge: 'Google' },
+  { url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1200&h=675&fit=crop&q=90', title: 'Film Production', desc: 'Профессиональное качество', model: 'Kling AI', duration: '10s', badge: 'Trending' },
+  { url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1200&h=675&fit=crop&q=90', title: 'Documentary', desc: 'Реалистичная съёмка', model: 'Sora 2', duration: '15s', badge: 'OpenAI' },
+  { url: 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=1200&h=675&fit=crop&q=90', title: 'Fashion Film', desc: 'Стильная презентация', model: 'WAN AI', duration: '10s', badge: 'New' },
 ];
 
 export default function HomePage() {
@@ -417,12 +424,12 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Image Gallery */}
+          {/* Image Gallery - Masonry Style */}
           {activeTab === 'image' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-2 md:grid-cols-3 gap-4"
+              className="grid grid-cols-2 md:grid-cols-4 gap-4"
             >
               {nanaExamples.map((item, i) => (
                 <motion.div
@@ -431,24 +438,41 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
-                  className="group relative aspect-[4/5] rounded-2xl overflow-hidden cursor-pointer"
+                  className={`group relative rounded-3xl overflow-hidden cursor-pointer ${
+                    i === 0 || i === 3 ? 'aspect-[3/4] md:row-span-2' : 'aspect-square'
+                  }`}
                 >
                   <Image 
                     src={item.url} 
                     alt={item.prompt} 
                     fill 
-                    className="object-cover group-hover:scale-105 transition-transform duration-700" 
+                    className="object-cover group-hover:scale-110 transition-transform duration-700" 
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-5 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    <p className="text-sm text-white/80 mb-1">{item.prompt}</p>
-                    <span className="text-xs text-yellow-400">{item.model}</span>
-                  </div>
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-xs px-3 py-1 bg-black/50 backdrop-blur-sm rounded-full text-white">
-                      AI Generated
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0" />
+                  
+                  {/* Badge - always visible */}
+                  <div className="absolute top-4 left-4">
+                    <span className="text-xs px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-white font-medium border border-white/20">
+                      {item.badge}
                     </span>
                   </div>
+                  
+                  {/* AI Generated badge */}
+                  <div className="absolute top-4 right-4">
+                    <span className="text-[10px] px-2 py-1 bg-cyan-500/80 backdrop-blur-sm rounded-full text-white font-medium">
+                      AI
+                    </span>
+                  </div>
+                  
+                  {/* Bottom info */}
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <p className="text-sm text-white/90 mb-1 line-clamp-2">{item.prompt}</p>
+                    <span className="text-xs text-yellow-400 font-medium">{item.model}</span>
+                  </div>
+                  
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
                 </motion.div>
               ))}
             </motion.div>
@@ -459,7 +483,7 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid md:grid-cols-3 gap-6"
+              className="grid md:grid-cols-2 gap-6"
             >
               {videoExamples.map((item, i) => (
                 <motion.div
@@ -468,7 +492,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="group relative aspect-video rounded-2xl overflow-hidden cursor-pointer"
+                  className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer"
                 >
                   <Image 
                     src={item.url} 
@@ -476,18 +500,33 @@ export default function HomePage() {
                     fill 
                     className="object-cover group-hover:scale-105 transition-transform duration-700" 
                   />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  
+                  {/* Badge */}
+                  <div className="absolute top-4 left-4">
+                    <span className="text-xs px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-white font-medium border border-white/20">
+                      {item.badge}
+                    </span>
+                  </div>
+                  
+                  {/* Duration */}
+                  <div className="absolute top-4 right-4">
+                    <span className="text-xs px-2 py-1 bg-black/50 backdrop-blur-sm rounded-full text-white font-medium">
+                      {item.duration}
+                    </span>
+                  </div>
                   
                   {/* Play button */}
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Play className="w-6 h-6 text-white fill-white ml-1" />
+                    <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/20 transition-all">
+                      <Play className="w-8 h-8 text-white fill-white ml-1" />
                     </div>
                   </div>
                   
                   {/* Info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <h4 className="font-medium text-white mb-1">{item.title}</h4>
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <h4 className="text-xl font-semibold text-white mb-1">{item.title}</h4>
+                    <p className="text-sm text-white/70 mb-2">{item.desc}</p>
                     <div className="flex items-center gap-3 text-sm text-white/70">
                       <span>{item.model}</span>
                       <span>•</span>
