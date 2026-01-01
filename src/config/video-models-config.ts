@@ -31,57 +31,52 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
   "veo3": {
     name: "Veo 3.1",
     settings: {
-      duration: {
-        label: "Длительность (с)",
-        type: "select",
-        options: [
-          { value: 5, label: "5с" },
-          { value: 6, label: "6с" },
-          { value: 8, label: "8с" },
-          { value: 10, label: "10с" },
-          { value: 15, label: "15с" },
-          { value: 20, label: "20с" }
-        ],
-        default: 10,
-        description: "Длительность видео в секундах",
-        required: true,
-        order: 1
-      },
-      aspectRatio: {
-        label: "Соотношение сторон",
+      model: {
+        label: "Модель",
         type: "buttons",
         options: [
-          { value: "auto", label: "Auto" },
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" },
-          { value: "1:1", label: "1:1" },
-          { value: "4:3", label: "4:3" }
+          { value: "fast", label: "Veo 3.1 Fast" },
+          { value: "quality", label: "Veo 3.1 Quality" }
         ],
-        default: "auto",
-        description: "Auto автоматически подбирает соотношение сторон",
-        optional: true,
-        order: 2
+        default: "fast",
+        description: "Fast - быстрая генерация, Quality - высокое качество (дольше)",
+        required: true,
+        order: 1
       },
       generationType: {
         label: "Тип генерации",
         type: "buttons",
         options: [
-          { value: "simple", label: "Simple" },
-          { value: "cinematic", label: "Cinematic" }
+          { value: "text-to-video", label: "Text to Video" },
+          { value: "image-to-video", label: "Image to Video" },
+          { value: "reference-to-video", label: "Reference to Video" }
         ],
-        default: "simple",
-        description: "Simple - обычная генерация, Cinematic - кинематографическое качество",
+        default: "text-to-video",
+        description: "Выберите источник для создания видео",
+        required: true,
+        order: 2
+      },
+      ratio: {
+        label: "Соотношение сторон",
+        type: "buttons",
+        options: [
+          { value: "auto", label: "Auto" },
+          { value: "16:9", label: "16:9" },
+          { value: "9:16", label: "9:16" }
+        ],
+        default: "auto",
+        description: "Auto автоматически выбирает оптимальное соотношение",
         optional: true,
         order: 3
       },
       seed: {
         label: "Seed",
         type: "number",
-        placeholder: "Для воспроизводимых результатов",
-        min: 1,
-        max: 999999999,
+        placeholder: "10000-99999",
+        min: 10000,
+        max: 99999,
         optional: true,
-        description: "Число для получения одинаковых результатов при одном промпте",
+        description: "Для воспроизводимости результатов",
         order: 4
       }
     }
