@@ -50,6 +50,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.aiquickdraw.com",
       },
+      // Unsplash for landing page examples
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
 
