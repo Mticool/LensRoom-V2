@@ -8,13 +8,14 @@ import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import { 
   Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
-  Brain, Star, ChevronDown, Paperclip, Play, Download,
-  RotateCcw, Settings2, Layers, Clock, Check
+  Brain, Star, Paperclip, Play, Download, Copy, ThumbsUp,
+  RotateCcw, Settings2, User, Bot
 } from 'lucide-react';
 import { DynamicSettings, getDefaultSettings, getDefaultVideoSettings } from '@/components/generator/DynamicSettings';
-import { calculateDynamicPrice, getVideoModelWithPricing } from '@/config/kie-api-settings';
+import { calculateDynamicPrice } from '@/config/kie-api-settings';
 
 // ===== MODELS CONFIG =====
 const MODELS_CONFIG = {
@@ -55,14 +56,15 @@ const MODELS_CONFIG = {
 
 type SectionType = 'image' | 'video' | 'audio';
 
-interface GenerationResult {
+interface ChatMessage {
   id: number;
-  type: SectionType;
+  role: 'user' | 'assistant';
   content: string;
-  prompt: string;
-  model: string;
   timestamp: Date;
+  type?: SectionType;
+  model?: string;
   url?: string;
+  isGenerating?: boolean;
 }
 
 function GeneratorPageContent() {
@@ -72,18 +74,17 @@ function GeneratorPageContent() {
   
   const [activeSection, setActiveSection] = useState<SectionType>(sectionFromUrl);
   const [currentModel, setCurrentModel] = useState(modelFromUrl || MODELS_CONFIG[sectionFromUrl].models[0]?.id || 'nano-banana');
-  const [showModelModal, setShowModelModal] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
-  const [results, setResults] = useState<GenerationResult[]>([]);
-  const [currentResult, setCurrentResult] = useState<GenerationResult | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [loginOpen, setLoginOpen] = useState(false);
   const [isSettingsValid, setIsSettingsValid] = useState(true);
+  const [showSettings, setShowSettings] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const telegramAuth = useTelegramAuth();
   const supabaseAuth = useAuth();
   const { balance, fetchBalance } = useCreditsStore();
@@ -112,25 +113,30 @@ function GeneratorPageContent() {
     }
   }, [searchParams]);
 
-  // Load history from localStorage
+  // Load chat history from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('lensroom_generation_history');
+    const saved = localStorage.getItem('lensroom_chat_history');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setResults(parsed.map((r: any) => ({ ...r, timestamp: new Date(r.timestamp) })));
+        setMessages(parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
       } catch (e) {
         console.error('Failed to load history:', e);
       }
     }
   }, []);
 
-  // Save history to localStorage
+  // Save chat history to localStorage
   useEffect(() => {
-    if (results.length > 0) {
-      localStorage.setItem('lensroom_generation_history', JSON.stringify(results));
+    if (messages.length > 0) {
+      localStorage.setItem('lensroom_chat_history', JSON.stringify(messages));
     }
-  }, [results]);
+  }, [messages]);
+
+  // Scroll to bottom on new message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const sectionConfig = MODELS_CONFIG[activeSection];
   const modelInfo = sectionConfig?.models.find(m => m.id === currentModel);
@@ -173,13 +179,29 @@ function GeneratorPageContent() {
       return;
     }
 
-    setIsGenerating(true);
-    setGenerationProgress(0);
+    // Add user message
+    const userMessage: ChatMessage = {
+      id: Date.now(),
+      role: 'user',
+      content: prompt,
+      timestamp: new Date(),
+    };
+    
+    // Add generating placeholder
+    const assistantMessage: ChatMessage = {
+      id: Date.now() + 1,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      type: activeSection,
+      model: modelInfo?.name,
+      isGenerating: true,
+    };
 
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      setGenerationProgress(prev => Math.min(prev + Math.random() * 15, 95));
-    }, 500);
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    setIsGenerating(true);
+    setPrompt('');
+    setUploadedFiles([]);
 
     try {
       const endpoint = activeSection === 'image' ? '/api/generate/photo' : '/api/generate/video';
@@ -188,10 +210,9 @@ function GeneratorPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt,
+          prompt: userMessage.content,
           model: currentModel,
           settings,
-          ...(uploadedFiles.length > 0 && { files: uploadedFiles.map(f => f.name) })
         }),
       });
 
@@ -199,221 +220,266 @@ function GeneratorPageContent() {
 
       const data = await response.json();
       
-      setGenerationProgress(100);
-      
-      const newResult: GenerationResult = {
-        id: Date.now(),
-        type: activeSection,
-        content: data.result || 'Генерация завершена',
-        prompt,
-        model: modelInfo?.name || currentModel,
-        timestamp: new Date(),
-        url: data.url,
-      };
+      // Update assistant message with result
+      setMessages(prev => prev.map(m => 
+        m.id === assistantMessage.id 
+          ? { 
+              ...m, 
+              content: data.result || 'Генерация завершена',
+              url: data.url,
+              isGenerating: false 
+            }
+          : m
+      ));
 
-      setResults(prev => [newResult, ...prev]);
-      setCurrentResult(newResult);
       fetchBalance();
-      setPrompt('');
-      setUploadedFiles([]);
 
     } catch (error) {
       console.error('Generation error:', error);
-      alert('Ошибка генерации');
+      // Update with error
+      setMessages(prev => prev.map(m => 
+        m.id === assistantMessage.id 
+          ? { ...m, content: 'Ошибка генерации. Попробуйте снова.', isGenerating: false }
+          : m
+      ));
     } finally {
-      clearInterval(progressInterval);
       setIsGenerating(false);
-      setGenerationProgress(0);
     }
-  }, [prompt, user, balance, currentCost, activeSection, currentModel, settings, uploadedFiles, modelInfo, fetchBalance]);
+  }, [prompt, user, balance, currentCost, activeSection, currentModel, settings, modelInfo, fetchBalance]);
 
   const handleSettingChange = useCallback((key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    localStorage.removeItem('lensroom_chat_history');
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[var(--bg)] pt-14">
+    <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col">
       {/* Top Section Tabs */}
       <div className="border-b border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl sticky top-14 z-30">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-1 py-2">
-            {(['image', 'video', 'audio'] as const).map((section) => {
-              const config = MODELS_CONFIG[section];
-              const Icon = config.icon;
-              return (
-                <button
-                  key={section}
-                  onClick={() => {
-                    setActiveSection(section);
-                    setCurrentModel(config.models[0]?.id);
-                  }}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                    activeSection === section
-                      ? "bg-white/10 text-white"
-                      : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
-                  )}
-                >
-                  <Icon className="w-4 h-4" />
-                  {config.section}
-                </button>
-              );
-            })}
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-1">
+              {(['image', 'video', 'audio'] as const).map((section) => {
+                const config = MODELS_CONFIG[section];
+                const Icon = config.icon;
+                return (
+                  <button
+                    key={section}
+                    onClick={() => {
+                      setActiveSection(section);
+                      setCurrentModel(config.models[0]?.id);
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                      activeSection === section
+                        ? "bg-white/10 text-white"
+                        : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {config.section}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Model Selector */}
+            <div className="flex items-center gap-3">
+              <select
+                value={currentModel}
+                onChange={(e) => setCurrentModel(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-[var(--text)] outline-none focus:border-purple-500/50"
+              >
+                {sectionConfig.models.map((model) => (
+                  <option key={model.id} value={model.id} className="bg-[#1a1a1a]">
+                    {model.name} • {model.cost}⭐
+                  </option>
+                ))}
+              </select>
+              
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={cn(
+                  "p-2 rounded-lg transition",
+                  showSettings ? "bg-purple-500/20 text-purple-400" : "bg-white/5 text-gray-400 hover:text-white"
+                )}
+              >
+                <Settings2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* LEFT - Models */}
-          <div className="lg:col-span-2 space-y-2">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider px-1 mb-3">Модели</h3>
-            {sectionConfig.models.map((model) => (
-              <button
-                key={model.id}
-                onClick={() => setCurrentModel(model.id)}
-                className={cn(
-                  "w-full p-3 rounded-xl text-left transition-all group",
-                  currentModel === model.id
-                    ? "bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30"
-                    : "bg-white/5 border border-transparent hover:border-white/10 hover:bg-white/10"
-                )}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-sm text-[var(--text)]">{model.name}</span>
-                  {model.badge && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gray-400">
-                      {model.badge}
-                    </span>
-                  )}
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-4 py-6">
+              {messages.length === 0 ? (
+                /* Welcome State */
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mb-6">
+                    <Sparkles className="w-10 h-10 text-purple-400" />
+                  </div>
+                  <h1 className="text-3xl font-bold mb-3 text-[var(--text)]">
+                    Привет! Я {modelInfo?.name}
+                  </h1>
+                  <p className="text-gray-500 mb-8 max-w-md">
+                    Опишите что хотите создать, и я сгенерирую для вас {activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}
+                  </p>
+                  
+                  {/* Quick prompts */}
+                  <div className="flex flex-wrap gap-2 justify-center max-w-lg">
+                    {[
+                      activeSection === 'image' ? 'Портрет девушки в студии' : 'Закат на пляже',
+                      activeSection === 'image' ? 'Футуристичный город' : 'Кинематографичный полёт',
+                      activeSection === 'image' ? 'Минималистичный интерьер' : 'Таймлапс природы',
+                    ].map((suggestion, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPrompt(suggestion)}
+                        className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/20 transition"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{model.description}</span>
-                  <span className="text-xs text-cyan-400">{model.cost}⭐</span>
+              ) : (
+                /* Chat Messages */
+                <div className="space-y-6">
+                  {messages.map((message) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={cn(
+                        "flex gap-4",
+                        message.role === 'user' ? "flex-row-reverse" : ""
+                      )}
+                    >
+                      {/* Avatar */}
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center",
+                        message.role === 'user' 
+                          ? "bg-purple-500" 
+                          : "bg-gradient-to-br from-cyan-500 to-purple-500"
+                      )}>
+                        {message.role === 'user' ? (
+                          <User className="w-4 h-4 text-white" />
+                        ) : (
+                          <Sparkles className="w-4 h-4 text-white" />
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className={cn(
+                        "flex-1 max-w-[80%]",
+                        message.role === 'user' ? "text-right" : ""
+                      )}>
+                        {message.role === 'user' ? (
+                          <div className="inline-block px-4 py-3 rounded-2xl rounded-tr-sm bg-purple-500/20 text-[var(--text)]">
+                            {message.content}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {message.isGenerating ? (
+                              /* Generating */
+                              <div className="flex items-center gap-3 px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5">
+                                <div className="flex gap-1">
+                                  <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                  <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                </div>
+                                <span className="text-sm text-gray-400">
+                                  Генерирую с {message.model}...
+                                </span>
+                              </div>
+                            ) : (
+                              <>
+                                {/* Result Media */}
+                                {message.url && (
+                                  <div className="rounded-2xl rounded-tl-sm overflow-hidden bg-white/5 border border-white/10">
+                                    {message.type === 'video' ? (
+                                      <video 
+                                        src={message.url} 
+                                        controls 
+                                        className="w-full max-h-[400px] object-contain"
+                                      />
+                                    ) : (
+                                      <img 
+                                        src={message.url} 
+                                        alt=""
+                                        className="w-full max-h-[400px] object-contain"
+                                      />
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Text content */}
+                                {message.content && !message.url && (
+                                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5 text-[var(--text)]">
+                                    {message.content}
+                                  </div>
+                                )}
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-2 ml-1">
+                                  {message.url && (
+                                    <a
+                                      href={message.url}
+                                      download
+                                      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                      title="Скачать"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </a>
+                                  )}
+                                  <button 
+                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                    title="Копировать"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                    title="Нравится"
+                                  >
+                                    <ThumbsUp className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition"
+                                    title="Повторить"
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
+                                  </button>
+                                  <span className="text-xs text-gray-600 ml-2">
+                                    {message.model}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                  <div ref={chatEndRef} />
                 </div>
-              </button>
-            ))}
+              )}
+            </div>
           </div>
 
-          {/* CENTER - Canvas */}
-          <div className="lg:col-span-7">
-            {/* Canvas Area */}
-            <div className="relative aspect-[4/3] rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 overflow-hidden mb-4">
-              
-              <AnimatePresence mode="wait">
-                {isGenerating ? (
-                  /* Generating State */
-                  <motion.div
-                    key="generating"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 flex flex-col items-center justify-center"
-                  >
-                    <div className="relative w-24 h-24 mb-6">
-                      <div className="absolute inset-0 rounded-full border-4 border-white/10"></div>
-                      <motion.div 
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                        className="absolute inset-0 rounded-full border-4 border-t-purple-500 border-r-cyan-500 border-b-transparent border-l-transparent"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Sparkles className="w-10 h-10 text-purple-400" />
-                      </div>
-                    </div>
-                    
-                    <h3 className="text-xl font-semibold mb-2 text-[var(--text)]">Генерация...</h3>
-                    <p className="text-sm text-gray-500 mb-6">{modelInfo?.name}</p>
-                    
-                    <div className="w-64 bg-white/10 rounded-full h-1.5 overflow-hidden">
-                      <motion.div 
-                        className="h-full bg-gradient-to-r from-purple-500 to-cyan-500"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${generationProgress}%` }}
-                      />
-                    </div>
-                  </motion.div>
-                ) : currentResult ? (
-                  /* Result State */
-                  <motion.div
-                    key="result"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 flex flex-col items-center justify-center p-8"
-                  >
-                    {currentResult.url ? (
-                      currentResult.type === 'video' ? (
-                        <video 
-                          src={currentResult.url} 
-                          controls 
-                          className="max-w-full max-h-full rounded-xl shadow-2xl"
-                        />
-                      ) : (
-                        <img 
-                          src={currentResult.url} 
-                          alt={currentResult.prompt}
-                          className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
-                        />
-                      )
-                    ) : (
-                      <div className="text-center">
-                        <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                          <Check className="w-8 h-8 text-green-400" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2 text-[var(--text)]">Готово!</h3>
-                        <p className="text-sm text-gray-400 max-w-md">{currentResult.content}</p>
-                      </div>
-                    )}
-                    
-                    {/* Actions */}
-                    <div className="absolute bottom-4 right-4 flex gap-2">
-                      {currentResult.url && (
-                        <a 
-                          href={currentResult.url} 
-                          download 
-                          className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition"
-                        >
-                          <Download className="w-5 h-5" />
-                        </a>
-                      )}
-                      <button 
-                        onClick={() => setCurrentResult(null)}
-                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition"
-                      >
-                        <RotateCcw className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  /* Empty State */
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 flex flex-col items-center justify-center"
-                  >
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mb-6">
-                      {activeSection === 'image' ? (
-                        <ImageIcon className="w-10 h-10 text-purple-400" />
-                      ) : activeSection === 'video' ? (
-                        <Video className="w-10 h-10 text-cyan-400" />
-                      ) : (
-                        <Mic className="w-10 h-10 text-pink-400" />
-                      )}
-                    </div>
-                    <h2 className="text-2xl font-bold mb-2 text-[var(--text)]">{modelInfo?.name}</h2>
-                    <p className="text-sm text-gray-500 mb-6">{modelInfo?.description}</p>
-                    <p className="text-xs text-gray-600">Введите промпт для начала</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Prompt Bar */}
-            <div className="relative">
+          {/* Prompt Bar - Fixed at bottom */}
+          <div className="border-t border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl p-4">
+            <div className="max-w-3xl mx-auto">
               {/* File Previews */}
               <AnimatePresence>
                 {uploadedFiles.length > 0 && (
@@ -421,22 +487,22 @@ function GeneratorPageContent() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex gap-2 mb-3 overflow-hidden"
+                    className="flex gap-2 mb-3"
                   >
                     {uploadedFiles.map((file, i) => (
                       <div key={i} className="relative group">
-                        <div className="w-16 h-16 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                        <div className="w-14 h-14 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
                           {file.type.startsWith('image/') ? (
                             <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-[10px] text-gray-500 text-center px-1">{file.name.slice(0, 10)}</span>
+                            <span className="text-[9px] text-gray-500 text-center px-1">{file.name.slice(0, 8)}</span>
                           )}
                         </div>
                         <button
                           onClick={() => removeFile(i)}
-                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-xs"
                         >
-                          <X className="w-3 h-3" />
+                          ×
                         </button>
                       </div>
                     ))}
@@ -445,7 +511,7 @@ function GeneratorPageContent() {
               </AnimatePresence>
 
               {/* Input */}
-              <div className="flex items-center gap-2 p-2 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 transition-all">
+              <div className="flex items-end gap-2 p-2 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 transition-all">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -457,22 +523,31 @@ function GeneratorPageContent() {
                 
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 rounded-lg hover:bg-white/10 transition text-gray-400 hover:text-white"
+                  className="p-2 rounded-lg hover:bg-white/10 transition text-gray-400 hover:text-white flex-shrink-0"
                 >
                   <Paperclip className="w-5 h-5" />
                 </button>
                 
-                <input
-                  type="text"
+                <textarea
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                  onChange={(e) => {
+                    setPrompt(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleGenerate();
+                    }
+                  }}
                   placeholder={`Опишите ${activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}...`}
-                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-600"
+                  rows={1}
+                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-600 resize-none max-h-[150px] py-2"
                 />
                 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{currentCost}⭐</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-gray-500 hidden sm:block">{currentCost}⭐</span>
                   
                   <button
                     onClick={handleGenerate}
@@ -488,91 +563,77 @@ function GeneratorPageContent() {
                   </button>
                 </div>
               </div>
-            </div>
-
-            {/* Recent Results */}
-            {results.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Недавние</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {results.slice(0, 4).map((result) => (
-                    <button
-                      key={result.id}
-                      onClick={() => setCurrentResult(result)}
-                      className={cn(
-                        "aspect-square rounded-lg overflow-hidden border transition-all hover:scale-105",
-                        currentResult?.id === result.id
-                          ? "border-purple-500 ring-2 ring-purple-500/20"
-                          : "border-white/10 hover:border-white/20"
-                      )}
-                    >
-                      {result.url ? (
-                        result.type === 'video' ? (
-                          <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                            <Play className="w-6 h-6 text-gray-400" />
-                          </div>
-                        ) : (
-                          <img src={result.url} alt="" className="w-full h-full object-cover" />
-                        )
-                      ) : (
-                        <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                          <Sparkles className="w-6 h-6 text-gray-400" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
+              
+              {/* Bottom info */}
+              <div className="flex items-center justify-between mt-2 px-2">
+                <span className="text-xs text-gray-600">
+                  {modelInfo?.name} • {currentCost}⭐ за генерацию
+                </span>
+                {messages.length > 0 && (
+                  <button 
+                    onClick={clearChat}
+                    className="text-xs text-gray-600 hover:text-red-400 transition"
+                  >
+                    Очистить чат
+                  </button>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* RIGHT - Settings */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-32 space-y-4">
-              {/* Model Info Card */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-white/10">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                    {modelInfo?.icon && <modelInfo.icon className="w-5 h-5 text-purple-400" />}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-[var(--text)]">{modelInfo?.name}</h3>
-                    <p className="text-xs text-gray-500">{modelInfo?.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                  <span className="text-sm text-gray-400">Стоимость</span>
-                  <span className="text-lg font-bold text-cyan-400">{currentCost}⭐</span>
-                </div>
-              </div>
-
-              {/* Dynamic Settings */}
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <h3 className="text-sm font-medium text-gray-400 mb-4 flex items-center gap-2">
-                  <Settings2 className="w-4 h-4" />
-                  Настройки
-                </h3>
-                <DynamicSettings
-                  modelId={currentModel}
-                  type={activeSection === 'audio' ? 'image' : activeSection}
-                  values={settings}
-                  onChange={handleSettingChange}
-                  onValidationChange={setIsSettingsValid}
-                />
-              </div>
-
-              {/* Balance */}
-              {user && (
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Баланс</span>
-                    <span className="text-lg font-bold text-[var(--text)]">{balance}⭐</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
+
+        {/* Settings Sidebar */}
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="border-l border-white/5 bg-[var(--bg)] overflow-hidden flex-shrink-0"
+            >
+              <div className="w-[320px] h-full overflow-y-auto p-4 space-y-4">
+                {/* Model Info */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-white/10">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                      {modelInfo?.icon && <modelInfo.icon className="w-5 h-5 text-purple-400" />}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[var(--text)]">{modelInfo?.name}</h3>
+                      <p className="text-xs text-gray-500">{modelInfo?.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                    <span className="text-sm text-gray-400">Стоимость</span>
+                    <span className="text-lg font-bold text-cyan-400">{currentCost}⭐</span>
+                  </div>
+                </div>
+
+                {/* Settings */}
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <h3 className="text-sm font-medium text-gray-400 mb-4">Настройки</h3>
+                  <DynamicSettings
+                    modelId={currentModel}
+                    type={activeSection === 'audio' ? 'image' : activeSection}
+                    values={settings}
+                    onChange={handleSettingChange}
+                    onValidationChange={setIsSettingsValid}
+                  />
+                </div>
+
+                {/* Balance */}
+                {user && (
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Баланс</span>
+                      <span className="text-lg font-bold text-[var(--text)]">{balance}⭐</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
