@@ -62,7 +62,6 @@ export function Header() {
     'Пользователь';
 
   const navigation = [
-    { name: 'Текст', href: '/generator?section=text' },
     { name: 'Дизайн', href: '/generator?section=image' },
     { name: 'Видео', href: '/generator?section=video' },
     { name: 'Аудио', href: '/generator?section=audio' },
