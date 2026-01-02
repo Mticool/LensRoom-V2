@@ -139,6 +139,24 @@ export type ModelConfig = PhotoModelConfig | VideoModelConfig;
 // All photo models use kie_market provider: POST /api/v1/jobs/createTask
 
 export const PHOTO_MODELS: PhotoModelConfig[] = [
+  // === GROK IMAGINE - xAI === (Text-to-Image with Spicy Mode)
+  {
+    id: 'grok-imagine',
+    name: 'Grok Imagine',
+    apiId: 'grok-imagine/text-to-image',
+    type: 'photo',
+    provider: 'kie_market',
+    shortDescription: 'xAI: креативные изображения с Spicy Mode 🌶️',
+    description: 'Grok Imagine от xAI — мультимодальная модель с тремя режимами: Normal, Fun и Spicy. Spicy Mode создаёт более выразительные и креативные результаты.',
+    rank: 1,
+    featured: true,
+    speed: 'fast',
+    quality: 'high',
+    supportsI2i: false,
+    pricing: 15, // Примерная цена
+    aspectRatios: ['1:1', '3:2', '2:3'],
+    shortLabel: 'xAI 🌶️',
+  },
   // === MIDJOURNEY - KIE Market API === (ВРЕМЕННО СКРЫТО - требует активации в KIE)
   // Раскомментировать когда модель будет доступна в аккаунте KIE
   /*
@@ -255,28 +273,6 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
     shortLabel: '1K/2K',
   },
-  {
-    id: 'flux-2-flex',
-    name: 'FLUX.2 Flex',
-    apiId: 'flux-2/flex-text-to-image',
-    type: 'photo',
-    provider: 'kie_market',
-    shortDescription: 'FLUX.2 Flex — гибкая стилизация/контроль.',
-    description: 'FLUX.2 Flex — гибкая стилизация/контроль. Выбор 1K/2K.',
-    rank: 15,
-    featured: false,
-    speed: 'medium',
-    quality: 'ultra',
-    supportsI2i: true,
-    pricing: {
-      // NEW PRICING: 1k (14 credits) = 24⭐, 2k (24 credits) = 41⭐
-      '1k': 24,
-      '2k': 41,
-    },
-    qualityOptions: ['1k', '2k'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: '1K/2K',
-  },
   // Z-image: model id is "z-image" (per docs)
   {
     id: 'z-image',
@@ -378,29 +374,30 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   // Snapshot: gpt-image-1 (or gpt-image-1.5-2025-12-16)
   // Sizes: 1024x1024 (1:1), 1024x1536 (9:16), 1536x1024 (16:9)
   // Quality: medium, high
-  // Pricing (USD): medium 1024=$0.034, 1536=$0.05 | high 1024=$0.133, 1536=$0.2
+  // GPT Image 1.5 - OpenAI (via KIE.ai)
+  // Документация: https://kie.ai/gpt-image-1.5
+  // Pricing: medium = быстро, high = детали. До 16 изображений для редактирования.
   {
     id: 'gpt-image',
-    name: 'GPT Image',
-    apiId: 'gpt-image-1',
+    name: 'GPT Image 1.5',
+    apiId: 'gpt-image/1.5-text-to-image',
     type: 'photo',
-    provider: 'openai',
-    shortDescription: 'OpenAI. Точное следование промпту, реалистичные детали.',
-    description: 'GPT Image от OpenAI — передовая модель генерации изображений. Отлично понимает сложные промпты, создаёт фотореалистичные и художественные изображения с высокой детализацией.',
+    provider: 'kie_market', // Теперь через KIE API
+    shortDescription: 'OpenAI 1.5: 4x быстрее, лучше текст, до 16 фото для редактирования.',
+    description: 'GPT Image 1.5 — улучшенная модель OpenAI. Генерация в 4x быстрее, точнее рендерит текст на изображениях, поддерживает редактирование до 16 фото одновременно.',
     rank: 3,
     featured: true,
     speed: 'fast',
     quality: 'ultra',
-    supportsI2i: true, // OpenAI supports image editing
+    supportsI2i: true, // До 16 изображений для редактирования
     pricing: {
-      // Quality options with base price (1024x1024)
-      // API: medium=17⭐, high=67⭐ (prices for 1024x1024, larger sizes same)
+      // medium = быстро и экономно, high = максимум деталей
       medium: 17,
       high: 67,
     },
     qualityOptions: ['medium', 'high'],
-    aspectRatios: ['1:1', '16:9', '9:16'],
-    shortLabel: 'OpenAI',
+    aspectRatios: ['1:1', '3:2', '2:3'], // Новые пропорции из документации
+    shortLabel: 'OpenAI 1.5',
   },
 ];
 
@@ -410,6 +407,27 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
 // - Veo 3.1 API: POST /api/v1/veo/generate (separate endpoint)
 
 export const VIDEO_MODELS: VideoModelConfig[] = [
+  // === GROK VIDEO - xAI === (Text-to-Video + Image-to-Video with Spicy Mode)
+  {
+    id: 'grok-video',
+    name: 'Grok Video',
+    apiId: 'grok-imagine/text-to-video',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Grok Video от xAI — создаёт короткие видео с синхронизированным звуком. Поддерживает Text-to-Video и Image-to-Video с тремя режимами: Normal, Fun, Spicy 🌶️',
+    rank: 1,
+    featured: true,
+    speed: 'fast',
+    quality: 'high',
+    supportsI2v: true,
+    supportsAudio: true,
+    supportsStartEnd: false,
+    pricing: 25, // Примерная цена
+    modes: ['t2v', 'i2v'],
+    durationOptions: [5],
+    aspectRatios: ['1:1', '3:2', '2:3'],
+    shortLabel: 'xAI 🌶️',
+  },
   // === VEO 3.1 - single model with quality toggle ===
   {
     id: 'veo-3.1',
@@ -792,8 +810,9 @@ export function getModelById(id: string): ModelConfig | undefined {
   if (id === 'flux-2-pro-2k') {
     id = 'flux-2-pro';
   }
-  if (id === 'flux-2-flex-1k' || id === 'flux-2-flex-2k') {
-    id = 'flux-2-flex';
+  // flux-2-flex удалён, перенаправляем на flux-2-pro
+  if (id === 'flux-2-flex' || id === 'flux-2-flex-1k' || id === 'flux-2-flex-2k') {
+    id = 'flux-2-pro';
   }
   if (id === 'topaz-image-upscale-2k' || id === 'topaz-image-upscale-4k' || id === 'topaz-image-upscale-8k') {
     id = 'topaz-image-upscale';

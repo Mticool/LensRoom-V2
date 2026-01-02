@@ -20,9 +20,8 @@ const MODELS = {
   design: [
     { id: 'nano-banana', name: 'Nano Banana', cost: 7 },
     { id: 'nano-banana-pro', name: 'Nano Banana Pro', cost: 35 },
-    { id: 'gpt-image', name: 'GPT Image', cost: 42 },
+    { id: 'gpt-image', name: 'GPT Image 1.5', cost: 42 },
     { id: 'flux-2-pro', name: 'FLUX.2 Pro', cost: 10 },
-    { id: 'flux-2-flex', name: 'FLUX.2 Flex', cost: 32 },
     { id: 'seedream-4.5', name: 'Seedream 4.5', cost: 11 },
     { id: 'z-image', name: 'Z-image', cost: 2 },
     { id: 'midjourney', name: 'Midjourney V7', cost: 50 },

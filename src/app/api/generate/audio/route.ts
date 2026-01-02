@@ -274,21 +274,25 @@ export async function POST(request: NextRequest) {
       model: suno_model,
     });
 
-    // Call KIE API
-    const response = await kieClient.createTask(apiEndpoint, apiPayload);
+    // Call KIE API - build proper request structure
+    const response = await kieClient.createTask({
+      model: apiEndpoint,
+      input: apiPayload,
+    });
 
     // Update generation with task ID
+    const taskId = response.data?.taskId;
     if (generation?.id) {
       await supabase
         .from('generations')
-        .update({ task_id: response.id || response.taskId, status: 'generating' })
+        .update({ task_id: taskId, status: 'generating' })
         .eq('id', generation.id);
     }
 
     return NextResponse.json({
       success: true,
-      jobId: response.id || response.taskId,
-      status: response.status || 'queued',
+      jobId: taskId,
+      status: 'queued',
       estimatedTime: 60, // Suno обычно ~30-60 секунд
       creditCost: creditCost,
       generationId: generation?.id,

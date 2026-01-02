@@ -178,8 +178,10 @@ export function getStudioModelByKey(key: string): StudioModel | undefined {
   // Backward-compatible aliases for consolidated models
   const aliasMap: Record<string, string> = {
     "flux-2-pro-2k": "flux-2-pro",
-    "flux-2-flex-1k": "flux-2-flex",
-    "flux-2-flex-2k": "flux-2-flex",
+    // flux-2-flex удалён, перенаправляем на flux-2-pro
+    "flux-2-flex": "flux-2-pro",
+    "flux-2-flex-1k": "flux-2-pro",
+    "flux-2-flex-2k": "flux-2-pro",
     "topaz-image-upscale-2k": "topaz-image-upscale",
     "topaz-image-upscale-4k": "topaz-image-upscale",
     "topaz-image-upscale-8k": "topaz-image-upscale",

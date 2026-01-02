@@ -24,3 +24,4 @@ export function GenerationMetadata({ generation }: GenerationMetadataProps) {
   );
 }
 
+

@@ -214,3 +214,4 @@ opacity-0 group-hover:opacity-100 transition-opacity
 **Итог:** BatchImageUploader интегрирован в два места для максимального UX! 🚀
 
 
+

@@ -418,3 +418,4 @@ WHERE batch_id = 'batch_123';
 - `/src/components/generator-v2/GeneratorV2.tsx` - client logic
 
 
+

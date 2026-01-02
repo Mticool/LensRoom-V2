@@ -88,11 +88,23 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Nano Banana Pro
+  // Nano Banana Pro - поддерживает Text-to-Image и Image-to-Image
   "nano-banana-pro": {
     name: "Nano Banana Pro",
     apiModel: "nano-banana-pro",
     settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "t2i", label: "📝 Текст → Фото" },
+          { value: "i2i", label: "🖼️ Фото → Фото" }
+        ],
+        default: "t2i",
+        description: "t2i = создать с нуля, i2i = изменить загруженное фото",
+        required: true,
+        order: 1
+      },
       quality: {
         label: "Качество",
         type: "buttons",
@@ -104,7 +116,7 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "2K",
         description: "Разрешение изображения",
         required: true,
-        order: 1
+        order: 2
       },
       aspect_ratio: {
         label: "Соотношение сторон",
@@ -120,16 +132,28 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "9:16",
         description: "Пропорции изображения",
         required: true,
-        order: 2
+        order: 3
       }
     }
   },
 
-  // FLUX.2 Pro - требует resolution + aspect_ratio
+  // FLUX.2 Pro - поддерживает t2i и i2i
   "flux-2-pro": {
     name: "FLUX.2 Pro",
     apiModel: "flux-2/pro-text-to-image",
     settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "t2i", label: "📝 Текст → Фото" },
+          { value: "i2i", label: "🖼️ Фото → Фото" }
+        ],
+        default: "t2i",
+        description: "t2i = создать с нуля, i2i = редактировать фото",
+        required: true,
+        order: 1
+      },
       resolution: {
         label: "Разрешение",
         type: "buttons",
@@ -140,7 +164,7 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "2K",
         description: "Качество выходного изображения",
         required: true,
-        order: 1
+        order: 2
       },
       aspect_ratio: {
         label: "Соотношение сторон",
@@ -157,51 +181,28 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "16:9",
         description: "Пропорции изображения",
         required: true,
-        order: 2
+        order: 3
       }
     }
   },
 
-  // FLUX.2 Flex
-  "flux-2-flex": {
-    name: "FLUX.2 Flex",
-    apiModel: "flux-2/flex-text-to-image",
-    settings: {
-      resolution: {
-        label: "Разрешение",
-        type: "buttons",
-        options: [
-          { value: "1K", label: "1K" },
-          { value: "2K", label: "2K" }
-        ],
-        default: "2K",
-        description: "Качество выходного изображения",
-        required: true,
-        order: 1
-      },
-      aspect_ratio: {
-        label: "Соотношение сторон",
-        type: "buttons",
-        options: [
-          { value: "1:1", label: "1:1" },
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" },
-          { value: "4:3", label: "4:3" },
-          { value: "3:4", label: "3:4" }
-        ],
-        default: "9:16",
-        description: "Пропорции изображения",
-        required: true,
-        order: 2
-      }
-    }
-  },
-
-  // Seedream 4.5 - требует quality (basic/high) + aspect_ratio
+  // Seedream 4.5 - поддерживает t2i и i2i
   "seedream-4.5": {
     name: "Seedream 4.5",
     apiModel: "seedream/4.5-text-to-image",
     settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "t2i", label: "📝 Текст → Фото" },
+          { value: "i2i", label: "🖼️ Фото → Фото" }
+        ],
+        default: "t2i",
+        description: "t2i = создать с нуля, i2i = редактировать фото",
+        required: true,
+        order: 1
+      },
       quality: {
         label: "Качество",
         type: "buttons",
@@ -212,7 +213,7 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "basic",
         description: "basic = 2K, high = 4K качество",
         required: true,
-        order: 1
+        order: 2
       },
       aspect_ratio: {
         label: "Соотношение сторон",
@@ -227,28 +228,54 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "1:1",
         description: "Пропорции изображения",
         required: true,
-        order: 2
+        order: 3
       }
     }
   },
 
-  // GPT Image
+  // GPT Image - поддерживает генерацию и редактирование
+  // GPT Image 1.5 - OpenAI (Улучшенная версия)
+  // Документация: https://kie.ai/gpt-image-1.5
   "gpt-image": {
-    name: "GPT Image",
-    apiModel: "gpt-image-1",
+    name: "GPT Image 1.5",
+    apiModel: "gpt-image/1.5-text-to-image",
     settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "t2i", label: "📝 Текст → Фото" },
+          { value: "i2i", label: "✏️ Редактировать (до 16 фото)" }
+        ],
+        default: "t2i",
+        description: "I2I поддерживает до 16 изображений для редактирования",
+        required: true,
+        order: 1
+      },
+      quality: {
+        label: "Качество",
+        type: "buttons",
+        options: [
+          { value: "medium", label: "Medium (4x быстрее)" },
+          { value: "high", label: "High (детали)" }
+        ],
+        default: "medium",
+        description: "Medium = быстро и экономно, High = максимальная детализация",
+        required: true,
+        order: 2
+      },
       aspect_ratio: {
         label: "Соотношение сторон",
         type: "buttons",
         options: [
           { value: "1:1", label: "1:1" },
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" }
+          { value: "3:2", label: "3:2 (альбом)" },
+          { value: "2:3", label: "2:3 (портрет)" }
         ],
         default: "1:1",
         description: "Пропорции изображения",
         required: true,
-        order: 1
+        order: 3
       }
     }
   },
@@ -273,11 +300,36 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Midjourney
+  // Midjourney - поддерживает t2i и i2i (image prompt)
   "midjourney": {
     name: "Midjourney V7",
     apiModel: "midjourney",
     settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "t2i", label: "📝 Текст → Фото" },
+          { value: "i2i", label: "🖼️ Референс фото" }
+        ],
+        default: "t2i",
+        description: "t2i = по описанию, i2i = на основе загруженного фото",
+        required: true,
+        order: 1
+      },
+      version: {
+        label: "Версия",
+        type: "buttons",
+        options: [
+          { value: "7", label: "V7 (новая)" },
+          { value: "6.1", label: "V6.1" },
+          { value: "5.2", label: "V5.2" }
+        ],
+        default: "7",
+        description: "V7 - последняя версия с лучшим качеством",
+        required: true,
+        order: 2
+      },
       aspect_ratio: {
         label: "Соотношение сторон",
         type: "buttons",
@@ -286,12 +338,69 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
           { value: "16:9", label: "16:9" },
           { value: "9:16", label: "9:16" },
           { value: "4:3", label: "4:3" },
-          { value: "3:4", label: "3:4" }
+          { value: "3:4", label: "3:4" },
+          { value: "21:9", label: "21:9" }
+        ],
+        default: "1:1",
+        description: "Пропорции изображения",
+        required: true,
+        order: 3
+      },
+      stylization: {
+        label: "Стилизация",
+        type: "slider",
+        min: 0,
+        max: 1000,
+        step: 50,
+        default: 100,
+        description: "0 = реалистичнее, 1000 = артистичнее",
+        optional: true,
+        order: 4
+      },
+      weirdness: {
+        label: "Уникальность",
+        type: "slider",
+        min: 0,
+        max: 3000,
+        step: 100,
+        default: 0,
+        description: "Больше = более необычные результаты",
+        optional: true,
+        order: 5
+      }
+    }
+  },
+
+  // Grok Imagine - xAI (Text-to-Image + Upscale)
+  "grok-imagine": {
+    name: "Grok Imagine",
+    apiModel: "grok-imagine/text-to-image",
+    settings: {
+      aspect_ratio: {
+        label: "Соотношение сторон",
+        type: "buttons",
+        options: [
+          { value: "1:1", label: "1:1" },
+          { value: "3:2", label: "3:2 (альбом)" },
+          { value: "2:3", label: "2:3 (портрет)" }
         ],
         default: "1:1",
         description: "Пропорции изображения",
         required: true,
         order: 1
+      },
+      mode: {
+        label: "Режим 🌶️",
+        type: "buttons",
+        options: [
+          { value: "normal", label: "Normal" },
+          { value: "fun", label: "Fun" },
+          { value: "spicy", label: "🌶️ Spicy" }
+        ],
+        default: "normal",
+        description: "Spicy = более креативный и выразительный результат",
+        required: true,
+        order: 2
       }
     }
   }
@@ -766,6 +875,54 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
         order: 8
       }
     }
+  },
+
+  // Grok Video - xAI (Text-to-Video + Image-to-Video + Audio)
+  // Документация: https://kie.ai/grok-imagine
+  "grok-video": {
+    name: "Grok Video",
+    apiModel: "grok-imagine/text-to-video",
+    settings: {
+      generation_type: {
+        label: "Режим генерации",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "📝 Текст → Видео" },
+          { value: "image-to-video", label: "🖼️ Фото → Видео" }
+        ],
+        default: "text-to-video",
+        description: "I2V анимирует загруженное изображение",
+        required: true,
+        order: 1,
+        apiKey: "generationType"
+      },
+      aspect_ratio: {
+        label: "Соотношение сторон",
+        type: "buttons",
+        options: [
+          { value: "1:1", label: "1:1" },
+          { value: "3:2", label: "3:2 (альбом)" },
+          { value: "2:3", label: "2:3 (портрет)" }
+        ],
+        default: "3:2",
+        description: "Пропорции видео",
+        required: true,
+        order: 2
+      },
+      mode: {
+        label: "Режим 🌶️",
+        type: "buttons",
+        options: [
+          { value: "normal", label: "Normal" },
+          { value: "fun", label: "Fun" },
+          { value: "spicy", label: "🌶️ Spicy" }
+        ],
+        default: "normal",
+        description: "Spicy = более креативный результат (не для I2V с внешних URL)",
+        required: true,
+        order: 3
+      }
+    }
   }
 };
 
@@ -933,7 +1090,12 @@ export function getVeoApiModel(generationType: string, quality: string): string 
  * Проверить, требует ли режим загрузку изображения
  */
 export function requiresImageUpload(generationType: string): boolean {
-  return ['image-to-video', 'reference-to-video', 'start-end', 'start-only'].includes(generationType);
+  return [
+    // Видео режимы
+    'image-to-video', 'reference-to-video', 'start-end', 'start-only',
+    // Фото режимы
+    'i2i'
+  ].includes(generationType);
 }
 
 /**

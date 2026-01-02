@@ -6,141 +6,36 @@ import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
-import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import { 
-  Send, X, Zap, Sparkles, Image as ImageIcon, Video, Mic,
-  Brain, Star, Paperclip, Play, Download, Copy, ThumbsUp,
-  RotateCcw, Settings2, User, Bot
-} from 'lucide-react';
-import { DynamicSettings, getDefaultSettings, getDefaultVideoSettings, getDefaultAudioSettings } from '@/components/generator/DynamicSettings';
+import { AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { calculateDynamicPrice } from '@/config/kie-api-settings';
 
-// ===== MODELS CONFIG =====
-const MODELS_CONFIG = {
-  image: {
-    section: 'Дизайн',
-    icon: ImageIcon,
-    models: [
-      { id: 'nano-banana', name: 'Nano Banana', icon: Sparkles, cost: 7, badge: 'Fast', description: 'Быстрая генерация' },
-      { id: 'nano-banana-pro', name: 'Nano Banana Pro', icon: Star, cost: 35, badge: 'Premium', description: '4K качество' },
-      { id: 'gpt-image', name: 'GPT Image', icon: Brain, cost: 42, badge: 'OpenAI', description: 'Точные цвета' },
-      { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, cost: 10, badge: 'Popular', description: 'Детализация' },
-      { id: 'flux-2-flex', name: 'FLUX.2 Flex', icon: ImageIcon, cost: 32, description: 'Гибкий стиль' },
-      { id: 'seedream-4.5', name: 'Seedream 4.5', icon: Sparkles, cost: 11, badge: 'Новинка', description: '4K нового поколения' },
-      { id: 'z-image', name: 'Z-Image', icon: ImageIcon, cost: 2, badge: 'Быстрый', description: 'Самый дешёвый' },
-    ],
-  },
-  video: {
-    section: 'Видео',
-    icon: Video,
-    models: [
-      { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'Google', description: 'Со звуком' },
-      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Trending', description: '3 версии' },
-      { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: 'First→Last', dynamicPrice: true },
-      { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'OpenAI', description: 'Баланс' },
-      { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 650, badge: 'Premium', description: '1080p' },
-      { id: 'wan', name: 'WAN AI', icon: Video, cost: 217, badge: 'Новинка', description: 'До 15 сек' },
-    ],
-  },
-  audio: {
-    section: 'Аудио',
-    icon: Mic,
-    models: [
-      { id: 'suno', name: 'Suno AI', icon: Sparkles, cost: 12, badge: 'V5', description: '🎵 Создать • ⏩ Продлить • 🎤 Кавер' },
-    ],
-  },
-};
+// Local components
+import { 
+  ChatSidebar, 
+  ChatMessages, 
+  PromptInput, 
+  ModelBar, 
+  SettingsSidebar 
+} from './components';
+import { 
+  MODELS_CONFIG, 
+  SectionType, 
+  ChatMessage, 
+  ChatSession 
+} from './config';
 
-type SectionType = 'image' | 'video' | 'audio';
+// ===== HOOKS =====
 
-interface ChatMessage {
-  id: number;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  type?: SectionType;
-  model?: string;
-  url?: string;
-  isGenerating?: boolean;
-}
-
-function GeneratorPageContent() {
-  const searchParams = useSearchParams();
-  const sectionFromUrl = (searchParams.get('section') || 'image') as SectionType;
-  const modelFromUrl = searchParams.get('model');
-  
-  const [activeSection, setActiveSection] = useState<SectionType>(sectionFromUrl);
-  const [currentModel, setCurrentModel] = useState(modelFromUrl || MODELS_CONFIG[sectionFromUrl].models[0]?.id || 'nano-banana');
-  const [prompt, setPrompt] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+function useGeneratorState(initialSection: SectionType, initialModel: string | null) {
+  const [activeSection, setActiveSection] = useState<SectionType>(initialSection);
+  const [currentModel, setCurrentModel] = useState(initialModel || MODELS_CONFIG[initialSection].models[0]?.id || 'nano-banana');
   const [settings, setSettings] = useState<Record<string, any>>({});
-  const [loginOpen, setLoginOpen] = useState(false);
   const [isSettingsValid, setIsSettingsValid] = useState(true);
-  const [showSettings, setShowSettings] = useState(true);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const telegramAuth = useTelegramAuth();
-  const supabaseAuth = useAuth();
-  const { balance, fetchBalance } = useCreditsStore();
-
-  const telegramUser = telegramAuth.user;
-  const supabaseUser = supabaseAuth.user;
-  const user = telegramUser || supabaseUser;
-
-  // Update section and model from URL
-  useEffect(() => {
-    const section = searchParams.get('section') as SectionType;
-    const model = searchParams.get('model');
-    
-    if (section && ['image', 'video', 'audio'].includes(section)) {
-      setActiveSection(section);
-      if (model) {
-        const modelExists = MODELS_CONFIG[section]?.models.find(m => m.id === model);
-        if (modelExists) {
-          setCurrentModel(model);
-        } else {
-          setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
-        }
-      } else {
-        setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
-      }
-    }
-  }, [searchParams]);
-
-  // Load chat history from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('lensroom_chat_history');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setMessages(parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
-      } catch (e) {
-        console.error('Failed to load history:', e);
-      }
-    }
-  }, []);
-
-  // Save chat history to localStorage
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('lensroom_chat_history', JSON.stringify(messages));
-    }
-  }, [messages]);
-
-  // Scroll to bottom on new message
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const sectionConfig = MODELS_CONFIG[activeSection];
   const modelInfo = sectionConfig?.models.find(m => m.id === currentModel);
 
-  // Calculate cost
   const calculateCost = useCallback(() => {
     if (!modelInfo) return 0;
     if ('dynamicPrice' in modelInfo && modelInfo.dynamicPrice && activeSection === 'video') {
@@ -149,22 +44,198 @@ function GeneratorPageContent() {
     return modelInfo.cost;
   }, [modelInfo, currentModel, settings, activeSection]);
 
-  const currentCost = calculateCost();
+  return {
+    activeSection,
+    setActiveSection,
+    currentModel,
+    setCurrentModel,
+    settings,
+    setSettings,
+    isSettingsValid,
+    setIsSettingsValid,
+    sectionConfig,
+    modelInfo,
+    currentCost: calculateCost(),
+  };
+}
 
-  // File handling
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const maxFiles = activeSection === 'video' ? 2 : 4;
-    if (uploadedFiles.length + files.length <= maxFiles) {
-      setUploadedFiles([...uploadedFiles, ...files]);
+function useChatSessions() {
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Load from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('lensroom_chat_sessions');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const sessions = parsed.map((s: any) => ({
+          ...s,
+          createdAt: new Date(s.createdAt),
+          updatedAt: new Date(s.updatedAt),
+          messages: s.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+        }));
+        setChatSessions(sessions);
+        
+        const lastActiveId = localStorage.getItem('lensroom_active_chat');
+        if (lastActiveId && sessions.find((s: ChatSession) => s.id === lastActiveId)) {
+          const chat = sessions.find((s: ChatSession) => s.id === lastActiveId);
+          setActiveChatId(lastActiveId);
+          setMessages(chat.messages);
+          return chat;
+        }
+      } catch (e) {
+        console.error('Failed to load history:', e);
+      }
     }
-  }, [uploadedFiles, activeSection]);
+    return null;
+  }, []);
 
-  const removeFile = useCallback((index: number) => {
-    setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
-  }, [uploadedFiles]);
+  // Save to localStorage
+  useEffect(() => {
+    if (chatSessions.length > 0) {
+      localStorage.setItem('lensroom_chat_sessions', JSON.stringify(chatSessions));
+    }
+  }, [chatSessions]);
 
-  // Poll for generation result
+  useEffect(() => {
+    if (activeChatId) {
+      localStorage.setItem('lensroom_active_chat', activeChatId);
+    }
+  }, [activeChatId]);
+
+  // Update current session when messages change
+  useEffect(() => {
+    if (activeChatId && messages.length > 0) {
+      setChatSessions(prev => prev.map(s => 
+        s.id === activeChatId 
+          ? { ...s, messages, updatedAt: new Date(), title: messages[0]?.content.slice(0, 30) || s.title }
+          : s
+      ));
+    }
+  }, [messages, activeChatId]);
+
+  const createNewChat = useCallback((model: string, section: SectionType) => {
+    const modelName = MODELS_CONFIG[section]?.models.find(m => m.id === model)?.name || model;
+    const newChat: ChatSession = {
+      id: `chat_${Date.now()}`,
+      title: `Новый чат • ${modelName}`,
+      model,
+      section,
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setChatSessions(prev => [newChat, ...prev]);
+    setActiveChatId(newChat.id);
+    setMessages([]);
+    return newChat;
+  }, []);
+
+  const switchToChat = useCallback((chatId: string) => {
+    const chat = chatSessions.find(s => s.id === chatId);
+    if (chat) {
+      setActiveChatId(chatId);
+      setMessages(chat.messages);
+      return chat;
+    }
+    return null;
+  }, [chatSessions]);
+
+  const deleteChat = useCallback((chatId: string) => {
+    setChatSessions(prev => prev.filter(s => s.id !== chatId));
+    if (activeChatId === chatId) {
+      const remaining = chatSessions.filter(s => s.id !== chatId);
+      if (remaining.length > 0) {
+        switchToChat(remaining[0].id);
+      } else {
+        setActiveChatId(null);
+        setMessages([]);
+      }
+    }
+  }, [activeChatId, chatSessions, switchToChat]);
+
+  return {
+    chatSessions,
+    activeChatId,
+    messages,
+    setMessages,
+    createNewChat,
+    switchToChat,
+    deleteChat,
+  };
+}
+
+// ===== MAIN COMPONENT =====
+
+function GeneratorPageContent() {
+  const searchParams = useSearchParams();
+  const sectionFromUrl = (searchParams.get('section') || 'image') as SectionType;
+  const modelFromUrl = searchParams.get('model');
+  
+  // State
+  const generatorState = useGeneratorState(sectionFromUrl, modelFromUrl);
+  const chatState = useChatSessions();
+  
+  const [prompt, setPrompt] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
+  const [showHistory, setShowHistory] = useState(true);
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const telegramAuth = useTelegramAuth();
+  const supabaseAuth = useAuth();
+  const { balance, fetchBalance } = useCreditsStore();
+
+  const user = telegramAuth.user || supabaseAuth.user;
+
+  // Update from URL
+  useEffect(() => {
+    const section = searchParams.get('section') as SectionType;
+    const model = searchParams.get('model');
+    
+    if (section && ['image', 'video', 'audio'].includes(section)) {
+      generatorState.setActiveSection(section);
+      if (model) {
+        const modelExists = MODELS_CONFIG[section]?.models.find(m => m.id === model);
+        if (modelExists) {
+          generatorState.setCurrentModel(model);
+        } else {
+          generatorState.setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
+        }
+      } else {
+        generatorState.setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
+      }
+    }
+  }, [searchParams]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatState.messages]);
+
+  // Handle model change
+  const handleModelChange = useCallback((newModel: string) => {
+    if (chatState.messages.length > 0 && chatState.activeChatId) {
+      // Save current chat before switching
+    }
+    generatorState.setCurrentModel(newModel);
+    chatState.createNewChat(newModel, generatorState.activeSection);
+  }, [chatState, generatorState]);
+
+  // Handle chat switch
+  const handleSwitchChat = useCallback((chatId: string) => {
+    const chat = chatState.switchToChat(chatId);
+    if (chat) {
+      generatorState.setCurrentModel(chat.model);
+      generatorState.setActiveSection(chat.section);
+    }
+  }, [chatState, generatorState]);
+
+  // Poll for result
   const pollForResult = async (jobId: string, provider: string): Promise<any> => {
     const maxAttempts = 60;
     const interval = 3000;
@@ -190,7 +261,7 @@ function GeneratorPageContent() {
     throw new Error('Generation timeout');
   };
 
-  // Generation
+  // Generate
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || isGenerating) return;
     
@@ -199,12 +270,11 @@ function GeneratorPageContent() {
       return;
     }
 
-    if (balance < currentCost) {
+    if (balance < generatorState.currentCost) {
       alert('Недостаточно звёзд');
       return;
     }
 
-    // Add user message
     const userMessage: ChatMessage = {
       id: Date.now(),
       role: 'user',
@@ -212,55 +282,53 @@ function GeneratorPageContent() {
       timestamp: new Date(),
     };
     
-    // Add generating placeholder
     const assistantMessage: ChatMessage = {
       id: Date.now() + 1,
       role: 'assistant',
       content: '',
       timestamp: new Date(),
-      type: activeSection,
-      model: modelInfo?.name,
+      type: generatorState.activeSection,
+      model: generatorState.modelInfo?.name,
       isGenerating: true,
     };
 
-    // Save files before clearing
     const filesToUpload = [...uploadedFiles];
     
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    chatState.setMessages(prev => [...prev, userMessage, assistantMessage]);
     setIsGenerating(true);
     setPrompt('');
     setUploadedFiles([]);
 
     try {
-      const endpoint = activeSection === 'image' 
+      const endpoint = generatorState.activeSection === 'image' 
         ? '/api/generate/photo' 
-        : activeSection === 'video' 
+        : generatorState.activeSection === 'video' 
         ? '/api/generate/video'
         : '/api/generate/audio';
       
-      // Build request body with flattened settings
       const requestBody: Record<string, any> = {
         prompt: userMessage.content,
-        model: currentModel,
+        model: generatorState.currentModel,
       };
       
-      // Flatten settings to top level for API compatibility
+      // Flatten settings
+      const { settings, activeSection } = generatorState;
       if (settings) {
-        // Map setting keys to API parameter names
         if (settings.aspect_ratio) requestBody.aspectRatio = settings.aspect_ratio;
         if (settings.quality) requestBody.quality = settings.quality;
         if (settings.resolution) requestBody.resolution = settings.resolution;
         if (settings.duration) requestBody.duration = Number(settings.duration);
         if (settings.generation_type) {
-          // For video: Map generation_type to mode
           if (activeSection === 'video') {
             const genType = settings.generation_type;
             if (genType === 'text-to-video') requestBody.mode = 't2v';
             else if (genType === 'image-to-video') requestBody.mode = 'i2v';
             else if (genType === 'video-to-video') requestBody.mode = 'v2v';
             else if (genType === 'reference-to-video') requestBody.mode = 'ref';
+          } else if (activeSection === 'image') {
+            // For image i2i mode
+            if (settings.generation_type === 'i2i') requestBody.mode = 'i2i';
           } else if (activeSection === 'audio') {
-            // For audio: pass generation_type directly
             requestBody.generation_type = settings.generation_type;
           }
         }
@@ -269,12 +337,11 @@ function GeneratorPageContent() {
         if (settings.sound !== undefined) requestBody.audio = settings.sound;
         if (settings.seed) requestBody.seed = Number(settings.seed);
         if (settings.mode) {
-          // For Kling O1 start-end mode
           if (settings.mode === 'start-end') requestBody.mode = 'start_end';
           else if (settings.mode === 'start-only') requestBody.mode = 'i2v';
         }
         
-        // Audio-specific settings
+        // Audio settings
         if (activeSection === 'audio') {
           if (settings.model) requestBody.suno_model = settings.model;
           if (settings.custom_mode !== undefined) requestBody.custom_mode = settings.custom_mode;
@@ -289,20 +356,20 @@ function GeneratorPageContent() {
         }
       }
       
-      // Handle uploaded files for i2v mode
+      // Handle files
       if (filesToUpload.length > 0) {
         const file = filesToUpload[0];
-        const reader = new FileReader();
         const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.readAsDataURL(file);
         });
         
-        if (requestBody.mode === 'i2v' || requestBody.mode === 'start_end') {
+        if (requestBody.mode === 'i2v' || requestBody.mode === 'start_end' || requestBody.mode === 'i2i') {
           requestBody.startImage = base64;
           if (filesToUpload.length > 1) {
-            const reader2 = new FileReader();
             const base64_2 = await new Promise<string>((resolve) => {
+              const reader2 = new FileReader();
               reader2.onload = () => resolve(reader2.result as string);
               reader2.readAsDataURL(filesToUpload[1]);
             });
@@ -322,25 +389,16 @@ function GeneratorPageContent() {
       if (!response.ok) throw new Error('Generation failed');
 
       const data = await response.json();
-      
-      // Handle different response formats
       let resultUrl = data.url || data.results?.[0]?.url;
       
-      // If we have a jobId but no immediate result, poll for completion
       if (!resultUrl && data.jobId) {
         const pollResult = await pollForResult(data.jobId, data.provider || 'kie');
         resultUrl = pollResult?.url || pollResult?.results?.[0]?.url;
       }
       
-      // Update assistant message with result
-      setMessages(prev => prev.map(m => 
+      chatState.setMessages(prev => prev.map(m => 
         m.id === assistantMessage.id 
-          ? { 
-              ...m, 
-              content: resultUrl ? 'Готово!' : 'Генерация завершена',
-              url: resultUrl,
-              isGenerating: false 
-            }
+          ? { ...m, content: resultUrl ? 'Готово!' : 'Генерация завершена', url: resultUrl, isGenerating: false }
           : m
       ));
 
@@ -348,8 +406,7 @@ function GeneratorPageContent() {
 
     } catch (error) {
       console.error('Generation error:', error);
-      // Update with error
-      setMessages(prev => prev.map(m => 
+      chatState.setMessages(prev => prev.map(m => 
         m.id === assistantMessage.id 
           ? { ...m, content: 'Ошибка генерации. Попробуйте снова.', isGenerating: false }
           : m
@@ -357,18 +414,13 @@ function GeneratorPageContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, user, balance, currentCost, activeSection, currentModel, settings, modelInfo, fetchBalance]);
+  }, [prompt, user, balance, generatorState, chatState, uploadedFiles, fetchBalance]);
 
+  // Handlers
   const handleSettingChange = useCallback((key: string, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  }, []);
+    generatorState.setSettings(prev => ({ ...prev, [key]: value }));
+  }, [generatorState]);
 
-  const clearChat = useCallback(() => {
-    setMessages([]);
-    localStorage.removeItem('lensroom_chat_history');
-  }, []);
-
-  // Download file
   const handleDownload = useCallback(async (url: string, type: string) => {
     try {
       const response = await fetch(url);
@@ -376,18 +428,16 @@ function GeneratorPageContent() {
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = `lensroom-${Date.now()}.${type === 'video' ? 'mp4' : 'png'}`;
+      link.download = `lensroom-${Date.now()}.${type === 'video' ? 'mp4' : type === 'audio' ? 'mp3' : 'png'}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
     } catch (e) {
-      // Fallback: open in new tab
       window.open(url, '_blank');
     }
   }, []);
 
-  // Copy URL to clipboard
   const handleCopy = useCallback(async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
@@ -397,381 +447,98 @@ function GeneratorPageContent() {
     }
   }, []);
 
-  // Regenerate with same prompt
   const handleRegenerate = useCallback((originalPrompt: string) => {
     setPrompt(originalPrompt);
-    // Auto-submit after setting prompt
-    setTimeout(() => {
-      const form = document.querySelector('form');
-      form?.dispatchEvent(new Event('submit', { bubbles: true }));
-    }, 100);
-  }, []);
+    setTimeout(() => handleGenerate(), 100);
+  }, [handleGenerate]);
+
+  const clearChat = useCallback(() => {
+    chatState.setMessages([]);
+  }, [chatState]);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col">
       {/* Model Bar */}
-      <div className="border-b border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl sticky top-14 z-30">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="flex items-center justify-between py-2">
-            {/* Current Section Label */}
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <sectionConfig.icon className="w-4 h-4" />
-              <span>{sectionConfig.section}</span>
-            </div>
-            
-            {/* Model Selector */}
-            <div className="flex items-center gap-3">
-              <select
-                value={currentModel}
-                onChange={(e) => setCurrentModel(e.target.value)}
-                className="input-smooth bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-[var(--text)] cursor-pointer hover:bg-white/10"
-              >
-                {sectionConfig.models.map((model) => (
-                  <option key={model.id} value={model.id} className="bg-[#1a1a1a]">
-                    {model.name} • {model.cost}⭐
-                  </option>
-                ))}
-              </select>
-              
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={cn(
-                  "btn-icon p-2 rounded-xl",
-                  showSettings ? "bg-purple-500/20 text-purple-400" : "bg-white/5 text-gray-400 hover:text-white"
-                )}
-              >
-                <Settings2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ModelBar
+        sectionConfig={generatorState.sectionConfig}
+        currentModel={generatorState.currentModel}
+        onModelChange={handleModelChange}
+        showSettings={showSettings}
+        onToggleSettings={() => setShowSettings(!showSettings)}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
+        {/* History Sidebar */}
+        <AnimatePresence>
+          {showHistory && (
+            <ChatSidebar
+              chatSessions={chatState.chatSessions}
+              activeChatId={chatState.activeChatId}
+              onNewChat={() => chatState.createNewChat(generatorState.currentModel, generatorState.activeSection)}
+              onSelectChat={handleSwitchChat}
+              onDeleteChat={chatState.deleteChat}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Toggle History Button */}
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 p-1.5 rounded-r-lg bg-white/5 border border-l-0 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+          style={{ left: showHistory ? 280 : 0 }}
+        >
+          {showHistory ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 py-6">
-              {messages.length === 0 ? (
-                /* Welcome State */
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mb-6">
-                    <Sparkles className="w-10 h-10 text-purple-400" />
-                  </div>
-                  <h1 className="text-3xl font-bold mb-3 text-[var(--text)]">
-                    Привет! Я {modelInfo?.name}
-                  </h1>
-                  <p className="text-gray-500 mb-8 max-w-md">
-                    Опишите что хотите создать, и я сгенерирую для вас {activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}
-                  </p>
-                  
-                  {/* Quick prompts */}
-                  <div className="flex flex-wrap gap-2 justify-center max-w-lg">
-                    {[
-                      activeSection === 'image' ? 'Портрет девушки в студии' : 'Закат на пляже',
-                      activeSection === 'image' ? 'Футуристичный город' : 'Кинематографичный полёт',
-                      activeSection === 'image' ? 'Минималистичный интерьер' : 'Таймлапс природы',
-                    ].map((suggestion, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setPrompt(suggestion)}
-                        className="btn-smooth px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-400 hover:text-white hover:border-purple-500/30 hover:bg-purple-500/10"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                /* Chat Messages */
-                <div className="space-y-6">
-                  {messages.map((message) => (
-                    <motion.div
-                      key={message.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={cn(
-                        "flex gap-4",
-                        message.role === 'user' ? "flex-row-reverse" : ""
-                      )}
-                    >
-                      {/* Avatar */}
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center",
-                        message.role === 'user' 
-                          ? "bg-purple-500" 
-                          : "bg-gradient-to-br from-cyan-500 to-purple-500"
-                      )}>
-                        {message.role === 'user' ? (
-                          <User className="w-4 h-4 text-white" />
-                        ) : (
-                          <Sparkles className="w-4 h-4 text-white" />
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className={cn(
-                        "flex-1 max-w-[80%]",
-                        message.role === 'user' ? "text-right" : ""
-                      )}>
-                        {message.role === 'user' ? (
-                          <div className="inline-block px-4 py-3 rounded-2xl rounded-tr-sm bg-purple-500/20 text-[var(--text)]">
-                            {message.content}
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {message.isGenerating ? (
-                              /* Generating */
-                              <div className="flex items-center gap-3 px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5">
-                                <div className="flex gap-1">
-                                  <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                  <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                </div>
-                                <span className="text-sm text-gray-400">
-                                  Генерирую с {message.model}...
-                                </span>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Result Media */}
-                                {message.url && (
-                                  <div className="rounded-2xl rounded-tl-sm overflow-hidden bg-white/5 border border-white/10">
-                                    {message.type === 'video' ? (
-                                      <video 
-                                        src={message.url} 
-                                        controls 
-                                        className="w-full max-h-[400px] object-contain"
-                                      />
-                                    ) : (
-                                      <img 
-                                        src={message.url} 
-                                        alt=""
-                                        className="w-full max-h-[400px] object-contain"
-                                      />
-                                    )}
-                                  </div>
-                                )}
-                                
-                                {/* Text content */}
-                                {message.content && !message.url && (
-                                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5 text-[var(--text)]">
-                                    {message.content}
-                                  </div>
-                                )}
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-1 ml-1">
-                                  {message.url && (
-                                    <button
-                                      onClick={() => handleDownload(message.url!, message.type || 'image')}
-                                      className="btn-icon p-2 rounded-xl text-gray-500 hover:text-emerald-400"
-                                      title="Скачать"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  {message.url && (
-                                    <button 
-                                      onClick={() => handleCopy(message.url!)}
-                                      className="btn-icon p-2 rounded-xl text-gray-500 hover:text-blue-400"
-                                      title="Копировать ссылку"
-                                    >
-                                      <Copy className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  <button 
-                                    className="btn-icon p-2 rounded-xl text-gray-500 hover:text-pink-400"
-                                    title="Нравится"
-                                  >
-                                    <ThumbsUp className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => {
-                                      // Find previous user message
-                                      const idx = messages.findIndex(m => m.id === message.id);
-                                      const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
-                                      if (userMsg) handleRegenerate(userMsg.content);
-                                    }}
-                                    className="btn-icon p-2 rounded-xl text-gray-500 hover:text-purple-400"
-                                    title="Повторить"
-                                  >
-                                    <RotateCcw className="w-4 h-4" />
-                                  </button>
-                                  <span className="text-xs text-gray-600 ml-2">
-                                    {message.model}
-                                  </span>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-                  <div ref={chatEndRef} />
-                </div>
-              )}
+              <ChatMessages
+                ref={chatEndRef}
+                messages={chatState.messages}
+                activeSection={generatorState.activeSection}
+                modelInfo={generatorState.modelInfo}
+                onSetPrompt={setPrompt}
+                onDownload={handleDownload}
+                onCopy={handleCopy}
+                onRegenerate={handleRegenerate}
+              />
             </div>
           </div>
 
-          {/* Prompt Bar - Fixed at bottom */}
-          <div className="border-t border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl p-4">
-            <div className="max-w-3xl mx-auto">
-              {/* File Previews */}
-              <AnimatePresence>
-                {uploadedFiles.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex gap-2 mb-3"
-                  >
-                    {uploadedFiles.map((file, i) => (
-                      <div key={i} className="relative group">
-                        <div className="w-14 h-14 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-                          {file.type.startsWith('image/') ? (
-                            <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-[9px] text-gray-500 text-center px-1">{file.name.slice(0, 8)}</span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => removeFile(i)}
-                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-xs"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Input */}
-              <div className="flex items-end gap-2 p-3 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 focus-within:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  multiple={activeSection !== 'video'}
-                  className="hidden"
-                  accept={activeSection === 'image' ? 'image/*' : activeSection === 'video' ? 'video/*,image/*' : 'audio/*'}
-                />
-                
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn-icon p-2 rounded-xl text-gray-400 hover:text-cyan-400 flex-shrink-0"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-                
-                <textarea
-                  value={prompt}
-                  onChange={(e) => {
-                    setPrompt(e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleGenerate();
-                    }
-                  }}
-                  placeholder={`Опишите ${activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}...`}
-                  rows={1}
-                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-600 resize-none max-h-[150px] py-2"
-                />
-                
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs text-gray-500 hidden sm:block">{currentCost}⭐</span>
-                  
-                  <button
-                    onClick={handleGenerate}
-                    disabled={!prompt.trim() || isGenerating}
-                    className={cn(
-                      "btn-glow p-2.5 rounded-xl",
-                      prompt.trim() && !isGenerating
-                        ? "bg-gradient-to-r from-purple-500 to-cyan-500 shadow-lg shadow-purple-500/25 text-white"
-                        : "bg-white/10 text-gray-600 cursor-not-allowed"
-                    )}
-                  >
-                    <Send className={cn("w-4 h-4 transition-transform", isGenerating && "animate-pulse")} />
-                  </button>
-                </div>
-              </div>
-              
-              {/* Bottom info */}
-              <div className="flex items-center justify-between mt-2 px-2">
-                <span className="text-xs text-gray-600">
-                  {modelInfo?.name} • {currentCost}⭐ за генерацию
-                </span>
-                {messages.length > 0 && (
-                  <button 
-                    onClick={clearChat}
-                    className="text-xs text-gray-600 hover:text-red-400 transition"
-                  >
-                    Очистить чат
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Prompt Input */}
+          <PromptInput
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            uploadedFiles={uploadedFiles}
+            onFilesChange={setUploadedFiles}
+            isGenerating={isGenerating}
+            onGenerate={handleGenerate}
+            activeSection={generatorState.activeSection}
+            modelInfo={generatorState.modelInfo}
+            currentCost={generatorState.currentCost}
+            hasMessages={chatState.messages.length > 0}
+            onClearChat={clearChat}
+          />
         </div>
 
         {/* Settings Sidebar */}
         <AnimatePresence>
           {showSettings && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              className="border-l border-white/5 bg-[var(--bg)] overflow-hidden flex-shrink-0"
-            >
-              <div className="w-[320px] h-full overflow-y-auto p-4 space-y-4">
-                {/* Model Info */}
-                <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-white/10">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                      {modelInfo?.icon && <modelInfo.icon className="w-5 h-5 text-purple-400" />}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-[var(--text)]">{modelInfo?.name}</h3>
-                      <p className="text-xs text-gray-500">{modelInfo?.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                    <span className="text-sm text-gray-400">Стоимость</span>
-                    <span className="text-lg font-bold text-cyan-400">{currentCost}⭐</span>
-                  </div>
-                </div>
-
-                {/* Settings */}
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                  <h3 className="text-sm font-medium text-gray-400 mb-4">Настройки</h3>
-                  <DynamicSettings
-                    modelId={currentModel}
-                    type={activeSection === 'audio' ? 'image' : activeSection}
-                    values={settings}
-                    onChange={handleSettingChange}
-                    onValidationChange={setIsSettingsValid}
-                  />
-                </div>
-
-                {/* Balance */}
-                {user && (
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Баланс</span>
-                      <span className="text-lg font-bold text-[var(--text)]">{balance}⭐</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
+            <SettingsSidebar
+              currentModel={generatorState.currentModel}
+              activeSection={generatorState.activeSection}
+              modelInfo={generatorState.modelInfo}
+              currentCost={generatorState.currentCost}
+              settings={generatorState.settings}
+              onSettingChange={handleSettingChange}
+              onValidationChange={generatorState.setIsSettingsValid}
+              balance={balance}
+              isLoggedIn={!!user}
+            />
           )}
         </AnimatePresence>
       </div>
