@@ -15,7 +15,6 @@ import {
   ChatSidebar, 
   ChatMessages, 
   PromptInput, 
-  ModelBar, 
   SettingsSidebar 
 } from './components';
 import { 
@@ -63,43 +62,60 @@ function useChatSessions() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage
+  // Load from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('lensroom_chat_sessions');
-    if (saved) {
-      try {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const saved = localStorage.getItem('lensroom_chat_sessions');
+      console.log('[Chat] Loading from localStorage:', saved ? 'found' : 'empty');
+      
+      if (saved && saved !== '[]') {
         const parsed = JSON.parse(saved);
-        const sessions = parsed.map((s: any) => ({
-          ...s,
-          createdAt: new Date(s.createdAt),
-          updatedAt: new Date(s.updatedAt),
-          messages: s.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
-        }));
-        setChatSessions(sessions);
-        
-        const lastActiveId = localStorage.getItem('lensroom_active_chat');
-        if (lastActiveId && sessions.find((s: ChatSession) => s.id === lastActiveId)) {
-          const chat = sessions.find((s: ChatSession) => s.id === lastActiveId);
-          setActiveChatId(lastActiveId);
-          setMessages(chat.messages);
-          return chat;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sessions = parsed.map((s: any) => ({
+            ...s,
+            createdAt: new Date(s.createdAt),
+            updatedAt: new Date(s.updatedAt),
+            messages: (s.messages || []).map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+          }));
+          setChatSessions(sessions);
+          console.log('[Chat] Loaded sessions:', sessions.length);
+          
+          const lastActiveId = localStorage.getItem('lensroom_active_chat');
+          if (lastActiveId) {
+            const chat = sessions.find((s: ChatSession) => s.id === lastActiveId);
+            if (chat) {
+              setActiveChatId(lastActiveId);
+              setMessages(chat.messages || []);
+              console.log('[Chat] Restored active chat:', chat.title);
+            }
+          }
         }
-      } catch (e) {
-        console.error('Failed to load history:', e);
       }
+    } catch (e) {
+      console.error('[Chat] Failed to load history:', e);
     }
-    return null;
+    setIsLoaded(true);
   }, []);
 
-  // Save to localStorage
+  // Save to localStorage (only after initial load completes)
   useEffect(() => {
-    if (chatSessions.length > 0) {
+    if (typeof window === 'undefined') return;
+    if (!isLoaded) return;
+    
+    try {
       localStorage.setItem('lensroom_chat_sessions', JSON.stringify(chatSessions));
+      console.log('[Chat] Saved sessions:', chatSessions.length);
+    } catch (e) {
+      console.error('[Chat] Failed to save:', e);
     }
-  }, [chatSessions]);
+  }, [chatSessions, isLoaded]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (activeChatId) {
       localStorage.setItem('lensroom_active_chat', activeChatId);
     }
@@ -192,30 +208,63 @@ function GeneratorPageContent() {
 
   const user = telegramAuth.user || supabaseAuth.user;
 
-  // Update from URL
+  // Track previous model to detect changes
+  const prevModelRef = useRef<string | null>(null);
+  
+  // Update from URL and create new chat on model change
   useEffect(() => {
     const section = searchParams.get('section') as SectionType;
     const model = searchParams.get('model');
     
     if (section && ['image', 'video', 'audio'].includes(section)) {
       generatorState.setActiveSection(section);
+      
+      let newModel = model;
       if (model) {
         const modelExists = MODELS_CONFIG[section]?.models.find(m => m.id === model);
-        if (modelExists) {
-          generatorState.setCurrentModel(model);
-        } else {
-          generatorState.setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
+        if (!modelExists) {
+          newModel = MODELS_CONFIG[section].models[0]?.id;
         }
       } else {
-        generatorState.setCurrentModel(MODELS_CONFIG[section].models[0]?.id);
+        newModel = MODELS_CONFIG[section].models[0]?.id;
+      }
+      
+      if (newModel) {
+        generatorState.setCurrentModel(newModel);
+        
+        // Create new chat if model changed (not on initial load)
+        if (prevModelRef.current !== null && prevModelRef.current !== newModel) {
+          chatState.createNewChat(newModel, section);
+          console.log('[Chat] Created new chat for model:', newModel);
+        }
+        prevModelRef.current = newModel;
       }
     }
-  }, [searchParams]);
+  }, [searchParams, chatState, generatorState]);
 
   // Scroll to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatState.messages]);
+
+  // Check for prefilled prompt from inspiration gallery
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const prefillPrompt = localStorage.getItem('lensroom_prefill_prompt');
+    const prefillModel = localStorage.getItem('lensroom_prefill_model');
+    
+    if (prefillPrompt) {
+      // Set the prompt
+      setPrompt(prefillPrompt);
+      
+      // Clear from localStorage
+      localStorage.removeItem('lensroom_prefill_prompt');
+      localStorage.removeItem('lensroom_prefill_model');
+      
+      console.log('[Generator] Prefilled prompt from inspiration:', prefillPrompt.slice(0, 50));
+    }
+  }, []);
 
   // Handle model change
   const handleModelChange = useCallback((newModel: string) => {
@@ -452,21 +501,66 @@ function GeneratorPageContent() {
     setTimeout(() => handleGenerate(), 100);
   }, [handleGenerate]);
 
+  // Quick Actions handler
+  const handleQuickAction = useCallback(async (action: string, originalPrompt: string, imageUrl: string) => {
+    let newPrompt = originalPrompt;
+    
+    switch (action) {
+      case 'variations':
+        // Generate variations with slightly modified prompt
+        newPrompt = `${originalPrompt}, different variation, alternative composition`;
+        break;
+      case 'enhance':
+        // Enhance quality
+        newPrompt = `${originalPrompt}, enhanced quality, highly detailed, 8K resolution, professional`;
+        break;
+      case 'style':
+        // Open style selector (for now just add artistic style)
+        const styles = ['digital art style', 'oil painting style', 'watercolor style', 'anime style', 'photorealistic style'];
+        const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+        newPrompt = `${originalPrompt}, ${randomStyle}`;
+        break;
+      case 'resize':
+        // Change aspect ratio (toggle between common ratios)
+        const currentRatio = generatorState.settings.aspect_ratio || '1:1';
+        const ratios = ['1:1', '16:9', '9:16', '4:3', '3:4'];
+        const currentIndex = ratios.indexOf(currentRatio);
+        const nextRatio = ratios[(currentIndex + 1) % ratios.length];
+        generatorState.setSettings(prev => ({ ...prev, aspect_ratio: nextRatio }));
+        newPrompt = originalPrompt;
+        break;
+    }
+    
+    // For variations/enhance/style - use the image as reference if supported
+    if ((action === 'variations' || action === 'enhance' || action === 'style') && imageUrl) {
+      try {
+        // Fetch image and convert to File for upload
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'reference.png', { type: 'image/png' });
+        setUploadedFiles([file]);
+        
+        // Set mode to i2i for image reference
+        if (generatorState.activeSection === 'image') {
+          generatorState.setSettings(prev => ({ ...prev, generation_type: 'i2i' }));
+        }
+      } catch (e) {
+        console.error('Failed to use image as reference:', e);
+      }
+    }
+    
+    setPrompt(newPrompt);
+    
+    // Auto-generate after short delay
+    setTimeout(() => handleGenerate(), 300);
+  }, [generatorState, handleGenerate]);
+
   const clearChat = useCallback(() => {
     chatState.setMessages([]);
   }, [chatState]);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col">
-      {/* Model Bar */}
-      <ModelBar
-        sectionConfig={generatorState.sectionConfig}
-        currentModel={generatorState.currentModel}
-        onModelChange={handleModelChange}
-        showSettings={showSettings}
-        onToggleSettings={() => setShowSettings(!showSettings)}
-      />
-
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* History Sidebar */}
@@ -491,6 +585,15 @@ function GeneratorPageContent() {
           {showHistory ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
 
+        {/* Toggle Settings Button */}
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-40 p-1.5 rounded-l-lg bg-white/5 border border-r-0 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+          style={{ right: showSettings ? 320 : 0 }}
+        >
+          {showSettings ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+
         {/* Chat Area */}
         <div className="flex-1 flex flex-col relative">
           {/* Messages */}
@@ -505,6 +608,7 @@ function GeneratorPageContent() {
                 onDownload={handleDownload}
                 onCopy={handleCopy}
                 onRegenerate={handleRegenerate}
+                onQuickAction={handleQuickAction}
               />
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw, Copy, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
 
@@ -51,10 +51,11 @@ function getAspectClass(ratio: string): string {
 interface ContentCardProps {
   card: ContentCard;
   onRepeat: () => void;
+  onCopyPrompt: () => void;
   priority?: boolean;
 }
 
-const ContentCardComponent = memo(function ContentCardComponent({ card, onRepeat, priority = false }: ContentCardProps) {
+const ContentCardComponent = memo(function ContentCardComponent({ card, onRepeat, onCopyPrompt, priority = false }: ContentCardProps) {
   const isVideo = card.content_type === 'video';
   
   // For videos: prioritize animated preview (WebM) > poster > asset
@@ -120,21 +121,36 @@ const ContentCardComponent = memo(function ContentCardComponent({ card, onRepeat
             </div>
           )}
           
-          {/* Title & Repeat Button - bottom */}
+          {/* Title & Buttons - bottom */}
           <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wide truncate mb-2">
-              {card.title}
-            </h3>
-            <button
-              onClick={onRepeat}
-              className="w-full py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg bg-[var(--gold)] text-black font-semibold text-xs
-                         hover:bg-[var(--gold)]/90 transition-all
-                         flex items-center justify-center gap-1
-                         opacity-0 group-hover:opacity-100"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Повторить
-            </button>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wide truncate flex-1">
+                {card.title}
+              </h3>
+              <span className="text-[10px] text-white/60 ml-2 shrink-0">
+                {card.model_key}
+              </span>
+            </div>
+            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={onCopyPrompt}
+                className="flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg bg-white/10 backdrop-blur-sm text-white font-medium text-xs
+                           hover:bg-white/20 transition-all
+                           flex items-center justify-center gap-1 border border-white/20"
+              >
+                <Copy className="w-3 h-3" />
+                Промпт
+              </button>
+              <button
+                onClick={onRepeat}
+                className="flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg bg-[var(--gold)] text-black font-semibold text-xs
+                           hover:bg-[var(--gold)]/90 transition-all
+                           flex items-center justify-center gap-1"
+              >
+                <Play className="w-3 h-3" />
+                Создать
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -310,19 +326,37 @@ export function InspirationGallery() {
   const visibleContent = filteredContent.slice(0, displayCount);
   const hasMore = filteredContent.length > displayCount;
 
-  // Handle repeat - redirect to generator with pre-filled prompt
+  // Handle copy prompt
+  const handleCopyPrompt = useCallback(async (card: ContentCard) => {
+    try {
+      await navigator.clipboard.writeText(card.template_prompt);
+      toast.success('Промпт скопирован!', {
+        description: card.template_prompt.slice(0, 50) + '...',
+      });
+    } catch (e) {
+      toast.error('Не удалось скопировать');
+    }
+  }, []);
+
+  // Handle repeat - redirect to generator with correct model and prompt
   const handleRepeat = useCallback((card: ContentCard) => {
+    // Map content_type to section
+    const section = card.content_type === 'video' ? 'video' : 'image';
+    
+    // Build URL with model and prompt
     const params = new URLSearchParams();
-    params.set('kind', card.content_type);
+    params.set('section', section);
     params.set('model', card.model_key);
-    params.set('mode', card.mode);
+    
+    // Store prompt in localStorage to be picked up by generator
     if (card.template_prompt) {
-      params.set('prompt', card.template_prompt);
+      localStorage.setItem('lensroom_prefill_prompt', card.template_prompt);
+      localStorage.setItem('lensroom_prefill_model', card.model_key);
     }
     
-    router.push(`/create/studio?${params.toString()}`);
+    router.push(`/generator?${params.toString()}`);
     toast.success('Открываем генератор', {
-      description: 'Промпт уже вставлен — нажмите "Создать"',
+      description: `${card.model_key} • Промпт применён`,
     });
   }, [router]);
 
@@ -372,6 +406,7 @@ export function InspirationGallery() {
             key={card.id}
             card={card}
             onRepeat={() => handleRepeat(card)}
+            onCopyPrompt={() => handleCopyPrompt(card)}
             priority={index < 8}
           />
         ))}

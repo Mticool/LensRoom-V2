@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Paperclip, Send } from 'lucide-react';
+import { Paperclip, Send, Upload, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SectionType, ModelInfo } from '../config';
 
@@ -34,18 +34,67 @@ export function PromptInput({
   onClearChat,
 }: PromptInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const maxFiles = activeSection === 'video' ? 2 : 4;
-    if (uploadedFiles.length + files.length <= maxFiles) {
-      onFilesChange([...uploadedFiles, ...files]);
-    }
+    addFiles(files);
   };
+
+  const addFiles = useCallback((files: File[]) => {
+    const maxFiles = activeSection === 'video' ? 2 : 4;
+    const validFiles = files.filter(f => {
+      if (activeSection === 'image') return f.type.startsWith('image/');
+      if (activeSection === 'video') return f.type.startsWith('video/') || f.type.startsWith('image/');
+      if (activeSection === 'audio') return f.type.startsWith('audio/');
+      return false;
+    });
+    
+    if (uploadedFiles.length + validFiles.length <= maxFiles) {
+      onFilesChange([...uploadedFiles, ...validFiles]);
+    }
+  }, [activeSection, uploadedFiles, onFilesChange]);
 
   const removeFile = (index: number) => {
     onFilesChange(uploadedFiles.filter((_, i) => i !== index));
   };
+
+  // Drag & Drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      addFiles(files);
+    }
+  }, [addFiles]);
 
   const getAcceptTypes = () => {
     switch (activeSection) {
@@ -57,14 +106,43 @@ export function PromptInput({
 
   const getPlaceholder = () => {
     switch (activeSection) {
-      case 'image': return 'Опишите изображение...';
-      case 'video': return 'Опишите видео...';
+      case 'image': return 'Опишите изображение или перетащите файл...';
+      case 'video': return 'Опишите видео или перетащите файл...';
       case 'audio': return 'Опишите музыку или песню...';
     }
   };
 
   return (
-    <div className="border-t border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl p-4">
+    <div 
+      className="border-t border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl p-4 relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag & Drop Overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-[var(--bg)]/95 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-purple-500"
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-4">
+                <Upload className="w-8 h-8 text-purple-400" />
+              </div>
+              <p className="text-lg font-medium text-[var(--text)]">Отпустите файл здесь</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {activeSection === 'image' ? 'Изображение для референса' : 
+                 activeSection === 'video' ? 'Изображение или видео' : 'Аудио файл'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-3xl mx-auto">
         {/* File Previews */}
         <AnimatePresence>
@@ -80,6 +158,8 @@ export function PromptInput({
                   <div className="w-14 h-14 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
                     {file.type.startsWith('image/') ? (
                       <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                    ) : file.type.startsWith('video/') ? (
+                      <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-[9px] text-gray-500 text-center px-1">{file.name.slice(0, 8)}</span>
                     )}
@@ -96,8 +176,33 @@ export function PromptInput({
           )}
         </AnimatePresence>
 
+        {/* Drop zone hint when no files */}
+        {uploadedFiles.length === 0 && activeSection !== 'audio' && (
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 mb-3 p-3 rounded-xl border border-dashed border-white/10 cursor-pointer hover:border-purple-500/30 hover:bg-purple-500/5 transition-all group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-purple-500/10 transition">
+              <ImageIcon className="w-5 h-5 text-gray-500 group-hover:text-purple-400 transition" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition">
+                Перетащите {activeSection === 'image' ? 'изображение' : 'файл'} или нажмите
+              </p>
+              <p className="text-xs text-gray-600">
+                {activeSection === 'image' ? 'PNG, JPG до 10MB' : 'Изображение или видео'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Input */}
-        <div className="flex items-end gap-2 p-3 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 focus-within:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300">
+        <div className={cn(
+          "flex items-end gap-2 p-3 rounded-2xl bg-white/5 border transition-all duration-300",
+          isDragging 
+            ? "border-purple-500 shadow-[0_0_20px_rgba(139,92,246,0.25)]" 
+            : "border-white/10 focus-within:border-purple-500/50 focus-within:shadow-[0_0_20px_rgba(139,92,246,0.15)]"
+        )}>
           <input
             type="file"
             ref={fileInputRef}

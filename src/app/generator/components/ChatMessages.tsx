@@ -2,7 +2,7 @@
 
 import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Sparkles, Download, Copy, ThumbsUp, RotateCcw } from 'lucide-react';
+import { User, Sparkles, Download, Copy, ThumbsUp, RotateCcw, Shuffle, Wand2, Palette, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage, SectionType, ModelInfo, QUICK_PROMPTS } from '../config';
 
@@ -14,6 +14,7 @@ interface ChatMessagesProps {
   onDownload: (url: string, type: string) => void;
   onCopy: (url: string) => void;
   onRegenerate: (prompt: string) => void;
+  onQuickAction?: (action: string, originalPrompt: string, url: string) => void;
 }
 
 export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
@@ -24,7 +25,14 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
   onDownload,
   onCopy,
   onRegenerate,
+  onQuickAction,
 }, ref) => {
+  // Get original prompt for a message
+  const getOriginalPrompt = (messageId: number) => {
+    const idx = messages.findIndex(m => m.id === messageId);
+    const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
+    return userMsg?.content || '';
+  };
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
@@ -165,9 +173,8 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                       </button>
                       <button 
                         onClick={() => {
-                          const idx = messages.findIndex(m => m.id === message.id);
-                          const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
-                          if (userMsg) onRegenerate(userMsg.content);
+                          const prompt = getOriginalPrompt(message.id);
+                          if (prompt) onRegenerate(prompt);
                         }}
                         className="btn-icon p-2 rounded-xl text-gray-500 hover:text-purple-400"
                         title="Повторить"
@@ -178,6 +185,42 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                         {message.model}
                       </span>
                     </div>
+
+                    {/* Quick Actions */}
+                    {message.url && message.type !== 'audio' && onQuickAction && (
+                      <div className="flex flex-wrap gap-2 mt-3 ml-1">
+                        <button
+                          onClick={() => onQuickAction('variations', getOriginalPrompt(message.id), message.url!)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 hover:text-white hover:border-purple-500/30 hover:bg-purple-500/10 transition-all"
+                        >
+                          <Shuffle className="w-3.5 h-3.5" />
+                          Вариации
+                        </button>
+                        <button
+                          onClick={() => onQuickAction('enhance', getOriginalPrompt(message.id), message.url!)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 hover:text-white hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all"
+                        >
+                          <Wand2 className="w-3.5 h-3.5" />
+                          Улучшить
+                        </button>
+                        <button
+                          onClick={() => onQuickAction('style', getOriginalPrompt(message.id), message.url!)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 hover:text-white hover:border-pink-500/30 hover:bg-pink-500/10 transition-all"
+                        >
+                          <Palette className="w-3.5 h-3.5" />
+                          Изменить стиль
+                        </button>
+                        {message.type === 'image' && (
+                          <button
+                            onClick={() => onQuickAction('resize', getOriginalPrompt(message.id), message.url!)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 hover:text-white hover:border-emerald-500/30 hover:bg-emerald-500/10 transition-all"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                            Другой размер
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
