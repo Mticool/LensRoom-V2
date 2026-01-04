@@ -50,7 +50,7 @@ const AspectRatioPreview = ({ ratio }: { ratio: string }) => {
   return (
     <div className="flex items-center justify-center h-full">
       <div
-        className="border-2 border-cyan-400 rounded bg-cyan-400/10"
+        className="border-2 border-[var(--accent-secondary)] rounded-[6px] bg-[var(--accent-secondary)]/10"
         style={{
           width: dimensions.width,
           height: dimensions.height,
@@ -164,30 +164,31 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
         transition={{ duration: 0.2 }}
         className="space-y-2"
       >
-        {/* Label с тултипом */}
+        {/* Label с тултипом - Premium */}
         <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-gray-400 uppercase tracking-wide flex items-center gap-2">
+          <label className="text-[12px] font-medium text-[var(--muted)] tracking-wide flex items-center gap-2">
             {setting.label}
             {setting.required && (
-              <span className="text-red-400 text-sm">*</span>
+              <span className="text-red-400/80 text-[11px]">*</span>
             )}
             {setting.optional && (
-              <span className="text-gray-600 text-xs normal-case">(опц.)</span>
+              <span className="text-[var(--muted)] text-[11px] font-normal">(опц.)</span>
             )}
             {setting.description && (
               <div className="relative">
                 <Info
-                  className="w-3.5 h-3.5 text-gray-500 cursor-help"
+                  className="w-3.5 h-3.5 text-[var(--muted)] cursor-help hover:text-[var(--accent-primary)] transition-colors"
                   onMouseEnter={() => setShowTooltip(key)}
                   onMouseLeave={() => setShowTooltip(null)}
                 />
                 <AnimatePresence>
                   {showTooltip === key && (
                     <motion.div
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      className="absolute left-0 top-6 z-50 w-64 p-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl text-xs text-[var(--muted)] font-normal"
+                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 top-6 z-50 w-64 p-3.5 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xl text-[12px] text-[var(--muted-light)] font-normal leading-relaxed"
                     >
                       {setting.description}
                       <div className="absolute -top-1 left-4 w-2 h-2 bg-[var(--surface)] border-l border-t border-[var(--border)] transform rotate-45" />
@@ -214,10 +215,10 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
               onChange(key, !isNaN(numVal) && val !== '' && !val.includes(':') ? numVal : val);
             }}
             className={cn(
-              "w-full px-3 py-2.5 rounded-xl bg-[var(--surface2)] border text-[var(--text)] text-sm focus:outline-none transition-all",
+              "w-full px-4 py-3 rounded-[12px] bg-[var(--surface2)] border text-[var(--text)] text-[13px] font-medium focus:outline-none transition-all duration-200",
               setting.required && !value
-                ? "border-red-500/50 focus:border-red-500"
-                : "border-[var(--border)] focus:border-[var(--accent-primary)]"
+                ? "border-red-500/30 focus:border-red-500/60"
+                : "border-[var(--border)] focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_3px_rgba(167,139,250,0.1)]"
             )}
           >
             {setting.options?.map((option) => (
@@ -239,10 +240,10 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
                   key={String(option.value)}
                   onClick={() => onChange(key, option.value)}
                   className={cn(
-                    "px-2 py-2.5 rounded-lg text-xs font-medium transition-all duration-200",
+                    "px-3 py-2.5 rounded-[10px] text-[12px] font-medium transition-all duration-200",
                     value === option.value
-                      ? "bg-[var(--accent-gradient)] text-[var(--btn-primary-text)] shadow-lg shadow-[var(--accent-primary)]/25 scale-105"
-                      : "bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent-secondary)]/50 hover:text-[var(--text)]"
+                      ? "bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white shadow-md shadow-[#a78bfa]/20"
+                      : "bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted-light)] hover:border-[var(--border-hover)] hover:text-[var(--text)]"
                   )}
                 >
                   {option.label}

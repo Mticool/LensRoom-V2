@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { getCreditBalance } from '@/lib/credits/split-credits';
 
 /**
  * GET /api/auth/session
@@ -11,7 +12,12 @@ export async function GET() {
     const session = await getSession();
     
     if (!session) {
-      return NextResponse.json({ user: null, balance: 0 });
+      return NextResponse.json({ 
+        user: null, 
+        balance: 0,
+        subscriptionStars: 0,
+        packageStars: 0,
+      });
     }
 
     // Get fresh profile data
@@ -41,18 +47,18 @@ export async function GET() {
       .eq('telegram_id', session.telegramId)
       .single();
 
-    // Get balance
+    // Get split balance (subscription + package stars)
     let balance = 0;
+    let subscriptionStars = 0;
+    let packageStars = 0;
+    
     try {
       const userId = await getAuthUserId(session);
       if (userId) {
-        const { data: creditsData } = await supabase
-          .from('credits')
-          .select('amount')
-          .eq('user_id', userId)
-          .single();
-        
-        balance = Number((creditsData as any)?.amount || 0);
+        const creditBalance = await getCreditBalance(supabase, userId);
+        balance = creditBalance.totalBalance;
+        subscriptionStars = creditBalance.subscriptionStars;
+        packageStars = creditBalance.packageStars;
       }
     } catch (error) {
       console.error('[Session] Error fetching balance:', error);
@@ -73,10 +79,17 @@ export async function GET() {
           }
         : null,
       balance,
+      subscriptionStars,
+      packageStars,
     });
   } catch (error) {
     console.error('[Session] Error:', error);
-    return NextResponse.json({ user: null, balance: 0 });
+    return NextResponse.json({ 
+      user: null, 
+      balance: 0,
+      subscriptionStars: 0,
+      packageStars: 0,
+    });
   }
 }
 

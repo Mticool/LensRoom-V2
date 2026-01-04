@@ -145,39 +145,40 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
 ];
 
 // === ПАКЕТЫ ЗВЁЗД (разовая покупка) ===
+// Обновлено: 2025-01-03 по юнит-экономике
 export const STAR_PACKS: StarPack[] = [
   {
     id: 'mini',
-    stars: 1000,
+    stars: 1400,
     price: 990,
-    bonus: 50,
+    bonus: 0,
     description: '"Догнать дедлайн": закончились ⭐ — докупили и продолжили работать.',
-    capacity: 'Хватит на ~150 Nano Banana или 35 Pro',
+    capacity: 'Хватит на ~200 Nano Banana или ~14 Veo Fast',
   },
   {
     id: 'plus',
-    stars: 1600,
+    stars: 2200,
     price: 1490,
-    bonus: 200,
+    bonus: 0,
     description: 'Комфортный запас на неделю/две активной работы.',
-    capacity: 'Хватит на ~257 Nano Banana или 60 Pro',
+    capacity: 'Хватит на ~314 Nano Banana или ~22 Veo Fast',
   },
   {
     id: 'max',
-    stars: 2200,
+    stars: 3000,
     price: 1990,
-    bonus: 350,
+    bonus: 0,
     popular: true,
     description: 'Пакет для тестов рекламы и масштабирования.',
-    capacity: 'Хватит на ~364 Nano Banana или 85 Pro',
+    capacity: 'Хватит на ~428 Nano Banana или ~30 Veo Fast',
   },
   {
     id: 'ultra',
-    stars: 5000,
+    stars: 7600,
     price: 4990,
-    bonus: 1500,
+    bonus: 0,
     description: 'Максимальная выгода: самая низкая цена за ⭐. Если генерите много — это выгоднее.',
-    capacity: 'Хватит на 928 Nano Banana или 130 Sora 2',
+    capacity: 'Хватит на ~1085 Nano Banana или ~76 Veo Fast',
   },
 ];
 
@@ -252,6 +253,55 @@ export function formatStars(stars: number): string {
 export function calculateSavings(pack: StarPack): number {
   // "Выгода" в ⭐ относительно базового объёма (без бонуса)
   return packTotalStars(pack) - pack.stars;
+}
+
+// === ЭКВИВАЛЕНТЫ ГЕНЕРАЦИЙ ===
+// Закреплённые цены для расчёта эквивалентов
+export const REFERENCE_PRICES = {
+  'nano-banana': 7,      // Nano Banana T2I
+  'veo-fast': 99,        // Veo 3.1 Fast 8s
+  'veo-quality': 490,    // Veo 3.1 Quality 8s
+  'kling-turbo-5s': 105, // Kling 2.5 Turbo 5s
+  'kling-turbo-10s': 210,// Kling 2.5 Turbo 10s
+  'kling-audio-5s': 135, // Kling 2.6 Audio 5s
+  'kling-audio-10s': 270,// Kling 2.6 Audio 10s
+  'kling-pro-5s': 200,   // Kling 2.1 Pro 5s
+  'kling-pro-10s': 400,  // Kling 2.1 Pro 10s
+} as const;
+
+/**
+ * Рассчитать эквиваленты генераций для пакета/подписки
+ */
+export function calculateEquivalents(stars: number): {
+  banana: number;
+  veoFast: number;
+  veoQuality: number;
+  klingTurbo5s: number;
+  klingTurbo10s: number;
+  klingAudio5s: number;
+  klingPro5s: number;
+} {
+  return {
+    banana: Math.floor(stars / REFERENCE_PRICES['nano-banana']),
+    veoFast: Math.floor(stars / REFERENCE_PRICES['veo-fast']),
+    veoQuality: Math.floor(stars / REFERENCE_PRICES['veo-quality']),
+    klingTurbo5s: Math.floor(stars / REFERENCE_PRICES['kling-turbo-5s']),
+    klingTurbo10s: Math.floor(stars / REFERENCE_PRICES['kling-turbo-10s']),
+    klingAudio5s: Math.floor(stars / REFERENCE_PRICES['kling-audio-5s']),
+    klingPro5s: Math.floor(stars / REFERENCE_PRICES['kling-pro-5s']),
+  };
+}
+
+/**
+ * Форматировать эквиваленты для отображения
+ */
+export function formatEquivalents(stars: number): string[] {
+  const eq = calculateEquivalents(stars);
+  return [
+    `~${eq.banana} Nano Banana`,
+    `~${eq.veoFast} Veo Fast`,
+    `~${eq.klingTurbo5s} Kling 5s`,
+  ];
 }
 
 // === ENTITLEMENTS: Nano Banana Pro ===

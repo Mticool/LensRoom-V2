@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from "@/lib/env";
 import { STAR_PACKS, packTotalStars } from "@/config/pricing";
+import { addSubscriptionStars, addPackageStars, renewSubscription } from "@/lib/credits/split-credits";
 import crypto from "crypto";
 
 function getWebhookSupabase() {
@@ -182,30 +183,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Начисляем кредиты
+    // Начисляем кредиты (раздельно: подписка vs пакет)
     if (credits > 0) {
-      const { data: currentCredits } = await supabase
-        .from('credits')
-        .select('amount')
-        .eq('user_id', userId)
-        .single();
-
-      const newBalance = (currentCredits?.amount || 0) + credits;
-
-      const { error: updateError } = await supabase
-        .from('credits')
-        .update({
-          amount: newBalance,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
-
-      if (updateError) {
-        // Если записи нет — создаём
-        await supabase.from('credits').insert({
-          user_id: userId,
-          amount: credits,
-        });
+      let newBalance;
+      
+      if (paymentType === 'subscription') {
+        // Подписка: звёзды сгорают в конце месяца
+        // При продлении: старые subscription_stars сбрасываются, новые начисляются
+        newBalance = await renewSubscription(supabase, userId, credits);
+        console.log(`✅ Subscription stars renewed: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
+      } else {
+        // Пакет: звёзды остаются навсегда
+        newBalance = await addPackageStars(supabase, userId, credits);
+        console.log(`✅ Package stars added: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
       }
 
       // Записываем транзакцию
@@ -213,15 +203,14 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         amount: credits,
         type: paymentType === 'subscription' ? 'subscription' : 'purchase',
-        description: `${paymentType === 'subscription' ? 'Подписка' : 'Покупка'}: +${credits} кредитов (${body.sum}₽)`,
+        description: `${paymentType === 'subscription' ? 'Подписка' : 'Покупка'}: +${credits} ⭐ (${body.sum}₽)`,
         metadata: { 
           payform_order_id: body.order_id,
           sum: body.sum,
           products: body.products,
+          credit_type: paymentType === 'subscription' ? 'subscription_stars' : 'package_stars',
         },
       });
-
-      console.log(`✅ Credits added: ${credits}. New balance: ${newBalance}`);
     }
 
     // Обработка подписки

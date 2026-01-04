@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { addSubscriptionStars, addPackageStars, renewSubscription } from '@/lib/credits/split-credits';
 import crypto from 'crypto';
 
 /**
@@ -274,75 +275,44 @@ async function addCreditsToUser(
   
   console.log('[Robokassa Webhook] Payment recorded');
   
-  // Используем функцию adjust_credits из БД для атомарного обновления
-  const { data: result, error: adjustError } = await supabase.rpc('adjust_credits', {
-    p_user_id: userId,
-    p_amount: credits,
-    p_type: 'purchase',
-    p_description: type === 'subscription' 
+  // Используем раздельную систему: subscription_stars vs package_stars
+  let newBalance;
+  const creditType = type === 'subscription' ? 'subscription_stars' : 'package_stars';
+  
+  if (type === 'subscription') {
+    // Подписка: звёзды сгорают в конце месяца
+    // При продлении: старые subscription_stars сбрасываются, новые начисляются
+    newBalance = await renewSubscription(supabase, userId, credits);
+    console.log(`[Robokassa Webhook] Subscription stars renewed: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
+  } else {
+    // Пакет: звёзды остаются навсегда
+    newBalance = await addPackageStars(supabase, userId, credits);
+    console.log(`[Robokassa Webhook] Package stars added: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
+  }
+  
+  // Записываем транзакцию
+  await supabase.from('credit_transactions').insert({
+    user_id: userId,
+    amount: credits,
+    type: type === 'subscription' ? 'subscription' : 'purchase',
+    description: type === 'subscription' 
       ? `Подписка ${planId}: +${credits} ⭐`
       : `Покупка пакета: +${credits} ⭐`,
-    p_metadata: {
+    metadata: {
       provider: 'robokassa',
       inv_id: invId,
       amount_rub: amount,
+      credit_type: creditType,
     },
   });
-  
-  if (adjustError) {
-    console.error('[Robokassa Webhook] adjust_credits error:', adjustError);
-    
-    // Fallback: ручное обновление
-    const { data: currentCredits } = await supabase
-      .from('credits')
-      .select('amount')
-      .eq('user_id', userId)
-      .single();
-    
-    if (currentCredits) {
-      await supabase
-        .from('credits')
-        .update({ 
-          amount: currentCredits.amount + credits,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
-    } else {
-      await supabase
-        .from('credits')
-        .insert({
-          user_id: userId,
-          amount: credits,
-        });
-    }
-    
-    // Записываем транзакцию
-    await supabase.from('credit_transactions').insert({
-      user_id: userId,
-      amount: credits,
-      type: 'purchase',
-      description: type === 'subscription' 
-        ? `Подписка ${planId}: +${credits} ⭐`
-        : `Покупка пакета: +${credits} ⭐`,
-      metadata: {
-        provider: 'robokassa',
-        inv_id: invId,
-        amount_rub: amount,
-      },
-    });
-  }
-  
-  // Получаем новый баланс для логирования
-  const { data: newBalance } = await supabase
-    .from('credits')
-    .select('amount')
-    .eq('user_id', userId)
-    .single();
   
   console.log('[Robokassa Webhook] Credits added:', {
     userId,
     credits,
-    newBalance: newBalance?.amount || credits,
+    creditType,
+    newBalance: newBalance.totalBalance,
+    subscriptionStars: newBalance.subscriptionStars,
+    packageStars: newBalance.packageStars,
   });
 }
 

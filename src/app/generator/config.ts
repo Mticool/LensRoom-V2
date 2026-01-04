@@ -11,6 +11,7 @@ export interface ModelInfo {
   badge?: string;
   description: string;
   dynamicPrice?: boolean;
+  supportsI2i?: boolean; // For batch mode
 }
 
 export interface SectionConfig {
@@ -28,6 +29,7 @@ export interface ChatMessage {
   model?: string;
   url?: string;
   isGenerating?: boolean;
+  batchResults?: Array<{ url: string; clientId?: string }>;
 }
 
 export interface ChatSession {
@@ -41,31 +43,34 @@ export interface ChatSession {
 }
 
 // ===== MODELS CONFIG =====
+// ОБНОВЛЕНО 2025-01-03: минимальные цены ("от X⭐") по юнитке
+// cost = минимальная цена для отображения "от X⭐" на карточке
+// dynamicPrice = true для моделей с вариантами (цена зависит от настроек)
 export const MODELS_CONFIG: Record<SectionType, SectionConfig> = {
   image: {
     section: 'Дизайн',
     icon: ImageIcon,
     models: [
-      { id: 'grok-imagine', name: 'Grok Imagine', icon: Flame, cost: 15, badge: 'xAI 🌶️', description: 'Spicy Mode + Upscale' },
-      { id: 'nano-banana', name: 'Nano Banana', icon: Sparkles, cost: 7, badge: 'Fast', description: 'Быстрая генерация' },
-      { id: 'nano-banana-pro', name: 'Nano Banana Pro', icon: Star, cost: 35, badge: 'Premium', description: '4K качество' },
-      { id: 'gpt-image', name: 'GPT Image 1.5', icon: Brain, cost: 42, badge: 'OpenAI', description: 'Текст в фото + Редактор' },
-      { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, cost: 10, badge: 'Popular', description: 'Детализация' },
-      { id: 'seedream-4.5', name: 'Seedream 4.5', icon: Sparkles, cost: 11, badge: 'Новинка', description: '4K нового поколения' },
-      { id: 'z-image', name: 'Z-Image', icon: ImageIcon, cost: 2, badge: 'Быстрый', description: 'Самый дешёвый' },
+      { id: 'grok-imagine', name: 'Grok Imagine', icon: Flame, cost: 15, badge: 'xAI 🌶️', description: 'Spicy Mode + Upscale', supportsI2i: false },
+      { id: 'nano-banana', name: 'Nano Banana', icon: Sparkles, cost: 7, badge: 'Fast', description: '7⭐ • Быстрая генерация', supportsI2i: true },
+      { id: 'nano-banana-pro', name: 'Nano Banana Pro', icon: Star, cost: 30, badge: 'Premium', description: '30-40⭐ • 1K-4K качество', supportsI2i: true, dynamicPrice: true },
+      { id: 'gpt-image', name: 'GPT Image 1.5', icon: Brain, cost: 17, badge: 'OpenAI', description: '17-67⭐ • Текст + Редактор', supportsI2i: true, dynamicPrice: true },
+      { id: 'flux-2-pro', name: 'FLUX.2 Pro', icon: Zap, cost: 9, badge: 'Popular', description: '9-12⭐ • 1K/2K детализация', supportsI2i: true, dynamicPrice: true },
+      { id: 'seedream-4.5', name: 'Seedream 4.5', icon: Sparkles, cost: 11, badge: 'Новинка', description: '11⭐ • 4K нового поколения', supportsI2i: true },
+      { id: 'z-image', name: 'Z-Image', icon: ImageIcon, cost: 2, badge: 'Быстрый', description: '2⭐ • Самый дешёвый', supportsI2i: true },
     ],
   },
   video: {
     section: 'Видео',
     icon: Video,
     models: [
-      { id: 'grok-video', name: 'Grok Video', icon: Flame, cost: 25, badge: 'xAI 🌶️', description: 'T2V + I2V + Аудио' },
-      { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 260, badge: 'Google', description: 'Со звуком' },
-      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Trending', description: '3 версии' },
-      { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: 'First→Last', dynamicPrice: true },
-      { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'OpenAI', description: 'Баланс' },
-      { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 650, badge: 'Premium', description: '1080p' },
-      { id: 'wan', name: 'WAN AI', icon: Video, cost: 217, badge: 'Новинка', description: 'До 15 сек' },
+      { id: 'grok-video', name: 'Grok Video', icon: Flame, cost: 25, badge: 'xAI 🌶️', description: '25⭐ • T2V + I2V + Аудио' },
+      { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 99, badge: 'Google', description: '99-490⭐ • Fast/Quality 8s', dynamicPrice: true },
+      { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Trending', description: '105-400⭐ • Turbo/Audio/Pro', dynamicPrice: true },
+      { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: '56-112⭐ • First→Last 5-10s', dynamicPrice: true },
+      { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'OpenAI', description: '50⭐ • 10-15s баланс' },
+      { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 250, badge: 'Premium', description: '250-1050⭐ • 1080p 10-15s', dynamicPrice: true },
+      { id: 'wan', name: 'WAN AI', icon: Video, cost: 100, badge: 'Новинка', description: '100-660⭐ • 5-15s 720-1080p', dynamicPrice: true },
     ],
   },
   audio: {

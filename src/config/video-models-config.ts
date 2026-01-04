@@ -295,8 +295,8 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Версия",
         type: "select",
         options: [
-          { value: "2.5", label: "WAN 2.5 (217⭐) - Кинематографика" },
-          { value: "2.6", label: "WAN 2.6 (389⭐) - V2V, 15s" }
+          { value: "2.5", label: "WAN 2.5 (от 100⭐) - Кинематографика" },
+          { value: "2.6", label: "WAN 2.6 (от 118⭐) - V2V, 15s" }
         ],
         default: "2.5",
         description: "Выберите версию WAN для генерации",

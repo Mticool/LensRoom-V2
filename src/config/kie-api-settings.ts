@@ -33,10 +33,19 @@ export interface ModelSetting {
   apiKey?: string; // Название поля в API (если отличается)
 }
 
+export interface PriceModifier {
+  settingKey: string;
+  values: Record<string, number>; // value -> множитель или фиксированная цена
+  type: 'multiplier' | 'fixed' | 'perSecond';
+}
+
 export interface KieModelSettings {
   name: string;
   apiModel: string; // Точное название модели для API
   settings: Record<string, ModelSetting>;
+  baseCost?: number; // Базовая стоимость в звёздах
+  priceModifiers?: PriceModifier[]; // Модификаторы цены
+  provider?: 'kie' | 'fal'; // Провайдер API
 }
 
 // ===== ФОТО МОДЕЛИ =====
@@ -92,6 +101,18 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
   "nano-banana-pro": {
     name: "Nano Banana Pro",
     apiModel: "nano-banana-pro",
+    baseCost: 30, // Базовая цена 30⭐ (1K/2K)
+    priceModifiers: [
+      {
+        settingKey: "quality",
+        type: "fixed",
+        values: {
+          "1K": 30,   // 1K = 30⭐
+          "2K": 30,   // 2K = 30⭐
+          "4K": 40    // 4K = 40⭐
+        }
+      }
+    ],
     settings: {
       generation_type: {
         label: "Режим генерации",
@@ -109,12 +130,12 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         label: "Качество",
         type: "buttons",
         options: [
-          { value: "1K", label: "1K" },
-          { value: "2K", label: "2K" },
-          { value: "4K", label: "4K" }
+          { value: "1K", label: "1K (30⭐)" },
+          { value: "2K", label: "2K (30⭐)" },
+          { value: "4K", label: "4K (40⭐)" }
         ],
         default: "2K",
-        description: "Разрешение изображения",
+        description: "1K/2K = 30⭐, 4K = 40⭐",
         required: true,
         order: 2
       },
@@ -141,6 +162,17 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
   "flux-2-pro": {
     name: "FLUX.2 Pro",
     apiModel: "flux-2/pro-text-to-image",
+    baseCost: 9, // Базовая цена 9⭐ (1K)
+    priceModifiers: [
+      {
+        settingKey: "resolution",
+        type: "fixed",
+        values: {
+          "1K": 9,   // 1K = 9⭐
+          "2K": 12   // 2K = 12⭐
+        }
+      }
+    ],
     settings: {
       generation_type: {
         label: "Режим генерации",
@@ -158,11 +190,11 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         label: "Разрешение",
         type: "buttons",
         options: [
-          { value: "1K", label: "1K" },
-          { value: "2K", label: "2K" }
+          { value: "1K", label: "1K (9⭐)" },
+          { value: "2K", label: "2K (12⭐)" }
         ],
         default: "2K",
-        description: "Качество выходного изображения",
+        description: "1K = 9⭐, 2K = 12⭐",
         required: true,
         order: 2
       },
@@ -239,6 +271,17 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
   "gpt-image": {
     name: "GPT Image 1.5",
     apiModel: "gpt-image/1.5-text-to-image",
+    baseCost: 17, // Базовая цена 17⭐ (medium)
+    priceModifiers: [
+      {
+        settingKey: "quality",
+        type: "fixed",
+        values: {
+          "medium": 17,  // Medium = 17⭐
+          "high": 67     // High = 67⭐
+        }
+      }
+    ],
     settings: {
       generation_type: {
         label: "Режим генерации",
@@ -256,11 +299,11 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         label: "Качество",
         type: "buttons",
         options: [
-          { value: "medium", label: "Medium (4x быстрее)" },
-          { value: "high", label: "High (детали)" }
+          { value: "medium", label: "Medium (17⭐)" },
+          { value: "high", label: "High (67⭐)" }
         ],
         default: "medium",
-        description: "Medium = быстро и экономно, High = максимальная детализация",
+        description: "Medium = 17⭐, High = 67⭐",
         required: true,
         order: 2
       },
@@ -406,23 +449,9 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
   }
 };
 
-// ===== ТИПЫ ДЛЯ ДИНАМИЧЕСКОГО ЦЕНООБРАЗОВАНИЯ =====
-
-export interface PriceModifier {
-  settingKey: string;
-  values: Record<string, number>; // value -> множитель или фиксированная цена
-  type: 'multiplier' | 'fixed' | 'perSecond';
-}
-
-export interface KieModelSettingsWithPricing extends KieModelSettings {
-  baseCost?: number; // Базовая стоимость в звёздах
-  priceModifiers?: PriceModifier[]; // Модификаторы цены
-  provider?: 'kie' | 'fal'; // Провайдер API
-}
-
 // ===== ВИДЕО МОДЕЛИ =====
 
-export const KIE_VIDEO_MODELS: Record<string, KieModelSettingsWithPricing> = {
+export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
   // Kling O1 - FAL.ai (First Frame Last Frame)
   // Документация: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
   "kling-o1": {
@@ -973,8 +1002,8 @@ export function calculateDynamicPrice(
   type: 'image' | 'video' = 'video'
 ): number {
   const model = type === 'video' 
-    ? KIE_VIDEO_MODELS[modelId] as KieModelSettingsWithPricing
-    : KIE_IMAGE_MODELS[modelId] as KieModelSettingsWithPricing;
+    ? KIE_VIDEO_MODELS[modelId] as KieModelSettings
+    : KIE_IMAGE_MODELS[modelId] as KieModelSettings;
   
   if (!model) return 0;
   
@@ -1009,8 +1038,8 @@ export function calculateDynamicPrice(
 /**
  * Получить информацию о модели с ценообразованием
  */
-export function getVideoModelWithPricing(modelId: string): KieModelSettingsWithPricing | undefined {
-  return KIE_VIDEO_MODELS[modelId] as KieModelSettingsWithPricing;
+export function getVideoModelWithPricing(modelId: string): KieModelSettings | undefined {
+  return KIE_VIDEO_MODELS[modelId] as KieModelSettings;
 }
 
 // ===== API MODEL HELPERS =====

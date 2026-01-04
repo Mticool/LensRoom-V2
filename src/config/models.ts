@@ -429,6 +429,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: 'xAI 🌶️',
   },
   // === VEO 3.1 - single model with quality toggle ===
+  // ОБНОВЛЕНО 2025-01-03: Fast 99⭐, Quality 490⭐
   {
     id: 'veo-3.1',
     name: 'Veo 3.1',
@@ -444,10 +445,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudio: true,
     supportsStartEnd: true, // First & last frame support
     pricing: {
-      // NEW PRICING: fast (60 credits) = 100⭐, quality (250 credits) = 420⭐
-      // Same price for all modes: t2v, i2v, reference
-      quality: { '8': 420 },
-      fast: { '8': 100 },
+      // ЮНИТКА 2025-01-03: fast=99⭐, quality=490⭐
+      fast: { '8': 99 },
+      quality: { '8': 490 },
     },
     modes: ['t2v', 'i2v', 'start_end', 'reference'], // Added reference mode
     durationOptions: [8],
@@ -455,10 +455,11 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     qualityOptions: ['fast', 'quality'],
     // Veo rejects 1:1 with "Ratio error" (422) — keep only supported ratios.
     aspectRatios: ['16:9', '9:16'],
-    shortLabel: '8s • Fast',
+    shortLabel: '8s • от 99⭐',
   },
   
   // === KLING - Unified model with variants (2.5 Turbo, 2.6, 2.1) ===
+  // ОБНОВЛЕНО 2025-01-03: новые цены по юнитке
   {
     id: 'kling',
     name: 'Kling',
@@ -474,8 +475,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: true, // Audio only for 2.6
     pricing: {
-      '5': { no_audio: 70 }, // Minimum price (2.5 Turbo 5s)
-      '10': { no_audio: 140 }, // Minimum price (2.5 Turbo 10s)
+      '5': { no_audio: 105 }, // Minimum price (2.5 Turbo 5s)
+      '10': { no_audio: 210 }, // Minimum price (2.5 Turbo 10s)
     },
     modelVariants: [
       {
@@ -483,9 +484,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
         name: 'Kling 2.5 Turbo',
         apiId: 'kling-2.5-turbo/text-to-video',
         pricing: {
-          // NEW PRICING: 5s (42 credits) = 70⭐, 10s (84 credits) = 140⭐
-          '5': { no_audio: 70 },
-          '10': { no_audio: 140 },
+          // ЮНИТКА 2025-01-03: 5s=105⭐, 10s=210⭐
+          '5': { no_audio: 105 },
+          '10': { no_audio: 210 },
         },
       },
       {
@@ -494,10 +495,10 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
         apiId: 'kling-2.6/text-to-video',
         apiIdI2v: 'kling-2.6/image-to-video',
         pricing: {
-          // NEW PRICING: no_audio: 5s (55 credits) = 92⭐; 10s (110) = 184⭐
-          // with_audio: 5s (110) = 184⭐; 10s (220) = 368⭐
-          '5': { no_audio: 92, audio: 184 },
-          '10': { no_audio: 184, audio: 368 },
+          // ЮНИТКА 2025-01-03: audio 5s=135⭐, 10s=270⭐
+          // no_audio остаётся дешевле
+          '5': { no_audio: 105, audio: 135 },
+          '10': { no_audio: 210, audio: 270 },
         },
       },
       {
@@ -505,16 +506,16 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
         name: 'Kling 2.1 Pro',
         apiId: 'kling/v2-1-pro',
         pricing: {
-          // NEW PRICING: 5s (160 credits) = 268⭐, 10s (320) = 536⭐
-          '5': { no_audio: 268 },
-          '10': { no_audio: 536 },
+          // ЮНИТКА 2025-01-03: 5s=200⭐, 10s=400⭐
+          '5': { no_audio: 200 },
+          '10': { no_audio: 400 },
         },
       },
     ],
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
     aspectRatios: ['1:1', '16:9', '9:16'],
-    shortLabel: 'от 70⭐',
+    shortLabel: 'от 105⭐',
   },
 
   // === SORA 2 - Market API (i2v only) ===

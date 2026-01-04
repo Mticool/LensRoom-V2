@@ -124,7 +124,10 @@ export async function notifyGenerationStatus(params: {
         : "Видео готово ✅"
       : "Ошибка генерации ❌";
 
-  await sendMessage({ chatId: telegramId, text, keyboard: kb, disablePreview: true });
+  await sendMessage(telegramId, text, {
+    replyMarkup: { inline_keyboard: kb },
+    disableWebPagePreview: true,
+  });
 }
 
 

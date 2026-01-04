@@ -10,14 +10,16 @@ const LOW_BALANCE_THRESHOLDS = {
 
 interface CreditsState {
   balance: number;
+  subscriptionStars: number; // Stars from subscription (expire monthly)
+  packageStars: number;       // Stars from packages (never expire)
   loading: boolean;
   error: string | null;
   lastLowBalanceNotification: number | null; // timestamp
   lowBalanceThreshold: number;
   fetchBalance: () => Promise<void>;
-  addCredits: (amount: number) => void;
+  addCredits: (amount: number, type?: 'subscription' | 'package') => void;
   deductCredits: (amount: number) => boolean;
-  setBalance: (balance: number) => void;
+  setBalance: (balance: number, subscriptionStars?: number, packageStars?: number) => void;
   checkLowBalance: () => 'critical' | 'low' | 'medium' | null;
   shouldShowLowBalanceNotification: () => boolean;
   markLowBalanceNotified: () => void;
@@ -27,6 +29,8 @@ export const useCreditsStore = create<CreditsState>()(
   persist(
     (set, get) => ({
       balance: 0,
+      subscriptionStars: 0,
+      packageStars: 0,
       loading: false,
       error: null,
       lastLowBalanceNotification: null,
@@ -40,43 +44,70 @@ export const useCreditsStore = create<CreditsState>()(
           });
           
           if (!response.ok) {
-            set({ balance: 0, loading: false });
+            set({ balance: 0, subscriptionStars: 0, packageStars: 0, loading: false });
             return;
           }
 
-          const { user, balance } = await response.json();
+          const { user, balance, subscriptionStars, packageStars } = await response.json();
           
           if (!user) {
-            set({ balance: 0, loading: false });
+            set({ balance: 0, subscriptionStars: 0, packageStars: 0, loading: false });
             return;
           }
 
-          set({ balance: balance || 0, loading: false });
+          set({ 
+            balance: balance || 0, 
+            subscriptionStars: subscriptionStars || 0,
+            packageStars: packageStars || 0,
+            loading: false,
+          });
         } catch (error) {
           console.error('Error fetching credits:', error);
-          set({ error: 'Failed to fetch credits', balance: 0, loading: false });
+          set({ error: 'Failed to fetch credits', balance: 0, subscriptionStars: 0, packageStars: 0, loading: false });
         }
       },
 
-      addCredits: (amount: number) => {
-        set((state) => ({ 
-          balance: state.balance + amount,
-          // Reset notification if balance is topped up
-          lastLowBalanceNotification: null,
-        }));
+      addCredits: (amount: number, type: 'subscription' | 'package' = 'package') => {
+        set((state) => {
+          if (type === 'subscription') {
+            return {
+              subscriptionStars: state.subscriptionStars + amount,
+              balance: state.balance + amount,
+              lastLowBalanceNotification: null,
+            };
+          } else {
+            return {
+              packageStars: state.packageStars + amount,
+              balance: state.balance + amount,
+              lastLowBalanceNotification: null,
+            };
+          }
+        });
       },
 
       deductCredits: (amount: number) => {
-        const { balance } = get();
+        const { balance, subscriptionStars, packageStars } = get();
         if (balance >= amount) {
-          set({ balance: balance - amount });
+          // Deduct from subscription first (use before they expire)
+          const fromSubscription = Math.min(subscriptionStars, amount);
+          const fromPackage = amount - fromSubscription;
+          
+          set({ 
+            balance: balance - amount,
+            subscriptionStars: subscriptionStars - fromSubscription,
+            packageStars: packageStars - fromPackage,
+          });
           return true;
         }
         return false;
       },
 
-      setBalance: (balance: number) => {
-        set({ balance });
+      setBalance: (balance: number, subscriptionStars?: number, packageStars?: number) => {
+        set({ 
+          balance,
+          subscriptionStars: subscriptionStars ?? get().subscriptionStars,
+          packageStars: packageStars ?? get().packageStars,
+        });
       },
 
       checkLowBalance: () => {

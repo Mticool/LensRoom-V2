@@ -9,6 +9,7 @@ import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { getPhotoVariantByIds } from "@/config/photoVariantRegistry";
 import { requireAuth } from "@/lib/auth/requireRole";
+import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
 import {
   isNanoBananaPro,
   calculateNBPCost,
@@ -170,45 +171,47 @@ export async function POST(request: NextRequest) {
 
     // Skip credit check for managers/admins
     if (!skipCredits) {
-      // Get user credits
-      const { data: creditsData, error: creditsError } = await supabase
-        .from('credits')
-        .select('amount')
-        .eq('user_id', userId)
-        .single();
-
-      if (creditsError || !creditsData) {
-        return NextResponse.json(
-          { error: "Failed to fetch credits" },
-          { status: 500 }
-        );
-      }
+      // Get user credits (split: subscription + package)
+      const creditBalance = await getCreditBalance(supabase, userId);
 
       // Check if enough credits (only if not included by plan)
-      if (!isIncludedByPlan && creditsData.amount < actualCreditCost) {
+      if (!isIncludedByPlan && creditBalance.totalBalance < actualCreditCost) {
         return NextResponse.json(
           { 
             error: "Insufficient credits", 
             required: actualCreditCost, 
-            available: creditsData.amount,
-            message: `Нужно ${actualCreditCost} ⭐, у вас ${creditsData.amount} ⭐`
+            available: creditBalance.totalBalance,
+            subscriptionStars: creditBalance.subscriptionStars,
+            packageStars: creditBalance.packageStars,
+            message: `Нужно ${actualCreditCost} ⭐, у вас ${creditBalance.totalBalance} ⭐ (${creditBalance.subscriptionStars} подписка + ${creditBalance.packageStars} пакет)`
           },
           { status: 402 } // Payment Required
         );
       }
 
       // Deduct credits (only if not included by plan)
+      // Priority: subscription stars first (use before they expire), then package stars
       if (!isIncludedByPlan && actualCreditCost > 0) {
-        const newBalance = creditsData.amount - actualCreditCost;
-        const { error: deductError } = await supabase
-          .from('credits')
-          .update({ 
-            amount: newBalance,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', userId);
-
-        if (deductError) {
+        const deductResult = await deductCredits(supabase, userId, actualCreditCost);
+        
+        // 🔍 AUDIT LOG: Star deduction (dev-only)
+        if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
+          console.log('[⭐ AUDIT] Photo generation:', JSON.stringify({
+            userId,
+            modelId: effectiveModelId,
+            variantId: resolvedVariantId || 'default',
+            quality: quality || 'default',
+            resolution: resolution || 'default',
+            priceStars: actualCreditCost,
+            deductedFromSubscription: deductResult.deductedFromSubscription,
+            deductedFromPackage: deductResult.deductedFromPackage,
+            balanceBefore: creditBalance.totalBalance,
+            balanceAfter: deductResult.totalBalance,
+            timestamp: new Date().toISOString(),
+          }));
+        }
+        
+        if (!deductResult.success) {
           return NextResponse.json(
             { error: "Failed to deduct credits" },
             { status: 500 }

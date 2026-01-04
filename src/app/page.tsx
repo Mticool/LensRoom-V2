@@ -1,259 +1,260 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import { 
-  ArrowRight, Play, Star, Check, Sparkles,
-  Image as ImageIcon, Video, Zap, Crown
+  ArrowRight, Play, Sparkles, MousePointer2,
+  Image as ImageIcon, Video, Music, Wand2, Layers, Zap
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
-// Примеры Nano Banana Pro - профессиональные AI генерации
-const nanaExamples = [
-  // Студийные портреты
-  { url: 'https://picsum.photos/seed/portrait1/800/1000', prompt: 'Professional studio portrait, soft lighting, 4K', model: 'Nano Banana Pro', badge: 'Portrait' },
-  { url: 'https://picsum.photos/seed/beauty1/800/1000', prompt: 'Beauty close-up, perfect skin, editorial', model: 'Nano Banana Pro', badge: 'Beauty' },
-  // Fashion & Editorial
-  { url: 'https://picsum.photos/seed/fashion1/800/1000', prompt: 'High fashion editorial, dramatic lighting', model: 'FLUX.2 Pro', badge: 'Fashion' },
-  { url: 'https://picsum.photos/seed/editorial1/800/1000', prompt: 'Vogue style, cinematic portrait', model: 'Midjourney', badge: 'Editorial' },
-  // Cinematic
-  { url: 'https://picsum.photos/seed/cinema1/800/1000', prompt: 'Cinematic male portrait, film grain', model: 'Nano Banana Pro', badge: 'Cinematic' },
-  { url: 'https://picsum.photos/seed/natural1/800/1000', prompt: 'Natural light portrait, warm tones', model: 'Nano Banana Pro', badge: '4K' },
-  // Artistic
-  { url: 'https://picsum.photos/seed/art1/800/1000', prompt: 'Artistic portrait, soft focus', model: 'GPT Image', badge: 'Art' },
-  { url: 'https://picsum.photos/seed/street1/800/1000', prompt: 'Street fashion, urban style', model: 'Seedream 4.5', badge: 'Street' },
+// Featured works - реальные примеры из /public/showcase/
+const featuredWorks = [
+  { id: 1, type: 'image', src: '/showcase/1.jpg', model: 'Nano Banana Pro', category: 'Portrait' },
+  { id: 2, type: 'video', src: '/showcase/3.mp4', poster: '/showcase/2.jpg', model: 'Veo 3.1', category: 'Cinematic', duration: '8s' },
+  { id: 3, type: 'image', src: '/showcase/2.jpg', model: 'FLUX.2 Pro', category: 'Fashion' },
+  { id: 4, type: 'image', src: '/showcase/4.jpg', model: 'GPT Image', category: 'Editorial' },
+  { id: 5, type: 'image', src: '/showcase/5.jpg', model: 'Kling AI', category: 'Commercial' },
+  { id: 6, type: 'image', src: '/showcase/6.jpg', model: 'Seedream 4.5', category: '4K' },
 ];
 
-// Видео примеры - кинематографичные превью
-const videoExamples = [
-  { url: 'https://picsum.photos/seed/video1/1200/675', title: 'Cinematic Scene', desc: 'Со звуком и музыкой', model: 'Veo 3.1', duration: '8s', badge: 'Google' },
-  { url: 'https://picsum.photos/seed/video2/1200/675', title: 'Film Production', desc: 'Профессиональное качество', model: 'Kling AI', duration: '10s', badge: 'Trending' },
-  { url: 'https://picsum.photos/seed/video3/1200/675', title: 'Documentary', desc: 'Реалистичная съёмка', model: 'Sora 2', duration: '15s', badge: 'OpenAI' },
-  { url: 'https://picsum.photos/seed/video4/1200/675', title: 'Fashion Film', desc: 'Стильная презентация', model: 'WAN AI', duration: '10s', badge: 'New' },
+// Tools/Features
+const tools = [
+  { 
+    icon: ImageIcon, 
+    title: 'Создать фото', 
+    desc: 'От портретов до fashion, 4K качество',
+    href: '/generator?section=image',
+    color: '#a78bfa'
+  },
+  { 
+    icon: Video, 
+    title: 'Создать видео', 
+    desc: 'Кинематограф со звуком до 15с',
+    href: '/generator?section=video',
+    color: '#22d3ee'
+  },
+  { 
+    icon: Music, 
+    title: 'Создать музыку', 
+    desc: 'AI треки любого жанра',
+    href: '/generator?section=audio',
+    color: '#f472b6'
+  },
+  { 
+    icon: Wand2, 
+    title: 'Редактировать', 
+    desc: 'Inpaint, upscale, стилизация',
+    href: '/generator?section=image&model=nano-banana-pro',
+    color: '#fbbf24'
+  },
 ];
+
+// Models showcase
+const models = [
+  { name: 'Nano Banana Pro', type: 'Фото', stars: '7-40⭐', badge: 'Безлимит', hot: true },
+  { name: 'Veo 3.1', type: 'Видео', stars: '99-490⭐', badge: 'Google' },
+  { name: 'Kling AI', type: 'Видео', stars: '105-400⭐', badge: 'Trending' },
+  { name: 'GPT Image 1.5', type: 'Фото', stars: '17-67⭐', badge: 'OpenAI' },
+  { name: 'Sora 2', type: 'Видео', stars: '50-1050⭐', badge: 'OpenAI' },
+  { name: 'Grok Imagine', type: 'Фото', stars: '15⭐', badge: 'xAI', hot: true },
+];
+
+// Animated Counter
+function Counter({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true });
+  
+  return (
+    <span ref={ref}>
+      {isInView ? value : 0}{suffix}
+    </span>
+  );
+}
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<'image' | 'video'>('image');
   const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredWork, setHoveredWork] = useState<number | null>(null);
   
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
   });
 
+  const heroY = useTransform(scrollYProgress, [0, 0.5], [0, 150]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.3], [1, 0.95]);
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div ref={containerRef} className="min-h-screen bg-[var(--bg)] text-[var(--text)] overflow-x-hidden">
       
-      {/* ===== HERO - Apple/Higgsfield Style ===== */}
-      <motion.section 
-        style={{ opacity: heroOpacity, scale: heroScale }}
-        className="min-h-[100vh] flex flex-col items-center justify-center px-6 relative overflow-hidden"
-      >
-        {/* Subtle gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-cyan-500/5" />
-        
-        {/* Floating Cards - Left Side */}
-        <div className="absolute inset-0 pointer-events-none hidden lg:block">
-          {/* Top Left */}
-          <motion.div
-            initial={{ opacity: 0, x: -100, rotate: -12 }}
-            animate={{ opacity: 1, x: 0, rotate: -12 }}
-            transition={{ delay: 0.5, duration: 1, ease: "easeOut" }}
-            className="absolute top-[15%] left-[5%] w-44 h-56 pointer-events-auto"
-          >
-            <motion.div 
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
-            >
-              <img src={nanaExamples[0].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-3 left-3">
-                <span className="text-[10px] px-2 py-1 bg-cyan-500/90 rounded-full font-medium text-white">AI Portrait</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Bottom Left */}
-          <motion.div
-            initial={{ opacity: 0, x: -100, rotate: 8 }}
-            animate={{ opacity: 1, x: 0, rotate: 8 }}
-            transition={{ delay: 0.7, duration: 1, ease: "easeOut" }}
-            className="absolute bottom-[18%] left-[8%] w-36 h-48 pointer-events-auto"
-          >
-            <motion.div 
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
-            >
-              <img src={nanaExamples[2].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-3 left-3 flex items-center gap-1">
-                <Play className="w-2.5 h-2.5 fill-white text-white" />
-                <span className="text-[10px] text-white font-medium">Video</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Top Right */}
-          <motion.div
-            initial={{ opacity: 0, x: 100, rotate: 12 }}
-            animate={{ opacity: 1, x: 0, rotate: 12 }}
-            transition={{ delay: 0.6, duration: 1, ease: "easeOut" }}
-            className="absolute top-[12%] right-[5%] w-44 h-56 pointer-events-auto"
-          >
-            <motion.div 
-              animate={{ y: [0, -12, 0] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
-            >
-              <img src={nanaExamples[1].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-3 left-3">
-                <span className="text-[10px] px-2 py-1 bg-purple-500/90 rounded-full font-medium text-white">Fashion</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Bottom Right */}
-          <motion.div
-            initial={{ opacity: 0, x: 100, rotate: -8 }}
-            animate={{ opacity: 1, x: 0, rotate: -8 }}
-            transition={{ delay: 0.8, duration: 1, ease: "easeOut" }}
-            className="absolute bottom-[20%] right-[8%] w-36 h-48 pointer-events-auto"
-          >
-            <motion.div 
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-              className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 transition-transform cursor-pointer"
-            >
-              <img src={nanaExamples[3].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-3 left-3">
-                <span className="text-[10px] px-2 py-1 bg-yellow-500/90 rounded-full font-medium text-black">4K</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Extra floating cards for more depth */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 0.6, scale: 1 }}
-            transition={{ delay: 1, duration: 1 }}
-            className="absolute top-[35%] left-[2%] w-24 h-32 pointer-events-auto"
-          >
-            <motion.div 
-              animate={{ y: [0, -8, 0], rotate: [15, 18, 15] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              className="w-full h-full rounded-xl overflow-hidden shadow-xl border border-white/5 opacity-60"
-            >
-              <img src={nanaExamples[4].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 0.6, scale: 1 }}
-            transition={{ delay: 1.1, duration: 1 }}
-            className="absolute top-[38%] right-[2%] w-24 h-32 pointer-events-auto"
-          >
-            <motion.div 
-              animate={{ y: [0, 8, 0], rotate: [-15, -12, -15] }}
-              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-              className="w-full h-full rounded-xl overflow-hidden shadow-xl border border-white/5 opacity-60"
-            >
-              <img src={nanaExamples[5].url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            </motion.div>
-          </motion.div>
+      {/* ===== HERO - Editorial Style ===== */}
+      <section className="relative min-h-[100vh] flex items-center justify-center overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0">
+          {/* Gradient orbs */}
+          <div className="absolute top-[20%] left-[10%] w-[500px] h-[500px] bg-[#a78bfa]/10 rounded-full blur-[150px]" />
+          <div className="absolute bottom-[10%] right-[10%] w-[400px] h-[400px] bg-[#22d3ee]/10 rounded-full blur-[120px]" />
+          {/* Grid */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
         </div>
-        
-        {/* Content */}
-        <div className="relative z-10 text-center max-w-5xl mx-auto">
-          {/* Badge */}
+
+        <motion.div 
+          style={{ y: heroY, opacity: heroOpacity }}
+          className="relative z-10 max-w-7xl mx-auto px-6 py-32 grid lg:grid-cols-2 gap-16 items-center"
+        >
+          {/* Left - Text */}
+          <div className="space-y-8">
+            {/* Live badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[var(--surface)] border border-[var(--border)]">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[13px] text-[var(--muted-light)]">25+ AI моделей онлайн</span>
+              </div>
+            </motion.div>
+
+            {/* Title */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <h1 className="text-[clamp(2.5rem,8vw,5.5rem)] font-bold leading-[0.95] tracking-tight">
+                <span className="text-[var(--text)]">Твоя</span>
+                <br />
+                <span className="bg-gradient-to-r from-[#a78bfa] via-[#f472b6] to-[#22d3ee] bg-clip-text text-transparent">
+                  AI студия
+                </span>
+              </h1>
+            </motion.div>
+
+            {/* Description */}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-[18px] md:text-[20px] text-[var(--muted)] max-w-lg leading-relaxed"
+            >
+              Фото, видео и музыка профессионального качества. 
+              Одна платформа — все лучшие нейросети.
+            </motion.p>
+
+            {/* CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-wrap items-center gap-4"
+            >
+              <Link href="/generator">
+                <button className="group flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white font-medium text-[15px] shadow-lg shadow-[#a78bfa]/25 hover:shadow-[#a78bfa]/40 hover:-translate-y-0.5 transition-all duration-300">
+                  Начать бесплатно
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </Link>
+              <Link href="#showcase">
+                <button className="flex items-center gap-2 px-6 py-4 rounded-full text-[var(--muted-light)] hover:text-[var(--text)] text-[15px] transition-colors">
+                  <Play className="w-4 h-4" />
+                  Смотреть примеры
+                </button>
+              </Link>
+            </motion.div>
+
+            {/* Stats */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="flex items-center gap-8 pt-6"
+            >
+              {[
+                { value: 50, label: 'звёзд', suffix: '⭐' },
+                { value: 25, label: 'моделей', suffix: '+' },
+                { value: 0, label: 'карта', suffix: '₽' },
+              ].map((stat, i) => (
+                <div key={i} className="text-center">
+                  <div className="text-[24px] font-bold text-[var(--text)]">
+                    <Counter value={stat.value} suffix={stat.suffix} />
+                  </div>
+                  <div className="text-[12px] text-[var(--muted)] uppercase tracking-wider">{stat.label}</div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right - Featured Work Collage */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+            className="relative hidden lg:block"
           >
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-sm text-gray-400">Nano Banana Pro • Безлимит в тарифах</span>
-          </motion.div>
+            <div className="relative aspect-square max-w-[500px] mx-auto">
+              {/* Main featured image */}
+              <div className="absolute inset-[10%] rounded-[28px] overflow-hidden border border-[var(--border)] shadow-2xl shadow-black/30 z-20">
+                <img 
+                  src="/showcase/1.jpg" 
+                  alt="AI Generated Portrait" 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4">
+                  <span className="text-[11px] px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white font-medium">
+                    Nano Banana Pro
+                  </span>
+                </div>
+              </div>
 
-          {/* Main Title - Large & Bold */}
-          <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-6xl md:text-8xl lg:text-[120px] font-bold tracking-tight leading-[0.9] mb-8"
-          >
-            <span className="text-[var(--text)]">Создавайте</span>
-            <br />
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-              невероятное
-            </span>
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-xl md:text-2xl text-gray-400 mb-12 max-w-2xl mx-auto font-light"
-          >
-            AI фото и видео студийного качества за секунды
-          </motion.p>
-
-          {/* CTA */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            <Link href="/generator?section=image">
-              <Button 
-                size="lg"
-                className="bg-white text-black hover:bg-gray-100 px-8 py-6 text-base font-medium rounded-full"
+              {/* Floating smaller cards */}
+              <motion.div 
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-0 left-0 w-32 aspect-[3/4] rounded-[18px] overflow-hidden border border-[var(--border)] shadow-xl z-10"
               >
-                Начать бесплатно
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-            <Link href="#examples">
-              <Button 
-                size="lg"
-                variant="ghost"
-                className="text-gray-400 hover:text-white px-8 py-6 text-base font-medium rounded-full"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Смотреть примеры
-              </Button>
-            </Link>
-          </motion.div>
+                <img src="/showcase/4.jpg" alt="" className="w-full h-full object-cover" />
+              </motion.div>
 
-          {/* Trust line */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-12 flex items-center justify-center gap-8 text-sm text-gray-500"
-          >
-            <span className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-              50⭐ бесплатно
-            </span>
-            <span>•</span>
-            <span>Без карты</span>
-            <span>•</span>
-            <span>25+ моделей</span>
+              <motion.div 
+                animate={{ y: [0, 10, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute top-[5%] right-0 w-28 aspect-square rounded-[16px] overflow-hidden border border-[var(--border)] shadow-xl z-10"
+              >
+                <img src="/showcase/5.jpg" alt="" className="w-full h-full object-cover" />
+              </motion.div>
+
+              <motion.div 
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                className="absolute bottom-[5%] right-[5%] w-36 aspect-video rounded-[14px] overflow-hidden border border-[var(--border)] shadow-xl z-30"
+              >
+                <video 
+                  src="/showcase/3.mp4" 
+                  poster="/showcase/2.jpg"
+                  muted 
+                  loop 
+                  autoPlay 
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Decorative elements */}
+              <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-gradient-to-br from-[#a78bfa]/30 to-transparent blur-2xl" />
+              <div className="absolute -bottom-4 -left-4 w-32 h-32 rounded-full bg-gradient-to-br from-[#22d3ee]/30 to-transparent blur-2xl" />
+            </div>
           </motion.div>
-        </div>
+        </motion.div>
 
         {/* Scroll indicator */}
         <motion.div 
@@ -263,113 +264,65 @@ export default function HomePage() {
           className="absolute bottom-8 left-1/2 -translate-x-1/2"
         >
           <motion.div 
-            animate={{ y: [0, 8, 0] }}
+            animate={{ y: [0, 6, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="w-6 h-10 border border-white/20 rounded-full flex justify-center pt-2"
+            className="flex flex-col items-center gap-2"
           >
-            <div className="w-1 h-2 bg-white/30 rounded-full" />
+            <MousePointer2 className="w-4 h-4 text-[var(--muted)] rotate-180" />
+            <span className="text-[11px] text-[var(--muted)] uppercase tracking-widest">Scroll</span>
           </motion.div>
         </motion.div>
-      </motion.section>
+      </section>
 
-      {/* ===== TOOLS SECTION - Higgsfield Style ===== */}
+      {/* ===== TOOLS SECTION ===== */}
       <section className="py-32 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-20"
           >
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
+            <span className="text-[13px] font-medium text-[var(--accent-primary)] uppercase tracking-widest mb-4 block">
+              Инструменты
+            </span>
+            <h2 className="text-[clamp(2rem,5vw,3.5rem)] font-bold tracking-tight">
               Что создадите сегодня?
             </h2>
-            <p className="text-xl text-gray-400">
-              Выберите инструмент и начните создавать
-            </p>
           </motion.div>
 
-          {/* Tool Cards - Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { 
-                title: 'Создать изображение', 
-                desc: 'AI генерация фото 4K качества',
-                icon: ImageIcon,
-                href: '/generator?section=image',
-                gradient: 'from-purple-500/20 to-pink-500/20',
-                iconGradient: 'from-purple-500 to-pink-500'
-              },
-              { 
-                title: 'Создать видео', 
-                desc: 'Кинематографичные AI видео со звуком',
-                icon: Video,
-                href: '/generator?section=video',
-                gradient: 'from-cyan-500/20 to-blue-500/20',
-                iconGradient: 'from-cyan-500 to-blue-500'
-              },
-              { 
-                title: 'Nano Banana Pro', 
-                desc: 'Лучшая 4K модель • Безлимит',
-                icon: Sparkles,
-                href: '/generator?section=image&model=nano-banana-pro',
-                gradient: 'from-yellow-500/20 to-orange-500/20',
-                iconGradient: 'from-yellow-500 to-orange-500',
-                badge: 'Безлимит'
-              },
-              { 
-                title: 'Veo 3.1', 
-                desc: 'Google видео со звуком',
-                icon: Video,
-                href: '/generator?section=video&model=veo-3.1',
-                gradient: 'from-blue-500/20 to-indigo-500/20',
-                iconGradient: 'from-blue-500 to-indigo-500',
-                badge: 'Google'
-              },
-              { 
-                title: 'Kling AI', 
-                desc: 'Кинематограф до 10 секунд',
-                icon: Zap,
-                href: '/generator?section=video&model=kling',
-                gradient: 'from-emerald-500/20 to-cyan-500/20',
-                iconGradient: 'from-emerald-500 to-cyan-500',
-                badge: 'Trending'
-              },
-              { 
-                title: 'Sora 2', 
-                desc: 'OpenAI видео модель',
-                icon: Crown,
-                href: '/generator?section=video&model=sora-2',
-                gradient: 'from-rose-500/20 to-pink-500/20',
-                iconGradient: 'from-rose-500 to-pink-500',
-                badge: 'OpenAI'
-              },
-            ].map((tool, i) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {tools.map((tool, i) => (
               <motion.div
                 key={tool.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
+                transition={{ delay: i * 0.1 }}
               >
                 <Link href={tool.href}>
-                  <div className={`group relative p-8 rounded-3xl bg-gradient-to-br ${tool.gradient} border border-white/5 hover:border-white/10 transition-all duration-300 cursor-pointer h-full`}>
-                    {tool.badge && (
-                      <span className={`absolute top-6 right-6 text-xs px-3 py-1 rounded-full bg-gradient-to-r ${tool.iconGradient} text-white font-medium`}>
-                        {tool.badge}
-                      </span>
-                    )}
+                  <div className="group relative p-6 h-full rounded-[24px] bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all duration-300 cursor-pointer overflow-hidden">
+                    {/* Glow on hover */}
+                    <div 
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                      style={{ background: `radial-gradient(circle at 50% 0%, ${tool.color}15, transparent 70%)` }}
+                    />
                     
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${tool.iconGradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                      <tool.icon className="w-7 h-7 text-white" />
-                    </div>
-                    
-                    <h3 className="text-xl font-semibold mb-2 text-[var(--text)]">{tool.title}</h3>
-                    <p className="text-gray-500">{tool.desc}</p>
-                    
-                    <div className="mt-6 flex items-center text-sm text-gray-400 group-hover:text-white transition-colors">
-                      <span>Открыть</span>
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <div className="relative z-10">
+                      <div 
+                        className="w-12 h-12 rounded-[14px] flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
+                        style={{ backgroundColor: `${tool.color}15` }}
+                      >
+                        <tool.icon className="w-6 h-6" style={{ color: tool.color }} />
+                      </div>
+                      
+                      <h3 className="text-[16px] font-semibold text-[var(--text)] mb-2">{tool.title}</h3>
+                      <p className="text-[14px] text-[var(--muted)] leading-relaxed">{tool.desc}</p>
+                      
+                      <div className="mt-5 flex items-center text-[13px] text-[var(--muted)] group-hover:text-[var(--text)] transition-colors">
+                        <span>Открыть</span>
+                        <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover:translate-x-1 transition-transform" />
+                      </div>
                     </div>
                   </div>
                 </Link>
@@ -379,175 +332,112 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ===== GALLERY - Nano Banana Pro Examples ===== */}
-      <section id="examples" className="py-32 px-6 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent">
+      {/* ===== SHOWCASE SECTION ===== */}
+      <section id="showcase" className="py-32 px-6 bg-gradient-to-b from-transparent via-[var(--surface)]/50 to-transparent">
         <div className="max-w-7xl mx-auto">
-          {/* Section Header */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-16"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-6">
-              <span className="text-lg">🍌</span>
-              <span className="text-sm text-yellow-400 font-medium">Nano Banana Pro</span>
-            </div>
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
-              Примеры работ
+            <span className="text-[13px] font-medium text-[var(--accent-secondary)] uppercase tracking-widest mb-4 block">
+              Галерея
+            </span>
+            <h2 className="text-[clamp(2rem,5vw,3.5rem)] font-bold tracking-tight mb-4">
+              Создано с LensRoom
             </h2>
-            <p className="text-xl text-gray-400 max-w-xl mx-auto">
-              Сгенерировано с помощью Nano Banana Pro — лучшей 4K модели
+            <p className="text-[16px] text-[var(--muted)] max-w-md mx-auto">
+              Примеры работ наших пользователей
             </p>
           </motion.div>
 
-          {/* Tabs */}
-          <div className="flex justify-center mb-12">
-            <div className="inline-flex p-1 rounded-full bg-white/5 border border-white/10">
-              {[
-                { id: 'image', label: 'Фото', icon: ImageIcon },
-                { id: 'video', label: 'Видео', icon: Video },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as 'image' | 'video')}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-white text-black'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Image Gallery - Masonry Style */}
-          {activeTab === 'image' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4"
-            >
-              {nanaExamples.map((item, i) => (
+          {/* Bento Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-[200px]">
+            {featuredWorks.map((work, i) => {
+              const isLarge = i === 0 || i === 4;
+              const isTall = i === 1 || i === 5;
+              
+              return (
                 <motion.div
-                  key={i}
+                  key={work.id}
                   initial={{ opacity: 0, scale: 0.95 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
-                  className={`group relative rounded-3xl overflow-hidden cursor-pointer ${
-                    i === 0 || i === 3 ? 'aspect-[3/4] md:row-span-2' : 'aspect-square'
-                  }`}
+                  onMouseEnter={() => setHoveredWork(work.id)}
+                  onMouseLeave={() => setHoveredWork(null)}
+                  className={`
+                    group relative rounded-[20px] overflow-hidden cursor-pointer
+                    ${isLarge ? 'md:col-span-2 md:row-span-2' : ''}
+                    ${isTall ? 'row-span-2' : ''}
+                  `}
                 >
-                  <Image 
-                    src={item.url} 
-                    alt={item.prompt} 
-                    fill 
-                    className="object-cover group-hover:scale-110 transition-transform duration-700" 
-                  />
-                  {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0" />
+                  {work.type === 'video' ? (
+                    <video 
+                      src={work.src}
+                      poster={(work as any).poster}
+                      muted 
+                      loop 
+                      autoPlay 
+                      playsInline
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    <img 
+                      src={work.src} 
+                      alt="" 
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  )}
                   
-                  {/* Badge - always visible */}
-                  <div className="absolute top-4 left-4">
-                    <span className="text-xs px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-white font-medium border border-white/20">
-                      {item.badge}
+                  {/* Overlay */}
+                  <div className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0 transition-opacity duration-300 ${
+                    hoveredWork === work.id ? 'opacity-100' : 'opacity-60'
+                  }`} />
+                  
+                  {/* Video indicator */}
+                  {work.type === 'video' && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Labels */}
+                  <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <span className="text-[11px] px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white font-medium border border-white/10">
+                      {work.category}
                     </span>
                   </div>
                   
-                  {/* AI Generated badge */}
-                  <div className="absolute top-4 right-4">
-                    <span className="text-[10px] px-2 py-1 bg-cyan-500/80 backdrop-blur-sm rounded-full text-white font-medium">
-                      AI
-                    </span>
-                  </div>
+                  {work.duration && (
+                    <div className="absolute top-4 right-4">
+                      <span className="text-[11px] px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white font-medium">
+                        {work.duration}
+                      </span>
+                    </div>
+                  )}
                   
                   {/* Bottom info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <p className="text-sm text-white/90 mb-1 line-clamp-2">{item.prompt}</p>
-                    <span className="text-xs text-yellow-400 font-medium">{item.model}</span>
-                  </div>
-                  
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-
-          {/* Video Gallery */}
-          {activeTab === 'video' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid md:grid-cols-2 gap-6"
-            >
-              {videoExamples.map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer"
-                >
-                  <Image 
-                    src={item.url} 
-                    alt={item.title} 
-                    fill 
-                    className="object-cover group-hover:scale-105 transition-transform duration-700" 
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  
-                  {/* Badge */}
-                  <div className="absolute top-4 left-4">
-                    <span className="text-xs px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-white font-medium border border-white/20">
-                      {item.badge}
-                    </span>
-                  </div>
-                  
-                  {/* Duration */}
-                  <div className="absolute top-4 right-4">
-                    <span className="text-xs px-2 py-1 bg-black/50 backdrop-blur-sm rounded-full text-white font-medium">
-                      {item.duration}
-                    </span>
-                  </div>
-                  
-                  {/* Play button */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/20 transition-all">
-                      <Play className="w-8 h-8 text-white fill-white ml-1" />
-                    </div>
-                  </div>
-                  
-                  {/* Info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <h4 className="text-xl font-semibold text-white mb-1">{item.title}</h4>
-                    <p className="text-sm text-white/70 mb-2">{item.desc}</p>
-                    <div className="flex items-center gap-3 text-sm text-white/70">
-                      <span>{item.model}</span>
-                      <span>•</span>
-                      <span>{item.duration}</span>
-                    </div>
+                  <div className={`absolute bottom-0 left-0 right-0 p-5 transform transition-all duration-300 ${
+                    hoveredWork === work.id ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+                  }`}>
+                    <span className="text-[13px] font-medium text-white">{work.model}</span>
                   </div>
                 </motion.div>
-              ))}
-            </motion.div>
-          )}
+              );
+            })}
+          </div>
 
           {/* CTA */}
-          <div className="text-center mt-16">
-            <Link href="/generator">
-              <Button 
-                size="lg"
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-medium px-8 py-6 rounded-full"
-              >
-                Создать своё
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+          <div className="text-center mt-12">
+            <Link href="/inspiration">
+              <button className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[14px] font-medium text-[var(--text)] hover:border-[var(--border-hover)] transition-all">
+                Смотреть всё
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </Link>
           </div>
         </div>
@@ -555,217 +445,194 @@ export default function HomePage() {
 
       {/* ===== MODELS SECTION ===== */}
       <section className="py-32 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-100px" }}
             className="text-center mb-16"
           >
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
-              25+ AI моделей
+            <span className="text-[13px] font-medium text-[#f472b6] uppercase tracking-widest mb-4 block">
+              Модели
+            </span>
+            <h2 className="text-[clamp(2rem,5vw,3.5rem)] font-bold tracking-tight mb-4">
+              Лучшие нейросети
             </h2>
-            <p className="text-xl text-gray-400">
-              Выбирайте лучшее для каждой задачи
+            <p className="text-[16px] text-[var(--muted)] max-w-md mx-auto">
+              От быстрых до профессиональных — выбирайте под задачу
             </p>
           </motion.div>
 
-          {/* Models Grid */}
-          <div className="grid md:grid-cols-2 gap-4">
-            {/* Photo Models */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4 px-2">Фото</h3>
-              {[
-                { name: 'Nano Banana Pro', desc: '4K высшего качества', cost: 35, badge: 'Безлимит', color: 'text-yellow-400' },
-                { name: 'GPT Image', desc: 'Точная цветопередача', cost: 42, badge: 'OpenAI', color: 'text-emerald-400' },
-                { name: 'FLUX.2 Pro', desc: 'Детализация и резкость', cost: 10, badge: 'Fast', color: 'text-purple-400' },
-                { name: 'Seedream 4.5', desc: '4K нового поколения', cost: 11, badge: 'New', color: 'text-cyan-400' },
-              ].map((model, i) => (
-                <motion.div
-                  key={model.name}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Link href={`/generator?section=image`}>
-                    <div className="group flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.07] transition-all cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center`}>
-                          <ImageIcon className={`w-5 h-5 ${model.color}`} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-[var(--text)]">{model.name}</h4>
-                            <span className={`text-xs px-2 py-0.5 rounded-full bg-white/10 ${model.color}`}>
-                              {model.badge}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-500">{model.desc}</p>
-                        </div>
+          <div className="space-y-3">
+            {models.map((model, i) => (
+              <motion.div
+                key={model.name}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <Link href="/generator">
+                  <div className="group flex items-center justify-between p-5 rounded-[18px] bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-hover)] hover:shadow-lg hover:shadow-black/5 transition-all duration-300 cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-11 h-11 rounded-[12px] flex items-center justify-center ${
+                        model.type === 'Фото' ? 'bg-[#a78bfa]/15' : 'bg-[#22d3ee]/15'
+                      }`}>
+                        {model.type === 'Фото' ? (
+                          <ImageIcon className="w-5 h-5 text-[#a78bfa]" />
+                        ) : (
+                          <Video className="w-5 h-5 text-[#22d3ee]" />
+                        )}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-400">{model.cost}⭐</span>
-                        <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                      <div>
+                        <div className="flex items-center gap-2.5">
+                          <h4 className="text-[15px] font-semibold text-[var(--text)]">{model.name}</h4>
+                          {model.hot && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold">
+                              HOT
+                            </span>
+                          )}
+                          <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--surface2)] text-[var(--muted-light)] font-medium">
+                            {model.badge}
+                          </span>
+                        </div>
+                        <p className="text-[13px] text-[var(--muted)]">{model.type}</p>
                       </div>
                     </div>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[14px] font-medium text-[var(--accent-primary)]">{model.stars}</span>
+                      <ArrowRight className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--text)] group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
 
-            {/* Video Models */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4 px-2">Видео</h3>
-              {[
-                { name: 'Veo 3.1', desc: 'Google видео со звуком', cost: 260, badge: 'Google', color: 'text-blue-400' },
-                { name: 'Kling AI', desc: 'Кинематограф до 10с', cost: 105, badge: 'Trending', color: 'text-emerald-400' },
-                { name: 'Sora 2 Pro', desc: '1080p максимум', cost: 650, badge: 'OpenAI', color: 'text-rose-400' },
-                { name: 'WAN AI', desc: 'До 15 секунд', cost: 217, badge: 'New', color: 'text-purple-400' },
-              ].map((model, i) => (
-                <motion.div
-                  key={model.name}
-                  initial={{ opacity: 0, x: 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Link href={`/generator?section=video`}>
-                    <div className="group flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.07] transition-all cursor-pointer">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center`}>
-                          <Video className={`w-5 h-5 ${model.color}`} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-[var(--text)]">{model.name}</h4>
-                            <span className={`text-xs px-2 py-0.5 rounded-full bg-white/10 ${model.color}`}>
-                              {model.badge}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-500">{model.desc}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-400">{model.cost}⭐</span>
-                        <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
+          <div className="text-center mt-8">
+            <Link href="/generator">
+              <button className="text-[14px] text-[var(--muted-light)] hover:text-[var(--text)] transition-colors">
+                Смотреть все модели →
+              </button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* ===== NANO BANANA PRO PROMO ===== */}
+      {/* ===== FEATURES SECTION ===== */}
       <section className="py-32 px-6">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-yellow-500/10 via-orange-500/5 to-transparent border border-yellow-500/20 p-12 md:p-16"
-          >
-            {/* Glow */}
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-yellow-500/10 rounded-full blur-[120px] pointer-events-none" />
-            
-            <div className="relative z-10 grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/20 border border-yellow-500/30 mb-6">
-                  <span className="text-2xl">🍌</span>
-                  <span className="font-semibold text-yellow-300">Эксклюзив</span>
-                </div>
-                
-                <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[var(--text)]">
-                  Nano Banana Pro
-                  <br />
-                  <span className="text-yellow-400">бесплатно</span>
-                </h2>
-                
-                <p className="text-lg text-gray-400 mb-8">
-                  В тарифах Creator+ и Business — безлимитные генерации 4K фото без траты звёзд
-                </p>
-
-                <ul className="space-y-4 mb-10">
-                  {[
-                    'Безлимит генераций',
-                    'Премиум 4K качество',
-                    'Без траты ⭐ звёзд',
-                    'Приоритетная очередь',
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                        <Check className="w-3 h-3 text-green-400" />
-                      </div>
-                      <span className="text-gray-300">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href="/pricing">
-                  <Button className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-medium px-8 py-6 rounded-full">
-                    Смотреть тарифы
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left - Text */}
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+            >
+              <span className="text-[13px] font-medium text-[#fbbf24] uppercase tracking-widest mb-4 block">
+                🍌 Эксклюзив
+              </span>
+              <h2 className="text-[clamp(1.75rem,4vw,2.75rem)] font-bold tracking-tight mb-6">
+                Nano Banana Pro
+                <br />
+                <span className="text-[#fbbf24]">безлимитно</span>
+              </h2>
+              <p className="text-[16px] text-[var(--muted)] mb-8 leading-relaxed">
+                В тарифах Creator+ и Business — неограниченные генерации 4K изображений 
+                без траты звёзд. Лучшее качество для профессионалов.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                {[
+                  { icon: Sparkles, text: 'Безлимит генераций' },
+                  { icon: Layers, text: '4K разрешение' },
+                  { icon: Zap, text: 'Приоритетная очередь' },
+                  { icon: Wand2, text: 'T2I, I2I, Inpaint' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-[12px] bg-[var(--surface)]">
+                    <item.icon className="w-4 h-4 text-[#fbbf24]" />
+                    <span className="text-[13px] text-[var(--text)]">{item.text}</span>
+                  </div>
+                ))}
               </div>
+              
+              <Link href="/pricing">
+                <button className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#fbbf24] to-[#f97316] text-black font-medium text-[14px] hover:shadow-lg hover:shadow-[#fbbf24]/25 transition-all">
+                  Смотреть тарифы
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+            </motion.div>
 
-              {/* Preview Image */}
-              <div className="relative hidden md:block">
-                <div className="aspect-[3/4] max-w-sm mx-auto relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/30 to-orange-500/30 rounded-3xl blur-2xl" />
-                  <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-                    <Image 
-                      src={nanaExamples[0].url}
-                      alt="Nano Banana Pro Example"
-                      width={400}
-                      height={533}
-                      className="w-full h-full object-cover"
-                    />
+            {/* Right - Image */}
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              className="relative"
+            >
+              <div className="relative aspect-[4/5] max-w-sm mx-auto">
+                {/* Glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#fbbf24]/20 to-[#f97316]/20 rounded-[32px] blur-3xl" />
+                
+                {/* Image */}
+                <div className="relative rounded-[28px] overflow-hidden border border-[var(--border)] shadow-2xl">
+                  <img 
+                    src="/showcase/1.jpg"
+                    alt="Nano Banana Pro Example"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  
+                  {/* Badge */}
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white font-medium border border-white/20">
+                        🍌 Nano Banana Pro
+                      </span>
+                      <span className="text-[13px] px-3 py-2 rounded-full bg-[#fbbf24] text-black font-semibold">
+                        4K
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ===== FINAL CTA ===== */}
       <section className="py-32 px-6">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-100px" }}
+            className="relative text-center p-12 md:p-20 rounded-[32px] overflow-hidden"
           >
-            <h2 className="text-5xl md:text-7xl font-bold mb-8">
-              Готовы создавать?
-            </h2>
-            <p className="text-xl text-gray-400 mb-12">
-              50⭐ бесплатно при регистрации
-            </p>
+            {/* Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#a78bfa]/10 via-[var(--surface)] to-[#22d3ee]/10" />
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
             
-            <Link href="/generator">
-              <Button 
-                size="lg"
-                className="bg-white text-black hover:bg-gray-100 px-12 py-7 text-lg font-medium rounded-full"
-              >
-                Начать бесплатно
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-
-            <div className="flex items-center justify-center gap-6 mt-10 text-sm text-gray-500">
-              <span className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-400" />
-                Вход через Telegram
-              </span>
-              <span className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-400" />
-                Без карты
-              </span>
+            <div className="relative z-10">
+              <h2 className="text-[clamp(2rem,6vw,4rem)] font-bold tracking-tight mb-6">
+                Начните создавать
+              </h2>
+              <p className="text-[18px] text-[var(--muted)] mb-10 max-w-md mx-auto">
+                50⭐ бесплатно при регистрации. Без карты.
+              </p>
+              
+              <Link href="/generator">
+                <button className="group inline-flex items-center gap-3 px-10 py-5 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white font-semibold text-[16px] shadow-lg shadow-[#a78bfa]/30 hover:shadow-[#a78bfa]/50 hover:-translate-y-0.5 transition-all duration-300">
+                  Попробовать бесплатно
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </Link>
+              
+              <p className="mt-8 text-[13px] text-[var(--muted)]">
+                Вход через Telegram • Моментальный старт
+              </p>
             </div>
           </motion.div>
         </div>

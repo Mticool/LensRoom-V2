@@ -6,9 +6,10 @@ import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
-import { AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { calculateDynamicPrice } from '@/config/kie-api-settings';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Layers, X, MessageSquare, SlidersHorizontal } from 'lucide-react';
+import { computePrice, type PriceOptions } from '@/lib/pricing/compute-price';
+import { toast } from 'sonner';
 
 // Local components
 import { 
@@ -24,6 +25,10 @@ import {
   ChatSession 
 } from './config';
 
+// Batch components
+import { BatchImageUploader, type UploadedImage } from '@/components/generator-v2/BatchImageUploader';
+import { BatchProgressBar, type BatchProgress } from '@/components/generator-v2/BatchProgressBar';
+
 // ===== HOOKS =====
 
 function useGeneratorState(initialSection: SectionType, initialModel: string | null) {
@@ -37,11 +42,34 @@ function useGeneratorState(initialSection: SectionType, initialModel: string | n
 
   const calculateCost = useCallback(() => {
     if (!modelInfo) return 0;
-    if ('dynamicPrice' in modelInfo && modelInfo.dynamicPrice && activeSection === 'video') {
-      return calculateDynamicPrice(currentModel, settings, 'video');
+    
+    // Маппинг настроек генератора в PriceOptions
+    const priceOptions: PriceOptions = {
+      // Photo options
+      quality: settings.quality || settings.output_quality,
+      resolution: settings.resolution || settings.output_resolution,
+      
+      // Video options
+      mode: settings.generation_type || settings.mode,
+      duration: settings.duration || settings.video_duration,
+      videoQuality: settings.video_quality || settings.quality,
+      audio: settings.audio === true || settings.sound === 'on' || settings.with_audio === true,
+      modelVariant: settings.model_variant || settings.version,
+      
+      // Common
+      variants: 1,
+    };
+    
+    // Используем единую функцию расчёта цен
+    const computed = computePrice(currentModel, priceOptions);
+    
+    // Если computePrice вернул 0 (модель не найдена в конфиге), fallback на базовую цену
+    if (computed.stars === 0) {
+      return modelInfo.cost;
     }
-    return modelInfo.cost;
-  }, [modelInfo, currentModel, settings, activeSection]);
+    
+    return computed.stars;
+  }, [modelInfo, currentModel, settings]);
 
   return {
     activeSection,
@@ -200,6 +228,12 @@ function GeneratorPageContent() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [showHistory, setShowHistory] = useState(true);
+  
+  // Batch mode state
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchImages, setBatchImages] = useState<UploadedImage[]>([]);
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const telegramAuth = useTelegramAuth();
@@ -211,7 +245,7 @@ function GeneratorPageContent() {
   // Track previous model to detect changes
   const prevModelRef = useRef<string | null>(null);
   
-  // Update from URL and create new chat on model change
+  // Update from URL - just change model/section, don't create chat
   useEffect(() => {
     const section = searchParams.get('section') as SectionType;
     const model = searchParams.get('model');
@@ -231,16 +265,10 @@ function GeneratorPageContent() {
       
       if (newModel) {
         generatorState.setCurrentModel(newModel);
-        
-        // Create new chat if model changed (not on initial load)
-        if (prevModelRef.current !== null && prevModelRef.current !== newModel) {
-          chatState.createNewChat(newModel, section);
-          console.log('[Chat] Created new chat for model:', newModel);
-        }
         prevModelRef.current = newModel;
       }
     }
-  }, [searchParams, chatState, generatorState]);
+  }, [searchParams, generatorState]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -266,14 +294,17 @@ function GeneratorPageContent() {
     }
   }, []);
 
-  // Handle model change
+  // Handle model change - just switch model, don't create chat
   const handleModelChange = useCallback((newModel: string) => {
-    if (chatState.messages.length > 0 && chatState.activeChatId) {
-      // Save current chat before switching
-    }
     generatorState.setCurrentModel(newModel);
-    chatState.createNewChat(newModel, generatorState.activeSection);
-  }, [chatState, generatorState]);
+    
+    // Disable batch mode if new model doesn't support i2i
+    const newModelInfo = MODELS_CONFIG[generatorState.activeSection]?.models.find(m => m.id === newModel);
+    if (!newModelInfo?.supportsI2i && batchMode) {
+      setBatchMode(false);
+      setBatchImages([]);
+    }
+  }, [generatorState, batchMode]);
 
   // Handle chat switch
   const handleSwitchChat = useCallback((chatId: string) => {
@@ -322,6 +353,11 @@ function GeneratorPageContent() {
     if (balance < generatorState.currentCost) {
       alert('Недостаточно звёзд');
       return;
+    }
+
+    // Create new chat if no active chat exists
+    if (!chatState.activeChatId) {
+      chatState.createNewChat(generatorState.currentModel, generatorState.activeSection);
     }
 
     const userMessage: ChatMessage = {
@@ -465,6 +501,143 @@ function GeneratorPageContent() {
     }
   }, [prompt, user, balance, generatorState, chatState, uploadedFiles, fetchBalance]);
 
+  // Batch Generate
+  const handleBatchGenerate = useCallback(async () => {
+    if (!prompt.trim() || isBatchGenerating || batchImages.length === 0) return;
+    
+    if (!user) {
+      setLoginOpen(true);
+      return;
+    }
+
+    const pricePerImage = generatorState.currentCost;
+    const totalCost = pricePerImage * batchImages.length;
+
+    if (balance < totalCost) {
+      toast.error(`Недостаточно звёзд. Нужно ${totalCost}⭐, у вас ${balance}⭐`);
+      return;
+    }
+
+    // Create new chat if no active chat exists
+    if (!chatState.activeChatId) {
+      chatState.createNewChat(generatorState.currentModel, generatorState.activeSection);
+    }
+
+    setIsBatchGenerating(true);
+    setBatchProgress({
+      total: batchImages.length,
+      completed: 0,
+      failed: 0,
+      current: 0,
+      status: 'processing',
+    });
+
+    try {
+      // Send batch request
+      const response = await fetch('/api/generate/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          model: generatorState.currentModel,
+          quality: generatorState.settings.quality,
+          aspectRatio: generatorState.settings.aspect_ratio,
+          negativePrompt: generatorState.settings.negative_prompt,
+          images: batchImages.map(img => ({
+            id: img.id,
+            data: img.preview,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Batch generation failed');
+      }
+
+      const { batchId, jobs, totalCost: serverCost } = data;
+      const jobIds = jobs.map((j: { generationId: string }) => j.generationId).join(',');
+
+      toast.success(`Batch запущен: ${batchImages.length} изображений`);
+
+      // Poll for status
+      let isComplete = false;
+      let attempts = 0;
+      const maxAttempts = 300;
+
+      while (!isComplete && attempts < maxAttempts) {
+        attempts++;
+        await new Promise(r => setTimeout(r, 2000));
+
+        try {
+          const statusRes = await fetch(`/api/generate/batch?batchId=${batchId}&jobIds=${jobIds}`);
+          const statusData = await statusRes.json();
+
+          if (statusRes.ok) {
+            const { summary, isComplete: done, results } = statusData;
+            
+            setBatchProgress({
+              total: summary.total,
+              completed: summary.completed,
+              failed: summary.failed,
+              current: summary.pending,
+              status: done ? 'completed' : 'processing',
+            });
+
+            isComplete = done;
+
+            if (done) {
+              // Add results to chat
+              const successResults = results.filter((r: any) => r.status === 'success' && r.imageUrl);
+              
+              if (successResults.length > 0) {
+                const batchMessage: ChatMessage = {
+                  id: Date.now(),
+                  role: 'assistant',
+                  content: `Batch завершён: ${summary.completed} из ${summary.total} изображений`,
+                  timestamp: new Date(),
+                  type: 'image',
+                  model: generatorState.modelInfo?.name,
+                  batchResults: successResults.map((r: any) => ({
+                    url: r.imageUrl,
+                    clientId: r.clientId,
+                  })),
+                };
+                
+                chatState.setMessages(prev => [...prev, batchMessage]);
+              }
+
+              if (summary.failed > 0) {
+                toast.error(`${summary.failed} изображений не удалось обработать`);
+              } else {
+                toast.success(`Все ${summary.completed} изображений готовы!`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Batch poll error:', e);
+        }
+      }
+
+      if (!isComplete) {
+        toast.error('Timeout: batch обработка занимает слишком долго');
+      }
+
+      fetchBalance();
+      setBatchImages([]);
+      setPrompt('');
+      setBatchMode(false);
+
+    } catch (error) {
+      console.error('Batch generation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Ошибка batch генерации');
+    } finally {
+      setIsBatchGenerating(false);
+      setBatchProgress(null);
+    }
+  }, [prompt, user, balance, generatorState, batchImages, chatState, fetchBalance]);
+
   // Handlers
   const handleSettingChange = useCallback((key: string, value: any) => {
     generatorState.setSettings(prev => ({ ...prev, [key]: value }));
@@ -572,23 +745,24 @@ function GeneratorPageContent() {
               onNewChat={() => chatState.createNewChat(generatorState.currentModel, generatorState.activeSection)}
               onSelectChat={handleSwitchChat}
               onDeleteChat={chatState.deleteChat}
+              onClose={() => setShowHistory(false)}
             />
           )}
         </AnimatePresence>
 
-        {/* Toggle History Button */}
+        {/* Desktop Toggle History Button */}
         <button
           onClick={() => setShowHistory(!showHistory)}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 p-1.5 rounded-r-lg bg-white/5 border border-l-0 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+          className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 z-40 p-1.5 rounded-r-lg bg-white/5 border border-l-0 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           style={{ left: showHistory ? 280 : 0 }}
         >
           {showHistory ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
 
-        {/* Toggle Settings Button */}
+        {/* Desktop Toggle Settings Button */}
         <button
           onClick={() => setShowSettings(!showSettings)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-40 p-1.5 rounded-l-lg bg-white/5 border border-r-0 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+          className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 z-40 p-1.5 rounded-l-lg bg-white/5 border border-r-0 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           style={{ right: showSettings ? 320 : 0 }}
         >
           {showSettings ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -596,34 +770,159 @@ function GeneratorPageContent() {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col relative">
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 py-6">
-              <ChatMessages
-                ref={chatEndRef}
-                messages={chatState.messages}
-                activeSection={generatorState.activeSection}
-                modelInfo={generatorState.modelInfo}
-                onSetPrompt={setPrompt}
-                onDownload={handleDownload}
-                onCopy={handleCopy}
-                onRegenerate={handleRegenerate}
-                onQuickAction={handleQuickAction}
-              />
+          {/* Batch Mode Toggle - Only show for models that support i2i */}
+          {generatorState.activeSection === 'image' && generatorState.modelInfo?.supportsI2i && (
+            <div className="absolute top-4 right-4 z-30">
+              <button
+                onClick={() => {
+                  setBatchMode(!batchMode);
+                  if (!batchMode) {
+                    setBatchImages([]);
+                    setBatchProgress(null);
+                  }
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                  batchMode
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                Batch
+                {batchMode && batchImages.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-cyan-500 text-black text-xs rounded-full">
+                    {batchImages.length}
+                  </span>
+                )}
+              </button>
             </div>
+          )}
+
+          {/* Batch Progress Bar */}
+          <AnimatePresence>
+            {batchProgress && isBatchGenerating && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="px-4 py-3 border-b border-white/5"
+              >
+                <BatchProgressBar 
+                  progress={batchProgress} 
+                  onCancel={() => {
+                    setIsBatchGenerating(false);
+                    setBatchProgress(null);
+                    toast.info('Batch отменён');
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Messages or Batch Uploader */}
+          <div className="flex-1 overflow-y-auto">
+            {batchMode && !isBatchGenerating ? (
+              // Batch Mode UI
+              <div className="max-w-3xl mx-auto px-4 py-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  {/* Header */}
+                  <div className="text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-4">
+                      <Layers className="w-4 h-4 text-cyan-400" />
+                      <span className="text-sm font-medium text-cyan-400">Batch режим</span>
+                    </div>
+                    <h2 className="text-xl font-semibold text-white mb-2">
+                      Массовая обработка изображений
+                    </h2>
+                    <p className="text-gray-400 text-sm max-w-md mx-auto">
+                      Загрузите до 10 изображений и примените один промпт ко всем.
+                      Стоимость: {generatorState.currentCost}⭐ × {batchImages.length || 1} = {generatorState.currentCost * (batchImages.length || 1)}⭐
+                    </p>
+                  </div>
+
+                  {/* Uploader */}
+                  <BatchImageUploader
+                    images={batchImages}
+                    onImagesChange={setBatchImages}
+                    maxImages={10}
+                    disabled={isBatchGenerating}
+                    showHistoryButton={false}
+                  />
+
+                  {/* Example prompts */}
+                  {batchImages.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                        Примеры промптов
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          'Add white background',
+                          'Add neon lighting cyberpunk style',
+                          'Convert to anime style',
+                          'Enhance quality and colors',
+                          'Add flowers and nature',
+                        ].map((example) => (
+                          <button
+                            key={example}
+                            onClick={() => setPrompt(example)}
+                            className="px-3 py-1.5 text-xs rounded-full bg-white/5 text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all border border-white/5 hover:border-cyan-500/20"
+                          >
+                            {example}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Close batch mode */}
+                  <div className="text-center">
+                    <button
+                      onClick={() => {
+                        setBatchMode(false);
+                        setBatchImages([]);
+                      }}
+                      className="text-sm text-gray-500 hover:text-white transition flex items-center gap-1 mx-auto"
+                    >
+                      <X className="w-4 h-4" />
+                      Выйти из batch режима
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            ) : (
+              // Normal chat messages
+              <div className="max-w-3xl mx-auto px-4 py-6">
+                <ChatMessages
+                  ref={chatEndRef}
+                  messages={chatState.messages}
+                  activeSection={generatorState.activeSection}
+                  modelInfo={generatorState.modelInfo}
+                  onSetPrompt={setPrompt}
+                  onDownload={handleDownload}
+                  onCopy={handleCopy}
+                  onRegenerate={handleRegenerate}
+                  onQuickAction={handleQuickAction}
+                />
+              </div>
+            )}
           </div>
 
           {/* Prompt Input */}
           <PromptInput
             prompt={prompt}
             onPromptChange={setPrompt}
-            uploadedFiles={uploadedFiles}
+            uploadedFiles={batchMode ? [] : uploadedFiles}
             onFilesChange={setUploadedFiles}
-            isGenerating={isGenerating}
-            onGenerate={handleGenerate}
+            isGenerating={isGenerating || isBatchGenerating}
+            onGenerate={batchMode ? handleBatchGenerate : handleGenerate}
             activeSection={generatorState.activeSection}
             modelInfo={generatorState.modelInfo}
-            currentCost={generatorState.currentCost}
+            currentCost={batchMode ? generatorState.currentCost * batchImages.length : generatorState.currentCost}
             hasMessages={chatState.messages.length > 0}
             onClearChat={clearChat}
           />
@@ -642,9 +941,43 @@ function GeneratorPageContent() {
               onValidationChange={generatorState.setIsSettingsValid}
               balance={balance}
               isLoggedIn={!!user}
+              onClose={() => setShowSettings(false)}
             />
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--bg)]/95 backdrop-blur-xl border-t border-white/5 px-4 py-2 safe-area-inset-bottom">
+        <div className="flex items-center justify-around gap-2">
+          {/* History Button */}
+          <button
+            onClick={() => setShowHistory(true)}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl text-gray-400 hover:text-white active:bg-white/10 transition touch-manipulation"
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="text-[10px]">История</span>
+          </button>
+
+          {/* Model Selector */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-[var(--text)] active:scale-[0.97] transition touch-manipulation"
+          >
+            {generatorState.modelInfo?.icon && <generatorState.modelInfo.icon className="w-4 h-4" />}
+            <span className="text-sm font-medium truncate max-w-[120px]">{generatorState.modelInfo?.name}</span>
+            <span className="text-xs text-cyan-400">{generatorState.currentCost}⭐</span>
+          </button>
+
+          {/* Settings Button */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl text-gray-400 hover:text-white active:bg-white/10 transition touch-manipulation"
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+            <span className="text-[10px]">Настройки</span>
+          </button>
+        </div>
       </div>
 
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />

@@ -9,6 +9,7 @@ import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 import { requireAuth } from "@/lib/auth/requireRole";
+import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,44 +104,48 @@ export async function POST(request: NextRequest) {
 
     // Skip credit check for managers/admins
     if (!skipCredits) {
-      // Get user credits
-      const { data: creditsData, error: creditsError } = await supabase
-        .from('credits')
-        .select('amount')
-        .eq('user_id', userId)
-        .single();
-
-      if (creditsError || !creditsData) {
-        return NextResponse.json(
-          { error: 'Failed to fetch credits' },
-          { status: 500 }
-        );
-      }
+      // Get user credits (split: subscription + package)
+      const creditBalance = await getCreditBalance(supabase, userId);
 
       // Check if enough credits
-      if (creditsData.amount < creditCost) {
+      if (creditBalance.totalBalance < creditCost) {
         return NextResponse.json(
           { 
             error: 'Insufficient credits', 
             required: creditCost, 
-            available: creditsData.amount,
-            message: `Нужно ${creditCost} ⭐, у вас ${creditsData.amount} ⭐`
+            available: creditBalance.totalBalance,
+            subscriptionStars: creditBalance.subscriptionStars,
+            packageStars: creditBalance.packageStars,
+            message: `Нужно ${creditCost} ⭐, у вас ${creditBalance.totalBalance} ⭐ (${creditBalance.subscriptionStars} подписка + ${creditBalance.packageStars} пакет)`
           },
           { status: 402 }
         );
       }
 
-      // Deduct credits
-      const newBalance = creditsData.amount - creditCost;
-      const { error: deductError } = await supabase
-        .from('credits')
-        .update({ 
-          amount: newBalance,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
-
-      if (deductError) {
+      // Deduct credits (subscription first, then package)
+      const deductResult = await deductCredits(supabase, userId, creditCost);
+      
+      // 🔍 AUDIT LOG: Star deduction (dev-only)
+      if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
+        console.log('[⭐ AUDIT] Video generation:', JSON.stringify({
+          userId,
+          modelId: model,
+          modelVariant: modelVariant || 'default',
+          mode,
+          duration: duration || modelInfo.fixedDuration || 5,
+          quality: quality || 'default',
+          resolution: resolution || 'default',
+          audio: !!modelInfo.supportsAudio,
+          priceStars: creditCost,
+          deductedFromSubscription: deductResult.deductedFromSubscription,
+          deductedFromPackage: deductResult.deductedFromPackage,
+          balanceBefore: creditBalance.totalBalance,
+          balanceAfter: deductResult.totalBalance,
+          timestamp: new Date().toISOString(),
+        }));
+      }
+      
+      if (!deductResult.success) {
         return NextResponse.json(
           { error: 'Failed to deduct credits' },
           { status: 500 }
