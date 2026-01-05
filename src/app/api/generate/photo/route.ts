@@ -478,7 +478,8 @@ export async function POST(request: NextRequest) {
         
         // Log provider cost for analytics
         const providerCostUsd = getOpenAIProviderCost(openaiQuality, openaiSize);
-        const usdRubRate = 90; // TODO: Use actual exchange rate
+        const { getUsdRubRate } = await import('@/config/exchange-rates');
+        const usdRubRate = getUsdRubRate();
         const providerCostRub = providerCostUsd * usdRubRate;
         
         // Log generation run for unit economics

@@ -6,6 +6,7 @@ import { getModelById } from "@/config/models";
 import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generation";
 import { generateImagePreview, generateVideoPoster, generateVideoAnimatedPreview } from "@/lib/previews";
 import { getSourceAssetUrl, validateAssetUrl } from "@/lib/previews/asset-url";
+import { refundGenerationCredits } from "@/lib/credits/refund";
 
 /**
  * INSTANT PREVIEWS VERSION
@@ -497,6 +498,10 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
         error: msg,
         updated_at: new Date().toISOString(),
       });
+      
+      // Auto-refund credits on failure
+      await refundGenerationCredits(supabase, generation.id, 'video_generation_failed', { error: msg });
+      
       try {
         await notifyGenerationStatus({
           userId: String(generation.user_id),
@@ -527,6 +532,8 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
         error: "No results returned from KIE recordInfo",
         updated_at: new Date().toISOString(),
       });
+      // Auto-refund credits when no results
+      await refundGenerationCredits(supabase, generation.id, 'no_results_returned');
       return { ok: true, status: "failed" as const, error: "no_results" as const };
     }
 
@@ -599,6 +606,12 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
       status: "failed",
       error: msg,
       updated_at: new Date().toISOString(),
+    });
+
+    // Auto-refund credits on failure
+    await refundGenerationCredits(supabase, generation.id, 'image_generation_failed', { 
+      error: msg, 
+      failCode: info.failCode 
     });
 
     try {

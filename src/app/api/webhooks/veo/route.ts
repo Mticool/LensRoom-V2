@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { env } from "@/lib/env";
 import { notifyGenerationStatus } from "@/lib/telegram/notify";
+import { refundCredits } from "@/lib/credits/refund";
 
 /**
  * Veo 3.1 Callback Webhook
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
 
       const { data: beforeRow } = await supabase
         .from("generations")
-        .select("id, user_id, type, status")
+        .select("id, user_id, type, status, credits_used, model_id")
         .eq("task_id", taskId)
         .maybeSingle();
 
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
       } else {
         const isAlreadyTerminal = beforeStatus === "completed" || beforeStatus === "success" || beforeStatus === "failed";
         if (!isAlreadyTerminal) {
+          // Notify user
           try {
             const kind = String((beforeRow as any)?.type || "").toLowerCase() === "video" ? "video" : "photo";
             await notifyGenerationStatus({
@@ -121,10 +123,24 @@ export async function POST(request: NextRequest) {
           } catch {
             // ignore
           }
+
+          // Refund credits on failure
+          const creditsToRefund = (beforeRow as any)?.credits_used || 0;
+          const userId = (beforeRow as any)?.user_id;
+          const generationId = (beforeRow as any)?.id;
+
+          if (creditsToRefund > 0 && userId && generationId) {
+            await refundCredits(
+              supabase,
+              userId,
+              generationId,
+              creditsToRefund,
+              'veo_generation_failed',
+              { error: errorMsg, task_id: taskId }
+            );
+          }
         }
       }
-
-      // TODO: Refund credits if needed
     }
 
     return NextResponse.json({ 
