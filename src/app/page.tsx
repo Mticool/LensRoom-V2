@@ -345,17 +345,13 @@ export default function HomePage() {
               </Link>
             </div>
             
-            {/* Right - Video Showcase */}
+            {/* Right - Banner */}
             <div className="order-1 lg:order-2 relative">
               <div className="relative aspect-[4/3] rounded-[28px] overflow-hidden border border-[var(--border)] bg-[var(--surface)]">
-                {/* Main Video */}
-                <video
-                  src="/motion-control/demo-1.mp4"
-                  poster="/motion-control/poster.jpg"
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
+                {/* Banner Image */}
+                <img
+                  src="/motion-control/poster.jpg"
+                  alt="Kling Motion Control"
                   className="w-full h-full object-cover"
                 />
                 
@@ -369,44 +365,60 @@ export default function HomePage() {
                 
                 {/* Bottom info */}
                 <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                  <span className="text-[13px] font-medium text-white/90">Motion Control Demo</span>
+                  <span className="text-[13px] font-medium text-white/90">Motion Control</span>
                   <span className="text-[12px] px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white">от 80⭐</span>
                 </div>
               </div>
               
-              {/* Floating mini previews */}
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute -top-4 -right-4 w-28 aspect-video rounded-xl overflow-hidden border border-[var(--border)] shadow-xl"
-              >
-                <video
-                  src="/motion-control/demo-2.mp4"
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              </motion.div>
-              
-              <motion.div
-                animate={{ y: [0, 8, 0] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute -bottom-4 -left-4 w-24 aspect-video rounded-xl overflow-hidden border border-[var(--border)] shadow-xl"
-              >
-                <video
-                  src="/motion-control/demo-3.mp4"
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              </motion.div>
-              
               {/* Decorative glow */}
               <div className="absolute -inset-8 bg-gradient-to-r from-[#a78bfa]/20 via-transparent to-[#22d3ee]/20 blur-3xl -z-10 opacity-50" />
+            </div>
+          </motion.div>
+          
+          {/* Video Examples - 3 columns */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="mt-12"
+          >
+            <h3 className="text-[14px] font-medium text-[var(--muted)] uppercase tracking-wider mb-6 text-center">
+              Примеры результатов
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="group relative aspect-[9/16] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] transition-all duration-300"
+                >
+                  <video
+                    src={`/motion-control/demo-${i}.mp4`}
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                    onMouseEnter={(e) => e.currentTarget.play()}
+                    onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                  />
+                  
+                  {/* Play hint */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                      <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                    </div>
+                  </div>
+                  
+                  {/* Number badge */}
+                  <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                    <span className="text-[11px] font-semibold text-white">{i}</span>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
         </div>
