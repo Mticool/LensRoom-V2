@@ -121,11 +121,30 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Ensure credits row exists (best-effort)
+      // Ensure credits row exists with 50⭐ bonus for new users
       if (authUserId) {
-        await supabase
+        const REGISTRATION_BONUS = 50;
+        
+        // Check if credits already exist
+        const { data: existingCredits } = await supabase
           .from('credits')
-          .upsert({ user_id: authUserId, amount: 0 }, { onConflict: 'user_id' });
+          .select('id')
+          .eq('user_id', authUserId)
+          .single();
+        
+        if (!existingCredits) {
+          // New user - create credits with bonus
+          await supabase
+            .from('credits')
+            .insert({
+              user_id: authUserId,
+              amount: REGISTRATION_BONUS,
+              subscription_stars: 0,
+              package_stars: REGISTRATION_BONUS,
+            });
+          console.log(`[Telegram Auth] Created credits with ${REGISTRATION_BONUS}⭐ bonus for ${authUserId}`);
+        }
+        // If credits exist, don't modify them (they already have balance)
       }
 
       // Best-effort: persist mapping to telegram_profiles for fast lookups (migration 013).

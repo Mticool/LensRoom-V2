@@ -2,9 +2,93 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { validateWebAppData } from '@/lib/telegram/bot-client';
 
+const REGISTRATION_BONUS = 50;
+
+/**
+ * Helper: Create auth user and credits with bonus for Telegram user
+ */
+async function ensureAuthUserWithBonus(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  telegramId: number,
+  firstName: string,
+  lastName?: string | null,
+  username?: string | null
+): Promise<{ authUserId: string | null; isNewUser: boolean; bonusGiven: number }> {
+  const fakeEmail = `tg_${telegramId}@telegram.lensroom.ru`;
+  let authUserId: string | null = null;
+  let isNewUser = false;
+  let bonusGiven = 0;
+
+  try {
+    // Check if auth user already exists
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingAuth = existingUsers?.users?.find(
+      (u: any) => u.user_metadata?.telegram_id === telegramId || u.email === fakeEmail
+    );
+
+    if (existingAuth) {
+      authUserId = existingAuth.id;
+    } else {
+      // Create new auth user
+      const randomPassword = Array.from({ length: 32 }, () => 
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 62)]
+      ).join('');
+
+      const { data: created, error: createError } = await supabase.auth.admin.createUser({
+        email: fakeEmail,
+        password: randomPassword,
+        email_confirm: true,
+        user_metadata: {
+          telegram_id: telegramId,
+          telegram_username: username || null,
+          first_name: firstName,
+          last_name: lastName || null,
+          provider: 'telegram_miniapp',
+        },
+      });
+
+      if (createError) {
+        console.warn('[TG MiniApp Auth] Failed to create auth user:', createError);
+      } else {
+        authUserId = created.user?.id || null;
+        isNewUser = true;
+        console.log(`[TG MiniApp Auth] Created auth user: ${authUserId}`);
+      }
+    }
+
+    // Ensure credits exist with bonus for new users
+    if (authUserId) {
+      const { data: existingCredits } = await supabase
+        .from('credits')
+        .select('id')
+        .eq('user_id', authUserId)
+        .single();
+
+      if (!existingCredits) {
+        // New user - create credits with bonus
+        await supabase
+          .from('credits')
+          .insert({
+            user_id: authUserId,
+            amount: REGISTRATION_BONUS,
+            subscription_stars: 0,
+            package_stars: REGISTRATION_BONUS,
+          });
+        bonusGiven = REGISTRATION_BONUS;
+        console.log(`[TG MiniApp Auth] Created credits with ${REGISTRATION_BONUS}⭐ bonus for ${authUserId}`);
+      }
+    }
+  } catch (e) {
+    console.error('[TG MiniApp Auth] ensureAuthUserWithBonus error:', e);
+  }
+
+  return { authUserId, isNewUser, bonusGiven };
+}
+
 /**
  * POST /api/telegram/auth
  * Authenticates a user via Telegram Mini App init data
+ * Auto-creates auth user and grants 50⭐ bonus for new users
  */
 export async function POST(request: NextRequest) {
   try {
@@ -28,50 +112,94 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Get or create telegram profile
-    const { data: profileId, error: profileError } = await supabase.rpc(
-      'get_or_create_telegram_profile',
-      {
-        p_telegram_id: telegramUser.id,
-        p_first_name: telegramUser.first_name,
-        p_last_name: telegramUser.last_name || null,
-        p_username: telegramUser.username || null,
-        p_language_code: telegramUser.language_code || 'ru',
-        p_is_premium: telegramUser.is_premium || false,
-      }
-    );
+    // Check if telegram profile exists
+    const { data: existingProfile } = await supabase
+      .from('telegram_profiles')
+      .select('id, auth_user_id, first_name, telegram_username')
+      .eq('telegram_id', telegramUser.id)
+      .single();
 
-    if (profileError) {
-      console.error('[TG Auth] Profile error:', profileError);
-      return NextResponse.json({ error: 'Failed to get/create profile' }, { status: 500 });
+    let profileId = existingProfile?.id || null;
+    let authUserId = existingProfile?.auth_user_id || null;
+
+    // If profile doesn't exist or has no auth_user_id, auto-register
+    if (!existingProfile || !existingProfile.auth_user_id) {
+      // Create/find auth user with bonus
+      const { authUserId: newAuthUserId, bonusGiven } = await ensureAuthUserWithBonus(
+        supabase,
+        telegramUser.id,
+        telegramUser.first_name,
+        telegramUser.last_name,
+        telegramUser.username
+      );
+      authUserId = newAuthUserId;
+
+      if (!existingProfile) {
+        // Create telegram profile with auth_user_id
+        const { data: newProfile, error: insertError } = await supabase
+          .from('telegram_profiles')
+          .insert({
+            telegram_id: telegramUser.id,
+            first_name: telegramUser.first_name,
+            last_name: telegramUser.last_name || null,
+            telegram_username: telegramUser.username || null,
+            auth_user_id: authUserId,
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          console.error('[TG MiniApp Auth] Insert profile error:', insertError);
+        }
+        profileId = newProfile?.id || null;
+      } else if (authUserId) {
+        // Update existing profile with auth_user_id
+        await supabase
+          .from('telegram_profiles')
+          .update({ auth_user_id: authUserId })
+          .eq('id', existingProfile.id);
+        profileId = existingProfile.id;
+      }
+
+      if (bonusGiven > 0) {
+        console.log(`[TG MiniApp Auth] New user ${telegramUser.id} (${telegramUser.first_name}) got ${bonusGiven}⭐ bonus`);
+      }
     }
 
     // Fetch balance
-    const { data: credits } = await supabase
-      .from('credits')
-      .select('amount, subscription_stars, package_stars')
-      .eq('user_id', profileId)
-      .single();
+    let balance = 0;
+    let subscriptionStars = 0;
+    let packageStars = 0;
 
-    // Create session token (simple JWT alternative for Mini App)
-    const sessionData = {
-      profileId,
-      telegramId: telegramUser.id,
-      firstName: telegramUser.first_name,
-      username: telegramUser.username,
-      balance: credits?.amount || 0,
-      subscriptionStars: credits?.subscription_stars || 0,
-      packageStars: credits?.package_stars || 0,
-    };
+    if (authUserId) {
+      const { data: credits } = await supabase
+        .from('credits')
+        .select('amount, subscription_stars, package_stars')
+        .eq('user_id', authUserId)
+        .single();
 
-    // Return session info
+      balance = credits?.amount || 0;
+      subscriptionStars = credits?.subscription_stars || 0;
+      packageStars = credits?.package_stars || 0;
+    }
+
     return NextResponse.json({
       success: true,
-      session: sessionData,
+      session: {
+        profileId,
+        authUserId,
+        telegramId: telegramUser.id,
+        firstName: existingProfile?.first_name || telegramUser.first_name,
+        username: existingProfile?.telegram_username || telegramUser.username,
+        balance,
+        subscriptionStars,
+        packageStars,
+        needsAuth: !authUserId, // Only true if auth creation failed
+      },
     });
 
   } catch (error) {
-    console.error('[TG Auth] Error:', error);
+    console.error('[TG MiniApp Auth] Error:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
