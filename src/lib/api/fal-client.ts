@@ -3,9 +3,9 @@
  * 
  * APIs:
  * - Video-to-Video: fal-ai/kling-video/o1/video-to-video/edit
- * - Image-to-Video (First/Last Frame): fal-ai/kling-video/o1/image-to-video
+ * - Image-to-Video (Standard): fal-ai/kling-video/o1/standard/image-to-video
  * 
- * Docs: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
+ * Docs: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video/api
  */
 
 // ===== VIDEO-TO-VIDEO TYPES =====
@@ -23,15 +23,14 @@ export interface FalKlingO1Request {
   keep_audio?: boolean;
 }
 
-// ===== IMAGE-TO-VIDEO (First/Last Frame) TYPES =====
-// Документация: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
+// ===== IMAGE-TO-VIDEO (Standard Mode) TYPES =====
+// Документация: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video
 
 export interface FalKlingO1I2VRequest {
   prompt: string;
-  start_image_url: string; // Required: первый кадр
-  end_image_url?: string; // Optional: последний кадр (для First→Last анимации)
+  image_url: string; // Required: начальное изображение
   duration?: '5' | '10'; // 5 сек ($0.56) или 10 сек ($1.12)
-  aspect_ratio?: string; // Default: auto (из изображения)
+  aspect_ratio?: '16:9' | '9:16' | '1:1'; // Default: 16:9
 }
 
 export interface FalKlingO1Response {
@@ -91,11 +90,13 @@ export class FalAIClient {
   }
 
   /**
-   * Submit Kling O1 Image-to-Video (First/Last Frame) job
-   * Цена: $0.112/сек → 5s = $0.56 (56⭐), 10s = $1.12 (112⭐)
+   * Submit Kling O1 Image-to-Video (Standard Mode) job
+   * Docs: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video
+   * Себестоимость fal.ai: $0.112/сек
+   * Цены: 5s = 120⭐, 10s = 240⭐ (правило: 10s = 2× от 5s)
    */
   async submitKlingO1ImageToVideo(params: FalKlingO1I2VRequest): Promise<{ request_id: string; status_url: string }> {
-    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/image-to-video`;
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/standard/image-to-video`;
 
     try {
       const response = await fetch(endpoint, {
@@ -140,9 +141,11 @@ export class FalAIClient {
 
   /**
    * Query Kling O1 I2V job status
+   * Note: FAL uses a shared endpoint for all kling-video requests
    */
   async queryKlingO1I2VStatus(requestId: string): Promise<FalJobStatus> {
-    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/image-to-video/requests/${requestId}/status`;
+    // FAL uses shared endpoint without the /o1/image-to-video part
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/requests/${requestId}/status`;
 
     try {
       const response = await fetch(endpoint, {
@@ -217,9 +220,11 @@ export class FalAIClient {
 
   /**
    * Query job status
+   * Note: FAL uses a shared endpoint for all kling-video requests
    */
   async queryJobStatus(requestId: string): Promise<FalJobStatus> {
-    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/video-to-video/edit/requests/${requestId}/status`;
+    // FAL uses shared endpoint without the model-specific path
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/requests/${requestId}/status`;
 
     try {
       const response = await fetch(endpoint, {
