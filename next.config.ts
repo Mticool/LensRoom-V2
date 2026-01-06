@@ -125,9 +125,13 @@ const nextConfig: NextConfig = {
       "date-fns",
       "@tanstack/react-query",
     ],
+    // Increase body size limit for large image uploads (8MB+ images)
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
   },
 
-  // Redirects for old routes
+  // Redirects for old routes (keeping SEO landing pages: /video, /image)
   async redirects() {
     return [
       {
@@ -137,7 +141,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/create/video',
-        destination: '/generator',
+        destination: '/video', // SEO page
         permanent: false,
       },
       {
@@ -145,11 +149,8 @@ const nextConfig: NextConfig = {
         destination: '/generator',
         permanent: false,
       },
-      {
-        source: '/video',
-        destination: '/generator',
-        permanent: false,
-      },
+      // /video - now SEO landing page, no redirect
+      // /image - SEO landing page
       // Redirect /create/studio to /studio (preserve existing route)
       {
         source: '/create/studio',

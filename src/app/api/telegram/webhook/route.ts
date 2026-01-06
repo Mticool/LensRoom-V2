@@ -11,29 +11,47 @@ import {
   sendChatAction,
   answerCallbackQuery,
   editMessageText,
-  answerInlineQuery,
   createInlineKeyboard,
   type TelegramUpdate,
   type TelegramMessage,
 } from '@/lib/telegram/bot-client';
 
 const WEBAPP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lensroom.ru';
-const BOT_SECRET = process.env.TELEGRAM_BOT_WEBHOOK_SECRET || '';
+const BOT_SECRET = process.env.TELEGRAM_BOT_WEBHOOK_SECRET || process.env.TELEGRAM_WEBHOOK_SECRET || '';
 
-// Quick models for bot generation
-const QUICK_MODELS = [
-  { id: 'nano-banana', name: '🍌 Nano Banana', cost: 7, type: 'photo' },
-  { id: 'flux-2-pro', name: '⚡ FLUX.2 Pro', cost: 9, type: 'photo' },
-  { id: 'gpt-image', name: '🧠 GPT Image', cost: 17, type: 'photo' },
-  { id: 'veo-3.1', name: '🎬 Veo 3.1', cost: 99, type: 'video' },
+// ===== MODELS CONFIG =====
+const PHOTO_MODELS = [
+  { id: 'nano-banana', apiModel: 'google/nano-banana', name: 'Nano Banana', emoji: '🍌', cost: 7, badge: 'Быстрый' },
+  { id: 'nano-banana-pro', apiModel: 'nano-banana-pro', name: 'Nano Banana Pro', emoji: '⭐', cost: 30, badge: 'Премиум' },
+  { id: 'flux-2-pro', apiModel: 'flux/pro-v1.1', name: 'FLUX.2 Pro', emoji: '⚡', cost: 9, badge: 'Популярный' },
+  { id: 'gpt-image', apiModel: 'openai/gpt-image-1', name: 'GPT Image', emoji: '🧠', cost: 17, badge: 'OpenAI' },
+  { id: 'grok-imagine', apiModel: 'grok/imagine', name: 'Grok Imagine', emoji: '🌶️', cost: 15, badge: 'xAI' },
+  { id: 'seedream-4.5', apiModel: 'seedream/4.5', name: 'Seedream 4.5', emoji: '✨', cost: 11, badge: '4K' },
 ];
+
+const VIDEO_MODELS = [
+  { id: 'veo-3.1', apiModel: 'veo3_fast', name: 'Veo 3.1 Fast', emoji: '🎬', cost: 99, badge: 'Google', provider: 'kie_veo' as KieProvider },
+  { id: 'veo-3.1-quality', apiModel: 'veo3', name: 'Veo 3.1 Quality', emoji: '🎬', cost: 490, badge: 'Google HD', provider: 'kie_veo' as KieProvider },
+  { id: 'kling', apiModel: 'kling/v2.5-turbo', name: 'Kling 2.5', emoji: '⚡', cost: 105, badge: 'Trending', provider: 'kie_market' as KieProvider },
+  { id: 'sora-2', apiModel: 'sora/v2', name: 'Sora 2', emoji: '🎥', cost: 50, badge: 'OpenAI', provider: 'kie_market' as KieProvider },
+  { id: 'grok-video', apiModel: 'grok/video', name: 'Grok Video', emoji: '🌶️', cost: 25, badge: 'xAI', provider: 'kie_market' as KieProvider },
+];
+
+const AUDIO_MODELS = [
+  { id: 'suno', apiModel: 'suno/v4', name: 'Suno AI', emoji: '🎵', cost: 12, badge: 'Музыка' },
+];
+
+// User state storage (in production use Redis/DB)
+const userStates = new Map<number, { 
+  mode?: 'photo' | 'video' | 'audio';
+  model?: string;
+  waitingForPrompt?: boolean;
+}>();
 
 /**
  * POST /api/telegram/webhook
- * Handles incoming Telegram bot updates
  */
 export async function POST(request: NextRequest) {
-  // Verify webhook secret
   const secretToken = request.headers.get('x-telegram-bot-api-secret-token');
   if (BOT_SECRET && secretToken !== BOT_SECRET) {
     console.error('[TG Webhook] Invalid secret token');
@@ -42,15 +60,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const update: TelegramUpdate = await request.json();
-    console.log('[TG Webhook] Received update:', update.update_id);
+    console.log('[TG Webhook] Update:', update.update_id);
 
-    // Handle different update types
     if (update.message) {
       await handleMessage(update.message);
     } else if (update.callback_query) {
       await handleCallbackQuery(update.callback_query);
-    } else if (update.inline_query) {
-      await handleInlineQuery(update.inline_query);
     }
 
     return NextResponse.json({ ok: true });
@@ -61,292 +76,624 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Handle incoming messages
+ * Handle messages
  */
 async function handleMessage(message: TelegramMessage) {
   const chatId = message.chat.id;
   const text = message.text?.trim() || '';
   const telegramId = message.from.id;
+  const userState = userStates.get(telegramId) || {};
 
   // Commands
   if (text.startsWith('/')) {
-    const [command, ...args] = text.split(' ');
-    const prompt = args.join(' ');
-
+    const command = text.split(' ')[0].split('@')[0]; // Handle /command@botname
+    const args = text.split(' ').slice(1).join(' '); // Get arguments after command
+    
     switch (command) {
       case '/start':
-        await handleStart(chatId, message.from);
+        // Check for login code: /start login_XXXX
+        if (args.startsWith('login_')) {
+          const loginCode = args.replace('login_', '');
+          await handleLoginCode(chatId, telegramId, loginCode, message.from);
+        } else {
+          await showMainMenu(chatId, message.from.first_name, telegramId, message.from.username);
+        }
         break;
-
       case '/help':
-        await handleHelp(chatId);
+        await showHelp(chatId);
         break;
-
       case '/balance':
       case '/b':
-        await handleBalance(chatId, telegramId);
+        await showBalance(chatId, telegramId);
         break;
-
-      case '/generate':
-      case '/g':
-        if (prompt) {
-          await handleGenerate(chatId, telegramId, prompt, 'nano-banana');
-        } else {
-          await sendMessage(chatId, '💡 Использование: /generate <промпт>\n\nПример: /generate космос неон планета');
-        }
-        break;
-
       case '/photo':
       case '/p':
-        if (prompt) {
-          await handleGenerate(chatId, telegramId, prompt, 'nano-banana');
-        } else {
-          await showModelSelector(chatId, 'photo');
-        }
+        await showPhotoModels(chatId);
         break;
-
       case '/video':
       case '/v':
-        if (prompt) {
-          await handleGenerate(chatId, telegramId, prompt, 'veo-3.1');
-        } else {
-          await showModelSelector(chatId, 'video');
-        }
+        await showVideoModels(chatId);
         break;
-
-      case '/models':
-        await showModels(chatId);
+      case '/audio':
+      case '/music':
+        await showAudioModels(chatId);
         break;
-
       case '/app':
-        await sendMessage(chatId, '🎨 Открыть полный редактор:', {
-          replyMarkup: createInlineKeyboard([[
-            { text: '🚀 Открыть LensRoom', web_app: { url: `${WEBAPP_URL}/tg` } }
-          ]])
-        });
+        await showMiniApp(chatId);
         break;
-
       default:
-        await sendMessage(chatId, '❓ Неизвестная команда. Используйте /help для списка команд.');
+        // Check if it's /generate or prompt after /model
+        if (text.startsWith('/generate ') || text.startsWith('/g ')) {
+          const prompt = text.replace(/^\/(generate|g)\s+/, '');
+          if (prompt) {
+            await handleGeneration(chatId, telegramId, prompt, 'nano-banana', 'photo');
+          }
+  } else {
+          await sendMessage(chatId, '❓ Неизвестная команда. Нажмите /start для главного меню.');
+        }
     }
-  } else if (text) {
-    // Non-command text - treat as prompt with default model
-    await handleGenerate(chatId, telegramId, text, 'nano-banana');
+    return;
+  }
+
+  // Check if waiting for prompt
+  if (userState.waitingForPrompt && userState.model && userState.mode) {
+    userStates.set(telegramId, { ...userState, waitingForPrompt: false });
+    await handleGeneration(chatId, telegramId, text, userState.model, userState.mode);
+    return;
+  }
+
+  // Default: treat as prompt for quick generation
+  if (text.length > 2) {
+    await handleGeneration(chatId, telegramId, text, 'nano-banana', 'photo');
   }
 }
 
 /**
- * Handle /start command
+ * Handle login code from website
  */
-async function handleStart(chatId: number, user: TelegramMessage['from']) {
-  const firstName = user.first_name || 'друг';
+async function handleLoginCode(
+  chatId: number, 
+  telegramId: number, 
+  code: string,
+  from: { id: number; first_name: string; last_name?: string; username?: string }
+) {
+  const supabase = getSupabaseAdmin();
+
+  try {
+    // Find and validate the login code
+    const { data: loginCode, error } = await supabase
+      .from('telegram_login_codes')
+      .select('*')
+      .eq('code', code)
+      .eq('used', false)
+      .single();
+
+    if (error || !loginCode) {
+      await sendMessage(chatId, '❌ Код авторизации недействителен или истёк.\n\nПопробуйте войти снова на сайте.');
+      return;
+    }
+
+    // Check if expired
+    if (new Date(loginCode.expires_at) < new Date()) {
+      await sendMessage(chatId, '⏰ Код авторизации истёк.\n\nПопробуйте войти снова на сайте.');
+      return;
+    }
+
+    // Mark code as used and link to telegram user
+    await supabase
+      .from('telegram_login_codes')
+      .update({ 
+        used: true, 
+        telegram_id: telegramId,
+        used_at: new Date().toISOString()
+      })
+      .eq('code', code);
+
+    // Upsert telegram profile
+    const { data: profile } = await supabase
+      .from('telegram_profiles')
+      .upsert({
+        telegram_id: telegramId,
+        first_name: from.first_name,
+        last_name: from.last_name || null,
+        telegram_username: from.username || null,
+        last_login_at: new Date().toISOString(),
+      }, { onConflict: 'telegram_id' })
+      .select('id, auth_user_id')
+      .single();
+
+    // Create auth user if needed
+    let authUserId = profile?.auth_user_id;
+    if (!authUserId) {
+      const fakeEmail = `tg_${telegramId}@lensroom.local`;
+      const randomPassword = Array.from({ length: 32 }, () => 
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 62)]
+      ).join('');
+
+      // Check if user exists
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const existing = existingUsers?.users?.find((u: { email?: string; user_metadata?: { telegram_id?: number } }) => 
+        u.email === fakeEmail || u.user_metadata?.telegram_id === telegramId
+      );
+
+      if (existing) {
+        authUserId = existing.id;
+      } else {
+        const { data: newUser } = await supabase.auth.admin.createUser({
+          email: fakeEmail,
+          password: randomPassword,
+          email_confirm: true,
+          user_metadata: { telegram_id: telegramId, first_name: from.first_name }
+        });
+        authUserId = newUser?.user?.id;
+      }
+
+      // Update profile with auth_user_id
+      if (authUserId && profile?.id) {
+        await supabase
+          .from('telegram_profiles')
+          .update({ auth_user_id: authUserId })
+          .eq('id', profile.id);
+      }
+
+      // Ensure credits row
+      if (authUserId) {
+        await supabase
+          .from('credits')
+          .upsert({ user_id: authUserId, amount: 50 }, { onConflict: 'user_id' });
+      }
+    }
+
+    // Success message
+    await sendMessage(
+      chatId,
+      '✅ *Авторизация успешна!*\n\n' +
+      '🎉 Вы вошли в LensRoom через Telegram.\n\n' +
+      'Вернитесь на сайт — страница обновится автоматически.\n\n' +
+      '🌐 [Открыть LensRoom](https://lensroom.ru/generator)',
+      {
+        parseMode: 'Markdown',
+        replyMarkup: createInlineKeyboard([
+          [{ text: '🌐 Открыть сайт', url: 'https://lensroom.ru/generator' }],
+          [{ text: '📱 Мини-приложение', web_app: { url: `${WEBAPP_URL}/tg` } }]
+        ])
+      }
+    );
+
+    console.log('[TG Webhook] Login success for user:', telegramId);
+  } catch (error) {
+    console.error('[TG Webhook] Login error:', error);
+    await sendMessage(chatId, '❌ Произошла ошибка. Попробуйте снова.');
+  }
+}
+
+/**
+ * Show main menu - with auto-registration
+ */
+async function showMainMenu(chatId: number, firstName: string, telegramId: number, username?: string) {
+  const supabase = getSupabaseAdmin();
+
+  // Check if user exists
+  const { data: existingProfile } = await supabase
+    .from('telegram_profiles')
+    .select('id, auth_user_id, first_name')
+    .eq('telegram_id', telegramId)
+    .single();
+
+  let isNewUser = false;
+  let bonusStars = 0;
+  let userId: string | null = existingProfile?.auth_user_id || null;
+
+  // Auto-register if profile doesn't exist or has no auth_user_id
+  if (!existingProfile || !existingProfile.auth_user_id) {
+    console.log(`[TG Bot] Auto-registering user: ${telegramId} (${firstName})`);
+    
+    try {
+      // Create auth user first (anonymous with telegram email)
+      const fakeEmail = `tg_${telegramId}@telegram.lensroom.ru`;
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: fakeEmail,
+        email_confirm: true,
+        user_metadata: {
+          telegram_id: telegramId,
+          first_name: firstName,
+          username: username,
+          provider: 'telegram_bot',
+        },
+      });
+
+      if (authError) {
+        // User might already exist
+        console.log('[TG Bot] Auth user creation failed (might exist):', authError.message);
+        
+        // Try to find existing user by email
+        const { data: existingUsers } = await supabase.auth.admin.listUsers();
+        const existingAuth = existingUsers?.users?.find((u: { email?: string }) => u.email === fakeEmail);
+        if (existingAuth) {
+          userId = existingAuth.id;
+        }
+      } else if (authData.user) {
+        userId = authData.user.id;
+        console.log(`[TG Bot] Created auth user: ${userId}`);
+      }
+
+      if (userId) {
+        // Create or update telegram profile with auth_user_id
+        if (existingProfile) {
+          await supabase
+            .from('telegram_profiles')
+            .update({ auth_user_id: userId })
+            .eq('telegram_id', telegramId);
+        } else {
+          await supabase
+            .from('telegram_profiles')
+            .insert({
+              telegram_id: telegramId,
+              telegram_username: username || null,
+              first_name: firstName,
+              role: 'user',
+              is_admin: false,
+              auth_user_id: userId,
+            });
+        }
+
+        // Check if credits already exist
+        const { data: existingCredits } = await supabase
+          .from('credits')
+          .select('id')
+          .eq('user_id', userId)
+          .single();
+
+        if (!existingCredits) {
+          // Create credits with 50 bonus stars
+          bonusStars = 50;
+          const { error: creditsError } = await supabase
+            .from('credits')
+            .insert({
+              user_id: userId,
+              amount: bonusStars,
+              subscription_stars: 0,
+              package_stars: bonusStars,
+            });
+
+          if (creditsError) {
+            console.error('[TG Bot] Failed to create credits:', creditsError);
+          } else {
+            isNewUser = true;
+            console.log(`[TG Bot] Created credits for ${telegramId} with ${bonusStars}⭐ bonus`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[TG Bot] Auto-registration error:', error);
+    }
+  }
+
+  // Welcome message
+  let text: string;
   
-  const welcomeText = `
+  if (isNewUser) {
+    text = `
+🎉 <b>Добро пожаловать, ${firstName}!</b>
+
+Вы получили <b>${bonusStars}⭐</b> в подарок!
+
+Этого хватит на:
+• ~7 фото (Nano Banana)
+• или 1 видео (Grok Video)
+
+Выберите раздел:
+`;
+    } else {
+    text = `
 👋 Привет, <b>${firstName}</b>!
 
-Я — бот <b>LensRoom</b> для генерации изображений и видео с помощью ИИ.
+Я — бот <b>LensRoom</b> для создания контента с помощью ИИ.
 
-🎨 <b>Быстрые команды:</b>
-• Просто напиши промпт — и я создам изображение
-• /photo — генерация фото
-• /video — генерация видео
-• /balance — проверить баланс
-
-🚀 <b>Полный редактор:</b>
-Нажми кнопку ниже чтобы открыть полноценный редактор с настройками.
-
-💡 <b>Пример:</b>
-<code>космическая станция в стиле киберпанк, неоновые огни</code>
+Выбери раздел:
 `;
+  }
 
-  await sendMessage(chatId, welcomeText, {
+  await sendMessage(chatId, text, {
     replyMarkup: createInlineKeyboard([
-      [{ text: '🎨 Открыть редактор', web_app: { url: `${WEBAPP_URL}/tg` } }],
-      [{ text: '📊 Баланс', callback_data: 'balance' }, { text: '📋 Модели', callback_data: 'models' }],
+      [{ text: '🎨 Фото', callback_data: 'menu:photo' }, { text: '🎬 Видео', callback_data: 'menu:video' }],
+      [{ text: '🎵 Музыка', callback_data: 'menu:audio' }, { text: '💰 Баланс', callback_data: 'menu:balance' }],
+      [{ text: '🚀 Открыть редактор', web_app: { url: `${WEBAPP_URL}/tg` } }],
     ]),
   });
 }
 
 /**
- * Handle /help command
+ * Show photo models
  */
-async function handleHelp(chatId: number) {
-  const helpText = `
-📚 <b>Команды LensRoom Bot</b>
+async function showPhotoModels(chatId: number, messageId?: number) {
+  const text = `
+🎨 <b>Генерация фото</b>
 
-<b>Генерация:</b>
-• /generate &lt;промпт&gt; — быстрая генерация (Nano Banana)
-• /photo &lt;промпт&gt; — генерация фото
-• /video &lt;промпт&gt; — генерация видео
-• Или просто напиши промпт!
-
-<b>Информация:</b>
-• /balance — проверить баланс ⭐
-• /models — список доступных моделей
-• /app — открыть полный редактор
-
-<b>Сокращения:</b>
-• /g = /generate
-• /p = /photo  
-• /v = /video
-• /b = /balance
-
-💡 <b>Совет:</b> Используй мини-приложение для доступа ко всем настройкам и моделям!
+Выберите модель:
 `;
 
-  await sendMessage(chatId, helpText, {
-    replyMarkup: createInlineKeyboard([[
-      { text: '🎨 Открыть редактор', web_app: { url: `${WEBAPP_URL}/tg` } }
-    ]]),
-  });
+  const buttons = PHOTO_MODELS.map(m => [{
+    text: `${m.emoji} ${m.name} • ${m.cost}⭐`,
+    callback_data: `select:photo:${m.id}`,
+  }]);
+  
+  buttons.push([{ text: '⬅️ Назад', callback_data: 'menu:main' }]);
+
+  if (messageId) {
+    await editMessageText(chatId, messageId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  } else {
+    await sendMessage(chatId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  }
 }
 
 /**
- * Handle /balance command
+ * Show video models
  */
-async function handleBalance(chatId: number, telegramId: number) {
+async function showVideoModels(chatId: number, messageId?: number) {
+  const text = `
+🎬 <b>Генерация видео</b>
+
+Выберите модель:
+`;
+
+  const buttons = VIDEO_MODELS.map(m => [{
+    text: `${m.emoji} ${m.name} • ${m.cost}⭐`,
+    callback_data: `select:video:${m.id}`,
+  }]);
+  
+  buttons.push([{ text: '⬅️ Назад', callback_data: 'menu:main' }]);
+
+  if (messageId) {
+    await editMessageText(chatId, messageId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  } else {
+    await sendMessage(chatId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  }
+}
+
+/**
+ * Show audio models
+ */
+async function showAudioModels(chatId: number, messageId?: number) {
+  const text = `
+🎵 <b>Генерация музыки</b>
+
+Выберите модель:
+`;
+
+  const buttons = AUDIO_MODELS.map(m => [{
+    text: `${m.emoji} ${m.name} • ${m.cost}⭐`,
+    callback_data: `select:audio:${m.id}`,
+  }]);
+  
+  buttons.push([{ text: '⬅️ Назад', callback_data: 'menu:main' }]);
+
+  if (messageId) {
+    await editMessageText(chatId, messageId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  } else {
+    await sendMessage(chatId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  }
+}
+
+/**
+ * Show balance
+ */
+async function showBalance(chatId: number, telegramId: number, messageId?: number) {
   const supabase = getSupabaseAdmin();
 
-  // Find user by telegram_id
   const { data: profile } = await supabase
     .from('telegram_profiles')
-    .select('id')
+    .select('id, auth_user_id, first_name')
     .eq('telegram_id', telegramId)
     .single();
 
   if (!profile) {
-    await sendMessage(chatId, '❌ Аккаунт не найден. Пожалуйста, авторизуйтесь через приложение.', {
-      replyMarkup: createInlineKeyboard([[
-        { text: '🔐 Войти', web_app: { url: `${WEBAPP_URL}/tg` } }
-      ]]),
-    });
+    const text = `
+❌ <b>Аккаунт не найден</b>
+
+Напишите /start чтобы зарегистрироваться и получить 50⭐ бонус!
+`;
+    if (messageId) {
+      await editMessageText(chatId, messageId, text, {
+        replyMarkup: createInlineKeyboard([
+          [{ text: '🚀 Начать', callback_data: 'menu:main' }],
+        ]),
+      });
+    } else {
+      await sendMessage(chatId, text);
+    }
     return;
   }
 
-  // Get balance
-  const balance = await getCreditBalance(supabase, profile.id);
+  // Use auth_user_id if linked, otherwise profile.id
+  const userId = profile.auth_user_id || profile.id;
+  const balance = await getCreditBalance(supabase, userId);
 
-  const balanceText = `
+  const text = `
 💰 <b>Ваш баланс</b>
 
 Всего: <b>${balance.totalBalance}⭐</b>
 
-├ 📅 Подписка: ${balance.subscriptionStars}⭐ <i>(сгорают в конце месяца)</i>
-└ 📦 Пакеты: ${balance.packageStars}⭐ <i>(навсегда)</i>
+├ 📅 Подписка: ${balance.subscriptionStars}⭐
+└ 📦 Пакеты: ${balance.packageStars}⭐
 
-<b>Примерно хватит на:</b>
+<b>Хватит на:</b>
 • ~${Math.floor(balance.totalBalance / 7)} фото (Nano Banana)
 • ~${Math.floor(balance.totalBalance / 99)} видео (Veo Fast)
 `;
 
-  await sendMessage(chatId, balanceText, {
-    replyMarkup: createInlineKeyboard([[
-      { text: '💳 Пополнить', url: `${WEBAPP_URL}/pricing` },
-      { text: '🎨 Генерировать', web_app: { url: `${WEBAPP_URL}/tg` } },
-    ]]),
-  });
+  const buttons = [
+    [{ text: '💳 Пополнить', url: `${WEBAPP_URL}/pricing` }],
+    [{ text: '⬅️ Назад', callback_data: 'menu:main' }],
+  ];
+
+  if (messageId) {
+    await editMessageText(chatId, messageId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  } else {
+    await sendMessage(chatId, text, {
+      replyMarkup: createInlineKeyboard(buttons),
+    });
+  }
 }
 
 /**
- * Show model selector
+ * Show help
  */
-async function showModelSelector(chatId: number, type: 'photo' | 'video') {
-  const models = QUICK_MODELS.filter(m => m.type === type);
-  
-  const buttons = models.map(m => [{
-    text: `${m.name} (${m.cost}⭐)`,
-    callback_data: `select_model:${m.id}`,
-  }]);
+async function showHelp(chatId: number) {
+  const text = `
+📚 <b>Справка LensRoom Bot</b>
 
-  buttons.push([{ text: '🔙 Назад', callback_data: 'back' }]);
+<b>Разделы:</b>
+• 🎨 /photo — генерация фото
+• 🎬 /video — генерация видео
+• 🎵 /audio — генерация музыки
+• 💰 /balance — проверить баланс
 
-  await sendMessage(
-    chatId,
-    `Выберите модель для генерации ${type === 'photo' ? 'фото' : 'видео'}:`,
-    { replyMarkup: createInlineKeyboard(buttons) }
-  );
-}
+<b>Быстрая генерация:</b>
+Просто напишите описание — бот создаст фото через Nano Banana (7⭐)
 
-/**
- * Show available models
- */
-async function showModels(chatId: number) {
-  const modelsText = `
-🎨 <b>Доступные модели</b>
+<b>Примеры:</b>
+<code>космос в стиле киберпанк</code>
+<code>милый котик на радуге</code>
+<code>футуристический город ночью</code>
 
-<b>📸 Фото:</b>
-• 🍌 Nano Banana — 7⭐ (быстро)
-• ⚡ FLUX.2 Pro — 9-12⭐
-• 🧠 GPT Image — 17-67⭐
-• 🌶️ Grok Imagine — 15⭐
-
-<b>🎬 Видео:</b>
-• 🎬 Veo 3.1 — 99-490⭐
-• ⚡ Kling AI — 105-400⭐
-• 🎥 Sora 2 — 50⭐
-
-Для полного списка и настроек откройте редактор:
+💡 Для полного функционала используйте Mini App!
 `;
 
-  await sendMessage(chatId, modelsText, {
+  await sendMessage(chatId, text, {
     replyMarkup: createInlineKeyboard([
-      [{ text: '🎨 Открыть редактор', web_app: { url: `${WEBAPP_URL}/tg` } }],
-      [{ text: '📊 Мой баланс', callback_data: 'balance' }],
+      [{ text: '🚀 Открыть редактор', web_app: { url: `${WEBAPP_URL}/tg` } }],
+      [{ text: '⬅️ Главное меню', callback_data: 'menu:main' }],
     ]),
   });
 }
 
 /**
- * Handle generation request
+ * Show Mini App
  */
-async function handleGenerate(
+async function showMiniApp(chatId: number) {
+  await sendMessage(chatId, '🎨 Откройте полный редактор:', {
+    replyMarkup: createInlineKeyboard([[
+      { text: '🚀 Открыть LensRoom', web_app: { url: `${WEBAPP_URL}/tg` } }
+    ]]),
+  });
+}
+
+/**
+ * Handle model selection - ask for prompt
+ */
+async function askForPrompt(chatId: number, telegramId: number, modelId: string, mode: 'photo' | 'video' | 'audio', messageId: number) {
+  const allModels = [...PHOTO_MODELS, ...VIDEO_MODELS, ...AUDIO_MODELS];
+  const model = allModels.find(m => m.id === modelId);
+  
+  if (!model) {
+    await sendMessage(chatId, '❌ Модель не найдена');
+    return;
+  }
+
+  // Save state
+  userStates.set(telegramId, { mode, model: modelId, waitingForPrompt: true });
+
+  const modeText = mode === 'photo' ? 'изображения' : mode === 'video' ? 'видео' : 'музыки';
+  
+  const text = `
+${model.emoji} <b>${model.name}</b>
+💰 Стоимость: ${model.cost}⭐
+
+Отправьте описание для генерации ${modeText}:
+`;
+
+  await editMessageText(chatId, messageId, text, {
+    replyMarkup: createInlineKeyboard([
+      [{ text: '❌ Отмена', callback_data: `menu:${mode}` }],
+    ]),
+  });
+}
+
+/**
+ * Handle generation
+ */
+async function handleGeneration(
   chatId: number,
   telegramId: number,
   prompt: string,
-  modelId: string
+  modelId: string,
+  mode: 'photo' | 'video' | 'audio'
 ) {
-  const supabase = getSupabaseAdmin();
+          const supabase = getSupabaseAdmin();
 
   // Find user
   const { data: profile } = await supabase
     .from('telegram_profiles')
-    .select('id')
+    .select('id, auth_user_id')
     .eq('telegram_id', telegramId)
     .single();
 
   if (!profile) {
-    await sendMessage(chatId, '❌ Для генерации нужно авторизоваться.', {
-      replyMarkup: createInlineKeyboard([[
-        { text: '🔐 Войти', web_app: { url: `${WEBAPP_URL}/tg` } }
-      ]]),
+    // Auto-register if somehow not registered
+    await sendMessage(chatId, '❌ Напишите /start чтобы начать.', {
+      replyMarkup: createInlineKeyboard([
+        [{ text: '🚀 Начать', callback_data: 'menu:main' }],
+      ]),
     });
     return;
   }
 
-  // Calculate cost
-  const price = computePrice(modelId, {});
-  const cost = price.stars;
+  // Use auth_user_id if linked to site, otherwise use telegram profile id
+  const userId = profile.auth_user_id || profile.id;
+
+  // Find model
+  const allModels = [...PHOTO_MODELS, ...VIDEO_MODELS, ...AUDIO_MODELS];
+  const model = allModels.find(m => m.id === modelId);
+  
+  if (!model) {
+    await sendMessage(chatId, '❌ Модель не найдена');
+    return;
+  }
+
+  const cost = model.cost;
 
   // Check balance
-  const balance = await getCreditBalance(supabase, profile.id);
+  const balance = await getCreditBalance(supabase, userId);
   if (balance.totalBalance < cost) {
-    await sendMessage(chatId, `❌ Недостаточно звёзд. Нужно ${cost}⭐, у вас ${balance.totalBalance}⭐`, {
-      replyMarkup: createInlineKeyboard([[
-        { text: '💳 Пополнить', url: `${WEBAPP_URL}/pricing` }
-      ]]),
+    await sendMessage(chatId, `❌ Недостаточно звёзд.\n\nНужно: ${cost}⭐\nУ вас: ${balance.totalBalance}⭐`, {
+      replyMarkup: createInlineKeyboard([
+        [{ text: '💳 Пополнить', url: `${WEBAPP_URL}/pricing` }],
+      ]),
     });
     return;
   }
 
-  // Send "generating" status
-  await sendChatAction(chatId, 'upload_photo');
-  const statusMsg = await sendMessage(chatId, `⏳ Генерирую... (${cost}⭐)\n\n📝 <i>${prompt}</i>`);
+  // Send status
+  await sendChatAction(chatId, mode === 'video' ? 'upload_video' : 'upload_photo');
+  const statusMsg = await sendMessage(chatId, `
+⏳ <b>Генерирую...</b>
+
+${model.emoji} ${model.name}
+💰 ${cost}⭐
+
+📝 <i>${prompt.length > 100 ? prompt.slice(0, 100) + '...' : prompt}</i>
+`);
 
   try {
     // Deduct credits
-    const deductResult = await deductCredits(supabase, profile.id, cost);
+    const deductResult = await deductCredits(supabase, userId, cost);
     if (!deductResult.success) {
-      await editMessageText(chatId, statusMsg!.message_id, '❌ Ошибка списания звёзд');
+      await editMessageText(chatId, statusMsg!.message_id, '❌ Ошибка списания звёзд. Попробуйте позже.');
       return;
     }
 
@@ -357,31 +704,24 @@ async function handleGenerate(
       return;
     }
 
-    // Create task
-    const model = QUICK_MODELS.find(m => m.id === modelId);
-    const isVideo = model?.type === 'video';
-
     let resultUrl: string | undefined;
-    
-    if (isVideo) {
-      // Video generation using public API
+
+    if (mode === 'video') {
+      const videoModel = VIDEO_MODELS.find(m => m.id === modelId);
       const videoResult = await kieClient.generateVideo({
-        model: modelId,
-        provider: (modelId === 'veo-3.1' ? 'kie_veo' : 'kie_market') as KieProvider,
+        model: model.apiModel,
+        provider: videoModel?.provider || 'kie_market',
         prompt,
         aspectRatio: '16:9',
-        quality: 'fast',
         duration: 8,
       });
 
       if (videoResult.status === 'completed' && videoResult.outputs?.[0]?.url) {
         resultUrl = videoResult.outputs[0].url;
-      } else if (videoResult.id && videoResult.status === 'processing') {
+      } else if (videoResult.id) {
         // Poll for completion
-        let attempts = 0;
-        const maxAttempts = 60; // 5 minutes max
-        while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 5000)); // 5 sec delay
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 5000));
           const status = await kieClient.getVideoGenerationStatus(videoResult.id);
           if (status.status === 'completed' && status.outputs?.[0]?.url) {
             resultUrl = status.outputs[0].url;
@@ -389,25 +729,21 @@ async function handleGenerate(
           } else if (status.status === 'failed') {
             break;
           }
-          attempts++;
         }
       }
-    } else {
-      // Photo generation
+    } else if (mode === 'photo') {
       const photoResult = await kieClient.generateImage({
-        model: modelId === 'nano-banana' ? 'nano-banana' : modelId,
+        model: model.apiModel,
         prompt,
         aspectRatio: '1:1',
       });
 
       if (photoResult.status === 'completed' && photoResult.outputs?.[0]?.url) {
         resultUrl = photoResult.outputs[0].url;
-      } else if (photoResult.id && photoResult.status === 'processing') {
+      } else if (photoResult.id) {
         // Poll for completion
-        let attempts = 0;
-        const maxAttempts = 30; // 2.5 minutes max for images
-        while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 5000)); // 5 sec delay
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 5000));
           const status = await kieClient.getGenerationStatus(photoResult.id);
           if (status.status === 'completed' && status.outputs?.[0]?.url) {
             resultUrl = status.outputs[0].url;
@@ -415,49 +751,43 @@ async function handleGenerate(
           } else if (status.status === 'failed') {
             break;
           }
-          attempts++;
         }
       }
     }
-    
-    const result = resultUrl ? { success: true, data: { url: resultUrl } } : undefined;
 
     // Send result
-    if (result?.success && result?.data?.url) {
-      const resultUrl = result.data.url;
+    if (resultUrl) {
+      const caption = `✅ <b>Готово!</b> (-${cost}⭐)\n\n📝 ${prompt.length > 100 ? prompt.slice(0, 100) + '...' : prompt}`;
       
-      if (isVideo) {
+      if (mode === 'video') {
         await sendVideo(chatId, resultUrl, {
-          caption: `✅ Готово! (-${cost}⭐)\n\n📝 ${prompt}`,
+          caption,
           replyMarkup: createInlineKeyboard([
-            [{ text: '🔄 Ещё', callback_data: `regenerate:${modelId}:${encodeURIComponent(prompt)}` }],
-            [{ text: '🎨 Открыть редактор', web_app: { url: `${WEBAPP_URL}/tg` } }],
+            [{ text: '🔄 Ещё раз', callback_data: `regen:${mode}:${modelId}` }],
+            [{ text: '🎨 Новая генерация', callback_data: `menu:${mode}` }],
           ]),
         });
       } else {
         await sendPhoto(chatId, resultUrl, {
-          caption: `✅ Готово! (-${cost}⭐)\n\n📝 ${prompt}`,
+          caption,
           replyMarkup: createInlineKeyboard([
-            [{ text: '🔄 Ещё', callback_data: `regenerate:${modelId}:${encodeURIComponent(prompt)}` }],
-            [{ text: '🎨 Открыть редактор', web_app: { url: `${WEBAPP_URL}/tg` } }],
+            [{ text: '🔄 Ещё раз', callback_data: `regen:${mode}:${modelId}` }],
+            [{ text: '🎨 Новая генерация', callback_data: `menu:${mode}` }],
           ]),
         });
       }
 
       // Delete status message
-      if (statusMsg) {
-        // Delete not implemented, just edit
-        await editMessageText(chatId, statusMsg.message_id, '✅ Генерация завершена!');
-      }
+      try {
+        await editMessageText(chatId, statusMsg!.message_id, '✅ Генерация завершена!');
+      } catch {}
     } else {
-      await editMessageText(chatId, statusMsg!.message_id, '❌ Ошибка генерации. Попробуйте позже.');
+      await editMessageText(chatId, statusMsg!.message_id, '❌ Не удалось создать контент. Попробуйте другой промпт.');
     }
 
   } catch (error) {
     console.error('[TG Webhook] Generate error:', error);
-    if (statusMsg) {
-      await editMessageText(chatId, statusMsg.message_id, '❌ Произошла ошибка. Попробуйте позже.');
-    }
+    await editMessageText(chatId, statusMsg!.message_id, '❌ Произошла ошибка. Попробуйте позже.');
   }
 }
 
@@ -468,70 +798,43 @@ async function handleCallbackQuery(query: TelegramUpdate['callback_query']) {
   if (!query) return;
 
   const chatId = query.message?.chat.id;
+  const messageId = query.message?.message_id;
   const data = query.data || '';
   const telegramId = query.from.id;
 
   await answerCallbackQuery(query.id);
 
-  if (!chatId) return;
+  if (!chatId || !messageId) return;
 
-  if (data === 'balance') {
-    await handleBalance(chatId, telegramId);
-  } else if (data === 'models') {
-    await showModels(chatId);
-  } else if (data === 'back') {
-    await handleStart(chatId, query.from);
-  } else if (data.startsWith('select_model:')) {
-    const modelId = data.split(':')[1];
-    await sendMessage(chatId, `Модель выбрана: ${modelId}\n\nТеперь отправьте промпт для генерации.`);
-  } else if (data.startsWith('regenerate:')) {
-    const [, modelId, encodedPrompt] = data.split(':');
-    const prompt = decodeURIComponent(encodedPrompt);
-    await handleGenerate(chatId, telegramId, prompt, modelId);
+  const [action, ...params] = data.split(':');
+
+  switch (action) {
+    case 'menu':
+      const menuType = params[0];
+      if (menuType === 'main') {
+        await showMainMenu(chatId, query.from.first_name, telegramId, query.from.username);
+      } else if (menuType === 'photo') {
+        await showPhotoModels(chatId, messageId);
+      } else if (menuType === 'video') {
+        await showVideoModels(chatId, messageId);
+      } else if (menuType === 'audio') {
+        await showAudioModels(chatId, messageId);
+      } else if (menuType === 'balance') {
+        await showBalance(chatId, telegramId, messageId);
+      }
+      break;
+
+    case 'select':
+      const [mode, modelId] = params as ['photo' | 'video' | 'audio', string];
+      await askForPrompt(chatId, telegramId, modelId, mode, messageId);
+      break;
+
+    case 'regen':
+      const [regenMode, regenModelId] = params as ['photo' | 'video' | 'audio', string];
+      // Ask for new prompt
+      await askForPrompt(chatId, telegramId, regenModelId, regenMode, messageId);
+      break;
   }
-}
-
-/**
- * Handle inline queries
- */
-async function handleInlineQuery(query: TelegramUpdate['inline_query']) {
-  if (!query) return;
-
-  const prompt = query.query.trim();
-  
-  if (!prompt) {
-    // Show button to open WebApp
-    await answerInlineQuery(query.id, [], {
-      button: {
-        text: '🎨 Открыть LensRoom',
-        web_app: { url: `${WEBAPP_URL}/tg` },
-      },
-    });
-    return;
-  }
-
-  // Show quick generation options
-  const results = QUICK_MODELS.filter(m => m.type === 'photo').map((model, index) => ({
-    type: 'article',
-    id: `${index}`,
-    title: `${model.name} (${model.cost}⭐)`,
-    description: `Сгенерировать: "${prompt}"`,
-    input_message_content: {
-      message_text: `/generate ${prompt}`,
-    },
-    reply_markup: createInlineKeyboard([[
-      { text: '🎨 Открыть в редакторе', web_app: { url: `${WEBAPP_URL}/tg?prompt=${encodeURIComponent(prompt)}` } }
-    ]]),
-  }));
-
-  await answerInlineQuery(query.id, results, {
-    cacheTime: 0,
-    isPersonal: true,
-    button: {
-      text: '🎨 Полный редактор',
-      web_app: { url: `${WEBAPP_URL}/tg?prompt=${encodeURIComponent(prompt)}` },
-    },
-  });
 }
 
 /**
@@ -547,16 +850,12 @@ export async function GET(request: NextRequest) {
     
     const success = await setWebhook(webhookUrl, {
       secretToken: BOT_SECRET,
-      allowedUpdates: ['message', 'callback_query', 'inline_query'],
+      allowedUpdates: ['message', 'callback_query'],
     });
 
     const info = await getWebhookInfo();
     
-    return NextResponse.json({ 
-      success, 
-      webhookUrl,
-      info,
-    });
+    return NextResponse.json({ success, webhookUrl, info });
   }
 
   if (action === 'info') {
@@ -568,6 +867,5 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ 
     status: 'ok',
     message: 'Telegram webhook endpoint',
-    actions: ['?action=setup', '?action=info'],
   });
 }

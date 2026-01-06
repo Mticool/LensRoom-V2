@@ -2,9 +2,10 @@
 
 import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Sparkles, Download, Copy, ThumbsUp, RotateCcw, Shuffle, Wand2, Palette, Maximize2 } from 'lucide-react';
+import { User, Sparkles, Download, Copy, ThumbsUp, RotateCcw, Shuffle, Wand2, Palette, Maximize2, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage, SectionType, ModelInfo, QUICK_PROMPTS } from '../config';
+import { PromptTemplates } from '@/components/generator/PromptTemplates';
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -42,10 +43,19 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
         <h1 className="text-[32px] font-bold mb-4 text-[var(--text)] tracking-tight">
           Привет! Я {modelInfo?.name}
         </h1>
-        <p className="text-[var(--muted)] text-[16px] mb-10 max-w-md leading-relaxed">
+        <p className="text-[var(--muted)] text-[16px] mb-6 max-w-md leading-relaxed">
           Опишите что хотите создать, и я сгенерирую для вас{' '}
           {activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}
         </p>
+
+        {/* Prompt Templates */}
+        <div className="mb-8 w-full max-w-xl">
+          <PromptTemplates 
+            type={activeSection} 
+            onSelectPrompt={onSetPrompt}
+            isCollapsed={false}
+          />
+        </div>
         
         {/* Quick prompts - Premium */}
         <div className="flex flex-wrap gap-2.5 justify-center max-w-xl">

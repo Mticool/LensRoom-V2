@@ -159,3 +159,5 @@ export function formatMotionControlPrice(
   return `${price}⭐ (${validation.effectiveDuration.toFixed(1)}с × ${rate}⭐/с)`;
 }
 
+
+

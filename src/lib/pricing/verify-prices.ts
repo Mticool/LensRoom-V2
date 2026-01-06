@@ -210,3 +210,9 @@ if (typeof window === 'undefined' && require.main === module) {
   logAllPrices();
 }
 
+
+
+
+
+
+

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getKieClient } from "@/lib/api/kie-client";
+import { getFalClient } from "@/lib/api/fal-client";
 import type { KieProvider } from "@/config/models";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -10,6 +11,113 @@ export async function GET(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    const { jobId } = await params;
+    const url = new URL(request.url);
+    const kind = url.searchParams.get("kind"); // "image" | "video"
+    const provider = url.searchParams.get("provider") || undefined;
+
+    if (!jobId) {
+      return NextResponse.json(
+        { error: "Job ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // === FAL PROVIDER (Kling O1) ===
+    if (provider === 'fal') {
+      try {
+        const falClient = getFalClient();
+        const falStatus = await falClient.queryKlingO1I2VStatus(jobId);
+        
+        if (falStatus.status === 'COMPLETED') {
+          // Fetch the actual result from response endpoint
+          let videoUrl: string | null = null;
+          try {
+            const resultResponse = await fetch(
+              `https://queue.fal.run/fal-ai/kling-video/requests/${jobId}`,
+              {
+                headers: {
+                  'Authorization': `Key ${process.env.FAL_KEY}`,
+                },
+              }
+            );
+            if (resultResponse.ok) {
+              const resultData = await resultResponse.json();
+              videoUrl = resultData.video?.url || null;
+            }
+          } catch (resultErr) {
+            console.error('[API] Failed to get FAL result:', resultErr);
+          }
+          
+          return NextResponse.json({
+            success: true,
+            jobId,
+            status: 'completed',
+            progress: 100,
+            results: videoUrl ? [{
+              id: jobId,
+              url: videoUrl,
+            }] : [],
+            kind: 'video',
+            provider: 'fal',
+          });
+        }
+        
+        if (falStatus.status === 'FAILED') {
+          // Try to get error details
+          let errorDetail = 'FAL generation failed';
+          try {
+            const resultResponse = await fetch(
+              `https://queue.fal.run/fal-ai/kling-video/requests/${jobId}`,
+              {
+                headers: {
+                  'Authorization': `Key ${process.env.FAL_KEY}`,
+                },
+              }
+            );
+            if (resultResponse.ok) {
+              const resultData = await resultResponse.json();
+              if (resultData.detail) {
+                errorDetail = Array.isArray(resultData.detail) 
+                  ? resultData.detail[0]?.msg || errorDetail
+                  : resultData.detail;
+              }
+            }
+          } catch {}
+          
+          return NextResponse.json({
+            success: false,
+            jobId,
+            status: 'failed',
+            error: errorDetail,
+            kind: 'video',
+            provider: 'fal',
+          });
+        }
+        
+        // Still processing (IN_QUEUE, IN_PROGRESS)
+        return NextResponse.json({
+          success: true,
+          jobId,
+          status: 'processing',
+          progress: falStatus.status === 'IN_PROGRESS' ? 50 : 10,
+          results: [],
+          kind: 'video',
+          provider: 'fal',
+        });
+      } catch (falErr: any) {
+        console.error('[API] FAL status error:', falErr);
+        return NextResponse.json({
+          success: false,
+          jobId,
+          status: 'failed',
+          error: falErr.message || 'Failed to get FAL job status',
+          provider: 'fal',
+        }, { status: 500 });
+      }
+    }
+
+    // === KIE PROVIDER ===
     let kieClient: any;
     try {
       kieClient = getKieClient();
@@ -17,18 +125,6 @@ export async function GET(
       return integrationNotConfigured("kie", [
         "KIE_API_KEY",
       ]);
-    }
-
-    const { jobId } = await params;
-    const url = new URL(request.url);
-    const kind = url.searchParams.get("kind"); // "image" | "video"
-    const provider = (url.searchParams.get("provider") as KieProvider | null) || undefined;
-
-    if (!jobId) {
-      return NextResponse.json(
-        { error: "Job ID is required" },
-        { status: 400 }
-      );
     }
 
     // First check if we have the result in DB (from webhook or previous sync)

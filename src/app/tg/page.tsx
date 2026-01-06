@@ -139,6 +139,8 @@ function TelegramMiniAppContent() {
   const [result, setResult] = useState<{ url: string; type: 'photo' | 'video' } | null>(null);
   const [balance, setBalance] = useState({ total: 0, subscription: 0, package: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // Initialize Telegram WebApp
   useEffect(() => {
@@ -159,11 +161,41 @@ function TelegramMiniAppContent() {
           setShowSettings(false);
         }
       });
-    }
 
-    // Fetch balance
-    fetchBalance();
+      // Authenticate via Telegram initData
+      authenticateWithTelegram(webapp.initData);
+    } else {
+      // Not in Telegram - try regular session
+      fetchBalance();
+    }
   }, []);
+
+  // Authenticate via Telegram Mini App
+  const authenticateWithTelegram = async (initData: string) => {
+    setIsAuthLoading(true);
+    try {
+      const response = await fetch('/api/telegram/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData }),
+      });
+      const data = await response.json();
+      
+      if (data.success && data.session) {
+        setBalance({
+          total: data.session.balance || 0,
+          subscription: data.session.subscriptionStars || 0,
+          package: data.session.packageStars || 0,
+        });
+        setNeedsAuth(data.session.needsAuth || false);
+      }
+    } catch (error) {
+      console.error('Failed to authenticate:', error);
+      setNeedsAuth(true);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
 
   // Update back button visibility
   useEffect(() => {
@@ -176,8 +208,9 @@ function TelegramMiniAppContent() {
     }
   }, [tgApp, result, showSettings]);
 
-  // Fetch user balance
+  // Fetch user balance (fallback for non-Telegram)
   const fetchBalance = async () => {
+    setIsAuthLoading(true);
     try {
       const response = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await response.json();
@@ -187,9 +220,15 @@ function TelegramMiniAppContent() {
           subscription: data.subscriptionStars || 0,
           package: data.packageStars || 0,
         });
+        setNeedsAuth(!data.user);
+      } else {
+        setNeedsAuth(true);
       }
     } catch (error) {
       console.error('Failed to fetch balance:', error);
+      setNeedsAuth(true);
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
@@ -208,6 +247,11 @@ function TelegramMiniAppContent() {
 
   // Handle generate
   const handleGenerate = async () => {
+    if (needsAuth) {
+      tgApp?.showAlert('Для генерации нужно авторизоваться на сайте');
+      return;
+    }
+
     if (!prompt.trim()) {
       tgApp?.showAlert('Введите описание для генерации');
       return;
@@ -333,6 +377,39 @@ function TelegramMiniAppContent() {
           ))}
         </div>
       </div>
+
+      {/* Auth Prompt */}
+      {needsAuth && !isAuthLoading && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 p-4 rounded-2xl"
+          style={{ backgroundColor: theme.surface }}
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                 style={{ background: `linear-gradient(135deg, ${theme.accent}, #8B5CF6)` }}>
+              🔐
+            </div>
+            <div>
+              <div className="font-semibold">Авторизация</div>
+              <div className="text-sm" style={{ color: theme.textMuted }}>
+                Войдите для генерации
+              </div>
+            </div>
+          </div>
+          <p className="text-sm mb-4" style={{ color: theme.textMuted }}>
+            Авторизуйтесь через Telegram на сайте, чтобы получить 50⭐ бонус и начать создавать!
+          </p>
+          <button
+            onClick={() => tgApp?.openLink('https://lensroom.ru')}
+            className="w-full py-3 rounded-xl font-medium"
+            style={{ backgroundColor: theme.accent, color: '#0F0F10' }}
+          >
+            Войти на сайт
+          </button>
+        </motion.div>
+      )}
 
       {/* Content */}
       <div className="flex-1 px-4 py-2 space-y-4 overflow-y-auto">

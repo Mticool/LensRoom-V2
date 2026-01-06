@@ -7,6 +7,7 @@ import {
   ArrowRight, Play, Sparkles, MousePointer2,
   Image as ImageIcon, Video, Music, Wand2, Layers, Zap
 } from 'lucide-react';
+import { QuickStart } from '@/components/home/QuickStart';
 
 // Featured works - реальные примеры из /public/showcase/
 const featuredWorks = [
@@ -272,6 +273,143 @@ export default function HomePage() {
             <span className="text-[11px] text-[var(--muted)] uppercase tracking-widest">Scroll</span>
           </motion.div>
         </motion.div>
+      </section>
+
+      {/* ===== QUICK START - Try Now ===== */}
+      <QuickStart />
+
+      {/* ===== MOTION CONTROL - New Feature ===== */}
+      <section className="py-24 px-6 relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[#a78bfa]/8 to-transparent blur-[100px]" />
+        </div>
+        
+        <div className="max-w-6xl mx-auto relative">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid lg:grid-cols-2 gap-12 items-center"
+          >
+            {/* Left - Content */}
+            <div className="order-2 lg:order-1">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#a78bfa]/20 to-[#22d3ee]/20 border border-[#a78bfa]/30 mb-6">
+                <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
+                <span className="text-[11px] font-semibold text-[#a78bfa] uppercase tracking-wider">Новинка</span>
+              </div>
+              
+              {/* Title */}
+              <h2 className="text-[clamp(1.75rem,4vw,2.5rem)] font-bold tracking-tight mb-4 leading-tight">
+                Kling 2.6 Motion Control
+              </h2>
+              
+              {/* Subtitle */}
+              <p className="text-[16px] text-[var(--muted-light)] mb-8 leading-relaxed max-w-md">
+                Перенос реальных движений, жестов и мимики из референс-видео на персонажа.
+              </p>
+              
+              {/* Features */}
+              <div className="space-y-4 mb-8">
+                {[
+                  { icon: '✨', text: 'Реалистичные эмоции и жесты' },
+                  { icon: '🎯', text: 'Стабильный тайминг без "дрожания"' },
+                  { icon: '⭐', text: 'Длительность 3–30 сек, цена по секундам' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex items-center gap-3"
+                  >
+                    <span className="text-xl">{item.icon}</span>
+                    <span className="text-[15px] text-[var(--text)]">{item.text}</span>
+                  </motion.div>
+                ))}
+              </div>
+              
+              {/* Caption */}
+              <p className="text-[13px] text-[var(--muted)] mb-8">
+                Максимум 30 сек. Стоимость рассчитывается автоматически после загрузки motion-референса.
+              </p>
+              
+              {/* CTA */}
+              <Link href="/generator?section=video&model=kling-motion-control">
+                <button className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-[14px] font-semibold text-white shadow-lg shadow-[#a78bfa]/25 hover:shadow-xl hover:shadow-[#a78bfa]/30 hover:scale-[1.02] transition-all duration-300">
+                  Попробовать
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </Link>
+            </div>
+            
+            {/* Right - Video Showcase */}
+            <div className="order-1 lg:order-2 relative">
+              <div className="relative aspect-[4/3] rounded-[28px] overflow-hidden border border-[var(--border)] bg-[var(--surface)]">
+                {/* Main Video */}
+                <video
+                  src="/motion-control/demo-1.mp4"
+                  poster="/motion-control/poster.jpg"
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Overlay gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                
+                {/* Logo badge */}
+                <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur-md border border-white/10">
+                  <span className="text-[12px] font-semibold text-white">Kling AI</span>
+                </div>
+                
+                {/* Bottom info */}
+                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                  <span className="text-[13px] font-medium text-white/90">Motion Control Demo</span>
+                  <span className="text-[12px] px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white">от 80⭐</span>
+                </div>
+              </div>
+              
+              {/* Floating mini previews */}
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-4 -right-4 w-28 aspect-video rounded-xl overflow-hidden border border-[var(--border)] shadow-xl"
+              >
+                <video
+                  src="/motion-control/demo-2.mp4"
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              </motion.div>
+              
+              <motion.div
+                animate={{ y: [0, 8, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute -bottom-4 -left-4 w-24 aspect-video rounded-xl overflow-hidden border border-[var(--border)] shadow-xl"
+              >
+                <video
+                  src="/motion-control/demo-3.mp4"
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              </motion.div>
+              
+              {/* Decorative glow */}
+              <div className="absolute -inset-8 bg-gradient-to-r from-[#a78bfa]/20 via-transparent to-[#22d3ee]/20 blur-3xl -z-10 opacity-50" />
+            </div>
+          </motion.div>
+        </div>
       </section>
 
       {/* ===== TOOLS SECTION ===== */}

@@ -27,7 +27,6 @@ export type GenerationType = "photo" | "video" | "product";
 
 export type AIModel = 
   | "flux" 
-  | "midjourney" 
   | "dalle" 
   | "stable-diffusion"
   | "runway"

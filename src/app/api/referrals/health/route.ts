@@ -1,89 +1,81 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { REFERRAL_REWARDS } from "@/lib/referrals/referral-helper";
 
 function looksLikeMissingRelation(err: any) {
   const msg = String(err?.message || err?.details || err || "");
   return msg.includes("does not exist") && msg.includes("relation");
 }
 
-function looksLikeMissingFunction(err: any) {
-  const msg = String(err?.message || err?.details || err || "");
-  return msg.includes("Could not find the function") || msg.includes("PGRST202");
-}
-
 export async function GET() {
   const supabase = getSupabaseAdmin();
 
   let hasReferralCodesTable = true;
-  let hasReferralsTable = true;
-  let hasEnsureFn = true;
-  let hasClaimFn = true;
+  let hasReferralAttributionsTable = true;
+  let hasReferralEventsTable = true;
 
-  // Tables
+  // Tables check
   try {
     const { error } = await supabase
       .from("referral_codes")
       .select("code", { head: true, count: "exact" })
       .limit(1);
-    if (error) {
-      if (looksLikeMissingRelation(error)) hasReferralCodesTable = false;
-    }
+    if (error && looksLikeMissingRelation(error)) hasReferralCodesTable = false;
   } catch {
     hasReferralCodesTable = false;
   }
 
   try {
     const { error } = await supabase
-      .from("referrals")
+      .from("referral_attributions")
       .select("id", { head: true, count: "exact" })
       .limit(1);
-    if (error) {
-      if (looksLikeMissingRelation(error)) hasReferralsTable = false;
-    }
+    if (error && looksLikeMissingRelation(error)) hasReferralAttributionsTable = false;
   } catch {
-    hasReferralsTable = false;
-  }
-
-  // Functions (probe with a dummy UUID)
-  const dummyUserId = "00000000-0000-0000-0000-000000000000";
-
-  try {
-    const { data, error } = await supabase.rpc("claim_referral", {
-      p_code: "x",
-      p_invitee_user_id: dummyUserId,
-    });
-    if (error) {
-      if (looksLikeMissingFunction(error)) hasClaimFn = false;
-      // If function exists but table missing, it may error too; table checks cover that.
-    } else {
-      // If it returns invalid_code, that's a good sign too.
-      void data;
-    }
-  } catch (e) {
-    if (looksLikeMissingFunction(e)) hasClaimFn = false;
+    hasReferralAttributionsTable = false;
   }
 
   try {
-    const { error } = await supabase.rpc("ensure_referral_code", { p_user_id: dummyUserId });
-    if (error) {
-      if (looksLikeMissingFunction(error)) hasEnsureFn = false;
-      // If function exists, we expect FK violation because dummy user doesn't exist.
-    }
-  } catch (e) {
-    if (looksLikeMissingFunction(e)) hasEnsureFn = false;
+    const { error } = await supabase
+      .from("referral_events")
+      .select("id", { head: true, count: "exact" })
+      .limit(1);
+    if (error && looksLikeMissingRelation(error)) hasReferralEventsTable = false;
+  } catch {
+    hasReferralEventsTable = false;
   }
 
-  const configured = hasReferralCodesTable && hasReferralsTable && hasEnsureFn && hasClaimFn;
+  // Get stats
+  const { count: codesCount } = await supabase
+    .from("referral_codes")
+    .select("*", { count: "exact", head: true });
+
+  const { count: attributionsCount } = await supabase
+    .from("referral_attributions")
+    .select("*", { count: "exact", head: true });
+
+  const { count: eventsCount } = await supabase
+    .from("referral_events")
+    .select("*", { count: "exact", head: true });
+
+  const configured = hasReferralCodesTable && hasReferralAttributionsTable && hasReferralEventsTable;
 
   return NextResponse.json({
     ok: configured,
     tables: {
       referral_codes: hasReferralCodesTable,
-      referrals: hasReferralsTable,
+      referral_attributions: hasReferralAttributionsTable,
+      referral_events: hasReferralEventsTable,
     },
-    functions: {
-      ensure_referral_code: hasEnsureFn,
-      claim_referral: hasClaimFn,
+    stats: {
+      totalCodes: codesCount || 0,
+      totalAttributions: attributionsCount || 0,
+      totalEvents: eventsCount || 0,
+    },
+    rewards: REFERRAL_REWARDS,
+    info: {
+      signupBonus: `Referrer: +${REFERRAL_REWARDS.signup.referrer}⭐, Invitee: +${REFERRAL_REWARDS.signup.invitee}⭐`,
+      firstGenBonus: `Referrer: +${REFERRAL_REWARDS.first_generation.referrer}⭐`,
     },
   });
 }

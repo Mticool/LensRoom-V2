@@ -40,3 +40,7 @@ export function rubToUsd(rub: number): number {
   return rub / getUsdRubRate();
 }
 
+
+
+
+

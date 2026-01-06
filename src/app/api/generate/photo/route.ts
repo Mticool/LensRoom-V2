@@ -566,60 +566,42 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    // Check if this is Midjourney model - use special method
-    if (effectiveModelId === 'midjourney' || modelInfo.apiId.includes('midjourney')) {
-      // Extract MJ-specific params from request body
-      const mjParams = body.mjSettings || {};
-      
-      response = await kieClient.generateMidjourney({
-        prompt: prompt,
-        version: mjParams.version || '7',
-        speed: mjParams.speed || 'fast',
-        aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1")),
-        stylization: mjParams.stylization,
-        weirdness: mjParams.weirdness,
-        variety: mjParams.variety,
-        enableTranslation: mjParams.enableTranslation ?? true,
-        imageUrl: imageInputs?.[0], // For i2i mode
+    // Standard photo generation
+    const generateParams: any = {
+      model: modelInfo.apiId,
+      prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
+      aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1") as any),
+      resolution: resolutionForKie,
+      outputFormat: "png", // Always PNG for photos
+    };
+    
+    // Add quality only if it's a valid quality option (not resolution-based)
+    // For Nano Banana Pro, quality is '1k_2k' or '4k', which we map to resolution
+    // So we don't pass quality separately for models that use resolution
+    if (quality && !['1k_2k', '4k', '1k', '2k', '8k'].includes(quality.toLowerCase())) {
+      generateParams.quality = quality;
+    }
+    
+    if (imageInputs && imageInputs.length > 0) {
+      generateParams.imageInputs = imageInputs;
+    }
+    
+    console.log('[API] Generating image with params:', {
+      model: generateParams.model,
+      resolution: generateParams.resolution,
+      quality: generateParams.quality,
+      aspectRatio: generateParams.aspectRatio,
+    });
+    
+    try {
+      response = await kieClient.generateImage(generateParams);
+    } catch (kieError: any) {
+      console.error('[API] KIE generateImage error:', {
+        message: kieError?.message,
+        code: kieError?.code,
+        errorCode: kieError?.errorCode,
       });
-    } else {
-      // Standard photo generation
-      const generateParams: any = {
-        model: modelInfo.apiId,
-        prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
-        aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1") as any),
-        resolution: resolutionForKie,
-        outputFormat: "png", // Always PNG for photos
-      };
-      
-      // Add quality only if it's a valid quality option (not resolution-based)
-      // For Nano Banana Pro, quality is '1k_2k' or '4k', which we map to resolution
-      // So we don't pass quality separately for models that use resolution
-      if (quality && !['1k_2k', '4k', '1k', '2k', '8k'].includes(quality.toLowerCase())) {
-        generateParams.quality = quality;
-      }
-      
-      if (imageInputs && imageInputs.length > 0) {
-        generateParams.imageInputs = imageInputs;
-      }
-      
-      console.log('[API] Generating image with params:', {
-        model: generateParams.model,
-        resolution: generateParams.resolution,
-        quality: generateParams.quality,
-        aspectRatio: generateParams.aspectRatio,
-      });
-      
-      try {
-        response = await kieClient.generateImage(generateParams);
-      } catch (kieError: any) {
-        console.error('[API] KIE generateImage error:', {
-          message: kieError?.message,
-          code: kieError?.code,
-          errorCode: kieError?.errorCode,
-        });
-        throw kieError;
-      }
+      throw kieError;
     }
 
     // Attach task_id to DB record so callbacks / sync can find it reliably

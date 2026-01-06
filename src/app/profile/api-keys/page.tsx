@@ -31,17 +31,15 @@ interface ApiKey {
   settings: any;
 }
 
-const SERVICES = [
-  {
-    id: "midjourney",
-    name: "Midjourney (via KIE.ai)",
-    description: "Подключите свой API ключ KIE.ai для использования Midjourney без лимитов",
-    icon: Sparkles,
-    color: "text-purple-400",
-    docsUrl: "https://kie.ai/docs/api-keys",
-    placeholder: "kie_xxxxxxxxxxxxxxxxxxxx",
-  },
-];
+const SERVICES: {
+  id: string;
+  name: string;
+  description: string;
+  icon: typeof Sparkles;
+  color: string;
+  docsUrl: string;
+  placeholder: string;
+}[] = [];
 
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);

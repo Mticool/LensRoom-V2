@@ -255,6 +255,69 @@ export async function POST(request: NextRequest) {
         .eq('plan_id', planInfo.planId);
     }
     
+    // Создаём/обновляем запись в subscriptions
+    const periodStart = new Date();
+    const periodEnd = new Date();
+    periodEnd.setMonth(periodEnd.getMonth() + 1); // +1 месяц
+    
+    // Check for existing active subscription for this user
+    const { data: existingSubscription } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+    
+    if (existingSubscription) {
+      // Update existing subscription
+      const { error: updateError } = await supabase
+        .from('subscriptions')
+        .update({
+          plan_id: planInfo.planId,
+          current_period_start: periodStart.toISOString(),
+          current_period_end: periodEnd.toISOString(),
+          credits_per_month: planInfo.credits,
+          prodamus_subscription_id: subscriptionId,
+          cancel_at_period_end: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingSubscription.id);
+      
+      if (updateError) {
+        console.error('[Robokassa Subscription Webhook] Failed to update subscription:', updateError);
+      } else {
+        console.log('[Robokassa Subscription Webhook] Subscription renewed:', {
+          userId,
+          planId: planInfo.planId,
+          periodEnd: periodEnd.toISOString(),
+        });
+      }
+    } else {
+      // Create new subscription
+      const { error: insertError } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: userId,
+          plan_id: planInfo.planId,
+          status: 'active',
+          current_period_start: periodStart.toISOString(),
+          current_period_end: periodEnd.toISOString(),
+          credits_per_month: planInfo.credits,
+          prodamus_subscription_id: subscriptionId,
+          cancel_at_period_end: false,
+        });
+      
+      if (insertError) {
+        console.error('[Robokassa Subscription Webhook] Failed to create subscription:', insertError);
+      } else {
+        console.log('[Robokassa Subscription Webhook] Subscription created:', {
+          userId,
+          planId: planInfo.planId,
+          periodEnd: periodEnd.toISOString(),
+        });
+      }
+    }
+    
     // Получаем новый баланс
     const { data: newBalance } = await supabase
       .from('credits')

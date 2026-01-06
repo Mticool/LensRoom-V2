@@ -150,3 +150,9 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_period_end
 ON subscriptions(current_period_end) 
 WHERE status = 'active';
 
+
+
+
+
+
+

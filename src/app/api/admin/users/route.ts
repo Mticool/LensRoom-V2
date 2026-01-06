@@ -94,6 +94,23 @@ export async function GET(request: Request) {
         roleMap[uid] = role === "admin" ? "admin" : role === "manager" ? "manager" : "user";
       });
     }
+    
+    // Get credits balances
+    const creditsMap: Record<string, { total: number; subscription: number; package: number }> = {};
+    if (authIds.length) {
+      const { data: creditsRows } = await supabase
+        .from("credits")
+        .select("user_id, amount, subscription_stars, package_stars")
+        .in("user_id", authIds);
+      (creditsRows as any[] | null | undefined)?.forEach((c: any) => {
+        const uid = String(c.user_id || "");
+        creditsMap[uid] = {
+          total: Number(c.amount) || 0,
+          subscription: Number(c.subscription_stars) || 0,
+          package: Number(c.package_stars) || 0,
+        };
+      });
+    }
 
     const users = profilesAny
       .map((p: any) => {
@@ -110,6 +127,8 @@ export async function GET(request: Request) {
           (telegramId ? `TG ${telegramId}` : "") ||
           authUserId;
 
+        const credits = creditsMap[authUserId] || { total: 0, subscription: 0, package: 0 };
+        
         return {
           auth_user_id: authUserId,
           telegram_id: telegramId,
@@ -119,6 +138,9 @@ export async function GET(request: Request) {
           created_at: p?.[uCols.createdAt!],
           role,
           display_name: displayName,
+          credits_total: credits.total,
+          credits_subscription: credits.subscription,
+          credits_package: credits.package,
         };
       })
       .filter((u: any) => {

@@ -255,13 +255,13 @@ export async function generateVideoPoster(params: {
 }
 
 /**
- * Generate animated preview for video (4 seconds WebM loop)
+ * Generate animated preview for video (4 seconds MP4 loop)
  * 
  * @param videoUrl - URL of video file
  * @param userId - User ID for storage path
  * @param generationId - Generation ID for filename
  * @param supabase - Supabase client
- * @returns Storage path (e.g., "userId/previews/genId_preview.webm")
+ * @returns Storage path (e.g., "userId/previews/genId_preview.mp4")
  */
 export async function generateVideoAnimatedPreview(params: {
   videoUrl: string;
@@ -272,7 +272,7 @@ export async function generateVideoAnimatedPreview(params: {
   const { videoUrl, userId, generationId, supabase } = params;
 
   const tempVideo = join(tmpdir(), `preview_video_${generationId}_${Date.now()}.tmp`);
-  const tempPreview = join(tmpdir(), `preview_animated_${generationId}_${Date.now()}.webm`);
+  const tempPreview = join(tmpdir(), `preview_animated_${generationId}_${Date.now()}.mp4`);
 
   try {
     console.log(`[AnimatedPreview:${generationId}] step=download url=${videoUrl.substring(0, 60)}...`);
@@ -280,9 +280,9 @@ export async function generateVideoAnimatedPreview(params: {
     // Download video
     await downloadFile(videoUrl, tempVideo, supabase);
 
-    console.log(`[AnimatedPreview:${generationId}] step=ffmpeg generating_webm duration=${ANIMATED_PREVIEW_DURATION}s`);
+    console.log(`[AnimatedPreview:${generationId}] step=ffmpeg generating_mp4 duration=${ANIMATED_PREVIEW_DURATION}s`);
     
-    // Generate 4-second WebM preview
+    // Generate 4-second MP4 preview (H.264 - universal support)
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("FFmpeg timeout"));
@@ -292,14 +292,13 @@ export async function generateVideoAnimatedPreview(params: {
         .setStartTime(0) // Start from beginning
         .setDuration(ANIMATED_PREVIEW_DURATION) // 4 seconds
         .size(`${PREVIEW_MAX_SIZE}x?`) // Scale to max width
-        .videoCodec('libvpx-vp9') // VP9 codec (better compression)
+        .videoCodec('libx264') // H.264 codec (universal support)
         .videoBitrate('500k') // Low bitrate for small file
         .fps(24) // 24 fps
         .outputOptions([
-          '-deadline realtime', // Fast encoding
-          '-cpu-used 5', // Fast encoding preset
-          '-row-mt 1', // Multi-threading
-          '-auto-alt-ref 0', // Disable alt-ref for simpler encoding
+          '-preset ultrafast', // Fast encoding
+          '-movflags +faststart', // Web optimization
+          '-pix_fmt yuv420p', // Compatibility
         ])
         .noAudio() // Remove audio
         .output(tempPreview)
@@ -328,8 +327,8 @@ export async function generateVideoAnimatedPreview(params: {
     console.log(`[AnimatedPreview:${generationId}] step=upload size=${previewBuffer.byteLength} bytes`);
     
     // Upload to storage
-    const storagePath = `${userId}/previews/${generationId}_preview.webm`;
-    await uploadToStorage(supabase, "generations", storagePath, previewBuffer, "video/webm");
+    const storagePath = `${userId}/previews/${generationId}_preview.mp4`;
+    await uploadToStorage(supabase, "generations", storagePath, previewBuffer, "video/mp4");
 
     // Get public URL
     const { data } = supabase.storage.from("generations").getPublicUrl(storagePath);

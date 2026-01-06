@@ -25,14 +25,10 @@ interface PromocodeResult {
   description?: string;
 }
 
-// Yearly discount
-const YEARLY_DISCOUNT = 0.20; // 20% off
-
 export default function PricingPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [activePlanIndex, setActivePlanIndex] = useState(1); // Start with popular plan
   const sliderRef = useRef<HTMLDivElement>(null);
   
@@ -43,23 +39,8 @@ export default function PricingPage() {
   const [promoResult, setPromoResult] = useState<PromocodeResult | null>(null);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
-  // Calculate yearly price with discount
-  const getPrice = (monthlyPrice: number, period: 'monthly' | 'yearly') => {
-    if (period === 'yearly') {
-      return Math.round(monthlyPrice * 12 * (1 - YEARLY_DISCOUNT));
-    }
-    return monthlyPrice;
-  };
-
-  // Calculate monthly price for yearly
-  const getMonthlyEquivalent = (monthlyPrice: number) => {
-    return Math.round(monthlyPrice * (1 - YEARLY_DISCOUNT));
-  };
-
-  // Calculate savings
-  const getYearlySavings = (monthlyPrice: number) => {
-    return Math.round(monthlyPrice * 12 * YEARLY_DISCOUNT);
-  };
+  // Only monthly pricing
+  const getPrice = (monthlyPrice: number) => monthlyPrice;
 
   const applyBonusStars = useCallback(async () => {
     if (!promoCode.trim()) return;
@@ -114,8 +95,7 @@ export default function PricingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           type, 
-          itemId,
-          period: type === 'subscription' ? billingPeriod : undefined
+          itemId
         }),
       });
 
@@ -180,8 +160,8 @@ export default function PricingPage() {
       a: '⭐ — внутренняя валюта LensRoom. Вы видите цену заранее и платите только за запуск генерации. Разные модели стоят по-разному.',
     },
     {
-      q: 'Чем отличается месячная от годовой подписки?',
-      a: 'Годовая подписка даёт скидку 20%. ⭐ начисляются сразу за весь год. Отменить можно в любой момент с возвратом неиспользованного.',
+      q: 'Чем отличается подписка от пакета ⭐?',
+      a: 'Подписка — ежемесячный план с фиксированным количеством ⭐ и доступом к Pro-функциям. Пакеты — разовая покупка ⭐ без срока действия.',
     },
     {
       q: 'Что значит "безлимит" в Creator+ и Business?',
@@ -247,42 +227,6 @@ export default function PricingPage() {
             </div>
           </motion.div>
 
-          {/* Billing Toggle */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex justify-center mb-10"
-          >
-            <div className="inline-flex items-center p-1 rounded-full bg-[var(--surface)] border border-[var(--border)]">
-              <button
-                onClick={() => setBillingPeriod('monthly')}
-                className={cn(
-                  "px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-all",
-                  billingPeriod === 'monthly'
-                    ? "bg-white text-black shadow-lg"
-                    : "text-[var(--muted)] hover:text-[var(--text)]"
-                )}
-              >
-                Ежемесячно
-              </button>
-              <button
-                onClick={() => setBillingPeriod('yearly')}
-                className={cn(
-                  "px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2",
-                  billingPeriod === 'yearly'
-                    ? "bg-white text-black shadow-lg"
-                    : "text-[var(--muted)] hover:text-[var(--text)]"
-                )}
-              >
-                Ежегодно
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-bold">
-                  -20%
-                </span>
-              </button>
-            </div>
-          </motion.div>
-
           {/* Mobile Plan Navigation */}
           <div className="flex lg:hidden justify-center gap-2 mb-4">
             {SUBSCRIPTION_TIERS.map((_, index) => (
@@ -319,12 +263,8 @@ export default function PricingPage() {
               key={plan.id}
               plan={plan}
               index={index}
-              billingPeriod={billingPeriod}
               loading={loading}
               onPurchase={handlePurchase}
-              getPrice={getPrice}
-              getMonthlyEquivalent={getMonthlyEquivalent}
-              getYearlySavings={getYearlySavings}
               planIcons={planIcons}
               planColors={planColors}
               isMobile={true}
@@ -339,34 +279,14 @@ export default function PricingPage() {
               key={plan.id}
               plan={plan}
               index={index}
-              billingPeriod={billingPeriod}
               loading={loading}
               onPurchase={handlePurchase}
-              getPrice={getPrice}
-              getMonthlyEquivalent={getMonthlyEquivalent}
-              getYearlySavings={getYearlySavings}
               planIcons={planIcons}
               planColors={planColors}
               isMobile={false}
             />
           ))}
         </div>
-
-        {/* Yearly Savings Callout */}
-        <AnimatePresence>
-          {billingPeriod === 'yearly' && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="max-w-2xl mx-auto mt-8 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center"
-            >
-              <p className="text-emerald-400 font-medium">
-                🎉 Годовая подписка — экономия до {formatPrice(getYearlySavings(SUBSCRIPTION_TIERS[2].price))} в год
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Star Packs */}
@@ -582,12 +502,8 @@ export default function PricingPage() {
 interface PlanCardProps {
   plan: typeof SUBSCRIPTION_TIERS[0];
   index: number;
-  billingPeriod: 'monthly' | 'yearly';
   loading: string | null;
   onPurchase: (type: 'subscription' | 'package', itemId: string) => void;
-  getPrice: (price: number, period: 'monthly' | 'yearly') => number;
-  getMonthlyEquivalent: (price: number) => number;
-  getYearlySavings: (price: number) => number;
   planIcons: Record<string, any>;
   planColors: Record<string, { bg: string; border: string; accent: string }>;
   isMobile: boolean;
@@ -596,12 +512,8 @@ interface PlanCardProps {
 function PlanCard({
   plan,
   index,
-  billingPeriod,
   loading,
   onPurchase,
-  getPrice,
-  getMonthlyEquivalent,
-  getYearlySavings,
   planIcons,
   planColors,
   isMobile,
@@ -610,8 +522,6 @@ function PlanCard({
   const colors = planColors[plan.id as keyof typeof planColors] || planColors.creator;
   const isPopular = !!plan.popular;
   const isLoading = loading === plan.id;
-  const price = getPrice(plan.price, billingPeriod);
-  const monthlyPrice = billingPeriod === 'yearly' ? getMonthlyEquivalent(plan.price) : plan.price;
 
   return (
     <motion.div
@@ -650,40 +560,21 @@ function PlanCard({
           
           {/* Price */}
           <div className="mb-2">
-            {billingPeriod === 'yearly' ? (
-              <>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-3xl sm:text-4xl font-bold text-[var(--text)]">
-                    {monthlyPrice.toLocaleString()}
-                  </span>
-                  <span className="text-[var(--muted)]">₽/мес</span>
-                </div>
-                <p className="text-xs text-[var(--muted)] mt-1">
-                  {formatPrice(price)} за год
-                </p>
-                <p className="text-xs text-emerald-400 font-medium">
-                  Экономия {formatPrice(getYearlySavings(plan.price))}
-                </p>
-              </>
-            ) : (
-              <div className="flex items-baseline justify-center gap-1">
-                <span className="text-3xl sm:text-4xl font-bold text-[var(--text)]">
-                  {price.toLocaleString()}
-                </span>
-                <span className="text-[var(--muted)]">₽/мес</span>
-              </div>
-            )}
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-3xl sm:text-4xl font-bold text-[var(--text)]">
+                {plan.price.toLocaleString()}
+              </span>
+              <span className="text-[var(--muted)]">₽/мес</span>
+            </div>
           </div>
 
           {/* Stars */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
             <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
             <span className="text-sm font-bold text-white">
-              {billingPeriod === 'yearly' ? (plan.stars * 12).toLocaleString() : plan.stars.toLocaleString()} ⭐
+              {plan.stars.toLocaleString()} ⭐
             </span>
-            {billingPeriod === 'yearly' && (
-              <span className="text-xs text-[var(--muted)]">/год</span>
-            )}
+            <span className="text-xs text-[var(--muted)]">/мес</span>
           </div>
         </div>
 

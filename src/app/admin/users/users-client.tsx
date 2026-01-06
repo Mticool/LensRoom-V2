@@ -19,6 +19,9 @@ type AdminUserRow = {
   telegram_username?: string | null;
   first_name?: string | null;
   last_name?: string | null;
+  credits_total: number;
+  credits_subscription: number;
+  credits_package: number;
 };
 
 type UsersResponse = {
@@ -134,6 +137,23 @@ export default function AdminUsersClient() {
         mobileLabel: "TG ID",
         render: (u) => (u.telegram_id ? String(u.telegram_id) : "-"),
         className: "whitespace-nowrap",
+      },
+      {
+        key: "credits",
+        label: "Баланс ⭐",
+        mobileLabel: "⭐",
+        render: (u) => (
+          <div className="text-right">
+            <div className="font-bold text-[var(--gold)]">{u.credits_total || 0}</div>
+            {(u.credits_subscription > 0 || u.credits_package > 0) && (
+              <div className="text-xs text-[var(--muted)]">
+                {u.credits_subscription > 0 && <span className="text-blue-400">sub:{u.credits_subscription}</span>}
+                {u.credits_subscription > 0 && u.credits_package > 0 && " + "}
+                {u.credits_package > 0 && <span className="text-green-400">pkg:{u.credits_package}</span>}
+              </div>
+            )}
+          </div>
+        ),
       },
       {
         key: "role",

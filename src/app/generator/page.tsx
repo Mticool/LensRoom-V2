@@ -43,18 +43,40 @@ function useGeneratorState(initialSection: SectionType, initialModel: string | n
   const calculateCost = useCallback(() => {
     if (!modelInfo) return 0;
     
+    // Преобразование версии Kling в modelVariant ID
+    const getModelVariant = () => {
+      const version = settings.version || settings.model_variant;
+      if (!version) return undefined;
+      
+      // Kling версии в ID
+      const versionMap: Record<string, string> = {
+        '2.5-turbo': 'kling-2.5-turbo',
+        '2.6': 'kling-2.6',
+        '2.1-pro': 'kling-2.1',
+        '2.1': 'kling-2.1',
+        // WAN версии
+        '2.5': 'wan-2.5',
+        '2.6-turbo': 'wan-2.6',
+        // Avatar версии
+        'standard': 'kling-ai-avatar-standard',
+        'pro': 'kling-ai-avatar-pro',
+      };
+      
+      return versionMap[version] || version;
+    };
+    
     // Маппинг настроек генератора в PriceOptions
     const priceOptions: PriceOptions = {
       // Photo options
       quality: settings.quality || settings.output_quality,
       resolution: settings.resolution || settings.output_resolution,
       
-      // Video options
+      // Video options  
       mode: settings.generation_type || settings.mode,
-      duration: settings.duration || settings.video_duration,
+      duration: settings.duration ? parseInt(String(settings.duration)) : undefined,
       videoQuality: settings.video_quality || settings.quality,
-      audio: settings.audio === true || settings.sound === 'on' || settings.with_audio === true,
-      modelVariant: settings.model_variant || settings.version,
+      audio: settings.audio === true || settings.sound === true || settings.with_audio === true,
+      modelVariant: getModelVariant(),
       
       // Common
       variants: 1,

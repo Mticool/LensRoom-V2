@@ -29,7 +29,6 @@ export function GeneratorV2Clean() {
     const costs: Record<string, number> = {
       'flux-1.1-pro': 4,
       'flux-dev': 2,
-      'midjourney-v7': 8,
     };
     return costs[model] || 4;
   }, [model]);
@@ -192,7 +191,6 @@ export function GeneratorV2Clean() {
             >
               <option value="flux-1.1-pro">Flux 1.1 Pro (4⭐)</option>
               <option value="flux-dev">Flux Dev (2⭐)</option>
-              <option value="midjourney-v7">Midjourney v7 (8⭐)</option>
             </select>
           </div>
 

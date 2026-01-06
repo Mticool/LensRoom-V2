@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { addSubscriptionStars, addPackageStars, renewSubscription } from '@/lib/credits/split-credits';
+import { notifyUserPayment, notifyAdminPayment } from '@/lib/email/notifications';
 import crypto from 'crypto';
 
 /**
@@ -314,6 +315,35 @@ async function addCreditsToUser(
     subscriptionStars: newBalance.subscriptionStars,
     packageStars: newBalance.packageStars,
   });
+  
+  // Send email notifications (async, don't block)
+  const packageName = type === 'subscription' 
+    ? `Подписка ${planId}` 
+    : `Пакет ${credits}⭐`;
+    
+  // Get user info for notifications
+  const { data: userProfile } = await supabase
+    .from('telegram_profiles')
+    .select('telegram_username')
+    .eq('auth_user_id', userId)
+    .maybeSingle();
+    
+  const notificationData = {
+    telegramUsername: userProfile?.telegram_username || undefined,
+    amount: Math.round(amount),
+    currency: '₽',
+    packageName,
+    creditsAdded: credits,
+    paymentId: invId,
+  };
+  
+  // Send to admin (always)
+  notifyAdminPayment(notificationData).catch(err => 
+    console.error('[Email] Admin notification failed:', err)
+  );
+  
+  // TODO: Send to user when email is available
+  // notifyUserPayment({ ...notificationData, userEmail }).catch(() => {});
 }
 
 // Также поддерживаем GET для тестирования и Success/Fail URL

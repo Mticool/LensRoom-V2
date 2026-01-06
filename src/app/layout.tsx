@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
+import { Analytics } from "@/components/analytics/Analytics";
 
 // Optimized font loading with next/font
 const inter = Inter({
@@ -28,7 +29,6 @@ export const metadata: Metadata = {
     "ai генератор",
     "нейросеть видео",
     "flux 2",
-    "midjourney v7",
     "генерация видео",
     "ai контент",
     "видео за 2 клика",
@@ -92,32 +92,130 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// JSON-LD Schema
-const jsonLd = {
+// JSON-LD Schema - Organization
+const organizationSchema = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
+  "@type": "Organization",
+  "@id": "https://lensroom.ru/#organization",
   name: "LensRoom",
-  description: "AI платформа для генерации профессиональных фото и видео",
+  url: "https://lensroom.ru",
+  logo: "https://lensroom.ru/logo.svg",
+  sameAs: [
+    "https://t.me/LensRoom_bot",
+  ],
+  contactPoint: {
+    "@type": "ContactPoint",
+    email: "support@lensroom.ru",
+    contactType: "customer service",
+    availableLanguage: ["Russian", "English"],
+  },
+};
+
+// JSON-LD Schema - WebApplication
+const applicationSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "@id": "https://lensroom.ru/#webapp",
+  name: "LensRoom - AI Генератор контента",
+  description: "Создавайте профессиональное фото и видео с помощью AI за минуты. Veo 3.1, Sora 2, Kling, Flux.2 и другие топовые нейросети.",
+  url: "https://lensroom.ru",
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
+  browserRequirements: "Requires JavaScript. Works in Chrome, Firefox, Safari, Edge.",
   offers: {
-    "@type": "Offer",
-    price: "0",
+    "@type": "AggregateOffer",
     priceCurrency: "RUB",
+    lowPrice: "0",
+    highPrice: "4990",
+    offerCount: "3",
+    offers: [
+      {
+        "@type": "Offer",
+        name: "Стартовый пакет",
+        price: "1490",
+        priceCurrency: "RUB",
+        description: "2200 звёзд для генерации",
+      },
+      {
+        "@type": "Offer",
+        name: "Популярный пакет",
+        price: "1990",
+        priceCurrency: "RUB",
+        description: "3000 звёзд для генерации",
+      },
+      {
+        "@type": "Offer",
+        name: "PRO пакет",
+        price: "4990",
+        priceCurrency: "RUB",
+        description: "7600 звёзд для генерации",
+      },
+    ],
   },
   aggregateRating: {
     "@type": "AggregateRating",
     ratingValue: "4.8",
     ratingCount: "1250",
+    bestRating: "5",
+    worstRating: "1",
   },
   featureList: [
-    "AI генерация фото",
-    "AI генерация видео",
-    "Продуктовые карточки",
-    "500+ промптов",
-    "12 AI моделей",
+    "AI генерация фото (Flux.2, Midjourney, GPT Image)",
+    "AI генерация видео (Veo 3.1, Sora 2, Kling)",
+    "AI генерация музыки (Suno)",
+    "12+ AI моделей",
+    "Batch-обработка изображений",
+    "История генераций",
+  ],
+  screenshot: "https://lensroom.ru/og-image.png",
+  softwareVersion: "2.0",
+  provider: {
+    "@id": "https://lensroom.ru/#organization",
+  },
+};
+
+// JSON-LD Schema - FAQPage for SEO
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "Что такое LensRoom?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "LensRoom — это AI-платформа для создания профессионального фото и видео контента с помощью нейросетей Veo 3.1, Sora 2, Kling, Flux.2 и других. Создавайте контент за минуты без навыков монтажа.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Какие AI-модели доступны в LensRoom?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "LensRoom предлагает 12+ AI-моделей: Veo 3.1 (Google), Sora 2 (OpenAI), Kling 2.6, Flux.2 Pro, Midjourney V7, GPT Image, Nano Banana Pro, Grok Imagine, Suno для музыки и другие.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Сколько стоит генерация в LensRoom?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Цены начинаются от 7 звёзд за изображение. Пакеты: 1490₽ за 2200 звёзд, 1990₽ за 3000 звёзд, 4990₽ за 7600 звёзд. Также доступны подписки с ежемесячными звёздами.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Можно ли попробовать бесплатно?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Да! Новые пользователи получают бонусные звёзды при регистрации. Также доступен демо-режим для быстрого ознакомления с платформой.",
+      },
+    },
   ],
 };
+
+// Combined JSON-LD
+const jsonLd = [organizationSchema, applicationSchema, faqSchema];
 
 // Inline script to prevent flash of wrong theme (FOUC)
 // Priority: 1) localStorage.theme 2) default to "dark"
@@ -161,9 +259,15 @@ export default function RootLayout({
         
         {/* Scripts */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        {jsonLd.map((schema, index) => (
+          <script key={index} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+        ))}
       </head>
       <body className={`${inter.className} antialiased`}>
+        <Analytics 
+          gaId={process.env.NEXT_PUBLIC_GA_ID} 
+          ymId={process.env.NEXT_PUBLIC_YM_ID} 
+        />
         <Providers>
           <ConditionalLayout>
             {children}

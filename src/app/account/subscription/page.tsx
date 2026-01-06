@@ -106,7 +106,14 @@ export default function SubscriptionPage() {
   };
 
   const getPlanName = (planId: string) => {
-    return planId === 'pro' ? 'Pro' : 'Business';
+    const names: Record<string, string> = {
+      creator: 'Creator',
+      creator_plus: 'Creator+',
+      business: 'Business',
+      pro: 'Creator+', // Legacy
+      star: 'Creator', // Legacy
+    };
+    return names[planId] || planId;
   };
 
   if (loading) {

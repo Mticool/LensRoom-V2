@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/providers/auth-provider";
 import { TelegramAuthProvider } from "@/providers/telegram-auth-provider";
 import { ThemeProvider, useTheme } from "@/lib/theme-provider";
+import { ReferralHandler } from "@/components/referrals/ReferralHandler";
 
 function ThemedToaster() {
   const { theme } = useTheme();
@@ -44,6 +46,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TelegramAuthProvider>
           <AuthProvider>
             {children}
+            {/* Handle ?ref=CODE query param for referrals */}
+            <Suspense fallback={null}>
+              <ReferralHandler />
+            </Suspense>
           </AuthProvider>
         </TelegramAuthProvider>
         <ThemedToaster />
