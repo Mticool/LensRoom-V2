@@ -70,6 +70,18 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   const [currentResult, setCurrentResult] = useState<GenerationResult | null>(null);
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceVideo, setReferenceVideo] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [autoTrim, setAutoTrim] = useState(true);
+  
+  // Handle video change with duration
+  const handleReferenceVideoChange = useCallback((video: string | null, durationSec?: number) => {
+    setReferenceVideo(video);
+    setVideoDuration(durationSec ?? null);
+    if (!video) {
+      setAutoTrim(true); // Reset to default when video removed
+    }
+  }, []);
 
   // Check if mobile
   const [isMobile, setIsMobile] = useState(false);
@@ -207,8 +219,8 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
     }
 
     clearError();
-    await generate(prompt, mode, settings, referenceImage);
-  }, [mode, settings, isGenerating, isAuthenticated, generate, clearError, referenceImage]);
+    await generate(prompt, mode, settings, referenceImage, referenceVideo, videoDuration, autoTrim);
+  }, [mode, settings, isGenerating, isAuthenticated, generate, clearError, referenceImage, referenceVideo, videoDuration, autoTrim]);
 
   const handleSelectFromHistory = useCallback((result: GenerationResult) => {
     setCurrentResult(result);
@@ -262,6 +274,11 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
           onSettingsChange={setSettings}
           referenceImage={referenceImage}
           onReferenceImageChange={setReferenceImage}
+          referenceVideo={referenceVideo}
+          onReferenceVideoChange={handleReferenceVideoChange}
+          videoDuration={videoDuration}
+          autoTrim={autoTrim}
+          onAutoTrimChange={setAutoTrim}
         />
       )}
 
@@ -288,6 +305,11 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
                 onSettingsChange={setSettings}
                 referenceImage={referenceImage}
                 onReferenceImageChange={setReferenceImage}
+                referenceVideo={referenceVideo}
+                onReferenceVideoChange={handleReferenceVideoChange}
+                videoDuration={videoDuration}
+                autoTrim={autoTrim}
+                onAutoTrimChange={setAutoTrim}
               />
             </div>
           </div>

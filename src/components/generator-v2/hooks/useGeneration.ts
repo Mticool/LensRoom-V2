@@ -32,7 +32,10 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     prompt: string,
     mode: GeneratorMode,
     settings: GenerationSettings,
-    referenceImage?: string | null
+    referenceImage?: string | null,
+    referenceVideo?: string | null,
+    videoDuration?: number | null,
+    autoTrim?: boolean
   ): Promise<GenerationResult | null> => {
     // Use ref to check if generating
     if (isGeneratingRef.current) return null;
@@ -44,26 +47,39 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     try {
       const endpoint = mode === 'video' ? '/api/generate/video' : '/api/generate/photo';
       
+      // Determine mode based on model and inputs
+      let generationMode = mode === 'video' ? 't2v' : 't2i';
+      if (settings.model === 'kling-motion-control') {
+        generationMode = 'i2v'; // Motion Control always uses i2v with video reference
+      } else if (referenceImage) {
+        generationMode = mode === 'video' ? 'i2v' : 'i2i';
+      }
+      
       const body: Record<string, unknown> = {
         prompt,
         model: settings.model,
         aspectRatio: settings.size,
         negativePrompt: settings.negativePrompt,
-        mode: referenceImage ? (mode === 'video' ? 'i2v' : 'i2i') : (mode === 'video' ? 't2v' : 't2i'),
+        mode: generationMode,
       };
 
       if (settings.quality) body.quality = settings.quality;
       if (referenceImage) body.referenceImage = referenceImage;
+      
+      // For Motion Control: pass reference video with duration info
+      if (referenceVideo && settings.model === 'kling-motion-control') {
+        body.referenceVideo = referenceVideo;
+        if (videoDuration != null) {
+          body.videoDuration = videoDuration;
+        }
+        body.autoTrim = autoTrim ?? true;
+      }
       
       if (mode === 'video') {
         body.duration = settings.duration || 5;
         body.audio = settings.audio ?? false;
         if (settings.modelVariant) body.modelVariant = settings.modelVariant;
         if (settings.resolution) body.resolution = settings.resolution;
-      }
-
-      if (settings.model === 'midjourney' && settings.mjSettings) {
-        body.mjSettings = settings.mjSettings;
       }
 
       const response = await fetch(endpoint, {

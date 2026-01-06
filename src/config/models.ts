@@ -444,6 +444,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: true,
     supportsStartEnd: true, // First & last frame support
+    fixedDuration: 8, // Veo only supports 8 seconds
     pricing: {
       // ЮНИТКА 2025-01-03: fast=99⭐, quality=490⭐
       fast: { '8': 99 },
@@ -758,12 +759,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   },
 
   // === KLING O1 - Image-to-Video First/Last Frame (fal.ai) ===
-  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
-  // Цена: $0.112/сек → 5s = $0.56 (56⭐), 10s = $1.12 (112⭐)
+  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video
+  // Себестоимость fal.ai: $0.112/сек
+  // Расчёт: $0.112 × 5s × 101.2₽/$ = 56.67₽ себестоимость → 120⭐ (маржа ~40%)
+  // ПРАВИЛО: 10s = 2× от 5s
   {
     id: 'kling-o1',
     name: 'Kling O1',
-    apiId: 'fal-ai/kling-video/o1/image-to-video',
+    apiId: 'fal-ai/kling-video/o1/standard/image-to-video',
     type: 'video',
     provider: 'fal',
     description: 'First Frame → Last Frame анимация. Точный контроль перехода между двумя кадрами. Идеально для таймлапсов, морфинга, трансформаций.',
@@ -773,16 +776,54 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     quality: 'high',
     supportsI2v: true, // Требует изображение
     supportsAudio: false,
-    // Pricing: $0.112/сек → 5s = $0.56 (56⭐), 10s = $1.12 (112⭐)
+    // UPDATED 2025-01-04: 5s=120⭐, 10s=240⭐ (правильная маржа)
     pricing: {
-      '5': 56,
-      '10': 112,
+      '5': 120,
+      '10': 240,
     },
     modes: ['i2v', 'start_end'], // Поддерживает start + end frames
     durationOptions: [5, 10],
     fixedDuration: undefined,
     aspectRatios: ['auto', '16:9', '9:16', '1:1', '4:3', '3:4'],
-    shortLabel: 'First→Last • 5-10s',
+    shortLabel: 'от 120⭐ • 5-10s',
+  },
+
+  // === KLING 2.6 MOTION CONTROL - KIE Market API ===
+  // Документация: https://kie.ai/kling-2.6-motion-control
+  // Перенос движений с референсного видео на персонажа из изображения
+  // Input: image (персонаж) + video (референс движений 3-30 сек) + prompt
+  // 
+  // ДИНАМИЧЕСКОЕ ЦЕНООБРАЗОВАНИЕ (per-second):
+  // - 720p: 16⭐/сек
+  // - 1080p: 22⭐/сек
+  // - Округление: ceil((duration * rate) / 5) * 5
+  // - Лимиты: 3-30 сек
+  {
+    id: 'kling-motion-control',
+    name: 'Kling Motion Control',
+    apiId: 'kling-2.6-motion-control/standard',
+    apiIdI2v: 'kling-2.6-motion-control/standard', // Всегда требует изображение
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Перенос движений с референсного видео на персонажа. Загрузи фото человека и видео с движениями — получи анимацию персонажа, повторяющего движения из видео. Идеально для танцев, жестов, мимики.',
+    rank: 2,
+    featured: true,
+    speed: 'medium',
+    quality: 'ultra',
+    supportsI2v: true, // Требует изображение персонажа
+    supportsAudio: false,
+    // Pricing: ДИНАМИЧЕСКАЯ (per-second)
+    // 720p: 16⭐/сек, 1080p: 22⭐/сек
+    // Минимальная цена: 3с × 16⭐ = 48⭐ → округлено до 50⭐
+    pricing: {
+      '720p': { perSecond: 16 }, // Dynamic per-second
+      '1080p': { perSecond: 22 },
+    },
+    modes: ['i2v'], // Только Image-to-Video (с референсным видео)
+    durationOptions: [], // Длительность = длительность референсного видео (3-30 сек)
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: 'от 50⭐ • Motion',
   },
 ];
 

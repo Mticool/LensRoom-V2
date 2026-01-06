@@ -169,11 +169,12 @@ export interface GenerateVideoRequest {
   imageUrl?: string;
   imageUrls?: string[];
   lastFrameUrl?: string; // For start_end mode
+  videoUrl?: string; // For motion control: reference video
   duration?: number | string;
   aspectRatio?: string;
   sound?: boolean;
-  mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard';
-  resolution?: string; // For bytedance: 480p/720p/1080p
+  mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'motion_control';
+  resolution?: string; // For bytedance: 480p/720p/1080p; For motion control: 720p/1080p
   quality?: string; // For sora-pro: standard/high
   // For storyboard mode
   shots?: Array<{
@@ -737,8 +738,32 @@ export class KieAIClient {
       input.prompt = params.prompt;
     }
 
+    // === KLING 2.6 MOTION CONTROL ===
+    // Документация: https://kie.ai/kling-2.6-motion-control
+    if (params.model.includes('motion-control')) {
+      // input_urls: character image (required)
+      if (params.imageUrl) {
+        input.input_urls = [params.imageUrl];
+      }
+      // video_urls: reference video with motion (required, 3-30 seconds)
+      if (params.videoUrl) {
+        input.video_urls = [params.videoUrl];
+      }
+      // mode: 720p (standard) or 1080p (pro)
+      if (params.resolution === '1080p') {
+        input.mode = '1080p';
+      } else {
+        input.mode = '720p'; // Default to standard
+      }
+      console.log('[KIE Motion Control] Request params:', {
+        input_urls: !!params.imageUrl,
+        video_urls: !!params.videoUrl,
+        mode: input.mode,
+        prompt: params.prompt?.substring(0, 50),
+      });
+    }
     // === KLING 2.6 specific parameters ===
-    if (params.model.includes('kling')) {
+    else if (params.model.includes('kling')) {
       // Duration as string: "5" or "10"
       if (params.duration) {
         input.duration = String(params.duration);
@@ -991,107 +1016,6 @@ export class KieAIClient {
       id: response.data.taskId,
       status: "queued",
       estimatedTime: 30,
-    };
-  }
-
-  /**
-   * Generate image with Midjourney via KIE API
-   * Model: midjourney/vX-text-to-image
-   * Docs: https://kie.ai/model-preview/features/mj-api
-   */
-  async generateMidjourney(params: {
-    prompt: string;
-    version?: '7' | '6.1' | '6' | '5.2' | '5.1' | 'niji6';
-    speed?: 'relaxed' | 'fast' | 'turbo';
-    aspectRatio?: string;
-    stylization?: number; // 0-1000
-    weirdness?: number; // 0-3000
-    variety?: number; // 0-100
-    enableTranslation?: boolean;
-    imageUrl?: string; // For image-to-image mode
-  }): Promise<GenerateImageResponse> {
-    const input: Record<string, unknown> = {
-      prompt: params.prompt,
-    };
-
-    // Speed (required)
-    input.speed = params.speed || 'fast';
-
-    // Aspect ratio
-    if (params.aspectRatio) {
-      input.aspectRatio = params.aspectRatio;
-    }
-
-    // Version - map to KIE API format
-    // KIE API expects version as: "Version 7", "Version 6.1", "Version 6", etc. or "Niji 6"
-    const version = params.version || '7';
-    if (version === 'niji6') {
-      input.version = 'Niji 6';
-    } else {
-      input.version = `Version ${version}`;
-    }
-
-    // Stylization (0-1000)
-    if (params.stylization !== undefined && params.stylization > 0) {
-      input.stylization = params.stylization;
-    }
-
-    // Weirdness (0-3000)
-    if (params.weirdness !== undefined && params.weirdness > 0) {
-      input.weirdness = params.weirdness;
-    }
-
-    // Variety (0-100)
-    if (params.variety !== undefined && params.variety > 0) {
-      input.variety = params.variety;
-    }
-
-    // Translation (for non-English prompts)
-    if (params.enableTranslation !== undefined) {
-      input.enableTranslation = params.enableTranslation;
-    }
-
-    // Image-to-image mode
-    if (params.imageUrl) {
-      input.imageUrl = params.imageUrl;
-    }
-    
-    // Request URL output instead of base64
-    input.return_url = true;
-    input.output_type = 'url';
-
-    // Determine API model
-    // KIE API uses just "midjourney" as model name
-    // Mode is determined by presence of imageUrl in input
-    const model = 'midjourney';
-
-    const request: CreateTaskRequest = {
-      model,
-      input,
-    };
-    
-    // Add callback URL for async notifications
-    const base = this.callbackUrlBase.replace(/\/$/, "");
-    const secret = this.callbackSecret;
-    if (base && secret) {
-      request.callBackUrl = `${base}/api/webhooks/kie?secret=${encodeURIComponent(secret)}`;
-    }
-
-    console.log('[Midjourney] Request:', JSON.stringify(request, null, 2));
-
-    const response = await this.createTask(request);
-
-    // Estimate time based on speed
-    const estimatedTimes: Record<string, number> = {
-      relaxed: 120, // 2 minutes
-      fast: 60, // 1 minute
-      turbo: 30, // 30 seconds
-    };
-
-    return {
-      id: response.data.taskId,
-      status: "queued",
-      estimatedTime: estimatedTimes[params.speed || 'fast'] || 60,
     };
   }
 

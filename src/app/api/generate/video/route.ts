@@ -6,10 +6,20 @@ import { getFalClient } from '@/lib/api/fal-client';
 import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { 
+  calcMotionControlStars, 
+  validateMotionControlDuration, 
+  MOTION_CONTROL_CONFIG,
+  type MotionControlResolution 
+} from '@/lib/pricing/motionControl';
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
+
+// Увеличиваем лимит размера тела запроса до 50MB для больших изображений
+export const maxDuration = 60; // 60 seconds timeout
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +39,9 @@ export async function POST(request: NextRequest) {
       referenceImage,
       startImage,
       endImage,
+      referenceVideo, // For motion control: video with movements to transfer
+      videoDuration, // Duration of reference video in seconds
+      autoTrim = true, // Auto-trim videos > 30s
       shots, // For storyboard mode
     } = body;
 
@@ -59,16 +72,59 @@ export async function POST(request: NextRequest) {
 
     // Calculate credit cost using pricing system
     const alwaysSound = !!modelInfo.supportsAudio;
-    const price = computePrice(model, {
-      mode,
-      duration: duration || modelInfo.fixedDuration || 5,
-      videoQuality: quality,
-      resolution: resolution || undefined, // For WAN per-second pricing
-      audio: alwaysSound,
-      modelVariant: modelVariant || undefined,
-      variants,
-    });
-    const creditCost = price.stars;
+    
+    // Special pricing for Motion Control (per-second dynamic pricing)
+    let creditCost: number;
+    let effectiveDuration: number | undefined;
+    
+    if (model === 'kling-motion-control') {
+      // Motion Control uses dynamic per-second pricing
+      const mcResolution = (resolution || '720p') as MotionControlResolution;
+      const mcDuration = videoDuration || 0;
+      
+      // Validate duration
+      const validation = validateMotionControlDuration(mcDuration, autoTrim);
+      if (!validation.valid) {
+        return NextResponse.json(
+          { error: validation.error || 'Invalid video duration for Motion Control' },
+          { status: 400 }
+        );
+      }
+      
+      effectiveDuration = validation.effectiveDuration;
+      
+      const mcPrice = calcMotionControlStars(effectiveDuration, mcResolution, true);
+      if (mcPrice === null) {
+        return NextResponse.json(
+          { error: 'Invalid parameters for Motion Control pricing' },
+          { status: 400 }
+        );
+      }
+      
+      creditCost = mcPrice;
+      
+      console.log('[API] Motion Control pricing:', {
+        modelId: 'kling26_motion_control',
+        videoDuration: mcDuration,
+        autoTrim,
+        effectiveDuration,
+        resolution: mcResolution,
+        priceStars: creditCost,
+        rate: mcResolution === '720p' ? MOTION_CONTROL_CONFIG.RATE_720P : MOTION_CONTROL_CONFIG.RATE_1080P,
+      });
+    } else {
+      // Standard pricing for other models
+      const price = computePrice(model, {
+        mode,
+        duration: duration || modelInfo.fixedDuration || 5,
+        videoQuality: quality,
+        resolution: resolution || undefined, // For WAN per-second pricing
+        audio: alwaysSound,
+        modelVariant: modelVariant || undefined,
+        variants,
+      });
+      creditCost = price.stars;
+    }
 
     // Check auth and get user role
     let userId: string;
@@ -127,12 +183,28 @@ export async function POST(request: NextRequest) {
       
       // 🔍 AUDIT LOG: Star deduction (dev-only)
       if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
+        const durationSec = model === 'kling-motion-control' 
+          ? effectiveDuration 
+          : (duration || modelInfo.fixedDuration || 5);
+        const variantKey = model === 'kling-motion-control' 
+          ? `kling26_motion_control_${resolution || '720p'}`
+          : model === 'kling-o1' 
+            ? `kling_o1_${durationSec}s` 
+            : (modelVariant || 'default');
+        
         console.log('[⭐ AUDIT] Video generation:', JSON.stringify({
           userId,
           modelId: model,
-          modelVariant: modelVariant || 'default',
+          variantKey,
+          provider: modelInfo.provider,
           mode,
-          duration: duration || modelInfo.fixedDuration || 5,
+          durationSec,
+          // Motion Control specific
+          ...(model === 'kling-motion-control' && {
+            videoDuration,
+            autoTrim,
+            effectiveDuration,
+          }),
           quality: quality || 'default',
           resolution: resolution || 'default',
           audio: !!modelInfo.supportsAudio,
@@ -229,15 +301,24 @@ export async function POST(request: NextRequest) {
     // Determine image URL based on mode (supports base64 data URLs -> upload to Supabase Storage)
     let imageUrl: string | undefined;
     let lastFrameUrl: string | undefined;
+    let videoUrl: string | undefined; // For motion control reference video
     
     const uploadDataUrlToStorage = async (dataUrl: string, suffix: string) => {
-      // data:image/png;base64,xxxx
+      // data:image/png;base64,xxxx OR data:video/mp4;base64,xxxx
       const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
       if (!match) return dataUrl; // already a URL
       const mime = match[1];
       const b64 = match[2];
       const buffer = Buffer.from(b64, 'base64');
-      const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+      // Determine extension based on mime type
+      let ext = 'bin';
+      if (mime.includes('png')) ext = 'png';
+      else if (mime.includes('webp')) ext = 'webp';
+      else if (mime.includes('jpg') || mime.includes('jpeg')) ext = 'jpg';
+      else if (mime.includes('mp4')) ext = 'mp4';
+      else if (mime.includes('mov') || mime.includes('quicktime')) ext = 'mov';
+      else if (mime.includes('webm')) ext = 'webm';
+      
       const path = `${userId}/inputs/${Date.now()}_${suffix}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('generations')
@@ -255,6 +336,39 @@ export async function POST(request: NextRequest) {
     } else if (startImage) {
       // Fallback: use startImage as reference for i2v modes
       imageUrl = await uploadDataUrlToStorage(startImage, 'ref');
+    }
+    
+    // Handle motion control reference video
+    if (model === 'kling-motion-control') {
+      // Character image (required)
+      if (referenceImage) {
+        imageUrl = await uploadDataUrlToStorage(referenceImage, 'character');
+      } else if (startImage) {
+        imageUrl = await uploadDataUrlToStorage(startImage, 'character');
+      }
+      // Reference video with movements (required)
+      if (referenceVideo) {
+        videoUrl = await uploadDataUrlToStorage(referenceVideo, 'motion_ref');
+      }
+      
+      console.log('[API] Motion Control inputs:', {
+        hasCharacterImage: !!imageUrl,
+        hasReferenceVideo: !!videoUrl,
+        resolution: resolution,
+      });
+      
+      if (!imageUrl) {
+        return NextResponse.json(
+          { error: 'Character image is required for Motion Control' },
+          { status: 400 }
+        );
+      }
+      if (!videoUrl) {
+        return NextResponse.json(
+          { error: 'Reference video is required for Motion Control' },
+          { status: 400 }
+        );
+      }
     }
 
     // Select correct API model ID based on mode and variant
@@ -324,24 +438,73 @@ export async function POST(request: NextRequest) {
     
     // === FAL.ai PROVIDER (Kling O1) ===
     if (modelInfo.provider === 'fal') {
+      console.log('[API] Using FAL.ai provider for model:', model);
       try {
+        console.log('[API] FAL_KEY exists:', !!process.env.FAL_KEY);
         const falClient = getFalClient();
+        console.log('[API] FAL client created successfully');
         
         // Kling O1 Image-to-Video (First/Last Frame)
         if (model === 'kling-o1') {
+          console.log('[API] Kling O1 request, startImage:', !!startImage, 'endImage:', !!endImage);
+          
           if (!startImage) {
+            console.log('[API] ERROR: startImage is missing');
             return NextResponse.json(
               { error: 'Start image is required for Kling O1' },
               { status: 400 }
             );
           }
           
+          // Upload images to storage (FAL requires HTTP URLs, not data URLs)
+          let startImageUrl = startImage;
+          let endImageUrl = endImage;
+          
+          // Check if startImage is a data URL and upload it
+          if (startImage.startsWith('data:')) {
+            console.log('[API] Uploading start image for Kling O1...');
+            try {
+              startImageUrl = await uploadDataUrlToStorage(startImage, 'start');
+              console.log('[API] Start image uploaded:', startImageUrl);
+            } catch (uploadErr) {
+              console.error('[API] Failed to upload start image:', uploadErr);
+              throw uploadErr;
+            }
+          }
+          
+          // Check if endImage is a data URL and upload it
+          if (endImage && endImage.startsWith('data:')) {
+            console.log('[API] Uploading end image for Kling O1...');
+            try {
+              endImageUrl = await uploadDataUrlToStorage(endImage, 'end');
+              console.log('[API] End image uploaded:', endImageUrl);
+            } catch (uploadErr) {
+              console.error('[API] Failed to upload end image:', uploadErr);
+              throw uploadErr;
+            }
+          }
+          
+          const durationSec = duration || 5;
+          const variantKey = `kling_o1_${durationSec}s`;
+          
+          console.log('[API] Calling FAL API with:', {
+            variantKey,
+            provider: 'fal',
+            prompt: fullPrompt.substring(0, 50),
+            startImageUrl: startImageUrl?.substring(0, 50),
+            endImageUrl: endImageUrl?.substring(0, 50),
+            durationSec,
+            priceStars: creditCost,
+          });
+          
           const falResponse = await falClient.submitKlingO1ImageToVideo({
             prompt: fullPrompt,
-            start_image_url: startImage,
-            end_image_url: endImage || undefined, // Optional last frame
-            duration: String(duration || 5) as '5' | '10',
+            image_url: startImageUrl,
+            duration: String(durationSec) as '5' | '10',
+            aspect_ratio: aspectRatio as '16:9' | '9:16' | '1:1' || '16:9',
           });
+          
+          console.log('[API] FAL response:', falResponse);
           
           response = {
             id: falResponse.request_id,
@@ -358,10 +521,23 @@ export async function POST(request: NextRequest) {
             );
           }
           
+          // Upload video/images if they are data URLs
+          let videoUrl = referenceImage;
+          let imageUrls = startImage ? [startImage] : undefined;
+          
+          if (referenceImage.startsWith('data:')) {
+            videoUrl = await uploadDataUrlToStorage(referenceImage, 'video');
+          }
+          
+          if (startImage && startImage.startsWith('data:')) {
+            const uploadedImage = await uploadDataUrlToStorage(startImage, 'ref');
+            imageUrls = [uploadedImage];
+          }
+          
           const falResponse = await falClient.submitKlingO1Job({
             prompt: fullPrompt,
-            video_url: referenceImage,
-            image_urls: startImage ? [startImage] : undefined,
+            video_url: videoUrl,
+            image_urls: imageUrls,
           });
           
           response = {
@@ -384,10 +560,11 @@ export async function POST(request: NextRequest) {
           prompt: fullPrompt,
           imageUrl: imageUrl,
           lastFrameUrl: lastFrameUrl,
+          videoUrl: videoUrl, // For motion control
           duration: duration || modelInfo.fixedDuration || 5,
           aspectRatio: aspectRatio,
           sound: alwaysSound,
-          mode: mode,
+          mode: model === 'kling-motion-control' ? 'motion_control' : mode,
           resolution: resolution,
           quality: quality,
           shots: shots, // For storyboard mode

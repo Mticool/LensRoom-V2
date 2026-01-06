@@ -1,11 +1,18 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Settings2, Sparkles, ChevronDown, ChevronUp, Wand2, Zap, Clock, Star } from 'lucide-react';
+import { Settings2, Sparkles, ChevronDown, ChevronUp, Wand2, Zap, Clock, Star, Info, AlertTriangle, Scissors } from 'lucide-react';
 import { GeneratorMode, GenerationSettings } from './GeneratorV2';
 import { ImageUploader } from './ImageUploader';
+import { VideoUploader } from './VideoUploader';
 import { Tooltip } from './Tooltip';
 import { PHOTO_MODELS, VIDEO_MODELS, PhotoModelConfig, VideoModelConfig } from '@/config/models';
+import { 
+  calcMotionControlStars, 
+  validateMotionControlDuration, 
+  MOTION_CONTROL_CONFIG,
+  type MotionControlResolution 
+} from '@/lib/pricing/motionControl';
 
 interface SettingsPanelProps {
   mode: GeneratorMode;
@@ -13,6 +20,12 @@ interface SettingsPanelProps {
   onSettingsChange: (settings: GenerationSettings) => void;
   referenceImage: string | null;
   onReferenceImageChange: (image: string | null) => void;
+  referenceVideo?: string | null;
+  onReferenceVideoChange?: (video: string | null, durationSec?: number) => void;
+  // Motion Control specific
+  videoDuration?: number | null;
+  autoTrim?: boolean;
+  onAutoTrimChange?: (autoTrim: boolean) => void;
 }
 
 const ASPECT_RATIOS = [
@@ -54,6 +67,11 @@ export function SettingsPanel({
   onSettingsChange,
   referenceImage,
   onReferenceImageChange,
+  referenceVideo,
+  onReferenceVideoChange,
+  videoDuration,
+  autoTrim = true,
+  onAutoTrimChange,
 }: SettingsPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
@@ -303,9 +321,9 @@ export function SettingsPanel({
           </div>
         </div>
 
-        {/* Reference Image (i2i / i2v) */}
+        {/* Reference Image (i2i / i2v) - but NOT for Motion Control */}
         {((mode === 'image' && currentModel && 'supportsI2i' in currentModel && currentModel.supportsI2i) ||
-          (mode === 'video' && currentModel && 'supportsI2v' in currentModel && currentModel.supportsI2v)) && (
+          (mode === 'video' && currentModel && 'supportsI2v' in currentModel && currentModel.supportsI2v && settings.model !== 'kling-motion-control')) && (
           <ImageUploader
             value={referenceImage}
             onChange={onReferenceImageChange}
@@ -313,53 +331,130 @@ export function SettingsPanel({
           />
         )}
 
-        {/* Midjourney Settings */}
-        {settings.model === 'midjourney' && (
-          <div className="space-y-3 p-3 rounded-lg bg-[#27272A]/30 border border-[#3F3F46]/50">
-            <div className="flex items-center gap-1.5">
-              <Wand2 className="w-3.5 h-3.5 text-[#A855F7]" />
-              <span className="text-[11px] font-medium text-white">Midjourney</span>
+        {/* Motion Control - Special UI for character image + reference video */}
+        {settings.model === 'kling-motion-control' && (
+          <div className="space-y-4 pt-2 border-t border-[#27272A]">
+            {/* Info banner */}
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <Info className="w-3.5 h-3.5 text-purple-400 mt-0.5 flex-shrink-0" />
+              <p className="text-[10px] text-purple-200 leading-relaxed">
+                Загрузите фото персонажа и видео с движениями. Персонаж повторит движения из видео.
+              </p>
             </div>
             
+            {/* Character Image */}
             <div className="space-y-2">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] text-[#A1A1AA]">Stylize</label>
-                  <span className="text-[10px] text-white">{settings.mjSettings?.stylization || 100}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1000"
-                  step="50"
-                  value={settings.mjSettings?.stylization || 100}
-                  onChange={(e) => onSettingsChange({
-                    ...settings,
-                    mjSettings: { ...settings.mjSettings, stylization: parseInt(e.target.value) }
-                  })}
-                  className="w-full h-1 bg-[#3F3F46] rounded-lg appearance-none cursor-pointer accent-[#A855F7]"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] text-[#A1A1AA]">Chaos</label>
-                  <span className="text-[10px] text-white">{settings.mjSettings?.chaos || 0}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={settings.mjSettings?.chaos || 0}
-                  onChange={(e) => onSettingsChange({
-                    ...settings,
-                    mjSettings: { ...settings.mjSettings, chaos: parseInt(e.target.value) }
-                  })}
-                  className="w-full h-1 bg-[#3F3F46] rounded-lg appearance-none cursor-pointer accent-[#A855F7]"
-                />
-              </div>
+              <label className="text-xs font-medium text-[#A1A1AA] uppercase tracking-wide flex items-center gap-1.5">
+                <span className="text-lg">🖼️</span>
+                Фото персонажа
+              </label>
+              <ImageUploader
+                value={referenceImage}
+                onChange={onReferenceImageChange}
+                mode="compact"
+              />
+              <p className="text-[9px] text-[#52525B] leading-tight">
+                Чёткое фото с видимой головой, плечами и торсом
+              </p>
             </div>
+            
+            {/* Reference Video */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-[#A1A1AA] uppercase tracking-wide flex items-center gap-1.5">
+                <span className="text-lg">📹</span>
+                Видео с движениями
+              </label>
+              {onReferenceVideoChange && (
+                <VideoUploader
+                  value={referenceVideo || null}
+                  onChange={onReferenceVideoChange}
+                  mode="compact"
+                  label="Референс движений"
+                  hint={`${MOTION_CONTROL_CONFIG.MIN_DURATION_SEC}-${MOTION_CONTROL_CONFIG.MAX_DURATION_SEC} сек, плавные движения`}
+                  duration={videoDuration}
+                />
+              )}
+            </div>
+            
+            {/* Duration & Auto-trim section */}
+            {videoDuration != null && videoDuration > 0 && (() => {
+              const resolution = (settings.resolution || '720p') as MotionControlResolution;
+              const validation = validateMotionControlDuration(videoDuration, autoTrim);
+              const price = calcMotionControlStars(validation.effectiveDuration || videoDuration, resolution, autoTrim);
+              const needsTrim = videoDuration > MOTION_CONTROL_CONFIG.MAX_DURATION_SEC;
+              
+              return (
+                <div className="space-y-3 p-3 rounded-lg bg-[#27272A]/50 border border-[#3F3F46]">
+                  {/* Duration info */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-[#A1A1AA]">Длительность референса:</span>
+                      <span className={`font-medium ${needsTrim ? 'text-amber-400' : 'text-white'}`}>
+                        {videoDuration.toFixed(1)} сек
+                        {needsTrim && ' (макс 30)'}
+                      </span>
+                    </div>
+                    {validation.effectiveDuration > 0 && validation.effectiveDuration !== videoDuration && (
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-[#A1A1AA]">Итоговая длительность:</span>
+                        <span className="text-[#00D9FF] font-medium">
+                          {validation.effectiveDuration.toFixed(1)} сек
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Auto-trim toggle for long videos */}
+                  {needsTrim && onAutoTrimChange && (
+                    <div className="flex items-center justify-between py-2 border-t border-[#3F3F46]">
+                      <div className="flex items-center gap-2">
+                        <Scissors className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-[11px] text-[#A1A1AA]">Обрезать до 30 сек</span>
+                      </div>
+                      <button
+                        onClick={() => onAutoTrimChange(!autoTrim)}
+                        className={`w-9 h-5 rounded-full transition-colors flex items-center ${
+                          autoTrim ? 'bg-[#00D9FF] justify-end' : 'bg-[#3F3F46] justify-start'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white mx-0.5 transition-transform`} />
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Warning for disabled auto-trim */}
+                  {needsTrim && !autoTrim && (
+                    <div className="flex items-start gap-2 p-2 rounded bg-red-500/10 border border-red-500/20">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-[10px] text-red-300 leading-relaxed">
+                        Генерация невозможна. Включите обрезку или загрузите видео до 30 сек.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Error for too short */}
+                  {validation.error && !needsTrim && (
+                    <div className="flex items-start gap-2 p-2 rounded bg-red-500/10 border border-red-500/20">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-[10px] text-red-300">{validation.error}</p>
+                    </div>
+                  )}
+                  
+                  {/* Price display */}
+                  {price != null && validation.valid && (
+                    <div className="flex justify-between items-center pt-2 border-t border-[#3F3F46]">
+                      <span className="text-[11px] text-[#A1A1AA]">Стоимость:</span>
+                      <div className="text-right">
+                        <span className="text-lg font-bold text-[#00D9FF]">{price}⭐</span>
+                        <p className="text-[9px] text-[#52525B]">
+                          {validation.effectiveDuration.toFixed(1)}с × {resolution === '720p' ? MOTION_CONTROL_CONFIG.RATE_720P : MOTION_CONTROL_CONFIG.RATE_1080P}⭐/с
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 

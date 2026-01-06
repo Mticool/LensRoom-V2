@@ -343,77 +343,6 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Midjourney - поддерживает t2i и i2i (image prompt)
-  "midjourney": {
-    name: "Midjourney V7",
-    apiModel: "midjourney",
-    settings: {
-      generation_type: {
-        label: "Режим генерации",
-        type: "buttons",
-        options: [
-          { value: "t2i", label: "📝 Текст → Фото" },
-          { value: "i2i", label: "🖼️ Референс фото" }
-        ],
-        default: "t2i",
-        description: "t2i = по описанию, i2i = на основе загруженного фото",
-        required: true,
-        order: 1
-      },
-      version: {
-        label: "Версия",
-        type: "buttons",
-        options: [
-          { value: "7", label: "V7 (новая)" },
-          { value: "6.1", label: "V6.1" },
-          { value: "5.2", label: "V5.2" }
-        ],
-        default: "7",
-        description: "V7 - последняя версия с лучшим качеством",
-        required: true,
-        order: 2
-      },
-      aspect_ratio: {
-        label: "Соотношение сторон",
-        type: "buttons",
-        options: [
-          { value: "1:1", label: "1:1" },
-          { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" },
-          { value: "4:3", label: "4:3" },
-          { value: "3:4", label: "3:4" },
-          { value: "21:9", label: "21:9" }
-        ],
-        default: "1:1",
-        description: "Пропорции изображения",
-        required: true,
-        order: 3
-      },
-      stylization: {
-        label: "Стилизация",
-        type: "slider",
-        min: 0,
-        max: 1000,
-        step: 50,
-        default: 100,
-        description: "0 = реалистичнее, 1000 = артистичнее",
-        optional: true,
-        order: 4
-      },
-      weirdness: {
-        label: "Уникальность",
-        type: "slider",
-        min: 0,
-        max: 3000,
-        step: 100,
-        default: 0,
-        description: "Больше = более необычные результаты",
-        optional: true,
-        order: 5
-      }
-    }
-  },
-
   // Grok Imagine - xAI (Text-to-Image + Upscale)
   "grok-imagine": {
     name: "Grok Imagine",
@@ -453,19 +382,19 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
 
 export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
   // Kling O1 - FAL.ai (First Frame Last Frame)
-  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/image-to-video
+  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video
   "kling-o1": {
     name: "Kling O1",
-    apiModel: "fal-ai/kling-video/o1/image-to-video",
+    apiModel: "fal-ai/kling-video/o1/standard/image-to-video",
     provider: "fal",
-    baseCost: 56, // $0.56 = 56⭐ за 5 сек
+    baseCost: 120, // UPDATED 2025-01-04: 120⭐ за 5 сек
     priceModifiers: [
       {
         settingKey: "duration",
         type: "fixed",
         values: {
-          "5": 56,   // $0.56 = 56⭐
-          "10": 112  // $1.12 = 112⭐
+          "5": 120,   // 5s = 120⭐
+          "10": 240   // 10s = 240⭐ (2x)
         }
       }
     ],
@@ -474,11 +403,11 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         label: "Длительность",
         type: "buttons",
         options: [
-          { value: "5", label: "5 сек • 56⭐" },
-          { value: "10", label: "10 сек • 112⭐" }
+          { value: "5", label: "5 сек • 120⭐" },
+          { value: "10", label: "10 сек • 240⭐" }
         ],
         default: "5",
-        description: "$0.112/сек. First Frame → Last Frame анимация",
+        description: "First Frame → Last Frame анимация (fal.ai)",
         required: true,
         order: 1
       },
@@ -521,11 +450,11 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         label: "Качество",
         type: "buttons",
         options: [
-          { value: "fast", label: "Fast (быстро)" },
-          { value: "quality", label: "Quality (детали)" }
+          { value: "fast", label: "Fast • 99⭐" },
+          { value: "quality", label: "Quality • 490⭐" }
         ],
         default: "fast",
-        description: "Fast ~1 мин, Quality ~3 мин",
+        description: "Fast ~1 мин (99⭐), Quality ~3 мин (490⭐)",
         required: true,
         order: 2,
         apiKey: "model"
@@ -568,12 +497,12 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         label: "Версия",
         type: "select",
         options: [
-          { value: "2.5-turbo", label: "2.5 Turbo (быстро)" },
-          { value: "2.6", label: "2.6 (со звуком)" },
-          { value: "2.1-pro", label: "2.1 Pro (премиум)" }
+          { value: "2.5-turbo", label: "2.5 Turbo • от 105⭐" },
+          { value: "2.6", label: "2.6 (звук) • от 105⭐" },
+          { value: "2.1-pro", label: "2.1 Pro • от 200⭐" }
         ],
         default: "2.5-turbo",
-        description: "Выберите версию Kling",
+        description: "2.5 Turbo - быстро, 2.6 - со звуком, 2.1 Pro - премиум качество",
         required: true,
         order: 1,
         apiKey: "model"
@@ -595,11 +524,11 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         label: "Длительность",
         type: "buttons",
         options: [
-          { value: "5", label: "5 сек" },
-          { value: "10", label: "10 сек" }
+          { value: "5", label: "5 сек • 1x" },
+          { value: "10", label: "10 сек • 2x" }
         ],
         default: "5",
-        description: "Длительность видео",
+        description: "Цена удваивается за 10 секунд",
         required: true,
         order: 3
       },
@@ -617,10 +546,10 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         order: 4
       },
       sound: {
-        label: "Звук",
+        label: "Звук (+30⭐)",
         type: "checkbox",
         default: false,
-        description: "Добавить звук (только Kling 2.6)",
+        description: "Добавить звук (только Kling 2.6, +30⭐ к цене)",
         optional: true,
         order: 5
       },
@@ -950,6 +879,60 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         description: "Spicy = более креативный результат (не для I2V с внешних URL)",
         required: true,
         order: 3
+      }
+    }
+  },
+
+  // Kling 2.6 Motion Control - Перенос движений с референсного видео
+  // Документация: https://kie.ai/kling-2.6-motion-control
+  // 
+  // ДИНАМИЧЕСКОЕ ЦЕНООБРАЗОВАНИЕ (per-second):
+  // - 720p: 16⭐/сек
+  // - 1080p: 22⭐/сек
+  // - Округление: ceil((duration * rate) / 5) * 5
+  // - Лимиты: 3-30 сек
+  "kling-motion-control": {
+    name: "Kling Motion Control",
+    apiModel: "kling-2.6-motion-control/standard",
+    // Цена рассчитывается динамически в src/lib/pricing/motionControl.ts
+    // baseCost не используется - цена зависит от длительности видео
+    settings: {
+      resolution: {
+        label: "Качество",
+        type: "buttons",
+        options: [
+          { value: "720p", label: "720p • 16⭐/сек" },
+          { value: "1080p", label: "1080p • 22⭐/сек" }
+        ],
+        default: "720p",
+        description: "Цена зависит от длительности видео (3-30 сек)",
+        required: true,
+        order: 1,
+        apiKey: "mode"
+      },
+      reference_video_info: {
+        label: "📹 Референсное видео",
+        type: "textarea",
+        placeholder: "Загрузите видео с движениями (3-30 секунд)",
+        description: "Видео с движениями для переноса на персонажа. Должно показывать голову, плечи и торс. Длительность 3-30 секунд.",
+        required: true,
+        order: 2
+      },
+      character_image_info: {
+        label: "🖼️ Фото персонажа",
+        type: "textarea",
+        placeholder: "Загрузите фото персонажа",
+        description: "Фото должно чётко показывать голову, плечи и торс персонажа. Поддерживаются реальные и стилизованные персонажи.",
+        required: true,
+        order: 3
+      },
+      tips: {
+        label: "💡 Советы",
+        type: "textarea",
+        placeholder: "",
+        description: "• Кадрирование фото и видео должно совпадать (полубоди/фуллбоди)\n• Движения в видео должны быть плавными, без резких смен\n• Один персонаж на фото\n• Избегайте быстрых движений камеры в референсе",
+        optional: true,
+        order: 4
       }
     }
   }
