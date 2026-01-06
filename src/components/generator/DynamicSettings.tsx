@@ -369,6 +369,14 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
             </span>
           </div>
         )}
+
+        {setting.type === 'info' && setting.description && (
+          <div className="p-3 rounded-xl bg-[var(--accent-subtle)]/30 border border-[var(--accent-primary)]/20">
+            <p className="text-[12px] text-[var(--muted-light)] whitespace-pre-line leading-relaxed">
+              {setting.description}
+            </p>
+          </div>
+        )}
       </motion.div>
     );
   };
