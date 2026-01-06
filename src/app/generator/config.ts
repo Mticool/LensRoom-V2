@@ -67,6 +67,7 @@ export const MODELS_CONFIG: Record<SectionType, SectionConfig> = {
       { id: 'grok-video', name: 'Grok Video', icon: Flame, cost: 25, badge: 'xAI 🌶️', description: '25⭐ • T2V + I2V + Аудио' },
       { id: 'veo-3.1', name: 'Veo 3.1', icon: Video, cost: 99, badge: 'Google', description: '99-490⭐ • Fast/Quality 8s', dynamicPrice: true },
       { id: 'kling', name: 'Kling AI', icon: Zap, cost: 105, badge: 'Trending', description: '105-400⭐ • Turbo/Audio/Pro', dynamicPrice: true },
+      { id: 'kling-motion-control', name: 'Motion Control', icon: Zap, cost: 80, badge: 'Motion', description: 'от 80⭐ • Перенос движений', dynamicPrice: true },
       { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: '56-112⭐ • First→Last 5-10s', dynamicPrice: true },
       { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'OpenAI', description: '50⭐ • 10-15s баланс' },
       { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 250, badge: 'Premium', description: '250-1050⭐ • 1080p 10-15s', dynamicPrice: true },
