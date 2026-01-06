@@ -56,22 +56,23 @@ export async function refundCredits(
     }
 
     // Log transaction
-    await supabase
-      .from('credit_transactions')
-      .insert({
-        user_id: userId,
-        amount: creditsToRefund,
-        type: 'refund',
-        description: `Автовозврат: ${reason}`,
-        generation_id: generationId,
-        metadata: {
-          reason,
-          ...metadata,
-        },
-      })
-      .catch((err) => {
-        console.warn('[Refund] Failed to log transaction:', err);
-      });
+    try {
+      await supabase
+        .from('credit_transactions')
+        .insert({
+          user_id: userId,
+          amount: creditsToRefund,
+          type: 'refund',
+          description: `Автовозврат: ${reason}`,
+          generation_id: generationId,
+          metadata: {
+            reason,
+            ...metadata,
+          },
+        });
+    } catch (err) {
+      console.warn('[Refund] Failed to log transaction:', err);
+    }
 
     console.log(`[Refund] ✅ ${creditsToRefund} credits refunded to user ${userId} (generation: ${generationId})`);
 
