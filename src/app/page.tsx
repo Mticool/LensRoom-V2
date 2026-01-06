@@ -345,9 +345,9 @@ export default function HomePage() {
               </Link>
             </div>
             
-            {/* Right - Banner */}
+            {/* Right - Banner (horizontal 16:9) */}
             <div className="order-1 lg:order-2 relative">
-              <div className="relative aspect-[4/3] rounded-[28px] overflow-hidden border border-[var(--border)] bg-[var(--surface)]">
+              <div className="relative aspect-video rounded-[20px] overflow-hidden border border-[var(--border)] bg-[var(--surface)] shadow-2xl shadow-black/20">
                 {/* Banner Image */}
                 <img
                   src="/motion-control/poster.jpg"
@@ -356,37 +356,36 @@ export default function HomePage() {
                 />
                 
                 {/* Overlay gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
                 
                 {/* Logo badge */}
-                <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur-md border border-white/10">
-                  <span className="text-[12px] font-semibold text-white">Kling AI</span>
+                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10">
+                  <span className="text-[11px] font-semibold text-white">Kling AI</span>
                 </div>
                 
-                {/* Bottom info */}
-                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                  <span className="text-[13px] font-medium text-white/90">Motion Control</span>
-                  <span className="text-[12px] px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white">от 80⭐</span>
+                {/* Price badge */}
+                <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/10">
+                  <span className="text-[11px] font-medium text-white">от 80⭐</span>
                 </div>
               </div>
               
               {/* Decorative glow */}
-              <div className="absolute -inset-8 bg-gradient-to-r from-[#a78bfa]/20 via-transparent to-[#22d3ee]/20 blur-3xl -z-10 opacity-50" />
+              <div className="absolute -inset-6 bg-gradient-to-r from-[#a78bfa]/15 via-transparent to-[#22d3ee]/15 blur-2xl -z-10 opacity-60" />
             </div>
           </motion.div>
           
-          {/* Video Examples - 3 columns */}
+          {/* Video Examples - 3 columns, smaller */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="mt-12"
+            className="mt-10"
           >
-            <h3 className="text-[14px] font-medium text-[var(--muted)] uppercase tracking-wider mb-6 text-center">
+            <p className="text-[13px] text-[var(--muted)] mb-4 text-center">
               Примеры результатов
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
+            </p>
+            <div className="grid grid-cols-3 gap-3 max-w-2xl mx-auto">
               {[1, 2, 3].map((i) => (
                 <motion.div
                   key={i}
@@ -394,7 +393,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="group relative aspect-[9/16] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] transition-all duration-300"
+                  className="group relative aspect-video rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] hover:scale-[1.02] transition-all duration-300 cursor-pointer"
                 >
                   <video
                     src={`/motion-control/demo-${i}.mp4`}
@@ -407,15 +406,10 @@ export default function HomePage() {
                   />
                   
                   {/* Play hint */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
-                      <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Play className="w-4 h-4 text-white fill-white ml-0.5" />
                     </div>
-                  </div>
-                  
-                  {/* Number badge */}
-                  <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                    <span className="text-[11px] font-semibold text-white">{i}</span>
                   </div>
                 </motion.div>
               ))}
