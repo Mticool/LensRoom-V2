@@ -34,6 +34,66 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
     const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
     return userMsg?.content || '';
   };
+  // Special empty state for Motion Control
+  if (messages.length === 0 && modelInfo?.id === 'kling-motion-control') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="w-24 h-24 rounded-[24px] bg-gradient-to-br from-[#a78bfa]/20 to-[#22d3ee]/20 flex items-center justify-center mb-8 shadow-lg shadow-[#a78bfa]/10">
+          <Sparkles className="w-12 h-12 text-[var(--accent-primary)]" />
+        </div>
+        <h1 className="text-[28px] font-bold mb-3 text-[var(--text)] tracking-tight">
+          Kling 2.6 Motion Control
+        </h1>
+        <p className="text-[#22d3ee] text-[15px] font-medium mb-4">
+          Технология ИИ-переноса движений — Реальное движение, реальный контроль
+        </p>
+        <p className="text-[var(--muted)] text-[15px] mb-8 max-w-lg leading-relaxed">
+          Переносите точные движения из референсных видео на статичные изображения персонажей. 
+          Создавайте анимации до 30 секунд с точностью всего тела, точными жестами рук 
+          и последовательной идентичностью персонажа.
+        </p>
+        
+        {/* Instructions */}
+        <div className="max-w-md w-full p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-left">
+          <h3 className="text-[13px] font-semibold text-[var(--muted)] uppercase tracking-wider mb-4">
+            Как использовать
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-[#a78bfa]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[11px] font-bold text-[#a78bfa]">1</span>
+              </div>
+              <p className="text-[14px] text-[var(--muted-light)]">
+                Через 📎 загрузите <span className="text-[var(--text)] font-medium">фото персонажа</span> (голова + плечи видны)
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-[#22d3ee]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[11px] font-bold text-[#22d3ee]">2</span>
+              </div>
+              <p className="text-[14px] text-[var(--muted-light)]">
+                Загрузите <span className="text-[var(--text)] font-medium">видео с движениями</span> (3-30 сек, плавные движения)
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-[#f472b6]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[11px] font-bold text-[#f472b6]">3</span>
+              </div>
+              <p className="text-[14px] text-[var(--muted-light)]">
+                Нажмите <span className="text-[var(--text)] font-medium">Создать</span> — персонаж повторит движения из видео
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-[var(--border)]">
+            <p className="text-[12px] text-[var(--muted)]">
+              💡 Кадрирование фото и видео должно совпадать для лучшего результата
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
