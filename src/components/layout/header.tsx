@@ -20,21 +20,20 @@ const MODELS = {
   design: [
     { id: "grok-imagine", name: "Grok Imagine 🌶️", cost: 15 },
     { id: "nano-banana", name: "Nano Banana", cost: 7 },
-    { id: "nano-banana-pro", name: "Nano Banana Pro", cost: 35 },
-    { id: "gpt-image", name: "GPT Image 1.5", cost: 42 },
-    { id: "flux-2-pro", name: "FLUX.2 Pro", cost: 10 },
+    { id: "nano-banana-pro", name: "Nano Banana Pro", cost: 30 }, // 30⭐ (1K/2K) - 40⭐ (4K)
+    { id: "gpt-image", name: "GPT Image 1.5", cost: 17 }, // 17⭐ (medium) - 67⭐ (high)
+    { id: "flux-2-pro", name: "FLUX.2 Pro", cost: 9 }, // 9⭐ (1K) - 12⭐ (2K)
     { id: "seedream-4.5", name: "Seedream 4.5", cost: 11 },
     { id: "z-image", name: "Z-image", cost: 2 },
-    { id: "midjourney", name: "Midjourney V7", cost: 50 },
   ],
   video: [
     { id: "grok-video", name: "Grok Video 🌶️", cost: 25 },
-    { id: "veo-3.1", name: "Veo 3.1", cost: 260 },
-    { id: "kling", name: "Kling AI", cost: 105 },
-    { id: "kling-o1", name: "Kling O1", cost: 56 },
+    { id: "veo-3.1", name: "Veo 3.1", cost: 99 }, // 99⭐ (fast) - 490⭐ (quality)
+    { id: "kling", name: "Kling AI", cost: 105 }, // 105⭐ (2.5 turbo 5s) - 400⭐ (2.1 pro 10s)
+    { id: "kling-o1", name: "Kling O1", cost: 56 }, // 56⭐ (5s) - 112⭐ (10s)
     { id: "sora-2", name: "Sora 2", cost: 50 },
-    { id: "sora-2-pro", name: "Sora 2 Pro", cost: 650 },
-    { id: "wan", name: "WAN AI", cost: 217 },
+    { id: "sora-2-pro", name: "Sora 2 Pro", cost: 250 }, // 250⭐ (standard 10s) - 1050⭐ (high 15s)
+    { id: "wan", name: "WAN AI", cost: 100 }, // 100⭐ (2.5 720p 5s) - 660⭐ (2.6 1080p 15s)
   ],
   audio: [
     { id: "suno", name: "Suno AI", cost: 12 },
