@@ -30,6 +30,7 @@ const MODELS = {
     { id: "grok-video", name: "Grok Video 🌶️", cost: 25 },
     { id: "veo-3.1", name: "Veo 3.1", cost: 99 }, // 99⭐ (fast) - 490⭐ (quality)
     { id: "kling", name: "Kling AI", cost: 105 }, // 105⭐ (2.5 turbo 5s) - 400⭐ (2.1 pro 10s)
+    { id: "kling-motion-control", name: "Motion Control", cost: 80 }, // от 80⭐ • 16-22⭐/сек
     { id: "kling-o1", name: "Kling O1", cost: 56 }, // 56⭐ (5s) - 112⭐ (10s)
     { id: "sora-2", name: "Sora 2", cost: 50 },
     { id: "sora-2-pro", name: "Sora 2 Pro", cost: 250 }, // 250⭐ (standard 10s) - 1050⭐ (high 15s)
