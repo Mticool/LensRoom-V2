@@ -382,11 +382,11 @@ export default function HomePage() {
             transition={{ delay: 0.2 }}
             className="mt-10"
           >
-            <p className="text-[13px] text-[var(--muted)] mb-4 text-center">
+            <p className="text-[13px] text-[var(--muted)] mb-6 text-center">
               Примеры результатов
             </p>
-            <div className="grid grid-cols-3 gap-3 max-w-2xl mx-auto">
-              {[1, 2, 3].map((i) => (
+            <div className="grid grid-cols-4 gap-5 max-w-4xl mx-auto">
+              {[1, 2, 3, 4].map((i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, scale: 0.95 }}
