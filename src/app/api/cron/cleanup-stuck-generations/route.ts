@@ -10,7 +10,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
  * Security: Protected by CRON_SECRET environment variable
  * 
  * Schedule: Every 30 minutes
- * Cron expression: */30 * * * *
+ * Cron expression: 0,30 * * * * (every 30 minutes)
  */
 
 // Timeout thresholds by status (in minutes)
