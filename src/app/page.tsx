@@ -399,18 +399,10 @@ export default function HomePage() {
                     src={`/motion-control/demo-${i}.mp4`}
                     muted
                     loop
+                    autoPlay
                     playsInline
                     className="w-full h-full object-cover"
-                    onMouseEnter={(e) => e.currentTarget.play()}
-                    onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                   />
-                  
-                  {/* Play hint */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Play className="w-4 h-4 text-white fill-white ml-0.5" />
-                    </div>
-                  </div>
                 </motion.div>
               ))}
             </div>
