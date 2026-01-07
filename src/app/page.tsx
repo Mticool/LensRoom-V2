@@ -218,7 +218,7 @@ export default function HomePage() {
                 transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                 className="absolute top-0 left-0 w-32 aspect-[3/4] rounded-[18px] overflow-hidden border border-[var(--border)] shadow-xl z-10"
               >
-                <img src="/showcase/4.jpg" alt="" className="w-full h-full object-cover" />
+                <img src="/showcase/4.jpg" alt="" loading="lazy" className="w-full h-full object-cover" />
               </motion.div>
 
               <motion.div 
@@ -226,7 +226,7 @@ export default function HomePage() {
                 transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
                 className="absolute top-[5%] right-0 w-28 aspect-square rounded-[16px] overflow-hidden border border-[var(--border)] shadow-xl z-10"
               >
-                <img src="/showcase/5.jpg" alt="" className="w-full h-full object-cover" />
+                <img src="/showcase/5.jpg" alt="" loading="lazy" className="w-full h-full object-cover" />
               </motion.div>
 
               <motion.div 
@@ -352,6 +352,7 @@ export default function HomePage() {
                 <img
                   src="/motion-control/poster.jpg"
                   alt="Kling Motion Control"
+                  loading="lazy"
                   className="w-full h-full object-cover"
                 />
                 
@@ -374,7 +375,7 @@ export default function HomePage() {
             </div>
           </motion.div>
           
-          {/* Video Examples - 3 columns, smaller */}
+          {/* Video Examples - responsive grid */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -382,10 +383,10 @@ export default function HomePage() {
             transition={{ delay: 0.2 }}
             className="mt-10"
           >
-            <p className="text-[13px] text-[var(--muted)] mb-6 text-center">
+            <p className="text-[13px] text-[var(--muted)] mb-4 md:mb-6 text-center">
               Примеры результатов
             </p>
-            <div className="grid grid-cols-4 gap-5 max-w-4xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 max-w-4xl mx-auto">
               {[1, 2, 3, 4].map((i) => (
                 <motion.div
                   key={i}
@@ -393,7 +394,7 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="group relative aspect-video rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+                  className="group relative aspect-video rounded-lg md:rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] active:scale-[0.98] md:hover:scale-[1.02] transition-all duration-300 cursor-pointer"
                 >
                   <video
                     src={`/motion-control/demo-${i}.mp4`}
@@ -401,6 +402,7 @@ export default function HomePage() {
                     loop
                     autoPlay
                     playsInline
+                    preload="metadata"
                     className="w-full h-full object-cover"
                   />
                 </motion.div>
