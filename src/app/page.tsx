@@ -53,12 +53,12 @@ const tools = [
 
 // Models showcase
 const models = [
-  { name: 'Nano Banana Pro', type: 'Фото', stars: '7-40⭐', badge: 'Безлимит', hot: true },
-  { name: 'Veo 3.1', type: 'Видео', stars: '99-490⭐', badge: 'Google' },
-  { name: 'Kling AI', type: 'Видео', stars: '105-400⭐', badge: 'Trending' },
-  { name: 'GPT Image 1.5', type: 'Фото', stars: '17-67⭐', badge: 'OpenAI' },
-  { name: 'Sora 2', type: 'Видео', stars: '50-1050⭐', badge: 'OpenAI' },
-  { name: 'Grok Imagine', type: 'Фото', stars: '15⭐', badge: 'xAI', hot: true },
+  { name: 'Nano Banana Pro', type: 'Фото', stars: 'от 7', badge: 'Безлимит', hot: true },
+  { name: 'Veo 3.1', type: 'Видео', stars: 'от 99', badge: 'Google' },
+  { name: 'Kling AI', type: 'Видео', stars: 'от 105', badge: 'Trending' },
+  { name: 'GPT Image 1.5', type: 'Фото', stars: 'от 17', badge: 'OpenAI' },
+  { name: 'Sora 2', type: 'Видео', stars: 'от 50', badge: 'OpenAI' },
+  { name: 'Grok Imagine', type: 'Фото', stars: '15', badge: 'xAI', hot: true },
 ];
 
 // Animated Counter
@@ -88,15 +88,46 @@ export default function HomePage() {
   return (
     <div ref={containerRef} className="min-h-screen bg-[var(--bg)] text-[var(--text)] overflow-x-hidden">
       
-      {/* ===== HERO - Editorial Style ===== */}
+      {/* ===== HERO - Premium Cinematic ===== */}
       <section className="relative min-h-[100vh] flex items-center justify-center overflow-hidden">
-        {/* Background Effects */}
+        {/* Animated Background */}
         <div className="absolute inset-0">
-          {/* Gradient orbs */}
-          <div className="absolute top-[20%] left-[10%] w-[500px] h-[500px] bg-[#a78bfa]/10 rounded-full blur-[150px]" />
-          <div className="absolute bottom-[10%] right-[10%] w-[400px] h-[400px] bg-[#22d3ee]/10 rounded-full blur-[120px]" />
-          {/* Grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+          {/* Animated gradient orbs */}
+          <motion.div 
+            animate={{ 
+              x: [0, 100, 0],
+              y: [0, -50, 0],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[10%] left-[5%] w-[600px] h-[600px] bg-gradient-to-r from-[#a78bfa]/20 to-[#8b5cf6]/10 rounded-full blur-[150px]" 
+          />
+          <motion.div 
+            animate={{ 
+              x: [0, -80, 0],
+              y: [0, 60, 0],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            className="absolute bottom-[5%] right-[5%] w-[500px] h-[500px] bg-gradient-to-r from-[#22d3ee]/15 to-[#06b6d4]/10 rounded-full blur-[130px]" 
+          />
+          <motion.div 
+            animate={{ 
+              x: [0, 50, 0],
+              y: [0, -30, 0],
+            }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 5 }}
+            className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-[#f472b6]/10 rounded-full blur-[100px]" 
+          />
+          
+          {/* Subtle grid */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:80px_80px]" />
+          
+          {/* Noise texture */}
+          <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
+          
+          {/* Radial vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,var(--bg)_70%)]" />
         </div>
 
         <motion.div 
@@ -146,7 +177,7 @@ export default function HomePage() {
               Одна платформа — все лучшие нейросети.
             </motion.p>
 
-            {/* CTA */}
+            {/* CTA - Premium */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -154,36 +185,53 @@ export default function HomePage() {
               className="flex flex-wrap items-center gap-4"
             >
               <Link href="/generator">
-                <button className="group flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white font-medium text-[15px] shadow-lg shadow-[#a78bfa]/25 hover:shadow-[#a78bfa]/40 hover:-translate-y-0.5 transition-all duration-300">
-                  Начать бесплатно
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
+                <motion.button 
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-[#a78bfa] via-[#8b5cf6] to-[#22d3ee] text-white font-semibold text-[15px] overflow-hidden"
+                >
+                  {/* Glow effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500" />
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  <span className="relative z-10">Создать</span>
+                  <ArrowRight className="relative z-10 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
               </Link>
               <Link href="#showcase">
-                <button className="flex items-center gap-2 px-6 py-4 rounded-full text-[var(--muted-light)] hover:text-[var(--text)] text-[15px] transition-colors">
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-[var(--surface)]/50 border border-[var(--border)] text-[var(--muted-light)] hover:text-[var(--text)] hover:border-[var(--border-hover)] text-[15px] transition-all backdrop-blur-sm"
+                >
                   <Play className="w-4 h-4" />
-                  Смотреть примеры
-                </button>
+                  Примеры работ
+                </motion.button>
               </Link>
             </motion.div>
 
-            {/* Stats */}
+            {/* Stats - Premium */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="flex items-center gap-8 pt-6"
+              className="flex items-center gap-10 pt-8"
             >
               {[
-                { value: 50, label: 'звёзд', suffix: '⭐' },
-                { value: 25, label: 'моделей', suffix: '+' },
-                { value: 0, label: 'карта', suffix: '₽' },
+                { value: 50, label: 'бонус', suffix: '', icon: Sparkles },
+                { value: 25, label: 'моделей', suffix: '+', icon: Layers },
+                { value: 0, label: 'без карты', suffix: '₽', icon: Zap },
               ].map((stat, i) => (
-                <div key={i} className="text-center">
-                  <div className="text-[24px] font-bold text-[var(--text)]">
-                    <Counter value={stat.value} suffix={stat.suffix} />
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
+                    <stat.icon className="w-4 h-4 text-[var(--accent-primary)]" />
                   </div>
-                  <div className="text-[12px] text-[var(--muted)] uppercase tracking-wider">{stat.label}</div>
+                  <div>
+                    <div className="text-[20px] font-bold text-[var(--text)]">
+                      <Counter value={stat.value} suffix={stat.suffix} />
+                    </div>
+                    <div className="text-[11px] text-[var(--muted)] uppercase tracking-wider">{stat.label}</div>
+                  </div>
                 </div>
               ))}
             </motion.div>
@@ -311,11 +359,11 @@ export default function HomePage() {
               </p>
               
               {/* Features */}
-              <div className="space-y-4 mb-8">
+              <div className="space-y-3 mb-8">
                 {[
-                  { icon: '✨', text: 'Реалистичные эмоции и жесты' },
-                  { icon: '🎯', text: 'Стабильный тайминг без "дрожания"' },
-                  { icon: '⭐', text: 'Длительность 3–30 сек, цена по секундам' },
+                  { text: 'Реалистичные эмоции и жесты' },
+                  { text: 'Стабильный тайминг без артефактов' },
+                  { text: 'Длительность 3–30 сек, оплата по секундам' },
                 ].map((item, i) => (
                   <motion.div
                     key={i}
@@ -325,8 +373,8 @@ export default function HomePage() {
                     transition={{ delay: i * 0.1 }}
                     className="flex items-center gap-3"
                   >
-                    <span className="text-xl">{item.icon}</span>
-                    <span className="text-[15px] text-[var(--text)]">{item.text}</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee]" />
+                    <span className="text-[14px] text-[var(--muted-light)]">{item.text}</span>
                   </motion.div>
                 ))}
               </div>

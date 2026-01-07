@@ -212,9 +212,10 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
         </div>
         
         {/* Bottom tips */}
-        <div className="mt-8 text-center max-w-md">
+        <div className="mt-8 flex items-center justify-center gap-2 max-w-md mx-auto">
+          <Lightbulb className="w-4 h-4 text-[var(--accent-secondary)] flex-shrink-0" />
           <p className="text-[13px] text-[var(--muted)]">
-            💡 Используйте плавные движения. Кадрирование фото и видео должно совпадать.
+            Используйте плавные движения. Кадрирование фото и видео должно совпадать.
           </p>
         </div>
       </div>
