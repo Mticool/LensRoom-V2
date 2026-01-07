@@ -584,9 +584,13 @@ export async function POST(request: NextRequest) {
     };
     
     // Add quality only if it's a valid quality option (not resolution-based)
-    // For Nano Banana Pro, quality is '1k_2k' or '4k', which we map to resolution
-    // So we don't pass quality separately for models that use resolution
-    if (quality && !['1k_2k', '4k', '1k', '2k', '8k'].includes(quality.toLowerCase())) {
+    // For Nano Banana Pro and similar models, quality is resolution-based ('1k_2k', '4k', etc.)
+    // Don't pass quality separately for these models - the API uses resolution parameter instead
+    // Also exclude generic quality values that shouldn't be passed for resolution-based models
+    const resolutionBasedQualityValues = ['1k_2k', '4k', '1k', '2k', '8k', 'fast', 'turbo', 'balanced', 'quality', 'ultra'];
+    const isResolutionBasedModel = effectiveModelId.includes('nano-banana') || effectiveModelId.includes('imagen');
+    
+    if (quality && !resolutionBasedQualityValues.includes(quality.toLowerCase()) && !isResolutionBasedModel) {
       generateParams.quality = quality;
     }
     

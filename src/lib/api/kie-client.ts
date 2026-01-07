@@ -539,7 +539,11 @@ export class KieAIClient {
       }
 
       if (params.outputFormat) input.output_format = params.outputFormat;
-      if (params.quality && params.model !== 'qwen/image-edit' && !params.model.startsWith('seedream/4.5')) {
+      // Only pass quality for models that explicitly support it
+      // Nano Banana Pro uses resolution parameter instead of quality
+      // Seedream uses its own quality format (basic/high) handled above
+      const skipQualityModels = ['qwen/image-edit', 'nano-banana-pro', 'nano-banana'];
+      if (params.quality && !skipQualityModels.some(m => params.model === m || params.model.includes(m)) && !params.model.startsWith('seedream/4.5')) {
         input.quality = params.quality;
       }
       // Handle image inputs for i2i based on model requirements
