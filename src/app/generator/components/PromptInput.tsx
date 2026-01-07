@@ -196,12 +196,12 @@ export function PromptInput({
           </div>
         )}
 
-        {/* Input - Premium Design */}
+        {/* Input - Premium Design with glow */}
         <div className={cn(
-          "flex items-end gap-3 p-3 md:p-4 rounded-[20px] bg-[var(--surface)] border transition-all duration-300",
+          "flex items-end gap-3 p-3 md:p-4 rounded-[20px] bg-[var(--surface)]/80 backdrop-blur-xl border transition-all duration-300 input-glow",
           isDragging 
-            ? "border-[var(--accent-primary)] shadow-[0_0_30px_rgba(167,139,250,0.2)]" 
-            : "border-[var(--border)] focus-within:border-[var(--accent-primary)]/50 focus-within:shadow-[0_0_30px_rgba(167,139,250,0.1)]"
+            ? "border-[var(--accent-primary)] shadow-[0_0_40px_rgba(167,139,250,0.25)]" 
+            : "border-[var(--border)] hover:border-[var(--border-hover)] focus-within:border-[var(--accent-primary)]/60 focus-within:shadow-[0_0_40px_rgba(167,139,250,0.15)]"
         )}>
           <input
             type="file"

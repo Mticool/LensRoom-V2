@@ -796,9 +796,12 @@ function GeneratorPageContent() {
   }, [chatState]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col">
+    <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col relative">
+      {/* Premium gradient background */}
+      <div className="absolute inset-0 bg-mesh pointer-events-none opacity-50" />
+      
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative z-10">
         {/* History Sidebar */}
         <AnimatePresence>
           {showHistory && (
