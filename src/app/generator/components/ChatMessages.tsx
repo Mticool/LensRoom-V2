@@ -44,13 +44,13 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
             <Sparkles className="w-4 h-4 text-[#22d3ee]" />
           </div>
           <h1 className="text-[20px] font-semibold text-[var(--text)]">
-            Upload a reference
+            Загрузите референсы
           </h1>
         </div>
         
         {/* Upload Cards - Higgsfield style */}
         <div className="w-full max-w-2xl p-6 rounded-[24px] bg-[var(--surface)]/50 border border-[var(--border)]">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Upload Video Card */}
             <div className="group relative p-8 rounded-[20px] bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-secondary)]/50 transition-all duration-300 cursor-pointer">
               <div className="flex flex-col items-center text-center">
@@ -59,9 +59,9 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Upload Video</h3>
+                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Загрузить видео</h3>
                 <p className="text-[13px] text-[var(--muted)] leading-relaxed">
-                  Upload a reference video
+                  Референс с движениями (3-30 сек)
                 </p>
               </div>
             </div>
@@ -74,9 +74,9 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                   </svg>
                 </div>
-                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Add Elements</h3>
+                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Добавить персонажа</h3>
                 <p className="text-[13px] text-[var(--muted)] leading-relaxed">
-                  Upload up to four images or elements
+                  Фото персонажа для анимации
                 </p>
               </div>
             </div>
@@ -85,7 +85,7 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
           {/* Step indicator */}
           <div className="flex justify-center mt-6">
             <div className="px-4 py-1.5 rounded-full bg-[var(--surface3)] border border-[var(--border)]">
-              <span className="text-[12px] font-medium text-[var(--muted)]">Step 1</span>
+              <span className="text-[12px] font-medium text-[var(--muted)]">Шаг 1 — Загрузка файлов</span>
             </div>
           </div>
         </div>
@@ -93,7 +93,7 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
         {/* Bottom tips */}
         <div className="mt-8 text-center max-w-md">
           <p className="text-[13px] text-[var(--muted)]">
-            💡 Используйте плавные движения 3-30 сек. Кадрирование должно совпадать.
+            💡 Используйте плавные движения. Кадрирование фото и видео должно совпадать.
           </p>
         </div>
       </div>
