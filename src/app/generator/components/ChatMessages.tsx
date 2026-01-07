@@ -300,15 +300,49 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
             ) : (
               <div className="space-y-4">
                 {message.isGenerating ? (
-                  <div className="flex items-center gap-4 px-5 py-4 rounded-[18px] rounded-tl-[6px] bg-[var(--surface)]">
-                    <div className="flex gap-1.5">
-                      <span className="w-2.5 h-2.5 bg-[#a78bfa] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2.5 h-2.5 bg-[#22d3ee] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2.5 h-2.5 bg-[#f472b6] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="relative p-6 rounded-[20px] rounded-tl-[6px] bg-gradient-to-br from-[var(--surface)] to-[var(--surface2)] border border-[var(--border)] overflow-hidden">
+                    {/* Animated gradient background */}
+                    <div className="absolute inset-0 opacity-30">
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#a78bfa]/20 via-[#22d3ee]/20 to-[#a78bfa]/20 animate-gradient" />
                     </div>
-                    <span className="text-[14px] text-[var(--muted)]">
-                      Генерирую с {message.model}...
-                    </span>
+                    
+                    <div className="relative z-10">
+                      {/* Header */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#a78bfa] to-[#22d3ee] flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                          </div>
+                          {/* Spinning ring */}
+                          <div className="absolute -inset-1 rounded-xl border-2 border-transparent border-t-[#a78bfa] animate-spin" />
+                        </div>
+                        <div>
+                          <div className="text-[14px] font-medium text-[var(--text)]">Создаю {message.type === 'video' ? 'видео' : message.type === 'audio' ? 'аудио' : 'изображение'}</div>
+                          <div className="text-[12px] text-[var(--muted)]">{message.model}</div>
+                        </div>
+                      </div>
+                      
+                      {/* Progress bar */}
+                      <div className="h-1.5 rounded-full bg-[var(--surface3)] overflow-hidden">
+                        <motion.div 
+                          className="h-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] rounded-full"
+                          initial={{ width: '0%' }}
+                          animate={{ width: '100%' }}
+                          transition={{ duration: message.type === 'video' ? 60 : 30, ease: 'linear' }}
+                        />
+                      </div>
+                      
+                      {/* Status text */}
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-[12px] text-[var(--muted)]">
+                          {message.type === 'video' ? 'Обычно 30-60 секунд' : message.type === 'audio' ? 'Обычно 20-40 секунд' : 'Обычно 10-30 секунд'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[12px] text-emerald-400">В процессе</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <>
