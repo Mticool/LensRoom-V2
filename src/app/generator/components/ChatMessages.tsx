@@ -34,61 +34,67 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
     const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
     return userMsg?.content || '';
   };
-  // Special empty state for Motion Control
+  // Special empty state for Motion Control - Higgsfield style
   if (messages.length === 0 && modelInfo?.id === 'kling-motion-control') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <div className="w-24 h-24 rounded-[24px] bg-gradient-to-br from-[#a78bfa]/20 to-[#22d3ee]/20 flex items-center justify-center mb-8 shadow-lg shadow-[#a78bfa]/10">
-          <Sparkles className="w-12 h-12 text-[var(--accent-primary)]" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-8 h-8 rounded-lg bg-[#22d3ee]/20 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-[#22d3ee]" />
+          </div>
+          <h1 className="text-[20px] font-semibold text-[var(--text)]">
+            Upload a reference
+          </h1>
         </div>
-        <h1 className="text-[28px] font-bold mb-3 text-[var(--text)] tracking-tight">
-          Kling 2.6 Motion Control
-        </h1>
-        <p className="text-[#22d3ee] text-[15px] font-medium mb-4">
-          Технология ИИ-переноса движений — Реальное движение, реальный контроль
-        </p>
-        <p className="text-[var(--muted)] text-[15px] mb-8 max-w-lg leading-relaxed">
-          Переносите точные движения из референсных видео на статичные изображения персонажей. 
-          Создавайте анимации до 30 секунд с точностью всего тела, точными жестами рук 
-          и последовательной идентичностью персонажа.
-        </p>
         
-        {/* Instructions */}
-        <div className="max-w-md w-full p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-left">
-          <h3 className="text-[13px] font-semibold text-[var(--muted)] uppercase tracking-wider mb-4">
-            Как использовать
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-[#a78bfa]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-[11px] font-bold text-[#a78bfa]">1</span>
+        {/* Upload Cards - Higgsfield style */}
+        <div className="w-full max-w-2xl p-6 rounded-[24px] bg-[var(--surface)]/50 border border-[var(--border)]">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Upload Video Card */}
+            <div className="group relative p-8 rounded-[20px] bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-secondary)]/50 transition-all duration-300 cursor-pointer">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-[var(--surface3)] flex items-center justify-center mb-4 group-hover:bg-[var(--accent-secondary)]/10 transition-all">
+                  <svg className="w-7 h-7 text-[var(--muted)] group-hover:text-[var(--accent-secondary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Upload Video</h3>
+                <p className="text-[13px] text-[var(--muted)] leading-relaxed">
+                  Upload a reference video
+                </p>
               </div>
-              <p className="text-[14px] text-[var(--muted-light)]">
-                Через 📎 загрузите <span className="text-[var(--text)] font-medium">фото персонажа</span> (голова + плечи видны)
-              </p>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-[#22d3ee]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-[11px] font-bold text-[#22d3ee]">2</span>
+            
+            {/* Add Character Image Card */}
+            <div className="group relative p-8 rounded-[20px] bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-primary)]/50 transition-all duration-300 cursor-pointer">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-[var(--surface3)] flex items-center justify-center mb-4 group-hover:bg-[var(--accent-primary)]/10 transition-all">
+                  <svg className="w-7 h-7 text-[var(--muted)] group-hover:text-[var(--accent-primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Add Elements</h3>
+                <p className="text-[13px] text-[var(--muted)] leading-relaxed">
+                  Upload up to four images or elements
+                </p>
               </div>
-              <p className="text-[14px] text-[var(--muted-light)]">
-                Загрузите <span className="text-[var(--text)] font-medium">видео с движениями</span> (3-30 сек, плавные движения)
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-[#f472b6]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-[11px] font-bold text-[#f472b6]">3</span>
-              </div>
-              <p className="text-[14px] text-[var(--muted-light)]">
-                Нажмите <span className="text-[var(--text)] font-medium">Создать</span> — персонаж повторит движения из видео
-              </p>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-[var(--border)]">
-            <p className="text-[12px] text-[var(--muted)]">
-              💡 Кадрирование фото и видео должно совпадать для лучшего результата
-            </p>
+          
+          {/* Step indicator */}
+          <div className="flex justify-center mt-6">
+            <div className="px-4 py-1.5 rounded-full bg-[var(--surface3)] border border-[var(--border)]">
+              <span className="text-[12px] font-medium text-[var(--muted)]">Step 1</span>
+            </div>
           </div>
+        </div>
+        
+        {/* Bottom tips */}
+        <div className="mt-8 text-center max-w-md">
+          <p className="text-[13px] text-[var(--muted)]">
+            💡 Используйте плавные движения 3-30 сек. Кадрирование должно совпадать.
+          </p>
         </div>
       </div>
     );
