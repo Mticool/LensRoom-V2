@@ -18,9 +18,17 @@ import {
   refundStars,
   NBP_MODEL_KEY,
 } from "@/lib/quota/nano-banana-pro";
+import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(request);
+    const rateLimitResult = checkRateLimit(`gen:photo:${clientIP}`, RATE_LIMITS.generation);
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
+
     const body = await request.json();
     const { prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, outputFormat } = body;
     const legacyModel = body?.model;

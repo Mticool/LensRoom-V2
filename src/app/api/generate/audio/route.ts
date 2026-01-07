@@ -5,6 +5,7 @@ import { getKieClient } from '@/lib/api/kie-client';
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { requireAuth } from "@/lib/auth/requireRole";
 import { calculateAudioPrice } from '@/config/kie-api-settings';
+import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 
 // Маппинг типов генерации на API endpoints
 const GENERATION_ENDPOINTS: Record<string, string> = {
@@ -17,6 +18,13 @@ const GENERATION_ENDPOINTS: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(request);
+    const rateLimitResult = checkRateLimit(`gen:audio:${clientIP}`, RATE_LIMITS.generation);
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
+
     const body = await request.json();
     const { 
       prompt, // Используется как lyrics в кастомном режиме

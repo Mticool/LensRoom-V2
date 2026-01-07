@@ -16,6 +16,7 @@ import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
+import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 export const maxDuration = 60; // 60 seconds timeout
@@ -23,6 +24,13 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(request);
+    const rateLimitResult = checkRateLimit(`gen:video:${clientIP}`, RATE_LIMITS.generation);
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
+
     const body = await request.json();
     const { 
       prompt, 

@@ -15,29 +15,29 @@ import { LoginDialog } from '@/components/auth/login-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
 
-// Модели для дропдаунов — syntx.ai style
+// Модели для дропдаунов — clean style
 const MODELS = {
   design: [
-    { id: "grok-imagine", name: "Grok Imagine", cost: 15, badge: "xAI", hot: true, desc: "Креативные фото" },
-    { id: "gpt-image", name: "GPT Image 1.5", cost: 17, badge: "OpenAI", desc: "Точность промпта" },
-    { id: "nano-banana-pro", name: "Nano Banana Pro", cost: 30, badge: "4K", new: true, desc: "Безлимит" },
-    { id: "flux-2-pro", name: "FLUX.2 Pro", cost: 9, badge: "BFL", desc: "Быстрая" },
-    { id: "seedream-4.5", name: "Seedream 4.5", cost: 11, badge: "ByteDance", desc: "Фотореализм" },
-    { id: "nano-banana", name: "Nano Banana", cost: 7, desc: "Базовая" },
-    { id: "z-image", name: "Z-image", cost: 2, badge: "Эконом", desc: "Дешёвая" },
+    { id: "grok-imagine", name: "Grok Imagine", badge: "xAI", hot: true },
+    { id: "gpt-image", name: "GPT Image 1.5", badge: "OpenAI" },
+    { id: "nano-banana-pro", name: "Nano Banana Pro", badge: "4K", new: true },
+    { id: "flux-2-pro", name: "FLUX.2 Pro", badge: "BFL" },
+    { id: "seedream-4.5", name: "Seedream 4.5", badge: "ByteDance" },
+    { id: "nano-banana", name: "Nano Banana" },
+    { id: "z-image", name: "Z-image" },
   ],
   video: [
-    { id: "veo-3.1", name: "Veo 3.1", cost: 99, badge: "Google", hot: true, desc: "Аудио + качество" },
-    { id: "kling-motion-control", name: "Motion Control", cost: 80, badge: "Motion", new: true, desc: "Перенос движений" },
-    { id: "kling", name: "Kling AI", cost: 105, badge: "Trending", desc: "Turbo/Audio/Pro" },
-    { id: "grok-video", name: "Grok Video", cost: 25, badge: "xAI", hot: true, desc: "T2V + I2V" },
-    { id: "sora-2", name: "Sora 2", cost: 50, badge: "OpenAI", desc: "Баланс" },
-    { id: "sora-2-pro", name: "Sora 2 Pro", cost: 250, badge: "Premium", desc: "1080p 15s" },
-    { id: "kling-o1", name: "Kling O1", cost: 56, badge: "FAL.ai", desc: "First→Last" },
-    { id: "wan", name: "WAN AI", cost: 100, desc: "Высокое разрешение" },
+    { id: "veo-3.1", name: "Veo 3.1", badge: "Google", hot: true },
+    { id: "kling-motion-control", name: "Motion Control", badge: "Kling", new: true },
+    { id: "kling", name: "Kling AI", badge: "Trending" },
+    { id: "grok-video", name: "Grok Video", badge: "xAI", hot: true },
+    { id: "sora-2", name: "Sora 2", badge: "OpenAI" },
+    { id: "sora-2-pro", name: "Sora 2 Pro", badge: "Premium" },
+    { id: "kling-o1", name: "Kling O1", badge: "FAL.ai" },
+    { id: "wan", name: "WAN AI" },
   ],
   audio: [
-    { id: "suno", name: "Suno AI", cost: 12, badge: "Music", desc: "Генерация музыки" },
+    { id: "suno", name: "Suno AI", badge: "Music" },
   ],
 };
 
@@ -147,7 +147,7 @@ export function Header() {
                         )} />
                       </button>
                       
-                      {/* Dropdown - syntx.ai mega-menu */}
+                      {/* Dropdown - clean style */}
                       <AnimatePresence>
                         {isDropdownOpen && (
                           <motion.div
@@ -155,60 +155,32 @@ export function Header() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 8, scale: 0.96 }}
                             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[380px] bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] rounded-[18px] shadow-2xl shadow-black/30 overflow-hidden"
+                            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[340px] bg-[var(--surface)]/98 backdrop-blur-xl border border-[var(--border)] rounded-[16px] shadow-2xl shadow-black/30 overflow-hidden"
                           >
-                            {/* Header */}
-                            <div className="px-4 py-2.5 border-b border-[var(--border)] bg-gradient-to-r from-[#a78bfa]/5 to-[#22d3ee]/5">
-                              <span className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wider">
-                                {item.name === 'Дизайн' ? '🎨 Фото' : item.name === 'Видео' ? '🎬 Видео' : '🎵 Аудио'}
-                              </span>
-                            </div>
-                            
                             {/* Models Grid */}
-                            <div className="p-2.5 grid grid-cols-2 gap-1.5 max-h-[320px] overflow-y-auto">
+                            <div className="p-3 grid grid-cols-2 gap-1">
                               {MODELS[item.dropdown].map((model: any) => (
                                 <Link
                                   key={model.id}
                                   href={`/generator?section=${item.dropdown === 'design' ? 'image' : item.dropdown}&model=${model.id}`}
                                   onClick={() => setActiveDropdown(null)}
-                                  className="group flex flex-col p-2.5 rounded-[12px] hover:bg-[var(--surface2)] border border-transparent hover:border-[var(--accent-primary)]/20 transition-all duration-150"
+                                  className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-[var(--surface2)] transition-all duration-150"
                                 >
-                                  {/* Badges */}
-                                  <div className="flex items-center gap-1 mb-1">
-                                    {model.hot && (
-                                      <span className="px-1.5 py-0.5 text-[8px] font-bold rounded bg-gradient-to-r from-orange-500 to-red-500 text-white uppercase">Hot</span>
-                                    )}
-                                    {model.new && (
-                                      <span className="px-1.5 py-0.5 text-[8px] font-bold rounded bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white uppercase">New</span>
-                                    )}
-                                    {model.badge && !model.hot && !model.new && (
-                                      <span className="px-1.5 py-0.5 text-[8px] font-medium rounded bg-[var(--surface2)] text-[var(--muted-light)]">{model.badge}</span>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Name & Price */}
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[12px] font-semibold text-[var(--text)] group-hover:text-[var(--accent-primary)] transition-colors truncate">{model.name}</span>
-                                    <span className="text-[11px] font-bold text-[var(--accent-secondary)] flex-shrink-0">{model.cost}⭐</span>
-                                  </div>
-                                  
-                                  {/* Description */}
-                                  {model.desc && (
-                                    <span className="text-[10px] text-[var(--muted)] mt-0.5 line-clamp-1">{model.desc}</span>
+                                  {/* Badge/Icon */}
+                                  {model.hot ? (
+                                    <span className="w-5 h-5 rounded-md bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-[8px] font-bold text-white">●</span>
+                                  ) : model.new ? (
+                                    <span className="w-5 h-5 rounded-md bg-gradient-to-br from-[#a78bfa] to-[#22d3ee] flex items-center justify-center text-[8px] font-bold text-white">✦</span>
+                                  ) : (
+                                    <span className="w-5 h-5 rounded-md bg-[var(--surface2)] flex items-center justify-center text-[10px] font-medium text-[var(--muted)]">
+                                      {model.name.charAt(0)}
+                                    </span>
                                   )}
+                                  
+                                  {/* Name */}
+                                  <span className="text-[13px] font-medium text-[var(--text)] group-hover:text-[var(--accent-primary)] transition-colors">{model.name}</span>
                                 </Link>
                               ))}
-                            </div>
-                            
-                            {/* Footer */}
-                            <div className="px-4 py-2 border-t border-[var(--border)] bg-[var(--surface2)]/30">
-                              <Link
-                                href={`/generator?section=${item.dropdown === 'design' ? 'image' : item.dropdown}`}
-                                onClick={() => setActiveDropdown(null)}
-                                className="text-[11px] font-medium text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors"
-                              >
-                                Все модели →
-                              </Link>
                             </div>
                           </motion.div>
                         )}

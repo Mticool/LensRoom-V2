@@ -8,6 +8,7 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { TelegramAuthProvider } from "@/providers/telegram-auth-provider";
 import { ThemeProvider, useTheme } from "@/lib/theme-provider";
 import { ReferralHandler } from "@/components/referrals/ReferralHandler";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 function ThemedToaster() {
   const { theme } = useTheme();
@@ -43,15 +44,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <TelegramAuthProvider>
-          <AuthProvider>
-            {children}
-            {/* Handle ?ref=CODE query param for referrals */}
-            <Suspense fallback={null}>
-              <ReferralHandler />
-            </Suspense>
-          </AuthProvider>
-        </TelegramAuthProvider>
+        <ErrorBoundary>
+          <TelegramAuthProvider>
+            <AuthProvider>
+              {children}
+              {/* Handle ?ref=CODE query param for referrals */}
+              <Suspense fallback={null}>
+                <ReferralHandler />
+              </Suspense>
+            </AuthProvider>
+          </TelegramAuthProvider>
+        </ErrorBoundary>
         <ThemedToaster />
       </ThemeProvider>
     </QueryClientProvider>
