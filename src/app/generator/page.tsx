@@ -973,6 +973,8 @@ function GeneratorPageContent() {
                   onCopy={handleCopy}
                   onRegenerate={handleRegenerate}
                   onQuickAction={handleQuickAction}
+                  uploadedFiles={uploadedFiles}
+                  onFileUpload={setUploadedFiles}
                 />
               </div>
             )}

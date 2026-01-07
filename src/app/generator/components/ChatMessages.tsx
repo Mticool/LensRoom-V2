@@ -1,8 +1,8 @@
 'use client';
 
-import { forwardRef } from 'react';
+import { forwardRef, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Sparkles, Download, Copy, ThumbsUp, RotateCcw, Shuffle, Wand2, Palette, Maximize2, Lightbulb } from 'lucide-react';
+import { User, Sparkles, Download, Copy, ThumbsUp, RotateCcw, Shuffle, Wand2, Palette, Maximize2, Lightbulb, Video, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage, SectionType, ModelInfo, QUICK_PROMPTS } from '../config';
 import { PromptTemplates } from '@/components/generator/PromptTemplates';
@@ -16,6 +16,8 @@ interface ChatMessagesProps {
   onCopy: (url: string) => void;
   onRegenerate: (prompt: string) => void;
   onQuickAction?: (action: string, originalPrompt: string, url: string) => void;
+  onFileUpload?: (files: File[]) => void;
+  uploadedFiles?: File[];
 }
 
 export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
@@ -27,17 +29,70 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
   onCopy,
   onRegenerate,
   onQuickAction,
+  onFileUpload,
+  uploadedFiles = [],
 }, ref) => {
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   // Get original prompt for a message
   const getOriginalPrompt = (messageId: number) => {
     const idx = messages.findIndex(m => m.id === messageId);
     const userMsg = messages.slice(0, idx).reverse().find(m => m.role === 'user');
     return userMsg?.content || '';
   };
-  // Special empty state for Motion Control - Higgsfield style
+  // Special empty state for Motion Control - Higgsfield style with working uploads
   if (messages.length === 0 && modelInfo?.id === 'kling-motion-control') {
+    const videoFile = uploadedFiles.find(f => f.type.startsWith('video/'));
+    const imageFile = uploadedFiles.find(f => f.type.startsWith('image/'));
+    const hasVideo = !!videoFile;
+    const hasImage = !!imageFile;
+    
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && onFileUpload) {
+        const newFiles = uploadedFiles.filter(f => !f.type.startsWith('video/'));
+        onFileUpload([...newFiles, file]);
+      }
+    };
+    
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && onFileUpload) {
+        const newFiles = uploadedFiles.filter(f => !f.type.startsWith('image/'));
+        onFileUpload([...newFiles, file]);
+      }
+    };
+    
+    const removeVideo = () => {
+      if (onFileUpload) {
+        onFileUpload(uploadedFiles.filter(f => !f.type.startsWith('video/')));
+      }
+    };
+    
+    const removeImage = () => {
+      if (onFileUpload) {
+        onFileUpload(uploadedFiles.filter(f => !f.type.startsWith('image/')));
+      }
+    };
+    
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        {/* Hidden file inputs */}
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={handleVideoUpload}
+        />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
+        
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-8 h-8 rounded-lg bg-[#22d3ee]/20 flex items-center justify-center">
@@ -52,40 +107,106 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
         <div className="w-full max-w-2xl p-6 rounded-[24px] bg-[var(--surface)]/50 border border-[var(--border)]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Upload Video Card */}
-            <div className="group relative p-8 rounded-[20px] bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-secondary)]/50 transition-all duration-300 cursor-pointer">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-[var(--surface3)] flex items-center justify-center mb-4 group-hover:bg-[var(--accent-secondary)]/10 transition-all">
-                  <svg className="w-7 h-7 text-[var(--muted)] group-hover:text-[var(--accent-secondary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
+            <div 
+              onClick={() => !hasVideo && videoInputRef.current?.click()}
+              className={cn(
+                "group relative p-6 rounded-[20px] border transition-all duration-300",
+                hasVideo 
+                  ? "bg-[var(--accent-secondary)]/10 border-[var(--accent-secondary)]/50" 
+                  : "bg-[var(--surface2)] border-[var(--border)] hover:border-[var(--accent-secondary)]/50 cursor-pointer"
+              )}
+            >
+              {hasVideo ? (
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-3 bg-black">
+                    <video 
+                      src={URL.createObjectURL(videoFile)} 
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeVideo(); }}
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <p className="text-[13px] text-[var(--accent-secondary)] font-medium">✓ Видео загружено</p>
+                  <p className="text-[11px] text-[var(--muted)] mt-1">{videoFile.name}</p>
                 </div>
-                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Загрузить видео</h3>
-                <p className="text-[13px] text-[var(--muted)] leading-relaxed">
-                  Референс с движениями (3-30 сек)
-                </p>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center text-center py-4">
+                  <div className="w-14 h-14 rounded-full bg-[var(--surface3)] flex items-center justify-center mb-3 group-hover:bg-[var(--accent-secondary)]/10 transition-all">
+                    <Video className="w-6 h-6 text-[var(--muted)] group-hover:text-[var(--accent-secondary)] transition-colors" />
+                  </div>
+                  <h3 className="text-[14px] font-semibold text-[var(--text)] mb-1">Загрузить видео</h3>
+                  <p className="text-[12px] text-[var(--muted)]">
+                    Референс с движениями
+                  </p>
+                  <p className="text-[11px] text-[var(--muted-light)] mt-1">3-30 сек</p>
+                </div>
+              )}
             </div>
             
             {/* Add Character Image Card */}
-            <div className="group relative p-8 rounded-[20px] bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-primary)]/50 transition-all duration-300 cursor-pointer">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-[var(--surface3)] flex items-center justify-center mb-4 group-hover:bg-[var(--accent-primary)]/10 transition-all">
-                  <svg className="w-7 h-7 text-[var(--muted)] group-hover:text-[var(--accent-primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                  </svg>
+            <div 
+              onClick={() => !hasImage && imageInputRef.current?.click()}
+              className={cn(
+                "group relative p-6 rounded-[20px] border transition-all duration-300",
+                hasImage 
+                  ? "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/50" 
+                  : "bg-[var(--surface2)] border-[var(--border)] hover:border-[var(--accent-primary)]/50 cursor-pointer"
+              )}
+            >
+              {hasImage ? (
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-3 max-w-[140px]">
+                    <img 
+                      src={URL.createObjectURL(imageFile)} 
+                      alt="Character"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeImage(); }}
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <p className="text-[13px] text-[var(--accent-primary)] font-medium">✓ Фото загружено</p>
+                  <p className="text-[11px] text-[var(--muted)] mt-1">{imageFile.name}</p>
                 </div>
-                <h3 className="text-[15px] font-semibold text-[var(--text)] mb-2">Добавить персонажа</h3>
-                <p className="text-[13px] text-[var(--muted)] leading-relaxed">
-                  Фото персонажа для анимации
-                </p>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center text-center py-4">
+                  <div className="w-14 h-14 rounded-full bg-[var(--surface3)] flex items-center justify-center mb-3 group-hover:bg-[var(--accent-primary)]/10 transition-all">
+                    <ImagePlus className="w-6 h-6 text-[var(--muted)] group-hover:text-[var(--accent-primary)] transition-colors" />
+                  </div>
+                  <h3 className="text-[14px] font-semibold text-[var(--text)] mb-1">Добавить персонажа</h3>
+                  <p className="text-[12px] text-[var(--muted)]">
+                    Фото для анимации
+                  </p>
+                  <p className="text-[11px] text-[var(--muted-light)] mt-1">PNG, JPG</p>
+                </div>
+              )}
             </div>
           </div>
           
           {/* Step indicator */}
           <div className="flex justify-center mt-6">
-            <div className="px-4 py-1.5 rounded-full bg-[var(--surface3)] border border-[var(--border)]">
-              <span className="text-[12px] font-medium text-[var(--muted)]">Шаг 1 — Загрузка файлов</span>
+            <div className={cn(
+              "px-4 py-1.5 rounded-full border",
+              hasVideo && hasImage 
+                ? "bg-green-500/10 border-green-500/30" 
+                : "bg-[var(--surface3)] border-[var(--border)]"
+            )}>
+              <span className={cn(
+                "text-[12px] font-medium",
+                hasVideo && hasImage ? "text-green-400" : "text-[var(--muted)]"
+              )}>
+                {hasVideo && hasImage 
+                  ? "✓ Готово к генерации" 
+                  : `Шаг 1 — ${!hasVideo && !hasImage ? 'Загрузите файлы' : !hasVideo ? 'Добавьте видео' : 'Добавьте фото'}`
+                }
+              </span>
             </div>
           </div>
         </div>
