@@ -465,25 +465,66 @@ function GeneratorPageContent() {
       
       // Handle files
       if (filesToUpload.length > 0) {
-        const file = filesToUpload[0];
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        });
-        
-        if (requestBody.mode === 'i2v' || requestBody.mode === 'start_end' || requestBody.mode === 'i2i') {
-          requestBody.startImage = base64;
-          if (filesToUpload.length > 1) {
-            const base64_2 = await new Promise<string>((resolve) => {
-              const reader2 = new FileReader();
-              reader2.onload = () => resolve(reader2.result as string);
-              reader2.readAsDataURL(filesToUpload[1]);
+        // Motion Control: needs character image + motion reference video
+        if (generatorState.currentModel === 'kling-motion-control') {
+          const imageFile = filesToUpload.find(f => f.type.startsWith('image/'));
+          const videoFile = filesToUpload.find(f => f.type.startsWith('video/'));
+          
+          if (imageFile) {
+            const imageBase64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(imageFile);
             });
-            requestBody.endImage = base64_2;
+            requestBody.referenceImage = imageBase64;
           }
+          
+          if (videoFile) {
+            const videoBase64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(videoFile);
+            });
+            requestBody.referenceVideo = videoBase64;
+            
+            // Get video duration for pricing
+            const videoDuration = await new Promise<number>((resolve) => {
+              const video = document.createElement('video');
+              video.preload = 'metadata';
+              video.onloadedmetadata = () => {
+                resolve(video.duration);
+                URL.revokeObjectURL(video.src);
+              };
+              video.onerror = () => resolve(0);
+              video.src = URL.createObjectURL(videoFile);
+            });
+            requestBody.videoDuration = videoDuration;
+            requestBody.autoTrim = true; // Always auto-trim
+          }
+          
+          requestBody.mode = 'i2v'; // Motion Control is I2V mode
         } else {
-          requestBody.referenceImage = base64;
+          // Standard file handling
+          const file = filesToUpload[0];
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          
+          if (requestBody.mode === 'i2v' || requestBody.mode === 'start_end' || requestBody.mode === 'i2i') {
+            requestBody.startImage = base64;
+            if (filesToUpload.length > 1) {
+              const base64_2 = await new Promise<string>((resolve) => {
+                const reader2 = new FileReader();
+                reader2.onload = () => resolve(reader2.result as string);
+                reader2.readAsDataURL(filesToUpload[1]);
+              });
+              requestBody.endImage = base64_2;
+            }
+          } else {
+            requestBody.referenceImage = base64;
+          }
         }
       }
       
