@@ -398,15 +398,16 @@ export function Header() {
                     <div className="px-3 py-1.5 text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                       {section === 'design' ? 'Дизайн' : section === 'video' ? 'Видео' : 'Аудио'}
                     </div>
-                    {MODELS[section].map((model) => (
+                    {MODELS[section].map((model: any) => (
                       <Link
                         key={model.id}
                         href={`/generator?section=${section === 'design' ? 'image' : section}&model=${model.id}`}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 rounded-md text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                       >
+                        {model.hot && <span className="w-2 h-2 rounded-full bg-orange-500"></span>}
+                        {model.new && <span className="w-2 h-2 rounded-full bg-[#a78bfa]"></span>}
                         <span>{model.name}</span>
-                        <span className="text-xs opacity-60">{model.cost}⭐</span>
                       </Link>
                     ))}
                   </div>
