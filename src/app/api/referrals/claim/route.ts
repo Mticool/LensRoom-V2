@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/telegram/auth';
+import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { claimReferral } from '@/lib/referrals/referral-helper';
 
 /**
@@ -21,7 +21,15 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const userId = session.profileId;
+    // Get auth.users.id from Telegram session
+    const userId = await getAuthUserId(session);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User account not found' },
+        { status: 404 }
+      );
+    }
     const body = await request.json();
     const { code } = body;
     

@@ -511,4 +511,3 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
 });
 
 ChatMessages.displayName = 'ChatMessages';
-

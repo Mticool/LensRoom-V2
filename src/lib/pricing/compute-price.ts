@@ -158,12 +158,21 @@ function computeVideoPrice(
       const seconds = typeof duration === 'number' ? duration : 5; // Default to 5 for ranges
       creditsPerVideo = model.pricing * seconds;
     } else if (options.resolution && model.pricing[options.resolution as keyof typeof model.pricing]) {
-      // Resolution-based pricing (e.g., Bytedance, Kling AI Avatar)
-      const resolutionPricing = model.pricing[options.resolution as keyof typeof model.pricing];
+      // Resolution-based pricing (e.g., Bytedance, Kling AI Avatar, Motion Control)
+      const resolutionPricing = model.pricing[options.resolution as keyof typeof model.pricing] as any;
       if (typeof resolutionPricing === 'object' && resolutionPricing !== null) {
-        const durationPrice = resolutionPricing[durationKey as keyof typeof resolutionPricing];
-        if (typeof durationPrice === 'number') {
-          creditsPerVideo = durationPrice;
+        // Handle per-second pricing (e.g., Motion Control: { '720p': { perSecond: 16 } })
+        if ('perSecond' in resolutionPricing && typeof resolutionPricing.perSecond === 'number') {
+          const seconds = typeof duration === 'number' ? duration : 5;
+          creditsPerVideo = resolutionPricing.perSecond * seconds;
+          // Round up to nearest 5 for motion control style pricing
+          creditsPerVideo = Math.ceil(creditsPerVideo / 5) * 5;
+        } else {
+          // Standard duration-based pricing
+          const durationPrice = resolutionPricing[durationKey as keyof typeof resolutionPricing];
+          if (typeof durationPrice === 'number') {
+            creditsPerVideo = durationPrice;
+          }
         }
       }
     } else if (options.videoQuality && model.pricing[options.videoQuality as keyof typeof model.pricing]) {
@@ -255,5 +264,4 @@ export function calcStars(modelId: string, options: PriceOptions = {}): number {
 export function calcApproxRub(modelId: string, options: PriceOptions = {}): number {
   return computePrice(modelId, options).approxRub;
 }
-
 

@@ -279,4 +279,3 @@ export function PromptInput({
     </div>
   );
 }
-

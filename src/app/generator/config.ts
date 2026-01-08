@@ -101,4 +101,3 @@ export const QUICK_PROMPTS: Record<SectionType, string[]> = {
     'Эпический саундтрек',
   ],
 };
-

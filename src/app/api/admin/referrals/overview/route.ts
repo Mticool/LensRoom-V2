@@ -14,20 +14,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const userId = session.profileId;
-    
-    const supabase = getSupabaseAdmin();
-    
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-    
-    if (profile?.role !== 'admin') {
+    // Check if user is admin from session
+    if (!session.isAdmin && session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    
+    const supabase = getSupabaseAdmin();
     
     // Safe query helper - returns 0 or empty if table doesn't exist
     const safeCount = async (table: string, filter?: { column: string; value: string }) => {

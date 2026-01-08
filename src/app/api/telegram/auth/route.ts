@@ -250,4 +250,3 @@ export async function GET(request: NextRequest) {
     packageStars: credits?.package_stars || 0,
   });
 }
-

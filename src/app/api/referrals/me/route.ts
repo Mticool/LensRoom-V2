@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/telegram/auth';
+import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getReferralStats, REFERRAL_REWARDS } from '@/lib/referrals/referral-helper';
 
@@ -19,7 +19,17 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const userId = session.profileId;
+    // Get auth.users.id from Telegram session
+    // Referral tables reference auth.users(id), not telegram_profiles
+    const userId = await getAuthUserId(session);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User account not found. Please try logging in again.' },
+        { status: 404 }
+      );
+    }
+    
     const supabase = getSupabaseAdmin();
     
     // Get user's referral code, or create one if doesn't exist

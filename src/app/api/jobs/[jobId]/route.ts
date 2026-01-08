@@ -163,7 +163,7 @@ export async function GET(
       // Still processing - try sync-task for more reliable result
       if (dbGen.status === 'generating' || dbGen.status === 'queued' || dbGen.status === 'pending') {
         try {
-          const syncResult = await syncKieTaskToDb(dbGen.id);
+          const syncResult = await syncKieTaskToDb({ supabase, taskId: dbGen.task_id });
           if (syncResult.ok && syncResult.status === 'success') {
             // Re-fetch to get updated URLs
             const { data: updated } = await supabase
@@ -282,4 +282,3 @@ export async function GET(
       { status: 500 }
     );
   }
-}

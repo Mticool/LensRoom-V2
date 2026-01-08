@@ -134,4 +134,3 @@ export async function refundGenerationCredits(
     return { success: false, creditsRefunded: 0, error: message };
   }
 }
-

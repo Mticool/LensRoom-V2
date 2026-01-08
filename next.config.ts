@@ -72,6 +72,16 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Video files - long cache
+        source: "/:all*(mp4|webm|mov)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
         // JS/CSS bundles - long cache (hashed filenames)
         source: "/_next/static/:path*",
         headers: [
@@ -96,6 +106,26 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // API responses - short cache for read-only APIs
+        source: "/api/content/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        ],
+      },
+      {
+        // HTML pages - short cache with revalidation
+        source: "/:path((?!api|_next).*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+          },
+        ],
+      },
+      {
         // Security headers for all pages
         source: "/:path*",
         headers: [
@@ -110,6 +140,10 @@ const nextConfig: NextConfig = {
           {
             key: "Referrer-Policy",
             value: "origin-when-cross-origin",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
           },
         ],
       },

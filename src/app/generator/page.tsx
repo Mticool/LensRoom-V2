@@ -73,7 +73,7 @@ function useGeneratorState(initialSection: SectionType, initialModel: string | n
       
       // Video options  
       mode: settings.generation_type || settings.mode,
-      duration: settings.duration ? parseInt(String(settings.duration)) : undefined,
+      duration: settings.duration ? parseInt(String(settings.duration)) : (currentModel === 'kling-motion-control' ? 5 : undefined),
       videoQuality: settings.video_quality || settings.quality,
       audio: settings.audio === true || settings.sound === true || settings.with_audio === true,
       modelVariant: getModelVariant(),

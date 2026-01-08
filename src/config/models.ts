@@ -872,4 +872,3 @@ export function getModelById(id: string): ModelConfig | undefined {
 export function getFeaturedModels(type: ModelType): ModelConfig[] {
   return getModelsByType(type).filter(m => m.featured);
 }
-

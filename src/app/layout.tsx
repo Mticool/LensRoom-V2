@@ -247,6 +247,9 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://ndhykojwzazgmgvjaqgt.supabase.co" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* KIE API and CDN preconnects */}
+        <link rel="dns-prefetch" href="https://api.kie.ai" />
+        <link rel="dns-prefetch" href="https://tempfile.aiquickdraw.com" />
         
         {/* PWA iOS Support */}
         <meta name="apple-mobile-web-app-capable" content="yes" />

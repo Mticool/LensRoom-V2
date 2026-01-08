@@ -8,6 +8,7 @@ import {
   Image as ImageIcon, Video, Music, Wand2, Layers, Zap
 } from 'lucide-react';
 import { QuickStart } from '@/components/home/QuickStart';
+import { ReferralInvite } from '@/components/home/referral-invite';
 
 // Featured works - реальные примеры из /public/showcase/
 const featuredWorks = [
@@ -787,6 +788,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ===== REFERRAL SECTION ===== */}
+      <ReferralInvite />
 
       {/* ===== FINAL CTA ===== */}
       <section className="py-32 px-6">
