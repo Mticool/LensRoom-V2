@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { getSession } from '@/lib/telegram/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { requireRole, respondAuthError } from "@/lib/auth/requireRole";
 
 /**
  * GET /api/admin/referrals/overview
@@ -9,16 +9,7 @@ import { getSession } from '@/lib/telegram/auth';
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Check if user is admin from session
-    if (!session.isAdmin && session.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
+    await requireRole("admin");
     const supabase = getSupabaseAdmin();
     
     // Safe query helper - returns 0 or empty if table doesn't exist
@@ -57,31 +48,34 @@ export async function GET(request: NextRequest) {
     };
     
     // Get total referral codes
-    const totalCodes = await safeCount('referral_codes');
+    const totalCodes = await safeCount("referral_codes");
     
     // Get total attributions (activated referrals)
-    const totalAttributions = await safeCount('referral_attributions');
+    const totalAttributions = await safeCount("referral_attributions");
     
     // Get total events
-    const totalEvents = await safeCount('referral_events');
+    const totalEvents = await safeCount("referral_events");
     
     // Get events by type
-    const eventsByType = await safeSelect<{ event_type: string }>('referral_events', 'event_type');
+    const eventsByType = await safeSelect<{ event_type: string }>("referral_events", "event_type");
     const eventTypeCounts = eventsByType.reduce((acc: Record<string, number>, e) => {
       acc[e.event_type] = (acc[e.event_type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
     // Get total rewards
-    const rewardsData = await safeSelect<{ amount: number; reward_type: string }>('referral_rewards', 'amount, reward_type');
+    const rewardsData = await safeSelect<{ amount: number; reward_type: string }>(
+      "referral_rewards",
+      "amount, reward_type"
+    );
     const totalStarsRewarded = rewardsData
-      .filter((r) => r.reward_type === 'stars')
+      .filter((r) => r.reward_type === "stars")
       .reduce((sum, r) => sum + r.amount, 0);
     
     // Get top referrers
     const topReferrers = await safeSelect<{ referrer_user_id: string; profiles: any }>(
-      'referral_attributions',
-      'referrer_user_id, profiles!referral_attributions_referrer_user_id_fkey(display_name, username)',
+      "referral_attributions",
+      "referrer_user_id, profiles!referral_attributions_referrer_user_id_fkey(display_name, username)",
       { limit: 1000 }
     );
     
@@ -98,15 +92,15 @@ export async function GET(request: NextRequest) {
         const refProfile = topReferrers.find((r) => r.referrer_user_id === refUserId)?.profiles;
         return {
           userId: refUserId,
-          displayName: refProfile?.display_name || refProfile?.username || 'Unknown',
+          displayName: refProfile?.display_name || refProfile?.username || "Unknown",
           referralsCount: count,
         };
       });
     
     // Get affiliate stats
-    const totalAffiliateApps = await safeCount('affiliate_applications');
-    const pendingAffiliateApps = await safeCount('affiliate_applications', { column: 'status', value: 'pending' });
-    const approvedAffiliates = await safeCount('affiliate_tiers');
+    const totalAffiliateApps = await safeCount("affiliate_applications");
+    const pendingAffiliateApps = await safeCount("affiliate_applications", { column: "status", value: "pending" });
+    const approvedAffiliates = await safeCount("affiliate_tiers");
     
     return NextResponse.json({
       overview: {
@@ -125,11 +119,8 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('[/api/admin/referrals/overview] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch overview' },
-      { status: 500 }
-    );
+    console.error("[/api/admin/referrals/overview] Error:", error);
+    return respondAuthError(error);
   }
 }
 
