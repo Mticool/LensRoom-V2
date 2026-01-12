@@ -659,3 +659,47 @@ html.tg-webview body {
 .theme-toggle-icon:hover {
   transform: rotate(15deg);
 }
+
+/* ===== SAFE AREA UTILITIES (iOS notch/bottom bar) ===== */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Min height accounting for safe areas */
+.min-h-screen-safe {
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+/* ===== MOBILE OPTIMIZATIONS ===== */
+@media (max-width: 768px) {
+  /* Prevent text zoom on iOS */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Smooth scrolling on iOS */
+  .overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Hide scrollbar on mobile */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
