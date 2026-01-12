@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { Calendar, Clock, ArrowRight } from "lucide-react";
+import { SEED_BLOG_ARTICLES } from "@/content/blogSeed";
 
 export const metadata: Metadata = {
   title: "Блог | Статьи об AI генерации",
@@ -33,10 +34,7 @@ async function getArticles(): Promise<Article[]> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !key) {
-    console.error("[Blog] Missing Supabase credentials");
-    return [];
-  }
+  if (!url || !key) return SEED_BLOG_ARTICLES;
 
   const supabase = createClient(url, key);
 
@@ -49,10 +47,13 @@ async function getArticles(): Promise<Article[]> {
 
   if (error) {
     console.error("[Blog] Error fetching articles:", error);
-    return [];
+    return SEED_BLOG_ARTICLES;
   }
 
-  return data || [];
+  const list = data || [];
+  // If DB is empty (or articles not published yet) - show seed articles so blog is not empty.
+  if (list.length === 0) return SEED_BLOG_ARTICLES;
+  return list;
 }
 
 function formatDate(dateStr: string): string {

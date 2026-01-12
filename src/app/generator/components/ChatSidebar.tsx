@@ -32,9 +32,9 @@ export function ChatSidebar({
 
   const getSectionColors = (section: SectionType) => {
     switch (section) {
-      case 'image': return 'bg-purple-500/20 text-purple-400';
-      case 'video': return 'bg-cyan-500/20 text-cyan-400';
-      case 'audio': return 'bg-pink-500/20 text-pink-400';
+      case 'image': return 'bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]';
+      case 'video': return 'bg-[var(--accent-secondary)]/15 text-[var(--accent-secondary)]';
+      case 'audio': return 'bg-[var(--muted)]/15 text-[var(--muted)]';
     }
   };
 
@@ -84,7 +84,7 @@ export function ChatSidebar({
             onNewChat();
             if (window.innerWidth < 768 && onClose) onClose();
           }}
-          className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-[14px] bg-gradient-to-r from-[#a78bfa]/15 to-[#22d3ee]/15 border border-[var(--accent-primary)]/20 text-[14px] font-medium text-[var(--text)] hover:from-[#a78bfa]/25 hover:to-[#22d3ee]/25 active:scale-[0.98] touch-manipulation transition-all duration-200"
+          className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-[14px] bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/25 text-[14px] font-medium text-[var(--text)] hover:bg-[var(--accent-primary)]/20 active:scale-[0.98] touch-manipulation transition-all duration-200"
         >
           <Plus className="w-4 h-4" />
           Новый чат

@@ -1,172 +1,257 @@
 @import "tailwindcss";
 
-/* ===== THEME TOKENS ===== */
-/* Apple-like Minimal Black (default site-wide) */
+/* ===== FREEPIK-STYLE THEME TOKENS ===== */
+/* 
+ * Palette inspired by ru.freepik.com
+ * - Font: Inter (clean, modern, highly readable)
+ * - Dark theme: deep slate-gray backgrounds, NOT pure black
+ * - Light theme: clean whites and soft grays
+ * - Accent: cyan/teal (#00D9FF) + violet (#7C3AED) gradient
+ * - Radius: modern rounded corners (12-16px)
+ * - Shadows: soft, layered for depth
+ */
 
 :root {
-  /* Premium Dark Theme - Higgsfield/SYNTX inspired */
-  --bg: #000000;
-  --surface: #0c0c0c;
-  --surface2: #151515;
-  --surface3: #1f1f1f;
-  --surface-glass: rgba(15, 15, 15, 0.8);
-  --border: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(139, 92, 246, 0.25);
-  --text: #fafafa;
-  --text2: #e5e5e5;
-  --muted: #737373;
-  --muted-light: #a3a3a3;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.15);
+  /* ========== DARK THEME (Default) ========== */
+  /* 
+   * Background hierarchy (from deepest to elevated):
+   * bg → surface → surface2 → surface3
+   * NOT pure black - uses slate-blue undertones for warmth
+   */
+  --bg: #0D1117;              /* Main background - GitHub-dark inspired */
+  --surface: #161B22;         /* Cards, sidebars */
+  --surface2: #21262D;        /* Elevated cards, modals */
+  --surface3: #30363D;        /* Hover states, highlights */
+  --surface-glass: rgba(22, 27, 34, 0.85);
+  
+  /* Borders - subtle but visible */
+  --border: rgba(240, 246, 252, 0.10);
+  --border-hover: rgba(240, 246, 252, 0.18);
+  --border-strong: rgba(205, 255, 0, 0.35);
+  
+  /* Text - high contrast for readability */
+  --text: #F0F6FC;            /* Primary text - off-white */
+  --text2: #E6EDF3;           /* Secondary text */
+  --muted: #8B949E;           /* Muted/placeholder text */
+  --muted-light: #B1BAC4;     /* Slightly brighter muted */
+  
+  /* Shadows - soft, layered */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 60px rgba(205, 255, 0, 0.15);
+  
+  /* Border radius - modern rounded */
+  --radius-xs: 6px;
   --radius-sm: 10px;
   --radius: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
-  --glass-bg: rgba(12, 12, 12, 0.85);
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
   
-  /* Premium Accent Colors */
-  --accent-primary: #a78bfa;
-  --accent-secondary: #22d3ee;
-  --accent-gradient: linear-gradient(135deg, #a78bfa 0%, #22d3ee 100%);
-  --accent-subtle: rgba(167, 139, 250, 0.1);
+  /* Glass effect */
+  --glass-bg: rgba(13, 17, 23, 0.85);
+  
+  /* ========== ACCENT COLORS (Higgsfield.ai lime style) ========== */
+  /* Primary: Bright lime/neon yellow-green */
+  --accent-primary: #CDFF00;
+  --accent-primary-hover: #D8FF33;
+  --accent-primary-muted: #A3CC00;
+  --accent-primary-dim: rgba(205, 255, 0, 0.70);
+  
+  /* Secondary: Cyan for variety */
+  --accent-secondary: #00D9FF;
+  --accent-secondary-hover: #33E1FF;
+  
+  /* Tertiary: Teal */
+  --accent-tertiary: #06B6D4;
+  
+  /* Gradient - lime-dominant, Higgsfield style */
+  --accent-gradient: linear-gradient(135deg, #CDFF00 0%, #A3CC00 100%);
+  --accent-gradient-vibrant: linear-gradient(135deg, #CDFF00 0%, #D8FF33 50%, #A3CC00 100%);
+  --accent-gradient-glow: linear-gradient(135deg, #CDFF00 0%, #00D9FF 100%);
+  --accent-subtle: rgba(205, 255, 0, 0.12);
   
   /* Legacy support */
-  --gold: #a78bfa;
-  --gold-hover: #8b5cf6;
+  --gold: var(--accent-primary);
+  --gold-hover: var(--accent-primary-hover);
   
-  /* Button colors - softer */
-  --btn-primary-bg: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
-  --btn-primary-text: #ffffff;
-  --btn-secondary-bg: rgba(255, 255, 255, 0.05);
-  --btn-secondary-text: #fafafa;
+  /* ========== BUTTON COLORS (Higgsfield lime) ========== */
+  --btn-primary-bg: var(--accent-primary);
+  --btn-primary-bg-hover: var(--accent-primary-hover);
+  --btn-primary-text: #0D1117;
+  --btn-secondary-bg: rgba(205, 255, 0, 0.08);
+  --btn-secondary-text: var(--accent-primary);
+  --btn-secondary-border: rgba(205, 255, 0, 0.20);
   
-  /* Typography */
-  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --letter-spacing-tight: -0.02em;
-  --letter-spacing-normal: -0.01em;
+  /* ========== SEMANTIC COLORS ========== */
+  --success: #2EA043;
+  --success-subtle: rgba(46, 160, 67, 0.15);
+  --warning: #D29922;
+  --warning-subtle: rgba(210, 153, 34, 0.15);
+  --error: #F85149;
+  --error-subtle: rgba(248, 81, 73, 0.15);
+  --info: #58A6FF;
+  --info-subtle: rgba(88, 166, 255, 0.15);
+  
+  /* ========== TYPOGRAPHY ========== */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: -0.011em;
   
   color-scheme: dark;
 }
 
+/* ========== DARK THEME (Explicit) ========== */
 html[data-theme="dark"] {
-  /* Premium Dark Theme */
-  --bg: #000000;
-  --surface: #0c0c0c;
-  --surface2: #151515;
-  --surface3: #1f1f1f;
-  --surface-glass: rgba(15, 15, 15, 0.8);
-  --border: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(139, 92, 246, 0.25);
-  --text: #fafafa;
-  --text2: #e5e5e5;
-  --muted: #737373;
-  --muted-light: #a3a3a3;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.15);
-  --radius-sm: 10px;
-  --radius: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
-  --glass-bg: rgba(12, 12, 12, 0.85);
+  --bg: #0D1117;
+  --surface: #161B22;
+  --surface2: #21262D;
+  --surface3: #30363D;
+  --surface-glass: rgba(22, 27, 34, 0.85);
   
-  /* Premium Accent Colors */
-  --accent-primary: #a78bfa;
-  --accent-secondary: #22d3ee;
-  --accent-gradient: linear-gradient(135deg, #a78bfa 0%, #22d3ee 100%);
-  --accent-subtle: rgba(167, 139, 250, 0.1);
+  --border: rgba(240, 246, 252, 0.10);
+  --border-hover: rgba(240, 246, 252, 0.18);
+  --border-strong: rgba(205, 255, 0, 0.35);
   
-  /* Legacy support */
-  --gold: #a78bfa;
-  --gold-hover: #8b5cf6;
+  --text: #F0F6FC;
+  --text2: #E6EDF3;
+  --muted: #8B949E;
+  --muted-light: #B1BAC4;
   
-  /* Button colors */
-  --btn-primary-bg: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
-  --btn-primary-text: #ffffff;
-  --btn-secondary-bg: rgba(255, 255, 255, 0.05);
-  --btn-secondary-text: #fafafa;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 60px rgba(205, 255, 0, 0.15);
+  
+  --glass-bg: rgba(13, 17, 23, 0.85);
+  
+  --accent-primary: #CDFF00;
+  --accent-primary-hover: #D8FF33;
+  --accent-secondary: #00D9FF;
+  --accent-tertiary: #06B6D4;
+  --accent-gradient: linear-gradient(135deg, #CDFF00 0%, #A3CC00 100%);
+  --accent-subtle: rgba(205, 255, 0, 0.12);
+  
+  --gold: var(--accent-primary);
+  --gold-hover: var(--accent-primary-hover);
+  
+  --btn-primary-bg: var(--accent-primary);
+  --btn-primary-text: #0D1117;
+  --btn-secondary-bg: rgba(205, 255, 0, 0.08);
+  --btn-secondary-text: var(--accent-primary);
   
   color-scheme: dark;
 }
 
+/* ========== LIGHT THEME ========== */
 html[data-theme="light"] {
-  /* Premium Light Theme */
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --surface2: #f5f5f5;
-  --surface3: #ebebeb;
-  --surface-glass: rgba(255, 255, 255, 0.85);
-  --border: rgba(0, 0, 0, 0.06);
-  --border-hover: rgba(0, 0, 0, 0.12);
-  --border-strong: rgba(139, 92, 246, 0.2);
-  --text: #171717;
-  --text2: #404040;
-  --muted: #a3a3a3;
-  --muted-light: #737373;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.1);
-  --radius-sm: 10px;
-  --radius: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
-  --glass-bg: rgba(255, 255, 255, 0.9);
+  /* 
+   * Clean whites, soft grays
+   * High contrast text for excellent readability
+   */
+  --bg: #FFFFFF;              /* Pure white main background */
+  --surface: #F6F8FA;         /* Cards - very light gray */
+  --surface2: #F0F2F4;        /* Elevated surfaces */
+  --surface3: #E6E8EB;        /* Hover states */
+  --surface-glass: rgba(255, 255, 255, 0.90);
   
-  /* Premium Accent Colors for light */
-  --accent-primary: #8b5cf6;
-  --accent-secondary: #06b6d4;
-  --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
-  --accent-subtle: rgba(139, 92, 246, 0.08);
+  /* Borders - subtle gray */
+  --border: rgba(31, 35, 40, 0.08);
+  --border-hover: rgba(31, 35, 40, 0.15);
+  --border-strong: rgba(184, 230, 0, 0.35);
   
-  /* Legacy support */
-  --gold: #8b5cf6;
-  --gold-hover: #7c3aed;
+  /* Text - dark for high contrast */
+  --text: #1F2328;            /* Primary - near black */
+  --text2: #424A53;           /* Secondary */
+  --muted: #656D76;           /* Muted text */
+  --muted-light: #848D97;     /* Lighter muted */
   
-  /* Button colors for light theme */
-  --btn-primary-bg: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  --btn-primary-text: #ffffff;
-  --btn-secondary-bg: rgba(0, 0, 0, 0.03);
-  --btn-secondary-text: #171717;
+  /* Shadows - very soft */
+  --shadow-sm: 0 1px 3px rgba(31, 35, 40, 0.04);
+  --shadow-md: 0 8px 24px rgba(31, 35, 40, 0.08);
+  --shadow-lg: 0 16px 48px rgba(31, 35, 40, 0.12);
+  --shadow-glow: 0 0 60px rgba(184, 230, 0, 0.12);
+  
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  
+  /* Accent colors - Higgsfield lime (slightly darker for light bg) */
+  --accent-primary: #B8E600;
+  --accent-primary-hover: #CDFF00;
+  --accent-secondary: #00B4D8;
+  --accent-tertiary: #0891B2;
+  --accent-gradient: linear-gradient(135deg, #B8E600 0%, #8FB800 100%);
+  --accent-subtle: rgba(184, 230, 0, 0.12);
+  
+  --gold: var(--accent-primary);
+  --gold-hover: var(--accent-primary-hover);
+  
+  /* Button colors - lime solid */
+  --btn-primary-bg: var(--accent-primary);
+  --btn-primary-text: #1F2328;
+  --btn-secondary-bg: rgba(184, 230, 0, 0.10);
+  --btn-secondary-text: #5C7A00;
+  --btn-secondary-border: rgba(184, 230, 0, 0.25);
+  
+  /* Semantic - adjusted for light background */
+  --success: #1A7F37;
+  --success-subtle: rgba(26, 127, 55, 0.10);
+  --warning: #9A6700;
+  --warning-subtle: rgba(154, 103, 0, 0.10);
+  --error: #CF222E;
+  --error-subtle: rgba(207, 34, 46, 0.10);
+  --info: #0969DA;
+  --info-subtle: rgba(9, 105, 218, 0.10);
   
   color-scheme: light;
 }
 
+/* ========== TAILWIND THEME TOKENS (Higgsfield cyan) ========== */
 @theme {
-  /* Background colors - Exact Freepik */
-  --color-bg-primary: #0D0D0D;
-  --color-bg-secondary: #1A1A1A;
-  --color-bg-tertiary: #222222;
-  --color-bg-elevated: #2A2A2A;
+  /* Background colors - aligned with dark tokens */
+  --color-bg-primary: #0D1117;
+  --color-bg-secondary: #161B22;
+  --color-bg-tertiary: #21262D;
+  --color-bg-elevated: #30363D;
   
-  /* Text colors - Cool whites */
-  --color-text-primary: #FFFFFF;
-  --color-text-secondary: #D1D1D1;
-  --color-text-tertiary: #A0A0A0;
+  /* Text colors */
+  --color-text-primary: #F0F6FC;
+  --color-text-secondary: #E6EDF3;
+  --color-text-tertiary: #8B949E;
   
-  /* Brand colors - Freepik Blue (changed from Gold) */
-  --color-gold: #00D9FF;
-  --color-gold-hover: #1AE3FF;
-  --color-gold-muted: #0EA5E9;
+  /* Brand accent - Higgsfield lime */
+  --color-gold: #CDFF00;
+  --color-gold-hover: #D8FF33;
+  --color-gold-muted: #A3CC00;
   
-  /* Legacy support */
+  /* Lime palette */
+  --color-lime-400: #D8FF33;
+  --color-lime-500: #CDFF00;
+  --color-lime-600: #A3CC00;
+  
+  /* Cyan palette (secondary) */
+  --color-cyan-400: #22D3EE;
+  --color-cyan-500: #00D9FF;
+  --color-cyan-600: #0891B2;
+  
+  /* Legacy purple (for special accents only) */
   --color-purple-400: #A78BFA;
   --color-purple-500: #8B5CF6;
   --color-purple-600: #7C3AED;
-  --color-blue-400: #60A5FA;
-  --color-blue-500: #3B82F6;
   
   /* Semantic */
-  --color-success: #22C55E;
-  --color-warning: #00D9FF;
-  --color-error: #EF4444;
+  --color-success: #2EA043;
+  --color-warning: #D29922;
+  --color-error: #F85149;
   
-  /* Borders - Freepik */
-  --color-border: #2A2A2A;
-  --color-border-strong: #3A3A3A;
+  /* Borders */
+  --color-border: rgba(240, 246, 252, 0.10);
+  --color-border-strong: rgba(240, 246, 252, 0.18);
+  /* Common aliases used in pages */
+  --color-border-primary: rgba(240, 246, 252, 0.10);
+  --color-border-secondary: rgba(240, 246, 252, 0.18);
 }
 
 /* ===== BASE STYLES ===== */
@@ -184,6 +269,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, Inter, "Segoe UI", Roboto, Arial, sans-serif;
   background-color: var(--bg);
   color: var(--text);
+  /* Subtle Freepik-like depth (no heavy noise, just a soft gradient wash) */
+  background-image:
+    radial-gradient(900px 500px at 15% 10%, rgba(0, 217, 255, 0.10), transparent 55%),
+    radial-gradient(900px 500px at 85% 20%, rgba(124, 58, 237, 0.10), transparent 55%),
+    radial-gradient(1200px 700px at 50% 120%, rgba(255, 255, 255, 0.04), transparent 60%);
+  background-attachment: fixed;
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -347,6 +438,14 @@ html.tg-webview body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Subtle focus glow for prompt / input surfaces (Generator + Studio) */
+.input-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(167, 139, 250, 0.10),
+    0 18px 54px rgba(0, 0, 0, 0.28);
 }
 
 /* Masonry grid support */

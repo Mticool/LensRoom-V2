@@ -1,5 +1,7 @@
 import { MetadataRoute } from "next";
 import { createClient } from "@supabase/supabase-js";
+import { MODEL_LANDINGS } from "@/lib/seo/model-pages";
+import { SEED_BLOG_ARTICLES } from "@/content/blogSeed";
 
 // Create admin client for sitemap generation
 function getSupabaseAdmin() {
@@ -21,12 +23,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
-      url: `${baseUrl}/generator`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.95,
-    },
-    {
       url: `${baseUrl}/video`,
       lastModified: new Date(),
       changeFrequency: "weekly",
@@ -37,24 +33,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/create`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/create/video`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/create/products`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.8,
     },
     {
       url: `${baseUrl}/inspiration`,
@@ -92,26 +70,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.3,
     },
-    // Model-specific landing pages (good for SEO)
     {
-      url: `${baseUrl}/models/veo-3`,
+      url: `${baseUrl}/models`,
       lastModified: new Date(),
       changeFrequency: "weekly",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/models/sora-2`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/models/kling`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.7,
+      priority: 0.6,
     },
   ];
+
+  const modelPages: MetadataRoute.Sitemap = MODEL_LANDINGS.map((m) => ({
+    url: `${baseUrl}/models/${m.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: m.category === "video" ? 0.7 : 0.7,
+  }));
 
   // Dynamic article pages
   let articlePages: MetadataRoute.Sitemap = [];
@@ -138,7 +110,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("[Sitemap] Error fetching articles:", error);
   }
 
-  return [...staticPages, ...articlePages];
+  const seedArticlePages: MetadataRoute.Sitemap = SEED_BLOG_ARTICLES.map((a) => ({
+    url: `${baseUrl}/blog/${a.slug}`,
+    lastModified: new Date(a.updated_at || a.published_at),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  }));
+
+  const uniq = new Map<string, MetadataRoute.Sitemap[number]>();
+  for (const e of [...staticPages, ...modelPages, ...seedArticlePages, ...articlePages]) {
+    uniq.set(e.url, e);
+  }
+  return Array.from(uniq.values());
 }
 
 

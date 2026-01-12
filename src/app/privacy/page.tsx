@@ -1,8 +1,11 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Политика конфиденциальности | LensRoom",
-  description: "Политика конфиденциальности сервиса LensRoom",
+  title: "Политика конфиденциальности",
+  description: "Политика конфиденциальности сервиса LensRoom.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 
 export default function PrivacyPage() {

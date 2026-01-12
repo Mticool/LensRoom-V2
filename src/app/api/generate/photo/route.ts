@@ -394,6 +394,154 @@ export async function POST(request: NextRequest) {
 
     let response: any;
     
+    // Handle LaoZhang provider (Nano Banana / Nano Banana Pro)
+    if (modelInfo.provider === 'laozhang') {
+      const { getLaoZhangClient, getLaoZhangModelId, aspectRatioToLaoZhangSize, resolutionToLaoZhangSize } = await import("@/lib/api/laozhang-client");
+      
+      try {
+        const laozhangClient = getLaoZhangClient();
+        
+        // Select the right LaoZhang model based on resolution
+        // For nano-banana-pro: 1k_2k -> gemini-3-pro-image-preview-2k, 4k -> gemini-3-pro-image-preview-4k
+        const laozhangModelId = getLaoZhangModelId(effectiveModelId, quality || resolution);
+        
+        // Determine size based on resolution/quality and aspect ratio
+        let imageSize: string;
+        if (quality && ['1k', '1k_2k', '2k', '4k'].includes(quality.toLowerCase())) {
+          // Resolution-based sizing
+          imageSize = resolutionToLaoZhangSize(quality, aspectRatio || '1:1');
+        } else {
+          // Default aspect ratio based sizing
+          imageSize = aspectRatioToLaoZhangSize(aspectRatio || '1:1');
+        }
+        
+        console.log('[API] LaoZhang request:', { 
+          model: laozhangModelId,
+          originalModel: modelInfo.apiId,
+          size: imageSize, 
+          aspectRatio,
+          quality,
+        });
+        
+        const laozhangResponse = await laozhangClient.generateImage({
+          model: laozhangModelId,
+          prompt: prompt,
+          n: 1,
+          size: imageSize,
+        });
+        
+        // Extract image URL or base64
+        let imageUrl = laozhangResponse.data[0]?.url;
+        const b64Json = laozhangResponse.data[0]?.b64_json;
+        
+        // If we got base64, upload to Supabase storage
+        if (!imageUrl && b64Json) {
+          console.log('[API] LaoZhang returned base64, uploading to storage...');
+          const imageBuffer = Buffer.from(b64Json, 'base64');
+          const fileName = `laozhang_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+          const storagePath = `${userId}/${fileName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('generations')
+            .upload(storagePath, imageBuffer, {
+              contentType: 'image/png',
+              upsert: true
+            });
+          
+          if (uploadError) {
+            console.error('[API] Failed to upload LaoZhang image:', uploadError);
+            throw new Error(`Failed to save generated image: ${uploadError.message}`);
+          }
+          
+          const { data: publicUrlData } = supabase.storage
+            .from('generations')
+            .getPublicUrl(storagePath);
+          
+          imageUrl = publicUrlData.publicUrl;
+          console.log('[API] Uploaded LaoZhang image to:', imageUrl);
+        }
+        
+        if (!imageUrl) {
+          console.error('[API] LaoZhang response has no image:', JSON.stringify(laozhangResponse));
+          throw new Error('No image URL in LaoZhang response');
+        }
+        
+        // Update generation record with success
+        await supabase
+          .from('generations')
+          .update({
+            status: 'success',
+            result_urls: [imageUrl],
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', generation?.id);
+        
+        // Log generation run for analytics
+        try {
+          await supabase.from('generation_runs').insert({
+            generation_id: generation?.id,
+            user_id: userId,
+            provider: 'laozhang',
+            provider_model: modelInfo.apiId,
+            variant_key: quality || 'default',
+            stars_charged: creditCost,
+            status: 'success',
+          });
+        } catch (logError) {
+          console.error('[API] Failed to log generation run:', logError);
+        }
+        
+        // Return completed status (no polling needed)
+        return NextResponse.json({
+          success: true,
+          jobId: generation?.id,
+          status: 'completed',
+          generationId: generation?.id,
+          provider: 'laozhang',
+          kind: 'image',
+          creditCost: creditCost,
+          results: [{ url: imageUrl }],
+        });
+      } catch (laozhangError: any) {
+        console.error('[API] LaoZhang generation failed:', laozhangError);
+        
+        // Refund credits on error
+        await supabase.rpc('adjust_credits', {
+          p_user_id: userId,
+          p_amount: creditCost,
+        });
+        
+        // Update generation status
+        await supabase
+          .from('generations')
+          .update({
+            status: 'failed',
+            error: laozhangError.message || 'LaoZhang API error',
+          })
+          .eq('id', generation?.id);
+        
+        // Log failed run
+        try {
+          await supabase.from('generation_runs').insert({
+            generation_id: generation?.id,
+            user_id: userId,
+            provider: 'laozhang',
+            provider_model: modelInfo.apiId,
+            variant_key: quality || 'default',
+            stars_charged: 0,
+            status: 'refunded',
+          });
+        } catch (logError) {
+          console.error('[API] Failed to log failed run:', logError);
+        }
+        
+        return NextResponse.json(
+          { error: laozhangError.message || 'Failed to generate image' },
+          { status: 500 }
+        );
+      }
+    }
+
     // Handle OpenAI provider (GPT Image)
     if (modelInfo.provider === 'openai') {
       const { getOpenAIClient, getOpenAIProviderCost, aspectRatioToOpenAISize } = await import("@/lib/api/openai-client");

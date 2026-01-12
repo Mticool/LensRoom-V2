@@ -126,6 +126,19 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         required: true,
         order: 1
       },
+      variants: {
+        label: "Количество фото",
+        type: "buttons",
+        options: [
+          { value: 1, label: "1" },
+          { value: 2, label: "2" },
+          { value: 4, label: "4" }
+        ],
+        default: 1,
+        description: "Создать несколько вариантов одновременно",
+        required: false,
+        order: 2
+      },
       quality: {
         label: "Качество",
         type: "buttons",
@@ -137,7 +150,7 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "2K",
         description: "1K/2K = 30⭐, 4K = 40⭐",
         required: true,
-        order: 2
+        order: 3
       },
       aspect_ratio: {
         label: "Соотношение сторон",
@@ -153,7 +166,7 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         default: "9:16",
         description: "Пропорции изображения",
         required: true,
-        order: 3
+        order: 4
       }
     }
   },

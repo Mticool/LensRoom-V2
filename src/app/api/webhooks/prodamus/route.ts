@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getProdamusClient } from '@/lib/payments/prodamus-client';
 import { STAR_PACKS, packTotalStars } from "@/config/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { processAffiliateCommission } from "@/lib/referrals/process-affiliate-commission";
 
 interface ProdamusWebhookPayload {
   order_id: string;
@@ -76,11 +77,8 @@ export async function POST(request: NextRequest) {
       console.warn('[Prodamus Webhook] Skipping signature check in development');
     }
 
-    const supabase = await createServerSupabaseClient();
-    
-    if (!supabase) {
-      return NextResponse.json({ error: 'Server error' }, { status: 500 });
-    }
+    // Webhooks must use service role to bypass RLS
+    const supabase = getSupabaseAdmin();
 
     const {
       order_id,
@@ -229,10 +227,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Обновляем статус платежа
+    const completedAt = new Date().toISOString();
     await supabase
       .from('payments')
-      .update({ status: 'completed' })
+      .update({ 
+        status: 'completed',
+        provider: 'prodamus',
+        external_id: order_id,
+        completed_at: completedAt,
+      })
       .eq('prodamus_order_id', order_id);
+
+    // Affiliate commission (async, don't block webhook)
+    processAffiliateCommission({
+      userId,
+      paymentId: order_id,
+      amountRub: Number(parseFloat(payload.sum || "0").toFixed(2)),
+      tariffName: isSubscription ? `Подписка ${custom_fields?.plan_id || 'pro'}` : `Покупка пакета`,
+    }).catch((err) => {
+      console.error('[Prodamus Webhook] Affiliate commission failed (ignored):', err);
+    });
 
     return NextResponse.json({ received: true, status: 'success' });
 

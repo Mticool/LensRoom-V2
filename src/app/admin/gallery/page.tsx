@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { 
   Loader2, X, Home, Lightbulb, Trash2, Edit3, Star, Eye, EyeOff,
   GripVertical, RefreshCw, Plus, ArrowUpDown, Search, Filter,
-  Image as ImageIcon, Video, Globe, Check, ChevronDown
+  Image as ImageIcon, Video, Globe, Check, ChevronDown, Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -47,6 +47,19 @@ export default function AdminGalleryPage() {
   const [editCategory, setEditCategory] = useState("");
   const [editFeatured, setEditFeatured] = useState(false);
   const [editPriority, setEditPriority] = useState(0);
+  
+  // Create/Upload modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createCategory, setCreateCategory] = useState("");
+  const [createPlacement, setCreatePlacement] = useState<"home" | "inspiration">("home");
+  const [createContentType, setCreateContentType] = useState<"photo" | "video">("photo");
+  const [createImageUrl, setCreateImageUrl] = useState("");
+  const [createPrompt, setCreatePrompt] = useState("");
+  const [createModelKey, setCreateModelKey] = useState("nano-banana-pro");
+  const [isCreating, setIsCreating] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check access
   useEffect(() => {
@@ -244,6 +257,98 @@ export default function AdminGalleryPage() {
     // This would need an API endpoint to update display_order in bulk
   };
 
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check file type
+    const isVideo = file.type.startsWith("video/");
+    const isImage = file.type.startsWith("image/");
+    if (!isVideo && !isImage) {
+      toast.error("Поддерживаются только изображения и видео");
+      return;
+    }
+    
+    setUploadingImage(true);
+    setCreateContentType(isVideo ? "video" : "photo");
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const res = await fetch("/api/admin/content/upload", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      
+      if (!res.ok) throw new Error("Upload failed");
+      
+      const data = await res.json();
+      setCreateImageUrl(data.url);
+      toast.success("Файл загружен!");
+    } catch (error) {
+      toast.error("Ошибка загрузки файла");
+      console.error(error);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Create new content
+  const handleCreateContent = async () => {
+    if (!createTitle.trim() || !createImageUrl.trim()) {
+      toast.error("Заполните название и загрузите изображение");
+      return;
+    }
+    
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/admin/gallery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          presetId: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          title: createTitle.trim(),
+          contentType: createContentType,
+          modelKey: createModelKey,
+          previewImage: createImageUrl,
+          previewUrl: createImageUrl,
+          templatePrompt: createPrompt,
+          placement: createPlacement,
+          status: "published",
+          category: createCategory || null,
+          featured: false,
+          priority: 0,
+        }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to create");
+      
+      toast.success("Контент добавлен!");
+      setShowCreateModal(false);
+      resetCreateForm();
+      loadItems();
+    } catch (error) {
+      toast.error("Ошибка создания контента");
+      console.error(error);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const resetCreateForm = () => {
+    setCreateTitle("");
+    setCreateCategory("");
+    setCreatePlacement("home");
+    setCreateContentType("photo");
+    setCreateImageUrl("");
+    setCreatePrompt("");
+    setCreateModelKey("nano-banana-pro");
+  };
+
   if (!userRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
@@ -267,10 +372,16 @@ export default function AdminGalleryPage() {
             </h1>
             <p className="text-[var(--muted)] mt-1">Стили на главной и вдохновении</p>
           </div>
-          <Button onClick={loadItems} disabled={loading} variant="outline">
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Обновить
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setShowCreateModal(true)} className="bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90">
+              <Plus className="w-4 h-4 mr-2" />
+              Добавить контент
+            </Button>
+            <Button onClick={loadItems} disabled={loading} variant="outline">
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Обновить
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -557,6 +668,223 @@ export default function AdminGalleryPage() {
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
                     {saving ? "Сохранение..." : "Сохранить"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Content Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="w-full max-w-lg bg-[var(--surface)] rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--surface)]">
+                <h3 className="font-semibold text-[var(--text)] flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-[var(--gold)]" />
+                  Добавить контент
+                </h3>
+                <button onClick={() => setShowCreateModal(false)} className="p-2 rounded-lg hover:bg-white/5">
+                  <X className="w-5 h-5 text-[var(--muted)]" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {/* Upload/Preview */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-[var(--text)] block">Изображение / Видео *</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  
+                  {createImageUrl ? (
+                    <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+                      {createContentType === "video" ? (
+                        <video src={createImageUrl} className="w-full h-full object-cover" muted autoPlay loop />
+                      ) : (
+                        <img src={createImageUrl} alt="" className="w-full h-full object-cover" />
+                      )}
+                      <button
+                        onClick={() => { setCreateImageUrl(""); fileInputRef.current?.click(); }}
+                        className="absolute top-2 right-2 p-2 rounded-lg bg-black/50 hover:bg-black/70 text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="w-full aspect-video rounded-xl border-2 border-dashed border-[var(--border)] hover:border-[var(--gold)]/50 flex flex-col items-center justify-center gap-2 text-[var(--muted)] hover:text-[var(--text)] transition-all"
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="w-8 h-8 animate-spin" />
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8" />
+                          <span className="text-sm">Нажмите для загрузки</span>
+                          <span className="text-xs text-[var(--muted)]">JPG, PNG, WebP, MP4</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  
+                  <p className="text-xs text-[var(--muted)]">
+                    Или вставьте URL изображения:
+                  </p>
+                  <input
+                    type="text"
+                    value={createImageUrl}
+                    onChange={(e) => setCreateImageUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm"
+                  />
+                </div>
+
+                {/* Title */}
+                <div>
+                  <label className="text-sm font-medium text-[var(--text)] mb-1 block">Название *</label>
+                  <input
+                    type="text"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    placeholder="Название контента"
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm"
+                  />
+                </div>
+
+                {/* Placement */}
+                <div>
+                  <label className="text-sm font-medium text-[var(--text)] mb-2 block">Размещение</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCreatePlacement("home")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border ${
+                        createPlacement === "home" 
+                          ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)]" 
+                          : "bg-[var(--surface2)] border-[var(--border)] text-[var(--muted)]"
+                      }`}
+                    >
+                      <Home className="w-4 h-4" />
+                      Главная
+                    </button>
+                    <button
+                      onClick={() => setCreatePlacement("inspiration")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border ${
+                        createPlacement === "inspiration" 
+                          ? "bg-blue-500/20 border-blue-500 text-blue-400" 
+                          : "bg-[var(--surface2)] border-[var(--border)] text-[var(--muted)]"
+                      }`}
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                      Вдохновение
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content Type */}
+                <div>
+                  <label className="text-sm font-medium text-[var(--text)] mb-2 block">Тип контента</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCreateContentType("photo")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border ${
+                        createContentType === "photo" 
+                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-400" 
+                          : "bg-[var(--surface2)] border-[var(--border)] text-[var(--muted)]"
+                      }`}
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Фото
+                    </button>
+                    <button
+                      onClick={() => setCreateContentType("video")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border ${
+                        createContentType === "video" 
+                          ? "bg-violet-500/20 border-violet-500 text-violet-400" 
+                          : "bg-[var(--surface2)] border-[var(--border)] text-[var(--muted)]"
+                      }`}
+                    >
+                      <Video className="w-4 h-4" />
+                      Видео
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="text-sm font-medium text-[var(--text)] mb-1 block">Категория</label>
+                  <input
+                    type="text"
+                    value={createCategory}
+                    onChange={(e) => setCreateCategory(e.target.value)}
+                    placeholder="Например: Портреты, Пейзажи, Реклама"
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm"
+                  />
+                </div>
+
+                {/* Model Key */}
+                <div>
+                  <label className="text-sm font-medium text-[var(--text)] mb-1 block">Модель</label>
+                  <select
+                    value={createModelKey}
+                    onChange={(e) => setCreateModelKey(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm"
+                  >
+                    <option value="nano-banana-pro">Nano Banana Pro</option>
+                    <option value="flux-2-pro">Flux 2 Pro</option>
+                    <option value="flux-1-schnell">Flux Schnell</option>
+                    <option value="gpt-image">GPT Image</option>
+                    <option value="seedream-4.5">Seedream 4.5</option>
+                    <option value="kling-2.1">Kling 2.1</option>
+                    <option value="kling-motion-control">Kling Motion Control</option>
+                    <option value="veo-3.1">Veo 3.1</option>
+                    <option value="wan-2.1">Wan 2.1</option>
+                  </select>
+                </div>
+
+                {/* Prompt */}
+                <div>
+                  <label className="text-sm font-medium text-[var(--text)] mb-1 block">Промпт (опционально)</label>
+                  <textarea
+                    value={createPrompt}
+                    onChange={(e) => setCreatePrompt(e.target.value)}
+                    placeholder="Промпт для повторения этого стиля..."
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm resize-none"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { setShowCreateModal(false); resetCreateForm(); }}>
+                    Отмена
+                  </Button>
+                  <Button
+                    className="flex-1 bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+                    onClick={handleCreateContent}
+                    disabled={isCreating || !createTitle.trim() || !createImageUrl.trim()}
+                  >
+                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                    {isCreating ? "Создание..." : "Добавить"}
                   </Button>
                 </div>
               </div>

@@ -394,7 +394,7 @@ export function SettingsPanel({
                         {needsTrim && ' (макс 30)'}
                       </span>
                     </div>
-                    {validation.effectiveDuration > 0 && validation.effectiveDuration !== videoDuration && (
+                    {validation.effectiveDuration && validation.effectiveDuration > 0 && validation.effectiveDuration !== videoDuration && (
                       <div className="flex justify-between text-[11px]">
                         <span className="text-[#A1A1AA]">Итоговая длительность:</span>
                         <span className="text-[#00D9FF] font-medium">
@@ -441,7 +441,7 @@ export function SettingsPanel({
                   )}
                   
                   {/* Price display */}
-                  {price != null && validation.valid && (
+                  {price != null && validation.valid && validation.effectiveDuration && (
                     <div className="flex justify-between items-center pt-2 border-t border-[#3F3F46]">
                       <span className="text-[11px] text-[#A1A1AA]">Стоимость:</span>
                       <div className="text-right">

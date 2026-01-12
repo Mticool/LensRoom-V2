@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { Calendar, Clock, ArrowLeft } from "lucide-react";
 import { ShareButton } from "@/components/blog/ShareButton";
+import { SEED_BLOG_ARTICLES, getSeedArticleBySlug } from "@/content/blogSeed";
 
 type Article = {
   id: string;
@@ -31,7 +32,10 @@ function getSupabaseAdmin() {
 
 async function getArticle(slug: string): Promise<Article | null> {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return null;
+  if (!supabase) {
+    const seed = getSeedArticleBySlug(slug);
+    return (seed as unknown as Article) || null;
+  }
 
   const { data, error } = await supabase
     .from("articles")
@@ -40,7 +44,10 @@ async function getArticle(slug: string): Promise<Article | null> {
     .eq("is_published", true)
     .single();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    const seed = getSeedArticleBySlug(slug);
+    return (seed as unknown as Article) || null;
+  }
 
   // Increment views (fire and forget)
   supabase
@@ -57,7 +64,9 @@ async function getRelatedArticles(
   tags: string[]
 ): Promise<Article[]> {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return [];
+  if (!supabase) {
+    return SEED_BLOG_ARTICLES.filter((a) => a.slug !== currentSlug).slice(0, 3) as unknown as Article[];
+  }
 
   const { data } = await supabase
     .from("articles")
@@ -126,7 +135,7 @@ export async function generateMetadata({
 // Generate static params for popular articles
 export async function generateStaticParams() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return [];
+  if (!supabase) return SEED_BLOG_ARTICLES.map((a) => ({ slug: a.slug }));
 
   const { data } = await supabase
     .from("articles")
@@ -135,9 +144,13 @@ export async function generateStaticParams() {
     .order("views_count", { ascending: false })
     .limit(20);
 
-  return (data || []).map((article) => ({
+  const dbSlugs = (data || []).map((article) => ({
     slug: article.slug,
   }));
+  const seedSlugs = SEED_BLOG_ARTICLES.map((a) => ({ slug: a.slug }));
+  const uniq = new Map<string, { slug: string }>();
+  for (const s of [...seedSlugs, ...dbSlugs]) uniq.set(s.slug, s);
+  return Array.from(uniq.values());
 }
 
 function formatDate(dateStr: string): string {

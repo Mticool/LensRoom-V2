@@ -4,7 +4,7 @@ import { ImageIcon, Sparkles, Zap, Star, ArrowRight, Palette } from 'lucide-reac
 
 export const metadata: Metadata = {
   title: 'Нейросети для генерации изображений онлайн',
-  description: 'Создавайте профессиональные изображения и фотографии по тексту. Flux.2, Midjourney, GPT Image и другие топовые AI-модели для генерации картинок.',
+  description: 'Создавайте профессиональные изображения и фотографии по тексту.',
   keywords: [
     'создание изображений ИИ',
     'генерация изображений нейросеть',
@@ -18,13 +18,13 @@ export const metadata: Metadata = {
     'нарисовать картинку нейросеть',
   ],
   openGraph: {
-    title: 'Создание изображений с помощью ИИ | LensRoom',
-    description: 'Генерируй профессиональные изображения и фото за секунды. Flux.2, Midjourney, GPT Image — топовые нейросети.',
+    title: 'Нейросети для генерации изображений онлайн',
+    description: 'Создавайте профессиональные изображения и фотографии по тексту.',
     url: 'https://lensroom.ru/image',
     type: 'website',
   },
   alternates: {
-    canonical: 'https://lensroom.ru/image',
+    canonical: '/image',
   },
 };
 

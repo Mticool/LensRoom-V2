@@ -1,8 +1,11 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "О нас | LensRoom",
-  description: "Информация об организации LensRoom",
+  title: "О нас",
+  description: "Информация об организации и сервисе LensRoom.",
+  alternates: {
+    canonical: "/about",
+  },
 };
 
 export default function AboutPage() {

@@ -87,17 +87,17 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
     subtitle: 'Тариф "делаю контент системно". Много вариантов, стабильное качество и возможность делать контент "пачками".',
     features: [
       '✅ Всё из Creator',
-      '🎁 Nano Banana Pro 1–2K включён — безлимит (fair use)',
+      '🎁 Nano Banana Pro 1–2K — БЕЗЛИМИТ',
       '💎 Nano Banana Pro 4K — премиум-качество за ⭐',
       '⭐ 2550⭐ на видео, 4K, апскейл и тяжёлые генерации',
     ],
     benefits: [
-      'Pro 1–2K — ваш новый стандарт качества',
+      'Pro 1–2K — безлимит, генерируй сколько хочешь',
       '⭐ остаются на усиление: видео, 4K, максимум результата',
       'Контент "пачками" без ощущения экономии',
     ],
     capacity: [
-      'Pro 1–2K: безлимит (0⭐)',
+      '∞ Pro 1–2K: безлимит (0⭐)',
       'до 364 Nano Banana (7⭐)',
       'или до 51 Sora 2 (50⭐)',
       'или до 25 Veo Fast (100⭐)',
@@ -106,7 +106,7 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
     limits: {
       credits: 2550,
       starsPerMonth: 2550,
-      models: 'Все фото + видео + Pro 1–2K',
+      models: 'Все фото + видео + Pro безлимит',
       support: 'Telegram (2ч)',
     },
   },
@@ -119,17 +119,17 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
     subtitle: 'Максимум свободы для потока и масштаба. Много товаров, активная реклама, серии креативов — без остановок.',
     features: [
       '✅ Всё из Creator+',
-      '🎁 Nano Banana Pro 1–2K включён — безлимит (fair use)',
+      '🎁 Nano Banana Pro 1–2K — БЕЗЛИМИТ',
       '💎 Nano Banana Pro 4K — премиум-качество за ⭐',
       '⭐ 3500⭐ — большой запас для видео и премиум-режимов',
     ],
     benefits: [
-      'Работаете "в продакшне" без оглядки на лимиты',
+      'Pro 1–2K — безлимит, работай в продакшн-режиме',
       'Быстро генерируете, тестируете, выбираете лучшее',
       'Масштабируете без ощущения, что каждый шаг надо экономить',
     ],
     capacity: [
-      'Pro 1–2K: безлимит (0⭐)',
+      '∞ Pro 1–2K: безлимит (0⭐)',
       'до 500 Nano Banana (7⭐)',
       'или до 70 Sora 2 (50⭐)',
       'или до 35 Veo Fast (100⭐)',
@@ -138,7 +138,7 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
     limits: {
       credits: 3500,
       starsPerMonth: 3500,
-      models: 'Все модели + Pro 1–2K',
+      models: 'Все модели + Pro безлимит',
       support: 'VIP 24/7 + менеджер',
     },
   },
@@ -332,16 +332,16 @@ export const PLAN_ENTITLEMENTS: PlanEntitlements[] = [
   {
     planId: 'creator_plus',
     entitlements: [
-      // Creator+: Pro 1-2K included (200/month fair use), 4K always paid
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 200, priceWhenNotIncluded: 30 },
+      // Creator+: Pro 1-2K UNLIMITED (fair use)
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 30 },
       { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
     ],
   },
   {
     planId: 'business',
     entitlements: [
-      // Business: Pro 1-2K included (300/month fair use), 4K always paid
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 300, priceWhenNotIncluded: 30 },
+      // Business: Pro 1-2K UNLIMITED (fair use)
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 30 },
       { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
     ],
   },
@@ -400,8 +400,8 @@ export function getVariantPrice(
     return { stars: ent.priceWhenNotIncluded, isIncluded: false };
   }
   
-  // Check if within included quota
-  if (ent.includedMonthlyLimit > 0 && usedThisMonth < ent.includedMonthlyLimit) {
+  // Check if within included quota (-1 = unlimited)
+  if (ent.includedMonthlyLimit === -1 || (ent.includedMonthlyLimit > 0 && usedThisMonth < ent.includedMonthlyLimit)) {
     return { stars: 0, isIncluded: true };
   }
   

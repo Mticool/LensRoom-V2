@@ -4,7 +4,7 @@ import { Video, Sparkles, Zap, Star, ArrowRight, Play } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Нейросети для генерации видео онлайн',
-  description: 'Создавай профессиональные видеоролики и реалистичные видео по тексту и изображениям. Veo 3.1, Sora 2, Kling 2.6 и другие топовые AI-модели.',
+  description: 'Создавай профессиональные видеоролики реалистичные видео по тексту и изображениям.',
   keywords: [
     'создание видео ИИ',
     'генерация видео нейросеть',
@@ -18,13 +18,13 @@ export const metadata: Metadata = {
     'генератор видео бесплатно',
   ],
   openGraph: {
-    title: 'Создание видео с помощью ИИ | LensRoom',
-    description: 'Генерируй профессиональные видеоролики за минуты. Veo 3.1, Sora 2, Kling — топовые нейросети в одном месте.',
+    title: 'Нейросети для генерации видео онлайн',
+    description: 'Создавай профессиональные видеоролики реалистичные видео по тексту и изображениям.',
     url: 'https://lensroom.ru/video',
     type: 'website',
   },
   alternates: {
-    canonical: 'https://lensroom.ru/video',
+    canonical: '/video',
   },
 };
 

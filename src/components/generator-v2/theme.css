@@ -1,38 +1,38 @@
-/* Generator V2 - EXACT Freepik Pikaso Dark Theme */
+/* Generator V2 - Freepik-Style Theme */
 
 /* Import Inter font (Freepik uses Inter) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* ========================================
-   FREEPIK PIKASO EXACT COLORS
-   Source: freepik.com/pikaso/ai-image-generator
+   FREEPIK-STYLE GENERATOR TOKENS
+   Aligned with globals.css palette
    ======================================== */
 
 /* DARK THEME (default) */
 [data-generator-v2="true"] {
-  /* Background - Pikaso uses very dark zinc */
-  --gen-bg: #0F0F10;
-  --gen-surface: #18181B;
-  --gen-surface2: #27272A;
-  --gen-surface3: #3F3F46;
+  /* Backgrounds - GitHub-dark inspired, NOT pure black */
+  --gen-bg: #0D1117;
+  --gen-surface: #161B22;
+  --gen-surface2: #21262D;
+  --gen-surface3: #30363D;
   
-  /* Borders - barely visible */
-  --gen-border: #27272A;
-  --gen-border-hover: #3F3F46;
+  /* Borders - subtle but visible for depth */
+  --gen-border: rgba(240, 246, 252, 0.10);
+  --gen-border-hover: rgba(240, 246, 252, 0.18);
   
-  /* Text - pure white and zinc grays */
-  --gen-text: #FFFFFF;
-  --gen-text2: #E4E4E7;
-  --gen-muted: #A1A1AA;
-  --gen-muted2: #71717A;
+  /* Text - high contrast, excellent readability */
+  --gen-text: #F0F6FC;
+  --gen-text2: #E6EDF3;
+  --gen-muted: #8B949E;
+  --gen-muted2: #6E7681;
   
-  /* Primary accent - Freepik cyan */
-  --gen-primary: #00D9FF;
-  --gen-primary-hover: #22D3EE;
-  --gen-primary-muted: #0891B2;
+  /* Primary accent - Higgsfield lime */
+  --gen-primary: #CDFF00;
+  --gen-primary-hover: #D8FF33;
+  --gen-primary-muted: #A3CC00;
   
-  /* Secondary - Purple */
-  --gen-secondary: #A855F7;
+  /* Secondary - Cyan */
+  --gen-secondary: #00D9FF;
   
   /* Font - Inter (same as Freepik) */
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
@@ -44,71 +44,73 @@
 
 /* LIGHT THEME */
 html[data-theme="light"] [data-generator-v2="true"] {
-  /* Background - Clean light */
-  --gen-bg: #FAFAFA;
-  --gen-surface: #FFFFFF;
-  --gen-surface2: #F4F4F5;
-  --gen-surface3: #E4E4E7;
+  /* Background - Clean whites, soft grays */
+  --gen-bg: #FFFFFF;
+  --gen-surface: #F6F8FA;
+  --gen-surface2: #F0F2F4;
+  --gen-surface3: #E6E8EB;
   
-  /* Borders - visible but subtle */
-  --gen-border: #E4E4E7;
-  --gen-border-hover: #D4D4D8;
+  /* Borders - soft gray */
+  --gen-border: rgba(31, 35, 40, 0.08);
+  --gen-border-hover: rgba(31, 35, 40, 0.15);
   
-  /* Text - dark on light */
-  --gen-text: #18181B;
-  --gen-text2: #27272A;
-  --gen-muted: #71717A;
-  --gen-muted2: #A1A1AA;
+  /* Text - high contrast for light background */
+  --gen-text: #1F2328;
+  --gen-text2: #424A53;
+  --gen-muted: #656D76;
+  --gen-muted2: #848D97;
   
-  /* Primary accent - darker cyan for contrast */
-  --gen-primary: #0891B2;
-  --gen-primary-hover: #0E7490;
-  --gen-primary-muted: #06B6D4;
+  /* Primary accent - Higgsfield lime (darker for light bg) */
+  --gen-primary: #B8E600;
+  --gen-primary-hover: #A3CC00;
+  --gen-primary-muted: #8FB800;
   
-  /* Secondary - Purple */
-  --gen-secondary: #9333EA;
+  /* Secondary - Cyan */
+  --gen-secondary: #00B4D8;
 }
 
-/* Freepik-inspired color palette */
+/* ========================================
+   HIGGSFIELD-STYLE GLOBAL PALETTE (LIME)
+   ======================================== */
 :root {
-  /* Primary Colors - Clean and Modern */
-  --freepik-primary: #00D9FF; /* Bright cyan/blue */
-  --freepik-secondary: #7C3AED; /* Vibrant purple */
-  --freepik-accent: #0EA5E9; /* Cool blue (changed from amber) */
+  /* Primary Colors - Lime dominant */
+  --higgsfield-primary: #CDFF00;
+  --higgsfield-secondary: #00D9FF;
+  --higgsfield-accent: #D8FF33;
   
-  /* Backgrounds - Light and airy */
+  /* Light theme backgrounds */
   --bg-light: #FFFFFF;
-  --bg-light-secondary: #F9FAFB;
-  --bg-light-tertiary: #F3F4F6;
+  --bg-light-secondary: #F6F8FA;
+  --bg-light-tertiary: #F0F2F4;
   
-  /* Dark mode - Deep but not black */
-  --bg-dark: #0F1419;
-  --bg-dark-secondary: #1A1F2E;
-  --bg-dark-tertiary: #252B3B;
+  /* Dark theme backgrounds */
+  --bg-dark: #0D1117;
+  --bg-dark-secondary: #161B22;
+  --bg-dark-tertiary: #21262D;
   
   /* Text colors */
-  --text-dark: #111827;
-  --text-light: #FFFFFF;
-  --text-muted: #6B7280;
+  --text-dark: #1F2328;
+  --text-light: #F0F6FC;
+  --text-muted: #8B949E;
   
-  /* Gradients - Freepik style */
-  --gradient-primary: linear-gradient(135deg, #00D9FF 0%, #7C3AED 100%);
-  --gradient-warm: linear-gradient(135deg, #0EA5E9 0%, #7C3AED 100%); /* Changed from amber/red to blue/purple */
-  --gradient-cool: linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%);
+  /* Gradients - Higgsfield lime style */
+  --gradient-primary: linear-gradient(135deg, #CDFF00 0%, #A3CC00 100%);
+  --gradient-vibrant: linear-gradient(135deg, #CDFF00 0%, #D8FF33 50%, #A3CC00 100%);
+  --gradient-cool: linear-gradient(135deg, #A3CC00 0%, #8FB800 100%);
   
-  /* Shadows - Soft and elevated */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  /* Shadows - soft, layered */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.16);
   
-  /* Border radius - Apple style */
+  /* Border radius - modern rounded */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
   
-  /* Spacing - Consistent rhythm */
+  /* Spacing */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { addSubscriptionStars, addPackageStars, renewSubscription } from '@/lib/credits/split-credits';
 import { notifyUserPayment, notifyAdminPayment } from '@/lib/email/notifications';
+import { processAffiliateCommission } from '@/lib/referrals/process-affiliate-commission';
 import crypto from 'crypto';
 
 /**
@@ -344,6 +345,16 @@ async function addCreditsToUser(
   
   // TODO: Send to user when email is available
   // notifyUserPayment({ ...notificationData, userEmail }).catch(() => {});
+
+  // Affiliate commission (async, don't block webhook)
+  processAffiliateCommission({
+    userId,
+    paymentId: invId,
+    amountRub: Number(amount.toFixed(2)),
+    tariffName: packageName,
+  }).catch((err) => {
+    console.error('[Robokassa Webhook] Affiliate commission failed (ignored):', err);
+  });
 }
 
 // Также поддерживаем GET для тестирования и Success/Fail URL

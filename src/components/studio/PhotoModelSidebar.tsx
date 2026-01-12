@@ -57,9 +57,7 @@ const ModelButton = memo(function ModelButton({
             {model.shortDescription || (model.paramSchema.length ? "Выберите параметры ниже" : "Готово к генерации")}
           </div>
         </div>
-        <div className={cn("text-xs shrink-0 font-semibold", isActive ? "text-[var(--gold)]" : "text-white/70")}>
-          {Number.isFinite(ms) && ms > 0 ? `от ${ms} ⭐` : "—"}
-        </div>
+        {/* Price removed from selector UI */}
       </div>
     </button>
   );
@@ -79,7 +77,7 @@ export const PhotoModelSidebar = memo(function PhotoModelSidebar({ models, selec
         <div className="text-sm font-semibold">Фото модели</div>
         <div className="text-xs text-[var(--muted)] mt-1">Без дублей — вариации внутри</div>
       </div>
-      <div className="px-2 pb-2">
+      <div className="px-2 pb-2 grid grid-cols-2 gap-2">
         {sorted.map((m) => (
           <ModelButton key={m.id} model={m} isActive={m.id === selectedId} onClick={() => onSelect(m.id)} />
         ))}

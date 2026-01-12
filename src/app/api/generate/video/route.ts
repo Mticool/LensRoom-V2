@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      effectiveDuration = validation.effectiveDuration;
+      effectiveDuration = validation.effectiveDuration ?? mcDuration;
       
-      const mcPrice = calcMotionControlStars(effectiveDuration, mcResolution, true);
+      const mcPrice = calcMotionControlStars(effectiveDuration as number, mcResolution, true);
       if (mcPrice === null) {
         return NextResponse.json(
           { error: 'Invalid parameters for Motion Control pricing' },
@@ -444,6 +444,122 @@ export async function POST(request: NextRequest) {
     let response: any;
     let usedFallback = false;
     
+    // === LAOZHANG PROVIDER (Veo 3.1, Sora 2) ===
+    if (modelInfo.provider === 'laozhang') {
+      console.log('[API] Using LaoZhang provider for video model:', model);
+      
+      try {
+        const { getLaoZhangClient, getLaoZhangVideoModelId } = await import("@/lib/api/laozhang-client");
+        const laozhangClient = getLaoZhangClient();
+        
+        // Select the right LaoZhang model based on aspect ratio and quality
+        const laozhangModelId = getLaoZhangVideoModelId(model, aspectRatio, quality);
+        
+        console.log('[API] LaoZhang video request:', {
+          model: laozhangModelId,
+          originalModel: model,
+          aspectRatio,
+          quality,
+          prompt: fullPrompt.substring(0, 50),
+        });
+        
+        // Generate video (sync - returns URL directly)
+        const laozhangResponse = await laozhangClient.generateVideo({
+          model: laozhangModelId,
+          prompt: fullPrompt,
+        });
+        
+        // Upload video to Supabase Storage for permanent storage
+        console.log('[API] LaoZhang video URL:', laozhangResponse.videoUrl);
+        
+        // Download video and upload to our storage
+        const videoResponse = await fetch(laozhangResponse.videoUrl);
+        if (!videoResponse.ok) {
+          throw new Error(`Failed to download video: ${videoResponse.status}`);
+        }
+        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+        const fileName = `laozhang_${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
+        const storagePath = `${userId}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('generations')
+          .upload(storagePath, videoBuffer, {
+            contentType: 'video/mp4',
+            upsert: true
+          });
+        
+        if (uploadError) {
+          console.error('[API] Failed to upload video to storage:', uploadError);
+          // Use original URL as fallback
+        }
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('generations')
+          .getPublicUrl(storagePath);
+        
+        const finalVideoUrl = uploadError ? laozhangResponse.videoUrl : publicUrlData.publicUrl;
+        
+        // Update generation record with success
+        await supabase
+          .from('generations')
+          .update({
+            status: 'success',
+            result_urls: [finalVideoUrl],
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', generation?.id);
+        
+        // Log generation run
+        try {
+          await supabase.from('generation_runs').insert({
+            generation_id: generation?.id,
+            user_id: userId,
+            provider: 'laozhang',
+            provider_model: laozhangModelId,
+            variant_key: `${quality || 'default'}_${aspectRatio || '16:9'}`,
+            stars_charged: creditCost,
+            status: 'success',
+          });
+        } catch (logError) {
+          console.error('[API] Failed to log generation run:', logError);
+        }
+        
+        // Return completed status (no polling needed for LaoZhang)
+        return NextResponse.json({
+          success: true,
+          jobId: generation?.id,
+          status: 'completed',
+          generationId: generation?.id,
+          provider: 'laozhang',
+          kind: 'video',
+          creditCost: creditCost,
+          results: [{ url: finalVideoUrl }],
+        });
+      } catch (laozhangError: any) {
+        console.error('[API] LaoZhang video generation failed:', laozhangError);
+        
+        // Refund credits on error
+        await supabase.rpc('adjust_credits', {
+          p_user_id: userId,
+          p_amount: creditCost,
+        });
+        
+        // Update generation status
+        await supabase
+          .from('generations')
+          .update({
+            status: 'failed',
+            error: laozhangError.message || 'LaoZhang API error',
+          })
+          .eq('id', generation?.id);
+        
+        return NextResponse.json(
+          { error: laozhangError.message || 'Failed to generate video' },
+          { status: 500 }
+        );
+      }
+    }
+
     // === FAL.ai PROVIDER (Kling O1) ===
     if (modelInfo.provider === 'fal') {
       console.log('[API] Using FAL.ai provider for model:', model);

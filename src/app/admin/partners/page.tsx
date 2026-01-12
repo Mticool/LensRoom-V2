@@ -21,6 +21,7 @@ interface AffiliateTier {
   user_id: string;
   tier: 'classic' | 'pro';
   percent: number;
+  recurring_percent?: number | null;
   updated_at: string;
   profiles?: {
     display_name?: string;
@@ -40,7 +41,10 @@ export default function AdminPartnersPage() {
   // Manual partner form
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualUserId, setManualUserId] = useState('');
-  const [manualPercent, setManualPercent] = useState(30);
+  // percent = first purchase percent
+  const [manualPercent, setManualPercent] = useState(10);
+  // recurringPercent = renewals / repeat purchases percent (passive). Default OFF.
+  const [manualRecurringPercent, setManualRecurringPercent] = useState(0);
 
   useEffect(() => {
     if (activeTab === 'applications') {
@@ -114,7 +118,10 @@ export default function AdminPartnersPage() {
           applicationId,
           action,
           tier: tier || 'classic',
-          percent: tier === 'pro' ? 50 : 30,
+          // Default: first purchase 10%
+          percent: 10,
+          // Default: recurring OFF (0%) unless admin enables
+          recurringPercent: 0,
         }),
       });
       
@@ -156,6 +163,7 @@ export default function AdminPartnersPage() {
         body: JSON.stringify({
           userId: manualUserId.trim(),
           percent: manualPercent,
+          recurringPercent: manualRecurringPercent,
           tier: manualPercent >= 50 ? 'pro' : 'classic',
         }),
       });
@@ -170,7 +178,8 @@ export default function AdminPartnersPage() {
       alert(data.message);
       setShowManualForm(false);
       setManualUserId('');
-      setManualPercent(30);
+      setManualPercent(10);
+      setManualRecurringPercent(0);
       fetchPartners();
     } catch (err) {
       alert('Failed to add partner');
@@ -178,8 +187,8 @@ export default function AdminPartnersPage() {
     }
   };
   
-  const updatePartnerPercent = async (userId: string, newPercent: number) => {
-    if (!confirm(`Изменить процент на ${newPercent}%?`)) return;
+  const updatePartnerRates = async (userId: string, payload: { percent: number; recurringPercent: number }) => {
+    if (!confirm(`Обновить комиссию?\n1-я покупка: ${payload.percent}%\nПовторные: ${payload.recurringPercent}%`)) return;
     
     try {
       const res = await fetch('/api/admin/partners/update', {
@@ -188,8 +197,9 @@ export default function AdminPartnersPage() {
         credentials: 'include',
         body: JSON.stringify({
           userId,
-          percent: newPercent,
-          tier: newPercent >= 50 ? 'pro' : 'classic',
+          percent: payload.percent,
+          recurringPercent: payload.recurringPercent,
+          tier: payload.percent >= 50 ? 'pro' : 'classic',
         }),
       });
       
@@ -284,13 +294,13 @@ export default function AdminPartnersPage() {
                   type="text"
                   value={manualUserId}
                   onChange={(e) => setManualUserId(e.target.value)}
-                  placeholder="UUID пользователя"
+                  placeholder="UUID пользователя или @username"
                   className="w-full px-4 py-2 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)]"
                 />
               </div>
               <div>
                 <label className="block text-sm text-[var(--muted)] mb-2">
-                  Процент комиссии: {manualPercent}%
+                  1-я покупка: {manualPercent}%
                 </label>
                 <input
                   type="range"
@@ -308,6 +318,27 @@ export default function AdminPartnersPage() {
                   <span>70%</span>
                 </div>
               </div>
+              <div>
+                <label className="block text-sm text-[var(--muted)] mb-2">
+                  Повторные/продления: {manualRecurringPercent}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  value={manualRecurringPercent}
+                  onChange={(e) => setManualRecurringPercent(Number(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-[var(--muted)] mt-1">
+                  <span>0%</span>
+                  <span>2%</span>
+                  <span>3%</span>
+                  <span>5%</span>
+                  <span>10%</span>
+                </div>
+              </div>
               <div className="flex gap-2 pt-4">
                 <button
                   onClick={addManualPartner}
@@ -319,7 +350,8 @@ export default function AdminPartnersPage() {
                   onClick={() => {
                     setShowManualForm(false);
                     setManualUserId('');
-                    setManualPercent(30);
+                    setManualPercent(10);
+                    setManualRecurringPercent(0);
                   }}
                   className="flex-1 px-4 py-2 rounded-lg bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--surface)]"
                 >
@@ -422,13 +454,13 @@ export default function AdminPartnersPage() {
                       onClick={() => handleAction(app.id, 'approve', 'classic')}
                       className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600"
                     >
-                      Одобрить (Classic 30%)
+                      Одобрить (10% + 0%)
                     </button>
                     <button
                       onClick={() => handleAction(app.id, 'approve', 'pro')}
                       className="px-4 py-2 rounded-lg bg-[var(--gold)] text-black hover:opacity-90"
                     >
-                      Одобрить (Pro 50%)
+                      Одобрить (10% + 0%)
                     </button>
                     <button
                       onClick={() => handleAction(app.id, 'reject')}
@@ -485,29 +517,56 @@ export default function AdminPartnersPage() {
 
                   <div className="mb-4">
                     <div className="text-3xl font-bold text-[var(--gold)] mb-1">
-                      {partner.percent}%
+                      {partner.percent}% / {partner.recurring_percent ?? 0}%
                     </div>
                     <div className="text-sm text-[var(--muted)]">
-                      Комиссия от продаж
+                      1-я покупка / повторные (пассив)
                     </div>
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        const newPercent = prompt(`Текущий процент: ${partner.percent}%\nВведите новый процент (10-70):`, String(partner.percent));
-                        if (newPercent) {
-                          const num = parseInt(newPercent);
-                          if (num >= 10 && num <= 70) {
-                            updatePartnerPercent(partner.user_id, num);
-                          } else {
-                            alert('Процент должен быть от 10 до 70');
-                          }
+                        const newFirst = prompt(
+                          `Текущий процент 1-й покупки: ${partner.percent}%\nВведите новый процент (10-70):`,
+                          String(partner.percent)
+                        );
+                        if (!newFirst) return;
+                        const firstNum = parseInt(newFirst);
+                        if (!(firstNum >= 10 && firstNum <= 70)) {
+                          alert('Процент должен быть от 10 до 70');
+                          return;
                         }
+                        updatePartnerRates(partner.user_id, {
+                          percent: firstNum,
+                          recurringPercent: Number(partner.recurring_percent ?? 0),
+                        });
                       }}
                       className="px-4 py-2 rounded-lg bg-[var(--gold)] text-black text-sm font-medium hover:opacity-90"
                     >
-                      Изменить %
+                      Изменить % (1-я)
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentRecurring = Number(partner.recurring_percent ?? 0);
+                        const newRecurring = prompt(
+                          `Текущий процент повторных/продлений: ${currentRecurring}%\nВведите новый процент (0-10, рекомендовано 2-5):`,
+                          String(currentRecurring)
+                        );
+                        if (!newRecurring) return;
+                        const recurringNum = parseInt(newRecurring);
+                        if (!(recurringNum >= 0 && recurringNum <= 10)) {
+                          alert('Процент должен быть от 0 до 10');
+                          return;
+                        }
+                        updatePartnerRates(partner.user_id, {
+                          percent: partner.percent,
+                          recurringPercent: recurringNum,
+                        });
+                      }}
+                      className="px-4 py-2 rounded-lg bg-[var(--surface2)] text-[var(--text)] text-sm font-medium hover:bg-[var(--surface)]"
+                    >
+                      Изменить % (повторные)
                     </button>
                     <button
                       onClick={() => removePartner(partner.user_id)}

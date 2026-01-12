@@ -114,7 +114,7 @@ export function PromptInput({
 
   return (
     <div 
-      className="border-t border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl p-3 md:p-4 relative pb-20 md:pb-4"
+      className="border-t border-white/5 bg-[var(--bg)]/80 backdrop-blur-xl p-3 md:p-4 relative pb-4"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -127,11 +127,11 @@ export function PromptInput({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-[var(--bg)]/95 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-purple-500"
+            className="absolute inset-0 z-50 bg-[var(--bg)]/95 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-[var(--accent-primary)]"
           >
             <div className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-4">
-                <Upload className="w-8 h-8 text-purple-400" />
+              <div className="w-16 h-16 rounded-2xl bg-[var(--accent-primary)]/20 flex items-center justify-center mx-auto mb-4">
+                <Upload className="w-8 h-8 text-[var(--accent-primary)]" />
               </div>
               <p className="text-lg font-medium text-[var(--text)]">Отпустите файл здесь</p>
               <p className="text-sm text-gray-500 mt-1">
@@ -180,10 +180,10 @@ export function PromptInput({
         {uploadedFiles.length === 0 && activeSection !== 'audio' && (
           <div 
             onClick={() => fileInputRef.current?.click()}
-            className="hidden md:flex items-center gap-2 mb-3 p-3 rounded-xl border border-dashed border-white/10 cursor-pointer hover:border-purple-500/30 hover:bg-purple-500/5 transition-all group"
+            className="hidden md:flex items-center gap-2 mb-3 p-3 rounded-xl border border-dashed border-white/10 cursor-pointer hover:border-[var(--accent-primary)]/30 hover:bg-[var(--accent-primary)]/5 transition-all group"
           >
-            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-purple-500/10 transition">
-              <ImageIcon className="w-5 h-5 text-gray-500 group-hover:text-purple-400 transition" />
+            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-[var(--accent-primary)]/10 transition">
+              <ImageIcon className="w-5 h-5 text-gray-500 group-hover:text-[var(--accent-primary)] transition" />
             </div>
             <div className="flex-1">
               <p className="text-sm text-gray-400 group-hover:text-gray-300 transition">
@@ -196,13 +196,15 @@ export function PromptInput({
           </div>
         )}
 
-        {/* Input - Premium Design with glow */}
+        {/* Input - Higgsfield-style elevated prompt box - MORE VISIBLE */}
         <div className={cn(
-          "flex items-end gap-3 p-3 md:p-4 rounded-[20px] bg-[var(--surface)]/80 backdrop-blur-xl border transition-all duration-300 input-glow",
+          "relative flex items-end gap-3 p-3 md:p-4 rounded-[16px] bg-[var(--surface2)] backdrop-blur-xl border-2 transition-all duration-300",
           isDragging 
-            ? "border-[var(--accent-primary)] shadow-[0_0_40px_rgba(167,139,250,0.25)]" 
-            : "border-[var(--border)] hover:border-[var(--border-hover)] focus-within:border-[var(--accent-primary)]/60 focus-within:shadow-[0_0_40px_rgba(167,139,250,0.15)]"
+            ? "border-[var(--accent-primary)] shadow-[0_0_0_2px_var(--accent-primary),0_0_40px_rgba(205,255,0,0.25)]" 
+            : "border-[var(--surface3)] hover:border-[var(--muted)]/40 focus-within:border-[var(--accent-primary)] focus-within:shadow-[0_0_0_2px_rgba(205,255,0,0.20),0_8px_32px_rgba(0,0,0,0.30)] shadow-[var(--shadow-lg)]"
         )}>
+          {/* subtle cyan glow overlay - Higgsfield style */}
+          <div className="pointer-events-none absolute inset-0 rounded-[16px] bg-gradient-to-r from-[var(--accent-primary)]/6 via-transparent to-[var(--accent-secondary)]/4 opacity-80" />
           <input
             type="file"
             ref={fileInputRef}
@@ -214,7 +216,7 @@ export function PromptInput({
           
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 md:p-2.5 rounded-[12px] text-[var(--muted)] hover:text-[var(--accent-secondary)] hover:bg-[var(--surface2)] active:scale-95 flex-shrink-0 touch-manipulation transition-all duration-200"
+            className="relative z-10 p-3 md:p-2.5 rounded-[12px] text-[var(--muted)] hover:text-[var(--accent-secondary)] hover:bg-[var(--surface2)] active:scale-95 flex-shrink-0 touch-manipulation transition-all duration-200"
           >
             <Paperclip className="w-5 h-5" />
           </button>
@@ -234,19 +236,19 @@ export function PromptInput({
             }}
             placeholder={getPlaceholder()}
             rows={1}
-            className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-[var(--muted)] resize-none max-h-[150px] py-2 text-[var(--text)]"
+            className="relative z-10 flex-1 bg-transparent outline-none text-[15px] placeholder:text-[var(--muted)] resize-none max-h-[150px] py-2 text-[var(--text)]"
           />
           
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="relative z-10 flex items-center gap-2 md:gap-3 flex-shrink-0">
             <span className="text-[13px] font-medium text-[var(--muted)] hidden sm:block">{currentCost}⭐</span>
             
             <button
               onClick={onGenerate}
               disabled={!prompt.trim() || isGenerating}
               className={cn(
-                "p-3 md:p-3 rounded-[14px] touch-manipulation transition-all duration-300",
+                "p-3 md:p-3 rounded-[12px] touch-manipulation transition-all duration-300",
                 prompt.trim() && !isGenerating
-                  ? "bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] shadow-[0_4px_20px_rgba(167,139,250,0.3)] text-white hover:shadow-[0_6px_30px_rgba(167,139,250,0.4)] hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+                  ? "bg-[var(--accent-primary)] shadow-[0_4px_16px_rgba(205,255,0,0.30)] text-[#0D1117] hover:bg-[var(--accent-primary-hover)] hover:shadow-[0_6px_24px_rgba(205,255,0,0.40)] hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
                   : "bg-[var(--surface2)] text-[var(--muted)] cursor-not-allowed"
               )}
             >
@@ -255,25 +257,19 @@ export function PromptInput({
           </div>
         </div>
         
-        {/* Bottom info - hidden on mobile to save space */}
+        {/* Bottom info - only on desktop */}
         <div className="hidden md:flex items-center justify-between mt-2 px-2">
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-[var(--muted)]">
             {modelInfo?.name} • {currentCost}⭐ за генерацию
           </span>
           {hasMessages && (
             <button 
               onClick={onClearChat}
-              className="text-xs text-gray-600 hover:text-red-400 transition"
+              className="text-xs text-[var(--muted)] hover:text-red-400 transition"
             >
               Очистить чат
             </button>
           )}
-        </div>
-        {/* Mobile: Compact info */}
-        <div className="flex md:hidden items-center justify-center mt-2 px-2">
-          <span className="text-xs text-gray-500">
-            {modelInfo?.name} • {currentCost}⭐
-          </span>
         </div>
       </div>
     </div>

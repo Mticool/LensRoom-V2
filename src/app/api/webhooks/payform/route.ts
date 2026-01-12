@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from "@/lib/env";
 import { STAR_PACKS, packTotalStars } from "@/config/pricing";
 import { addSubscriptionStars, addPackageStars, renewSubscription } from "@/lib/credits/split-credits";
+import { processAffiliateCommission } from "@/lib/referrals/process-affiliate-commission";
 import crypto from "crypto";
 
 function getWebhookSupabase() {
@@ -238,14 +239,30 @@ export async function POST(request: NextRequest) {
 
     // Обновляем статус платежа если есть
     if (orderId) {
+      const completedAt = new Date().toISOString();
       await supabase
         .from('payments')
         .update({ 
           status: 'completed',
-          metadata: { ...body, completed_at: new Date().toISOString() },
+          provider: 'payform',
+          external_id: body.order_id || orderId,
+          completed_at: completedAt,
+          metadata: { ...body, completed_at: completedAt },
         })
         .eq('prodamus_order_id', orderId);
     }
+
+    // Affiliate commission (async, don't block webhook)
+    processAffiliateCommission({
+      userId,
+      paymentId: body.order_id || orderId || `payform-${Date.now()}`,
+      amountRub: Number(parseFloat(body.sum || "0").toFixed(2)),
+      tariffName: paymentType === 'subscription'
+        ? `Подписка ${planId || ''}`.trim()
+        : `Пакет ${credits}⭐`,
+    }).catch((err) => {
+      console.error('[Payform Webhook] Affiliate commission failed (ignored):', err);
+    });
 
     console.log('✅ Webhook processed successfully');
 

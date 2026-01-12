@@ -46,12 +46,7 @@ const ModelButton = memo(
             isActive ? "text-white/80 font-medium" : "text-white/60"
           )}>{model.subtitle}</div>
         </div>
-        <div className={cn(
-          "text-xs shrink-0 font-semibold",
-          isActive ? "text-[var(--gold)]" : "text-white/70"
-        )}>
-          {model.baseStars > 0 ? `от ${model.baseStars} ⭐` : "—"}
-        </div>
+        {/* Price removed from selector UI */}
       </div>
     </button>
   )
@@ -92,7 +87,7 @@ const Section = memo(
           )}
         </div>
         {!collapsed && (
-          <div className="px-2 pb-2">
+          <div className="px-2 pb-2 grid grid-cols-2 gap-2">
             {items.map((m) => (
               <ModelButton
                 key={m.key}
@@ -210,11 +205,6 @@ export const MobileModelSelector = memo(function MobileModelSelector({
               <div className="text-xs text-[var(--muted)] truncate mt-0.5">
                 {selectedModel?.subtitle || "Нажмите для выбора"}
               </div>
-              {selectedModel && selectedModel.baseStars > 0 && (
-                <div className="text-xs text-[var(--gold)] mt-1 font-medium">
-                  от {selectedModel.baseStars} ⭐
-                </div>
-              )}
             </div>
           </div>
           <ChevronDown className="w-5 h-5 text-[var(--muted)] shrink-0" />

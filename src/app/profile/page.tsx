@@ -29,6 +29,21 @@ interface Generation {
   created_at: string;
 }
 
+type AffiliateEarning = {
+  id: string;
+  referral_user_id: string;
+  payment_id: string;
+  amount_rub: number;
+  commission_percent: number;
+  commission_rub: number;
+  tariff_name: string | null;
+  status: 'pending' | 'paid' | 'cancelled';
+  created_at: string;
+  is_first_purchase?: boolean | null;
+  buyer_payment_index?: number | null;
+  referral?: { username: string | null; displayName: string | null };
+};
+
 export default function ProfilePage() {
   const { user, loading: authLoading, signOut } = useTelegramAuth();
   const { balance, fetchBalance } = useCreditsStore();
@@ -41,8 +56,15 @@ export default function ProfilePage() {
 
   const [refLoading, setRefLoading] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
-  const [refData, setRefData] = useState<null | { link: string; invitedCount: number }>(null);
+  const [refData, setRefData] = useState<null | { link: string; invitedCount: number; earnedStars: number }>(null);
   const [refCopied, setRefCopied] = useState(false);
+  const [affiliateData, setAffiliateData] = useState<null | {
+    isAffiliate: boolean;
+    tier: null | { tier: string; percent: number; recurring_percent?: number; updated_at: string };
+    totals: { pendingRub: number; paidRub: number; totalRub: number };
+    earnings: AffiliateEarning[];
+  }>(null);
+  const [affiliateLoading, setAffiliateLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -55,6 +77,7 @@ export default function ProfilePage() {
       fetchBalance();
       fetchGenerations();
       fetchReferral();
+      fetchAffiliate();
     }
   }, [user, fetchBalance]);
 
@@ -72,12 +95,30 @@ export default function ProfilePage() {
       setRefData({
         link: data?.link,
         invitedCount: data?.invitedCount || 0,
+        earnedStars: data?.stats?.totalRewards || 0,
       });
     } catch {
       setRefError('Не удалось загрузить');
       setRefData(null);
     } finally {
       setRefLoading(false);
+    }
+  };
+
+  const fetchAffiliate = async () => {
+    try {
+      setAffiliateLoading(true);
+      const res = await fetch('/api/affiliate/earnings/me?limit=5', { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAffiliateData(null);
+        return;
+      }
+      setAffiliateData(data);
+    } catch {
+      setAffiliateData(null);
+    } finally {
+      setAffiliateLoading(false);
     }
   };
 
@@ -258,7 +299,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="p-2.5 rounded-lg bg-white/5 text-center">
                   <p className="text-lg font-bold text-violet-400">
-                    {refLoading ? '—' : `${(refData?.invitedCount ?? 0) * 50}⭐`}
+                    {refLoading ? '—' : `${(refData?.earnedStars ?? 0)}⭐`}
                   </p>
                   <p className="text-[10px] text-[var(--muted)]">заработано</p>
                 </div>
@@ -273,6 +314,100 @@ export default function ProfilePage() {
                 {refCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                 {refCopied ? 'Скопировано!' : 'Копировать ссылку'}
               </Button>
+            </motion.div>
+
+            {/* Referrals + Earnings */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25 }}
+              className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)]"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[var(--gold)]" />
+                  <h3 className="font-semibold text-[var(--text)]">Ваши рефералы</h3>
+                </div>
+                <Link href="/referrals" className="text-xs text-[var(--gold)] hover:underline">
+                  Открыть
+                </Link>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[var(--surface2)] flex items-center justify-between">
+                <div className="text-sm text-[var(--muted)]">Приглашено</div>
+                <div className="text-xl font-bold text-[var(--text)]">
+                  {refLoading ? '—' : (refData?.invitedCount ?? 0)}
+                </div>
+              </div>
+
+              {/* Affiliate earnings (RUB) */}
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    <div className="text-sm font-medium text-[var(--text)]">Заработок (₽)</div>
+                  </div>
+                  {affiliateData?.tier && (
+                    <div className="text-[10px] text-[var(--muted)]">
+                      1-я {affiliateData.tier.percent}% / повторные {affiliateData.tier.recurring_percent ?? 0}%
+                    </div>
+                  )}
+                </div>
+
+                {affiliateLoading ? (
+                  <div className="text-sm text-[var(--muted)]">Загрузка…</div>
+                ) : affiliateData?.isAffiliate ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <div className="p-2.5 rounded-lg bg-white/5 text-center">
+                        <div className="text-xs text-[var(--muted)] mb-0.5">всего</div>
+                        <div className="text-sm font-semibold text-[var(--text)]">
+                          {Math.round(affiliateData.totals.totalRub).toLocaleString()}₽
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-lg bg-yellow-500/10 text-center">
+                        <div className="text-xs text-yellow-500 mb-0.5">к выплате</div>
+                        <div className="text-sm font-semibold text-yellow-500">
+                          {Math.round(affiliateData.totals.pendingRub).toLocaleString()}₽
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-lg bg-green-500/10 text-center">
+                        <div className="text-xs text-green-500 mb-0.5">выплачено</div>
+                        <div className="text-sm font-semibold text-green-500">
+                          {Math.round(affiliateData.totals.paidRub).toLocaleString()}₽
+                        </div>
+                      </div>
+                    </div>
+
+                    {affiliateData.earnings?.length > 0 && (
+                      <div className="space-y-2">
+                        {affiliateData.earnings.slice(0, 3).map((e) => (
+                          <div
+                            key={e.id}
+                            className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--surface2)]"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-xs text-[var(--text)] truncate">
+                                {e.referral?.displayName || (e.referral?.username ? `@${e.referral.username}` : 'Реферал')}
+                              </div>
+                              <div className="text-[10px] text-[var(--muted)]">
+                                {e.is_first_purchase ? '1-я покупка' : 'повторная'} · {e.commission_percent}% · {new Date(e.created_at).toLocaleDateString('ru-RU')}
+                              </div>
+                            </div>
+                            <div className="text-sm font-semibold text-[var(--text)]">
+                              {Math.round(Number(e.commission_rub || 0)).toLocaleString()}₽
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-[var(--muted)]">
+                    Начисления в ₽ появляются только у партнёров (после оплат ваших рефералов).
+                  </div>
+                )}
+              </div>
             </motion.div>
 
             {/* Quick Links */}

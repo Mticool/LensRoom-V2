@@ -35,16 +35,10 @@ interface ContentCard {
 type FilterType = 'all' | 'photo' | 'video' | 'featured';
 
 // ===== ASPECT RATIO HELPER =====
+// Fixed aspect ratio to prevent jumping - all cards use consistent height
 function getAspectClass(ratio: string): string {
-  switch (ratio) {
-    case '9:16':
-      return 'aspect-[9/16]';
-    case '16:9':
-      return 'aspect-video';
-    case '1:1':
-    default:
-      return 'aspect-square';
-  }
+  // Use consistent 3:4 aspect for all cards to prevent layout jumping
+  return 'aspect-[3/4]';
 }
 
 // ===== CONTENT CARD COMPONENT (Memoized) =====

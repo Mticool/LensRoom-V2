@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { processAffiliateCommission } from '@/lib/referrals/process-affiliate-commission';
 
 /**
  * Robokassa Subscription Webhook
@@ -331,6 +332,16 @@ export async function POST(request: NextRequest) {
       plan: planInfo.name,
       credits: planInfo.credits,
       newBalance: newBalance?.amount,
+    });
+
+    // Affiliate commission (async, don't block webhook)
+    processAffiliateCommission({
+      userId,
+      paymentId: invId,
+      amountRub: Number(parseFloat(outSum).toFixed(2)),
+      tariffName: `Подписка ${planInfo.name}`,
+    }).catch((err) => {
+      console.error('[Robokassa Subscription Webhook] Affiliate commission failed (ignored):', err);
     });
     
     return new NextResponse(`OK${invId}`, { 

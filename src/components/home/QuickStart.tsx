@@ -120,8 +120,11 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Попробуй прямо сейчас
           </h2>
-          <p className="text-[var(--muted)] text-lg max-w-xl mx-auto">
-            Выбери стиль — мы создадим изображение за секунды. Бесплатно, без регистрации.
+          <p className="text-[var(--muted)] text-lg max-w-xl mx-auto mb-2">
+            Выбери стиль — мы создадим изображение за секунды.
+          </p>
+          <p className="text-sm text-[var(--accent-primary)] font-medium">
+            ✨ Создано с LensRoom
           </p>
         </motion.div>
 
@@ -212,45 +215,35 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              {/* Template Grid */}
+              {/* Template Grid - clicking redirects to generator */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
                 {QUICK_TEMPLATES.map((template, index) => (
-                  <motion.button
+                  <Link
                     key={template.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.05 }}
-                    onClick={() => handleQuickGenerate(template.id)}
-                    disabled={isGenerating}
-                    className={`
-                      group relative p-6 rounded-2xl border transition-all duration-300
-                      ${selectedTemplate === template.id && isGenerating
-                        ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]'
-                        : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--accent-primary)]/50 hover:shadow-lg'
-                      }
-                      ${isGenerating && selectedTemplate !== template.id ? 'opacity-50' : ''}
-                    `}
-                    style={{
-                      boxShadow: selectedTemplate === template.id && isGenerating 
-                        ? `0 0 30px ${template.color}30` 
-                        : undefined
-                    }}
+                    href={`/generator?section=image&model=nano-banana-pro&prompt=${encodeURIComponent(template.prompt)}`}
                   >
-                    {/* Loading overlay */}
-                    {selectedTemplate === template.id && isGenerating && (
-                      <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20 backdrop-blur-sm z-10">
-                        <Loader2 className="w-6 h-6 animate-spin text-white" />
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: index * 0.05 }}
+                      className="group relative p-6 rounded-2xl border transition-all duration-300 cursor-pointer bg-[var(--surface)] border-[var(--border)] hover:border-[var(--accent-primary)]/50 hover:shadow-lg hover:-translate-y-1"
+                      style={{
+                        boxShadow: undefined
+                      }}
+                    >
+                      <div className="text-3xl mb-3">{template.emoji}</div>
+                      <div className="text-sm font-medium text-[var(--text)]">{template.title}</div>
+                      <div 
+                        className="w-8 h-1 rounded-full mt-3 transition-all duration-300 group-hover:w-full"
+                        style={{ backgroundColor: template.color }}
+                      />
+                      {/* Arrow indicator on hover */}
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ArrowRight className="w-4 h-4 text-[var(--accent-primary)]" />
                       </div>
-                    )}
-                    
-                    <div className="text-3xl mb-3">{template.emoji}</div>
-                    <div className="text-sm font-medium text-[var(--text)]">{template.title}</div>
-                    <div 
-                      className="w-8 h-1 rounded-full mt-3 transition-all duration-300 group-hover:w-full"
-                      style={{ backgroundColor: template.color }}
-                    />
-                  </motion.button>
+                    </motion.div>
+                  </Link>
                 ))}
               </div>
 

@@ -4,8 +4,7 @@ import { forwardRef, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { User, Sparkles, Download, Copy, ThumbsUp, RotateCcw, Shuffle, Wand2, Palette, Maximize2, Lightbulb, Video, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ChatMessage, SectionType, ModelInfo, QUICK_PROMPTS } from '../config';
-import { PromptTemplates } from '@/components/generator/PromptTemplates';
+import { ChatMessage, SectionType, ModelInfo } from '../config';
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -225,7 +224,7 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <div className="w-24 h-24 rounded-[24px] bg-gradient-to-br from-[#a78bfa]/20 to-[#22d3ee]/20 flex items-center justify-center mb-8 shadow-lg shadow-[#a78bfa]/10">
+        <div className="w-24 h-24 rounded-[24px] bg-[var(--accent-primary)]/10 flex items-center justify-center mb-8 shadow-lg shadow-[var(--accent-primary)]/10">
           <Sparkles className="w-12 h-12 text-[var(--accent-primary)]" />
         </div>
         <h1 className="text-[32px] font-bold mb-4 text-[var(--text)] tracking-tight">
@@ -235,27 +234,11 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
           Опишите что хотите создать, и я сгенерирую для вас{' '}
           {activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}
         </p>
-
-        {/* Prompt Templates */}
-        <div className="mb-8 w-full max-w-xl">
-          <PromptTemplates 
-            type={activeSection} 
-            onSelectPrompt={onSetPrompt}
-            isCollapsed={false}
-          />
-        </div>
-        
-        {/* Quick prompts - Premium */}
-        <div className="flex flex-wrap gap-2.5 justify-center max-w-xl">
-          {QUICK_PROMPTS[activeSection].map((suggestion, i) => (
-            <button
-              key={i}
-              onClick={() => onSetPrompt(suggestion)}
-              className="px-5 py-2.5 rounded-[12px] bg-[var(--surface)] border border-[var(--border)] text-[13px] font-medium text-[var(--muted-light)] hover:text-[var(--text)] hover:border-[var(--accent-primary)]/30 hover:bg-[var(--accent-subtle)] transition-all duration-200"
-            >
-              {suggestion}
-            </button>
-          ))}
+        <div className="mt-3 flex items-center justify-center gap-2 max-w-md mx-auto">
+          <Lightbulb className="w-4 h-4 text-[var(--accent-secondary)] flex-shrink-0" />
+          <p className="text-[13px] text-[var(--muted)]">
+            Совет: добавьте стиль, свет, фон и детали. Например: «студийная предметная съёмка, мягкий свет, белый фон».
+          </p>
         </div>
       </div>
     );
@@ -278,8 +261,8 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
           <div className={cn(
             "w-10 h-10 rounded-[14px] flex-shrink-0 flex items-center justify-center shadow-lg",
             message.role === 'user' 
-              ? "bg-gradient-to-br from-[#a78bfa] to-[#8b5cf6] shadow-[#a78bfa]/20" 
-              : "bg-gradient-to-br from-[#22d3ee] to-[#a78bfa] shadow-[#22d3ee]/20"
+              ? "bg-[var(--surface3)] shadow-black/20" 
+              : "bg-[var(--accent-primary)] shadow-[var(--accent-primary)]/20"
           )}>
             {message.role === 'user' ? (
               <User className="w-5 h-5 text-white" />
@@ -303,18 +286,18 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                   <div className="relative p-6 rounded-[20px] rounded-tl-[6px] bg-gradient-to-br from-[var(--surface)] to-[var(--surface2)] border border-[var(--border)] overflow-hidden">
                     {/* Animated gradient background */}
                     <div className="absolute inset-0 opacity-30">
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#a78bfa]/20 via-[#22d3ee]/20 to-[#a78bfa]/20 animate-gradient" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-primary)]/20 via-transparent to-[var(--accent-primary)]/20 animate-gradient" />
                     </div>
                     
                     <div className="relative z-10">
                       {/* Header */}
                       <div className="flex items-center gap-3 mb-4">
                         <div className="relative">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#a78bfa] to-[#22d3ee] flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                          <div className="w-10 h-10 rounded-xl bg-[var(--accent-primary)] flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-black animate-pulse" />
                           </div>
                           {/* Spinning ring */}
-                          <div className="absolute -inset-1 rounded-xl border-2 border-transparent border-t-[#a78bfa] animate-spin" />
+                          <div className="absolute -inset-1 rounded-xl border-2 border-transparent border-t-[var(--accent-primary)] animate-spin" />
                         </div>
                         <div>
                           <div className="text-[14px] font-medium text-[var(--text)]">Создаю {message.type === 'video' ? 'видео' : message.type === 'audio' ? 'аудио' : 'изображение'}</div>
@@ -325,7 +308,7 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                       {/* Progress bar */}
                       <div className="h-1.5 rounded-full bg-[var(--surface3)] overflow-hidden">
                         <motion.div 
-                          className="h-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] rounded-full"
+                          className="h-full bg-[var(--accent-primary)] rounded-full"
                           initial={{ width: '0%' }}
                           animate={{ width: '100%' }}
                           transition={{ duration: message.type === 'video' ? 60 : 30, ease: 'linear' }}
@@ -390,8 +373,52 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                       </div>
                     )}
 
+                    {/* Variants Grid - Multiple images from parallel requests */}
+                    {message.urls && message.urls.length > 1 && (
+                      <div className="space-y-4">
+                        <div className="px-5 py-3.5 rounded-[18px] rounded-tl-[6px] bg-[var(--surface)] text-[var(--text)] text-[15px]">
+                          {message.content}
+                        </div>
+                        <div className={cn(
+                          "grid gap-3",
+                          message.urls.length === 2 ? "grid-cols-2" : "grid-cols-2"
+                        )}>
+                          {message.urls.map((url, idx) => (
+                            <div key={idx} className="relative group rounded-[16px] overflow-hidden bg-[var(--surface)] border border-[var(--border)]">
+                              <img 
+                                src={url} 
+                                alt={`Вариант ${idx + 1}`}
+                                className="w-full h-auto object-cover"
+                              />
+                              {/* Hover actions */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center gap-3 p-4">
+                                <button
+                                  onClick={() => onDownload(url, 'image')}
+                                  className="p-2.5 rounded-[12px] bg-white/15 backdrop-blur-sm text-white hover:bg-white/25 transition-all"
+                                  title="Скачать"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => onCopy(url)}
+                                  className="p-2.5 rounded-[12px] bg-white/15 backdrop-blur-sm text-white hover:bg-white/25 transition-all"
+                                  title="Копировать ссылку"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </div>
+                              {/* Variant number badge */}
+                              <div className="absolute top-2 left-2 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-sm">
+                                <span className="text-[11px] font-medium text-white">{idx + 1}/{message.urls!.length}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Result Media (single) - Premium */}
-                    {message.url && !message.batchResults && (
+                    {message.url && !message.batchResults && (!message.urls || message.urls.length <= 1) && (
                       <div className="rounded-[18px] rounded-tl-[6px] overflow-hidden bg-[var(--surface)] border border-[var(--border)]">
                         {message.type === 'video' ? (
                           <video 

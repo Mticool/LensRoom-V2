@@ -1,8 +1,11 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Условия использования | LensRoom",
-  description: "Условия использования сервиса LensRoom",
+  title: "Условия использования",
+  description: "Условия использования сервиса LensRoom.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 export default function TermsPage() {

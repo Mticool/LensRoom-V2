@@ -57,9 +57,9 @@ export function SettingsSidebar({
       >
         <div className="w-[340px] h-full overflow-y-auto p-5 space-y-5 scrollbar-premium">
         {/* Model Info - Premium Card */}
-        <div className="p-5 rounded-[18px] bg-gradient-to-br from-[#a78bfa]/10 to-[#22d3ee]/10 border border-[var(--border)]">
+        <div className="p-5 rounded-[18px] bg-[var(--surface2)] border border-[var(--border)]">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 rounded-[14px] bg-[var(--accent-subtle)] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-[14px] bg-[var(--accent-primary)]/10 flex items-center justify-center">
               {modelInfo?.icon && <modelInfo.icon className="w-6 h-6 text-[var(--accent-primary)]" />}
             </div>
             <div className="flex-1">
@@ -69,7 +69,18 @@ export function SettingsSidebar({
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
             <span className="text-[13px] text-[var(--muted)]">Стоимость</span>
-            <span className="text-[20px] font-bold bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] bg-clip-text text-transparent">{currentCost}⭐</span>
+            {(() => {
+              const variantsCount = currentModel === 'nano-banana-pro' ? Number(settings?.variants) || 1 : 1;
+              const totalCost = currentCost * variantsCount;
+              return (
+                <div className="text-right">
+                  <span className="text-[20px] font-bold text-[var(--accent-primary)]">{totalCost}⭐</span>
+                  {variantsCount > 1 && (
+                    <div className="text-[11px] text-[var(--muted)]">{currentCost}⭐ × {variantsCount} фото</div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -113,7 +124,7 @@ export function SettingsSidebar({
       {/* Header */}
       <div className="flex items-center justify-between px-4 pb-3 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <Settings className="w-5 h-5 text-purple-400" />
+          <Settings className="w-5 h-5 text-[var(--accent-primary)]" />
           <h2 className="font-medium text-[var(--text)]">Настройки</h2>
         </div>
         <button
@@ -127,17 +138,17 @@ export function SettingsSidebar({
       {/* Content */}
       <div className="overflow-y-auto p-4 space-y-4 pb-8 max-h-[calc(85vh-80px)]">
         {/* Model Info - Compact on mobile */}
-        <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-white/10">
+        <div className="p-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-              {modelInfo?.icon && <modelInfo.icon className="w-5 h-5 text-purple-400" />}
+            <div className="w-10 h-10 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center">
+              {modelInfo?.icon && <modelInfo.icon className="w-5 h-5 text-[var(--accent-primary)]" />}
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-[var(--text)]">{modelInfo?.name}</h3>
-              <p className="text-xs text-gray-500">{modelInfo?.description}</p>
+              <p className="text-xs text-[var(--muted)]">{modelInfo?.description}</p>
             </div>
             <div className="text-right">
-              <span className="text-lg font-bold text-cyan-400">{currentCost}⭐</span>
+              <span className="text-lg font-bold text-[var(--accent-primary)]">{currentCost}⭐</span>
             </div>
           </div>
         </div>

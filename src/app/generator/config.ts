@@ -1,4 +1,4 @@
-import { ImageIcon, Video, Mic, Sparkles, Star, Brain, Zap, Flame } from 'lucide-react';
+import { ImageIcon, Video, Mic, Sparkles, Star, Brain, Zap, Flame, Layers } from 'lucide-react';
 
 // ===== TYPES =====
 export type SectionType = 'image' | 'video' | 'audio';
@@ -28,6 +28,8 @@ export interface ChatMessage {
   type?: SectionType;
   model?: string;
   url?: string;
+  urls?: string[]; // Multiple URLs for variants grid display
+  variantsCount?: number; // Number of variants requested
   isGenerating?: boolean;
   batchResults?: Array<{ url: string; clientId?: string }>;
 }
@@ -71,6 +73,7 @@ export const MODELS_CONFIG: Record<SectionType, SectionConfig> = {
       { id: 'kling-o1', name: 'Kling O1', icon: Sparkles, cost: 56, badge: 'FAL.ai', description: '56-112⭐ • First→Last 5-10s', dynamicPrice: true },
       { id: 'sora-2', name: 'Sora 2', icon: Video, cost: 50, badge: 'OpenAI', description: '50⭐ • 10-15s баланс' },
       { id: 'sora-2-pro', name: 'Sora 2 Pro', icon: Star, cost: 250, badge: 'Premium', description: '250-1050⭐ • 1080p 10-15s', dynamicPrice: true },
+      { id: 'sora-storyboard', name: 'Sora Storyboard', icon: Layers, cost: 220, badge: 'Storyboard', description: 'от 220⭐ • Сториборд по сценам', dynamicPrice: true },
       { id: 'wan', name: 'WAN AI', icon: Video, cost: 100, badge: 'Новинка', description: '100-660⭐ • 5-15s 720-1080p', dynamicPrice: true },
     ],
   },

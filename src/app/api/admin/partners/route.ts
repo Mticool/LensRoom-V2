@@ -72,6 +72,8 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     const body = await request.json();
     const { applicationId, action, tier, percent } = body;
+    const recurringPercentRaw = body?.recurringPercent ?? body?.repeatPercent ?? body?.recurring_percent;
+    const recurringPercent = Number(recurringPercentRaw);
     
     if (!applicationId || !action) {
       return NextResponse.json({ error: 'applicationId and action are required' }, { status: 400 });
@@ -100,14 +102,29 @@ export async function POST(request: NextRequest) {
     
     if (action === 'approve') {
       const tierValue = tier || 'classic';
-      const percentValue = percent || (tierValue === 'pro' ? 50 : 30);
+      // Default: first purchase 10% unless explicitly set
+      const percentValue = percent || 10;
+      // Default: recurring OFF (0%) unless explicitly set
+      const recurringValue = Number.isFinite(recurringPercent) ? recurringPercent : 0;
       
-      await supabase.from('affiliate_tiers').upsert({
+      const payloadV2 = {
+        user_id: app.user_id,
+        tier: tierValue,
+        percent: percentValue,
+        recurring_percent: recurringValue,
+        updated_at: new Date().toISOString(),
+      } as any;
+      const payloadV1 = {
         user_id: app.user_id,
         tier: tierValue,
         percent: percentValue,
         updated_at: new Date().toISOString(),
-      });
+      } as any;
+
+      const { error: e1 } = await supabase.from('affiliate_tiers').upsert(payloadV2);
+      if (e1 && /column .*recurring_percent does not exist/i.test(e1.message || '')) {
+        await supabase.from('affiliate_tiers').upsert(payloadV1);
+      }
     }
     
     return NextResponse.json({ success: true, message: `Application ${action}d successfully` });

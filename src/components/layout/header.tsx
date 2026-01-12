@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
@@ -15,29 +15,29 @@ import { LoginDialog } from '@/components/auth/login-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
 
-// Модели для дропдаунов — clean style
+// Модели для дропдаунов — стиль syntx.ai
 const MODELS = {
   design: [
-    { id: "grok-imagine", name: "Grok Imagine", badge: "xAI", hot: true },
-    { id: "gpt-image", name: "GPT Image 1.5", badge: "OpenAI" },
-    { id: "nano-banana-pro", name: "Nano Banana Pro", badge: "4K", new: true },
-    { id: "flux-2-pro", name: "FLUX.2 Pro", badge: "BFL" },
-    { id: "seedream-4.5", name: "Seedream 4.5", badge: "ByteDance" },
-    { id: "nano-banana", name: "Nano Banana" },
-    { id: "z-image", name: "Z-image" },
+    { id: "grok-imagine", name: "Grok Imagine", badge: "xAI", hot: true, desc: "Креативные фото с юмором" },
+    { id: "gpt-image", name: "GPT Image 1.5", badge: "OpenAI", desc: "Точное следование промпту" },
+    { id: "nano-banana-pro", name: "Nano Banana Pro", badge: "4K", new: true, desc: "Безлимит в подписке" },
+    { id: "flux-2-pro", name: "FLUX.2 Pro", badge: "BFL", desc: "Быстрая генерация" },
+    { id: "seedream-4.5", name: "Seedream 4.5", badge: "ByteDance", desc: "Фотореализм" },
+    { id: "nano-banana", name: "Nano Banana", desc: "Базовая модель" },
+    { id: "z-image", name: "Z-image", badge: "Эконом", desc: "Самая дешёвая" },
   ],
   video: [
-    { id: "veo-3.1", name: "Veo 3.1", badge: "Google", hot: true },
-    { id: "kling-motion-control", name: "Motion Control", badge: "Kling", new: true },
-    { id: "kling", name: "Kling AI", badge: "Trending" },
-    { id: "grok-video", name: "Grok Video", badge: "xAI", hot: true },
-    { id: "sora-2", name: "Sora 2", badge: "OpenAI" },
-    { id: "sora-2-pro", name: "Sora 2 Pro", badge: "Premium" },
-    { id: "kling-o1", name: "Kling O1", badge: "FAL.ai" },
-    { id: "wan", name: "WAN AI" },
+    { id: "veo-3.1", name: "Veo 3.1", badge: "Google", hot: true, desc: "Аудио + высокое качество" },
+    { id: "kling-motion-control", name: "Motion Control", badge: "Motion", new: true, desc: "Перенос движений" },
+    { id: "kling", name: "Kling AI", badge: "Trending", desc: "Turbo/Audio/Pro режимы" },
+    { id: "grok-video", name: "Grok Video", badge: "xAI", hot: true, desc: "T2V + I2V + Аудио" },
+    { id: "sora-2", name: "Sora 2", badge: "OpenAI", desc: "Баланс цена/качество" },
+    { id: "sora-2-pro", name: "Sora 2 Pro", badge: "Premium", desc: "1080p до 15 сек" },
+    { id: "kling-o1", name: "Kling O1", badge: "FAL.ai", desc: "First→Last кадры" },
+    { id: "wan", name: "WAN AI", desc: "Высокое разрешение" },
   ],
   audio: [
-    { id: "suno", name: "Suno AI", badge: "Music" },
+    { id: "suno", name: "Suno AI", badge: "Music", desc: "Генерация музыки" },
   ],
 };
 
@@ -147,7 +147,7 @@ export function Header() {
                         )} />
                       </button>
                       
-                      {/* Dropdown - clean style */}
+                      {/* Dropdown - Mega Menu style like syntx.ai */}
                       <AnimatePresence>
                         {isDropdownOpen && (
                           <motion.div
@@ -155,9 +155,16 @@ export function Header() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 8, scale: 0.96 }}
                             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[340px] bg-[var(--surface)]/98 backdrop-blur-xl border border-[var(--border)] rounded-[16px] shadow-2xl shadow-black/30 overflow-hidden"
+                            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[420px] bg-[var(--surface)] border border-[var(--border)] rounded-[20px] shadow-2xl shadow-black/30 overflow-hidden backdrop-blur-xl"
                           >
-                            {/* Models Grid */}
+                            {/* Header */}
+                            <div className="px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[#a78bfa]/5 to-[#22d3ee]/5">
+                              <span className="text-[13px] font-semibold text-[var(--muted)] uppercase tracking-wider">
+                                {item.name === 'Дизайн' ? 'Фото модели' : item.name === 'Видео' ? 'Видео модели' : 'Аудио модели'}
+                              </span>
+                            </div>
+                            
+                            {/* Models Grid - Clean style like syntx.ai */}
                             <div className="p-3 grid grid-cols-2 gap-1">
                               {MODELS[item.dropdown].map((model: any) => (
                                 <Link
@@ -166,21 +173,21 @@ export function Header() {
                                   onClick={() => setActiveDropdown(null)}
                                   className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-[var(--surface2)] transition-all duration-150"
                                 >
-                                  {/* Badge/Icon */}
-                                  {model.hot ? (
-                                    <span className="w-5 h-5 rounded-md bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-[8px] font-bold text-white">●</span>
-                                  ) : model.new ? (
-                                    <span className="w-5 h-5 rounded-md bg-gradient-to-br from-[#a78bfa] to-[#22d3ee] flex items-center justify-center text-[8px] font-bold text-white">✦</span>
-                                  ) : (
-                                    <span className="w-5 h-5 rounded-md bg-[var(--surface2)] flex items-center justify-center text-[10px] font-medium text-[var(--muted)]">
-                                      {model.name.charAt(0)}
-                                    </span>
-                                  )}
-                                  
                                   {/* Name */}
-                                  <span className="text-[13px] font-medium text-[var(--text)] group-hover:text-[var(--accent-primary)] transition-colors">{model.name}</span>
+                                  <span className="text-[14px] font-medium text-[var(--text)] group-hover:text-[var(--accent-primary)] transition-colors">{model.name}</span>
                                 </Link>
                               ))}
+                            </div>
+                            
+                            {/* Footer */}
+                            <div className="px-4 py-2.5 border-t border-[var(--border)] bg-[var(--surface2)]/30">
+                              <Link
+                                href={`/generator?section=${item.dropdown === 'design' ? 'image' : item.dropdown}`}
+                                onClick={() => setActiveDropdown(null)}
+                                className="text-[12px] font-medium text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors"
+                              >
+                                Все модели →
+                              </Link>
                             </div>
                           </motion.div>
                         )}
@@ -285,6 +292,22 @@ export function Header() {
                           {/* Menu Items */}
                           <div className="py-1">
                             <Link
+                              href="/referrals"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                            >
+                              <User className="w-4 h-4" />
+                              Рефералы
+                            </Link>
+                            <Link
+                              href="/profile"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                            >
+                              <User className="w-4 h-4" />
+                              Профиль
+                            </Link>
+                            <Link
                               href="/library"
                               onClick={() => setUserMenuOpen(false)}
                               className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
@@ -320,14 +343,24 @@ export function Header() {
                             )}
 
                             {telegramUser?.isAdmin && (
-                              <Link
-                                href="/admin/waitlist"
-                                onClick={() => setUserMenuOpen(false)}
-                                className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
-                              >
-                                <Settings className="w-4 h-4" />
-                                Админ
-                              </Link>
+                              <>
+                                <Link
+                                  href="/admin"
+                                  onClick={() => setUserMenuOpen(false)}
+                                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+                                >
+                                  <Settings className="w-4 h-4" />
+                                  Админ панель
+                                </Link>
+                                <Link
+                                  href="/admin/referrals"
+                                  onClick={() => setUserMenuOpen(false)}
+                                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+                                >
+                                  <User className="w-4 h-4" />
+                                  Рефералы
+                                </Link>
+                              </>
                             )}
                           </div>
 
@@ -405,8 +438,6 @@ export function Header() {
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                       >
-                        {model.hot && <span className="w-2 h-2 rounded-full bg-orange-500"></span>}
-                        {model.new && <span className="w-2 h-2 rounded-full bg-[#a78bfa]"></span>}
                         <span>{model.name}</span>
                       </Link>
                     ))}
@@ -456,6 +487,14 @@ export function Header() {
                           </div>
                         </div>
                       </div>
+                      <Link
+                        href="/profile"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[var(--muted)] hover:bg-[var(--surface2)] transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        Профиль и рефералы
+                      </Link>
                       <Link
                         href="/library"
                         onClick={() => setMobileMenuOpen(false)}

@@ -36,7 +36,7 @@ export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference'
 export type PhotoMode = 't2i' | 'i2i';
 
 // KIE API Provider type
-export type KieProvider = 'kie_market' | 'kie_veo' | 'openai' | 'fal';
+export type KieProvider = 'kie_market' | 'kie_veo' | 'openai' | 'fal' | 'laozhang';
 
 // Pricing structure: credits per generation
 export type PhotoPricing = 
@@ -185,9 +185,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'nano-banana',
     name: 'Nano Banana',
-    apiId: 'google/nano-banana',
+    apiId: 'gemini-2.5-flash-image-preview', // LaoZhang API model (fast)
     type: 'photo',
-    provider: 'kie_market',
+    provider: 'laozhang', // Switched from kie_market to LaoZhang
     shortDescription: 'Фотореализм и "вкусная" картинка за секунды.',
     description: 'Лучший универсал на каждый день: стабильный реализм, хорошие лица, одежда, предметка. Подходит для быстрых тестов идей и массового контента.',
     rank: 1,
@@ -208,9 +208,11 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'nano-banana-pro',
     name: 'Nano Banana Pro',
-    apiId: 'nano-banana-pro',  // KIE API uses this format (without google/ prefix)
+    apiId: 'gemini-3-pro-image-preview', // LaoZhang API model (quality)
+    apiId2k: 'gemini-3-pro-image-preview-2k', // 2K variant
+    apiId4k: 'gemini-3-pro-image-preview-4k', // 4K variant
     type: 'photo',
-    provider: 'kie_market',
+    provider: 'laozhang', // Switched from kie_market to LaoZhang
     shortDescription: 'Максимум качества: детали, кожа, свет, чистые текстуры.',
     description: 'Премиальная версия для коммерции: более точные материалы, лучше мелкие детали, меньше артефактов. Выбирай, когда картинка "должна продавать".',
     rank: 2,
@@ -428,33 +430,34 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     aspectRatios: ['1:1', '3:2', '2:3'],
     shortLabel: 'xAI 🌶️',
   },
-  // === VEO 3.1 - single model with quality toggle ===
-  // ОБНОВЛЕНО 2025-01-03: Fast 99⭐, Quality 490⭐
+  // === VEO 3.1 - LaoZhang API (much cheaper cost, same user price!) ===
+  // LaoZhang cost: $0.015/video, user price unchanged
   {
     id: 'veo-3.1',
     name: 'Veo 3.1',
-    apiId: 'veo3', // actual selection is via `qualityOptions` fast/quality in API client
+    apiId: 'veo-3.1', // LaoZhang model ID
+    apiIdFast: 'veo-3.1-fast', // Fast variant
+    apiIdLandscape: 'veo-3.1-landscape', // 16:9 variant
+    apiIdLandscapeFast: 'veo-3.1-landscape-fast', // 16:9 fast variant
     type: 'video',
-    provider: 'kie_veo', // Separate Veo API
+    provider: 'laozhang', // Switched to LaoZhang API!
     description: 'Самая быстрая модель для видео (8 сек за ~1 минуту). Отличное качество, стабильная физика, хорошо держит движение камеры и объекты.',
     rank: 1,
     featured: true,
     speed: 'slow',
     quality: 'ultra',
-    supportsI2v: true,
+    supportsI2v: false, // LaoZhang Veo - text-to-video only for now
     supportsAudio: true,
-    supportsStartEnd: true, // First & last frame support
+    supportsStartEnd: false,
     fixedDuration: 8, // Veo only supports 8 seconds
     pricing: {
-      // ЮНИТКА 2025-01-03: fast=99⭐, quality=490⭐
+      // ORIGINAL PRICING (unchanged for users)
       fast: { '8': 99 },
       quality: { '8': 490 },
     },
-    modes: ['t2v', 'i2v', 'start_end', 'reference'], // Added reference mode
+    modes: ['t2v'],
     durationOptions: [8],
-    // Default to fast (per UX requirement); can be switched to quality in UI.
     qualityOptions: ['fast', 'quality'],
-    // Veo rejects 1:1 with "Ratio error" (422) — keep only supported ratios.
     aspectRatios: ['16:9', '9:16'],
     shortLabel: '8s • от 99⭐',
   },
@@ -519,25 +522,29 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: 'от 105⭐',
   },
 
-  // === SORA 2 - Market API (i2v only) ===
+  // === SORA 2 - LaoZhang API (much cheaper cost, same user price!) ===
+  // LaoZhang cost: $0.015/video, user price unchanged
   {
     id: 'sora-2',
     name: 'Sora 2',
-    apiId: 'sora-2-image-to-video', // i2v only
+    apiId: 'sora-2', // LaoZhang model ID
+    apiIdVideo2: 'sora_video2', // Alternative Sora Video2
+    apiId15s: 'sora_video2-15s', // 15 second variant
+    apiIdLandscape: 'sora_video2-landscape', // 16:9 variant
     type: 'video',
-    provider: 'kie_market',
+    provider: 'laozhang', // Switched to LaoZhang API!
     description: 'OpenAI Sora 2: универсальная генерация с балансом качества и скорости. Подходит для большинства задач.',
     rank: 4,
     featured: true,
     speed: 'medium',
     quality: 'high',
-    supportsI2v: true,
+    supportsI2v: false, // LaoZhang Sora - text-to-video only
     pricing: {
-      // NEW PRICING: 10s (30 credits) = 50⭐, 15s (30 credits) = 50⭐
+      // ORIGINAL PRICING (unchanged for users)
       '10': { standard: 50 },
       '15': { standard: 50 },
     },
-    modes: ['i2v'], // Only i2v supported
+    modes: ['t2v'],
     durationOptions: [10, 15],
     aspectRatios: ['portrait', 'landscape'],
     shortLabel: '10/15s',

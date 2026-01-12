@@ -1,7 +1,28 @@
-"use client";
-
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { InspirationGallery } from "@/components/inspiration/InspirationGallery";
+
+export const metadata: Metadata = {
+  title: "Галерея вдохновения",
+  description: "Галерея вдохновения: лучшие примеры работ. Откройте стиль и повторите генерацию в один клик.",
+  keywords: [
+    "галерея вдохновения",
+    "примеры работ нейросеть",
+    "лучшие промпты",
+    "идеи для генерации",
+    "AI контент",
+    "LensRoom",
+  ],
+  alternates: {
+    canonical: "/inspiration",
+  },
+  openGraph: {
+    title: "Галерея вдохновения",
+    description: "Лучшие примеры работ — повторите одним кликом.",
+    url: "https://lensroom.ru/inspiration",
+    type: "website",
+  },
+};
 
 // Loading skeleton for Suspense
 function GallerySkeleton() {

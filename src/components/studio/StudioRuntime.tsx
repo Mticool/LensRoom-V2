@@ -825,7 +825,8 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       }
     >
       <div className="space-y-6">
-        <div className="grid xl:grid-cols-[1.1fr_0.9fr] gap-6">
+        {/* Use lg breakpoint so desktop (even non-maximized) keeps prompt/settings visible side-by-side */}
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
           <div className="space-y-6">
             <GeneratorPreview
               model={studioModel}
@@ -893,48 +894,53 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
             )}
           </div>
 
-          <div className="space-y-6">
-            {kind === "photo" && activePhotoBase ? (
-              <PhotoSettingsPanel
-                model={activePhotoBase}
-                selection={selectedParams}
-                onSelectionChange={setSelectedParams}
-                mode={mode as any}
-                onModeChange={(m) => setMode(m as any)}
-                aspect={aspect as any}
-                onAspectChange={(a) => setAspect(a as any)}
-                aspectOptions={studioModel?.aspectRatios || ["1:1"]}
-                referenceImage={referenceImage}
-                onReferenceImageChange={setReferenceImage}
-                currentPlan={currentPlan}
-              />
-            ) : (
-              <SettingsPanel
-                model={studioModel}
-                mode={mode}
-                onModeChange={setMode}
-                quality={quality}
-                onQualityChange={setQuality}
-                aspect={aspect}
-                onAspectChange={setAspect}
-                duration={studioModel.kind === "video" ? (duration as any) : undefined}
-                onDurationChange={studioModel.kind === "video" ? (setDuration as any) : undefined}
-                audio={studioModel.kind === "video" && studioModel.supportsAudio ? audio : undefined}
-                onAudioChange={studioModel.kind === "video" && studioModel.supportsAudio ? setAudio : undefined}
-                modelVariant={modelVariant}
-                onModelVariantChange={setModelVariant}
-                resolution={resolution}
-                onResolutionChange={setResolution}
-                referenceImage={referenceImage}
-                onReferenceImageChange={setReferenceImage}
-                soundPreset={soundPreset}
-                onSoundPresetChange={setSoundPreset}
-                referenceVideoUrl={referenceVideoUrl}
-                onReferenceVideoUrlChange={setReferenceVideoUrl}
-              />
-            )}
+          {/* Right column: keep prompt visible without page scroll (desktop), settings scroll inside */}
+          <div className="space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:flex lg:flex-col lg:overflow-hidden">
+            <div className="space-y-6 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+              {kind === "photo" && activePhotoBase ? (
+                <PhotoSettingsPanel
+                  model={activePhotoBase}
+                  selection={selectedParams}
+                  onSelectionChange={setSelectedParams}
+                  mode={mode as any}
+                  onModeChange={(m) => setMode(m as any)}
+                  aspect={aspect as any}
+                  onAspectChange={(a) => setAspect(a as any)}
+                  aspectOptions={studioModel?.aspectRatios || ["1:1"]}
+                  referenceImage={referenceImage}
+                  onReferenceImageChange={setReferenceImage}
+                  currentPlan={currentPlan}
+                />
+              ) : (
+                <SettingsPanel
+                  model={studioModel}
+                  mode={mode}
+                  onModeChange={setMode}
+                  quality={quality}
+                  onQualityChange={setQuality}
+                  aspect={aspect}
+                  onAspectChange={setAspect}
+                  duration={studioModel.kind === "video" ? (duration as any) : undefined}
+                  onDurationChange={studioModel.kind === "video" ? (setDuration as any) : undefined}
+                  audio={studioModel.kind === "video" && studioModel.supportsAudio ? audio : undefined}
+                  onAudioChange={studioModel.kind === "video" && studioModel.supportsAudio ? setAudio : undefined}
+                  modelVariant={modelVariant}
+                  onModelVariantChange={setModelVariant}
+                  resolution={resolution}
+                  onResolutionChange={setResolution}
+                  referenceImage={referenceImage}
+                  onReferenceImageChange={setReferenceImage}
+                  soundPreset={soundPreset}
+                  onSoundPresetChange={setSoundPreset}
+                  referenceVideoUrl={referenceVideoUrl}
+                  onReferenceVideoUrlChange={setReferenceVideoUrl}
+                />
+              )}
+            </div>
 
-            <PromptBox mode={mode} prompt={prompt} onPromptChange={setPrompt} scenes={scenes} onScenesChange={setScenes} />
+            <div className="lg:shrink-0">
+              <PromptBox mode={mode} prompt={prompt} onPromptChange={setPrompt} scenes={scenes} onScenesChange={setScenes} />
+            </div>
           </div>
         </div>
 

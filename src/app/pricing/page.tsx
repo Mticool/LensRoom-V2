@@ -161,11 +161,15 @@ export default function PricingPage() {
     },
     {
       q: 'Чем отличается подписка от пакета ⭐?',
-      a: 'Подписка — ежемесячный план с фиксированным количеством ⭐ и доступом к Pro-функциям. Пакеты — разовая покупка ⭐ без срока действия.',
+      a: 'Подписка — ежемесячный план с ⭐ и доступом к Pro-функциям. Звёзды из подписки даются на месяц и не переносятся на следующий. Пакеты — разовая покупка ⭐ без срока действия, они не сгорают.',
     },
     {
-      q: 'Что значит "безлимит" в Creator+ и Business?',
-      a: 'Nano Banana Pro 1–2K входит в тариф без ограничений по количеству в рамках разумного использования. 4K-режим оплачивается отдельно.',
+      q: 'Что значит "безлимит" Pro 1-2K?',
+      a: 'В тарифах Creator+ и Business — Nano Banana Pro 1–2K входит без ограничений. Генерируйте сколько хочешь за 0⭐. 4K-режим оплачивается отдельно.',
+    },
+    {
+      q: 'Звёзды из подписки переносятся на следующий месяц?',
+      a: 'Нет, ⭐ из подписки действуют только в текущем месяце. Неиспользованные звёзды сгорают при обновлении подписки. Если нужны ⭐ без срока — покупайте пакеты.',
     },
     {
       q: 'А если генерация не получилась — вернёте ⭐?',
@@ -583,7 +587,7 @@ function PlanCard({
           "mb-4 p-3 rounded-xl text-center",
           plan.id === 'creator' 
             ? "bg-emerald-500/10 border border-emerald-500/30"
-            : "bg-[var(--gold)]/10 border border-[var(--gold)]/30"
+            : "bg-gradient-to-r from-[var(--gold)]/20 to-amber-500/20 border-2 border-[var(--gold)]/50"
         )}>
           {plan.id === 'creator' ? (
             <div className="flex items-center justify-center gap-2">
@@ -591,9 +595,12 @@ function PlanCard({
               <span className="text-sm font-medium text-emerald-400">Nano Banana включён</span>
             </div>
           ) : (
-            <div className="flex items-center justify-center gap-2">
-              <Infinity className="w-4 h-4 text-[var(--gold)]" />
-              <span className="text-sm font-medium text-[var(--gold)]">Pro 1-2K безлимит</span>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center justify-center gap-2">
+                <Infinity className="w-5 h-5 text-[var(--gold)]" />
+                <span className="text-base font-bold text-[var(--gold)]">Pro 1-2K БЕЗЛИМИТ</span>
+              </div>
+              <span className="text-xs text-[var(--gold)]/70">Генерируй сколько хочешь — 0⭐</span>
             </div>
           )}
         </div>

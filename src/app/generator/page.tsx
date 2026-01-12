@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Layers, X, MessageSquare, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, X, MessageSquare, SlidersHorizontal, Plus } from 'lucide-react';
 import { computePrice, type PriceOptions } from '@/lib/pricing/compute-price';
 import { toast } from 'sonner';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 // Local components
 import { 
@@ -72,7 +74,7 @@ function useGeneratorState(initialSection: SectionType, initialModel: string | n
       resolution: settings.resolution || settings.output_resolution,
       
       // Video options  
-      mode: settings.generation_type || settings.mode,
+      mode: currentModel === 'sora-storyboard' ? 'storyboard' : (settings.generation_type || settings.mode),
       duration: settings.duration ? parseInt(String(settings.duration)) : (currentModel === 'kling-motion-control' ? 5 : undefined),
       videoQuality: settings.video_quality || settings.quality,
       audio: settings.audio === true || settings.sound === true || settings.with_audio === true,
@@ -237,8 +239,11 @@ function useChatSessions() {
 
 function GeneratorPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const sectionFromUrl = (searchParams.get('section') || 'image') as SectionType;
   const modelFromUrl = searchParams.get('model');
+  const variantFromUrl = searchParams.get('variant'); // e.g. "2.6", "2.5-turbo", "2.1-pro", "2.5" (WAN), "2.6" (WAN)
+  const qualityFromUrl = searchParams.get('quality'); // e.g. "fast" | "quality" for Veo
   
   // State
   const generatorState = useGeneratorState(sectionFromUrl, modelFromUrl);
@@ -248,8 +253,11 @@ function GeneratorPageContent() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
-  const [showHistory, setShowHistory] = useState(true);
+  // Desktop: keep panels open (like before). Mobile: closed by default (like syntax.ai).
+  const [showSettings, setShowSettings] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true));
+  // Chat/history: hidden by default on desktop; user can open via visible buttons.
+  const [showHistory, setShowHistory] = useState(false);
+  const [showModelPicker, setShowModelPicker] = useState(false);
   
   // Batch mode state
   const [batchMode, setBatchMode] = useState(false);
@@ -271,6 +279,8 @@ function GeneratorPageContent() {
   useEffect(() => {
     const section = searchParams.get('section') as SectionType;
     const model = searchParams.get('model');
+    const variant = searchParams.get('variant');
+    const quality = searchParams.get('quality');
     
     if (section && ['image', 'video', 'audio'].includes(section)) {
       generatorState.setActiveSection(section);
@@ -289,8 +299,56 @@ function GeneratorPageContent() {
         generatorState.setCurrentModel(newModel);
         prevModelRef.current = newModel;
       }
+
+      // Apply variant for unified models (Kling/WAN) via URL
+      // - Kling uses: "2.5-turbo" | "2.6" | "2.1-pro" | "o1"
+      // - WAN uses: "2.5" | "2.6"
+      if (variant && typeof variant === 'string') {
+        const shouldApply =
+          section === 'video' && (newModel === 'kling' || newModel === 'wan');
+        if (shouldApply) {
+          generatorState.setSettings(prev => ({ ...prev, version: variant }));
+        }
+      }
+
+      // Apply Veo quality via URL: /generator?model=veo-3.1&quality=quality
+      if (quality && typeof quality === 'string') {
+        if (section === 'video' && newModel === 'veo-3.1') {
+          generatorState.setSettings(prev => ({ ...prev, quality }));
+        }
+      }
     }
   }, [searchParams, generatorState]);
+
+  const pushGeneratorParams = useCallback(
+    (next: { section?: SectionType; model?: string; variant?: string | null }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next.section) params.set('section', next.section);
+      if (next.model) params.set('model', next.model);
+      if (next.variant === null) params.delete('variant');
+      if (typeof next.variant === 'string' && next.variant.length > 0) params.set('variant', next.variant);
+      router.replace(`/generator?${params.toString()}`);
+    },
+    [router, searchParams]
+  );
+
+  const selectSection = useCallback(
+    (section: SectionType) => {
+      const firstModel = MODELS_CONFIG[section]?.models?.[0]?.id;
+      generatorState.setActiveSection(section);
+      if (firstModel) generatorState.setCurrentModel(firstModel);
+      pushGeneratorParams({ section, model: firstModel || undefined });
+    },
+    [generatorState, pushGeneratorParams]
+  );
+
+  const selectModel = useCallback(
+    (modelId: string) => {
+      generatorState.setCurrentModel(modelId);
+      pushGeneratorParams({ model: modelId });
+    },
+    [generatorState, pushGeneratorParams]
+  );
 
   // Scroll to bottom
   useEffect(() => {
@@ -372,8 +430,16 @@ function GeneratorPageContent() {
       return;
     }
 
-    if (balance < generatorState.currentCost) {
-      alert('Недостаточно звёзд');
+    // Get variants count (only for nano-banana-pro, default 1)
+    const variantsCount = generatorState.currentModel === 'nano-banana-pro' 
+      ? Number(generatorState.settings?.variants) || 1 
+      : 1;
+    
+    // Calculate total cost for all variants
+    const totalCost = generatorState.currentCost * variantsCount;
+
+    if (balance < totalCost) {
+      alert(`Недостаточно звёзд. Нужно ${totalCost}⭐ для ${variantsCount} фото`);
       return;
     }
 
@@ -385,7 +451,7 @@ function GeneratorPageContent() {
     const userMessage: ChatMessage = {
       id: Date.now(),
       role: 'user',
-      content: prompt,
+      content: prompt + (variantsCount > 1 ? ` (${variantsCount} варианта)` : ''),
       timestamp: new Date(),
     };
     
@@ -397,6 +463,7 @@ function GeneratorPageContent() {
       type: generatorState.activeSection,
       model: generatorState.modelInfo?.name,
       isGenerating: true,
+      variantsCount: variantsCount, // Store variants count for grid display
     };
 
     const filesToUpload = [...uploadedFiles];
@@ -462,6 +529,15 @@ function GeneratorPageContent() {
           if (settings.weirdness) requestBody.weirdness = settings.weirdness;
         }
       }
+
+      // Model-specific mapping
+      if (generatorState.currentModel === 'sora-storyboard' && generatorState.activeSection === 'video') {
+        requestBody.mode = 'storyboard';
+        if (settings?.num_shots != null) requestBody.shots = Number(settings.num_shots);
+        // Map orientation to aspect ratio for backend
+        if (settings?.aspect_ratio === 'landscape') requestBody.aspectRatio = '16:9';
+        if (settings?.aspect_ratio === 'portrait') requestBody.aspectRatio = '9:16';
+      }
       
       // Handle files
       if (filesToUpload.length > 0) {
@@ -511,8 +587,13 @@ function GeneratorPageContent() {
             reader.onload = () => resolve(reader.result as string);
             reader.readAsDataURL(file);
           });
-          
-          if (requestBody.mode === 'i2v' || requestBody.mode === 'start_end' || requestBody.mode === 'i2i') {
+
+          // IMPORTANT:
+          // - Photo i2i endpoint expects `referenceImage`
+          // - Video modes expect `startImage`/`endImage`
+          if (generatorState.activeSection === 'image' && requestBody.mode === 'i2i') {
+            requestBody.referenceImage = base64;
+          } else if (requestBody.mode === 'i2v' || requestBody.mode === 'start_end') {
             requestBody.startImage = base64;
             if (filesToUpload.length > 1) {
               const base64_2 = await new Promise<string>((resolve) => {
@@ -528,27 +609,86 @@ function GeneratorPageContent() {
         }
       }
       
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      // Handle multiple variants with parallel requests
+      if (variantsCount > 1 && generatorState.activeSection === 'image') {
+        // Generate random seeds for each variant
+        const seeds = Array.from({ length: variantsCount }, () => Math.floor(Math.random() * 2147483647));
+        
+        // Create parallel requests
+        const requests = seeds.map(seed => 
+          fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...requestBody, seed }),
+          })
+        );
+        
+        const responses = await Promise.all(requests);
+        const results: string[] = [];
+        
+        // Process each response
+        for (const response of responses) {
+          if (!response.ok) {
+            console.error('Variant generation failed:', response.status);
+            continue;
+          }
+          
+          const data = await response.json();
+          let resultUrl = data.url || data.results?.[0]?.url;
+          
+          if (!resultUrl && data.jobId) {
+            const pollResult = await pollForResult(data.jobId, data.provider || 'kie');
+            resultUrl = pollResult?.url || pollResult?.results?.[0]?.url;
+          }
+          
+          if (resultUrl) {
+            results.push(resultUrl);
+          }
+        }
+        
+        // Update message with multiple URLs
+        chatState.setMessages(prev => prev.map(m => 
+          m.id === assistantMessage.id 
+            ? { 
+                ...m, 
+                content: results.length > 0 ? `Готово! (${results.length} фото)` : 'Ошибка генерации', 
+                urls: results, // Array of URLs for grid display
+                url: results[0], // Backwards compatibility
+                isGenerating: false 
+              }
+            : m
+        ));
+      } else {
+        // Single variant - original logic
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
 
-      if (!response.ok) throw new Error('Generation failed');
+        if (!response.ok) {
+          let msg = 'Generation failed';
+          try {
+            const err = await response.json();
+            msg = err?.error || err?.message || msg;
+          } catch {}
+          throw new Error(msg);
+        }
 
-      const data = await response.json();
-      let resultUrl = data.url || data.results?.[0]?.url;
-      
-      if (!resultUrl && data.jobId) {
-        const pollResult = await pollForResult(data.jobId, data.provider || 'kie');
-        resultUrl = pollResult?.url || pollResult?.results?.[0]?.url;
+        const data = await response.json();
+        let resultUrl = data.url || data.results?.[0]?.url;
+        
+        if (!resultUrl && data.jobId) {
+          const pollResult = await pollForResult(data.jobId, data.provider || 'kie');
+          resultUrl = pollResult?.url || pollResult?.results?.[0]?.url;
+        }
+        
+        chatState.setMessages(prev => prev.map(m => 
+          m.id === assistantMessage.id 
+            ? { ...m, content: resultUrl ? 'Готово!' : 'Генерация завершена', url: resultUrl, isGenerating: false }
+            : m
+        ));
       }
-      
-      chatState.setMessages(prev => prev.map(m => 
-        m.id === assistantMessage.id 
-          ? { ...m, content: resultUrl ? 'Готово!' : 'Генерация завершена', url: resultUrl, isGenerating: false }
-          : m
-      ));
 
       fetchBalance();
 
@@ -796,12 +936,148 @@ function GeneratorPageContent() {
   }, [chatState]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pt-14 flex flex-col relative">
-      {/* Premium gradient background */}
-      <div className="absolute inset-0 bg-mesh pointer-events-none opacity-50" />
+    // Header is fixed and the layout already adds a 56px spacer.
+    // Make generator fit exactly into remaining viewport height to avoid page scroll in small windows.
+    // On mobile, we have an additional ~52px top bar for category tabs, so we use pt-[52px] on mobile.
+    <div className="h-[calc(100vh-56px)] bg-[var(--bg)] flex flex-col relative overflow-hidden pt-[52px] md:pt-0">
+      {/* Premium gradient background - syntx.ai style */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-mesh opacity-40" />
+        {/* Gradient blobs for visual interest */}
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px]" />
+        <div className="absolute -bottom-32 right-0 w-80 h-80 bg-cyan-500/15 rounded-full blur-[100px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-[var(--accent-primary)]/5 rounded-full blur-[80px]" />
+      </div>
+
+      {/* Mobile: Model picker - organized by sections */}
+      <Sheet open={showModelPicker} onOpenChange={setShowModelPicker}>
+        <SheetContent
+          side="bottom"
+          className="md:hidden max-h-[85vh] overflow-hidden bg-[var(--surface)]/98 backdrop-blur-2xl text-[var(--text)] border-t border-white/10 rounded-t-[28px]"
+        >
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-12 h-1.5 rounded-full bg-white/20" />
+          </div>
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pb-3">
+            <h2 className="text-lg font-semibold">Выберите нейросеть</h2>
+            <button
+              onClick={() => setShowModelPicker(false)}
+              className="p-2 -mr-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition touch-manipulation"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* All sections with models - scrollable */}
+          <div className="overflow-y-auto max-h-[70vh] pb-8">
+            {(['image', 'video', 'audio'] as const).map((section) => {
+              const config = MODELS_CONFIG[section];
+              const Icon = config.icon;
+              const models = config.models || [];
+              
+              return (
+                <div key={section} className="px-5 mb-5">
+                  {/* Section header */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cn(
+                      "p-1.5 rounded-lg",
+                      section === 'image' ? 'bg-[var(--accent-primary)]/15' :
+                      section === 'video' ? 'bg-cyan-500/15' : 'bg-pink-500/15'
+                    )}>
+                      <Icon className={cn(
+                        "w-4 h-4",
+                        section === 'image' ? 'text-[var(--accent-primary)]' :
+                        section === 'video' ? 'text-cyan-400' : 'text-pink-400'
+                      )} />
+                    </div>
+                    <span className="text-sm font-semibold text-white">{config.section}</span>
+                    <span className="text-xs text-[var(--muted)]">({models.length})</span>
+                  </div>
+                  
+                  {/* Models grid - 2 columns */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {models.map((m: any) => {
+                      const isActive = m.id === generatorState.currentModel && section === generatorState.activeSection;
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            if (section !== generatorState.activeSection) {
+                              selectSection(section);
+                            }
+                            selectModel(m.id);
+                            setShowModelPicker(false);
+                          }}
+                          className={cn(
+                            'flex flex-col items-start p-3 rounded-xl border text-left transition-all touch-manipulation active:scale-[0.98]',
+                            isActive
+                              ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/40'
+                              : 'bg-white/5 border-white/8 hover:bg-white/10'
+                          )}
+                        >
+                          <div className={cn('text-[12px] font-medium leading-tight', isActive ? 'text-[var(--accent-primary)]' : 'text-white')}>
+                            {m.name}
+                          </div>
+                          {m.badge && (
+                            <div className="text-[9px] text-[var(--muted)] mt-0.5">
+                              {m.badge}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
       
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden relative z-10">
+      <div className="flex-1 flex overflow-hidden relative z-10 min-h-0">
+        {/* Desktop: always-visible controls */}
+        <div className="hidden md:flex absolute left-3 top-3 z-40 items-center gap-2">
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all touch-manipulation"
+            title={showHistory ? 'Скрыть чаты' : 'Открыть чаты'}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="text-xs font-medium">{showHistory ? 'Скрыть чат' : 'Чаты'}</span>
+          </button>
+          <button
+            onClick={() => {
+              chatState.createNewChat(generatorState.currentModel, generatorState.activeSection);
+              setShowHistory(true);
+            }}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--accent-primary)]/15 border border-[var(--accent-primary)]/30 text-white hover:bg-[var(--accent-primary)]/25 transition-all touch-manipulation"
+            title="Новый чат"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-xs font-semibold">Новый чат</span>
+          </button>
+        </div>
+
+        <div className="hidden md:flex absolute right-3 top-3 z-40 items-center gap-2">
+          <button
+            onClick={() => setShowSettings((v) => !v)}
+            className={cn(
+              "inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all touch-manipulation",
+              showSettings
+                ? "bg-white/10 border-white/15 text-white hover:bg-white/15"
+                : "bg-white/5 border-white/10 text-gray-300 hover:text-white hover:bg-white/10"
+            )}
+            title={showSettings ? 'Скрыть настройки' : 'Открыть настройки'}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            <span className="text-xs font-medium">{showSettings ? 'Скрыть настройки' : 'Настройки'}</span>
+          </button>
+        </div>
+
         {/* History Sidebar */}
         <AnimatePresence>
           {showHistory && (
@@ -835,7 +1111,7 @@ function GeneratorPageContent() {
         </button>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col relative">
+        <div className="flex-1 flex flex-col relative min-h-0">
           {/* Batch Mode Toggle - Only show for models that support i2i */}
           {generatorState.activeSection === 'image' && generatorState.modelInfo?.supportsI2i && (
             <div className="absolute top-4 right-4 z-30">
@@ -849,14 +1125,14 @@ function GeneratorPageContent() {
                 }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                   batchMode
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
                     : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/10'
                 }`}
               >
                 <Layers className="w-4 h-4" />
                 Batch
                 {batchMode && batchImages.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-cyan-500 text-black text-xs rounded-full">
+                  <span className="px-1.5 py-0.5 bg-[var(--accent-primary)] text-black text-xs rounded-full">
                     {batchImages.length}
                   </span>
                 )}
@@ -886,7 +1162,7 @@ function GeneratorPageContent() {
           </AnimatePresence>
 
           {/* Messages or Batch Uploader */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {batchMode && !isBatchGenerating ? (
               // Batch Mode UI
               <div className="max-w-3xl mx-auto px-4 py-6">
@@ -897,7 +1173,7 @@ function GeneratorPageContent() {
                 >
                   {/* Header */}
                   <div className="text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-4">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 mb-4">
                       <Layers className="w-4 h-4 text-cyan-400" />
                       <span className="text-sm font-medium text-cyan-400">Batch режим</span>
                     </div>
@@ -936,7 +1212,7 @@ function GeneratorPageContent() {
                           <button
                             key={example}
                             onClick={() => setPrompt(example)}
-                            className="px-3 py-1.5 text-xs rounded-full bg-white/5 text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all border border-white/5 hover:border-cyan-500/20"
+                            className="px-3 py-1.5 text-xs rounded-full bg-white/5 text-gray-400 hover:bg-[var(--accent-primary)]/10 hover:text-[var(--accent-primary)] transition-all border border-white/5 hover:border-[var(--accent-primary)]/20"
                           >
                             {example}
                           </button>
@@ -1015,35 +1291,58 @@ function GeneratorPageContent() {
         </AnimatePresence>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--bg)]/95 backdrop-blur-xl border-t border-white/5 px-4 py-2 safe-area-inset-bottom">
-        <div className="flex items-center justify-around gap-2">
-          {/* History Button */}
-          <button
-            onClick={() => setShowHistory(true)}
-            className="flex flex-col items-center gap-1 p-2 rounded-xl text-gray-400 hover:text-white active:bg-white/10 transition touch-manipulation"
-          >
-            <MessageSquare className="w-5 h-5" />
-            <span className="text-[10px]">История</span>
-          </button>
+      {/* Mobile: Floating side buttons - positioned below the top header bar */}
+      <div className="md:hidden fixed left-3 top-[115px] z-40">
+        <button
+          onClick={() => setShowHistory(true)}
+          className="p-2.5 rounded-xl bg-[var(--surface)]/95 backdrop-blur-md border border-white/10 text-gray-400 hover:text-white active:bg-white/10 transition touch-manipulation shadow-lg"
+        >
+          <MessageSquare className="w-5 h-5" />
+        </button>
+      </div>
+      <div className="md:hidden fixed right-3 top-[115px] z-40">
+        <button
+          onClick={() => setShowSettings(true)}
+          className="p-2.5 rounded-xl bg-[var(--surface)]/95 backdrop-blur-md border border-white/10 text-gray-400 hover:text-white active:bg-white/10 transition touch-manipulation shadow-lg"
+        >
+          <SlidersHorizontal className="w-5 h-5" />
+        </button>
+      </div>
 
-          {/* Model Selector */}
-          <button
-            onClick={() => setShowSettings(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-[var(--text)] active:scale-[0.97] transition touch-manipulation"
-          >
-            {generatorState.modelInfo?.icon && <generatorState.modelInfo.icon className="w-4 h-4" />}
-            <span className="text-sm font-medium truncate max-w-[120px]">{generatorState.modelInfo?.name}</span>
-            <span className="text-xs text-cyan-400">{generatorState.currentCost}⭐</span>
-          </button>
+      {/* Mobile: Top header bar with model selector */}
+      <div className="md:hidden fixed top-14 inset-x-0 z-30 bg-[var(--bg)]/98 backdrop-blur-xl border-b border-white/5">
+        {/* Category tabs + Model picker button */}
+        <div className="flex items-center justify-between px-3 py-2.5">
+          {/* Category tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            {(['image', 'video', 'audio'] as const).map((s) => {
+              const active = generatorState.activeSection === s;
+              const Icon = MODELS_CONFIG[s].icon;
+              return (
+                <button
+                  key={s}
+                  onClick={() => selectSection(s)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition touch-manipulation whitespace-nowrap',
+                    active
+                      ? 'bg-[var(--accent-primary)] text-[var(--btn-primary-text)] shadow-md shadow-[var(--accent-primary)]/30'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {MODELS_CONFIG[s].section}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Settings Button */}
+          {/* Model picker button */}
           <button
-            onClick={() => setShowSettings(true)}
-            className="flex flex-col items-center gap-1 p-2 rounded-xl text-gray-400 hover:text-white active:bg-white/10 transition touch-manipulation"
+            onClick={() => setShowModelPicker(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface2)] border border-white/10 text-[var(--text)] active:scale-[0.97] transition touch-manipulation ml-2 shadow-sm"
           >
-            <SlidersHorizontal className="w-5 h-5" />
-            <span className="text-[10px]">Настройки</span>
+            <Layers className="w-4 h-4 text-[var(--muted)]" />
+            <span className="text-xs font-medium truncate max-w-[90px]">{generatorState.modelInfo?.name}</span>
           </button>
         </div>
       </div>
@@ -1057,7 +1356,7 @@ export default function GeneratorPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <GeneratorPageContent />

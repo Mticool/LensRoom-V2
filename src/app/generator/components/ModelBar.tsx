@@ -68,7 +68,7 @@ export function ModelBar({
                   {currentModelInfo?.name || 'Выберите модель'}
                 </div>
                 <div className="text-[11px] text-[var(--muted)]">
-                  {currentModelInfo?.cost}⭐ за генерацию
+                  {currentModelInfo?.badge || currentModelInfo?.description || ''}
                 </div>
               </div>
               
@@ -95,7 +95,6 @@ export function ModelBar({
                   >
                     <div className="p-3 grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
                       {sectionConfig.models.map((model) => {
-                        const modelBadge = MODEL_BADGES[model.id];
                         const isActive = model.id === currentModel;
                         
                         return (
@@ -112,23 +111,7 @@ export function ModelBar({
                                 : "hover:bg-[var(--surface2)] border border-transparent"
                             )}
                           >
-                            {/* Icon */}
-                            {modelBadge ? (
-                              <div className={cn(
-                                "w-9 h-9 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
-                                modelBadge.color
-                              )}>
-                                <modelBadge.icon className="w-4 h-4 text-white" />
-                              </div>
-                            ) : (
-                              <div className="w-9 h-9 rounded-lg bg-[var(--surface3)] flex items-center justify-center flex-shrink-0">
-                                <span className="text-[12px] font-bold text-[var(--muted)]">
-                                  {model.name.charAt(0)}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* Info */}
+                            {/* Info - no icons */}
                             <div className="flex-1 min-w-0">
                               <div className={cn(
                                 "text-[13px] font-medium truncate",
@@ -137,7 +120,7 @@ export function ModelBar({
                                 {model.name}
                               </div>
                               <div className="text-[11px] text-[var(--muted)]">
-                                {model.cost}⭐
+                                {model.badge || ''}
                               </div>
                             </div>
                           </button>
