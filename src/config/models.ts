@@ -54,6 +54,8 @@ export interface PhotoModelConfig {
   id: string;
   name: string;
   apiId: string;
+  apiId2k?: string; // For LaoZhang 2K variant
+  apiId4k?: string; // For LaoZhang 4K variant
   type: 'photo';
   provider: KieProvider;
   description: string; // расширенное описание для генератора
@@ -101,6 +103,12 @@ export interface VideoModelConfig {
   apiId: string; // For t2v mode (default, used if no variants)
   apiIdI2v?: string; // For i2v mode (default, used if no variants)
   apiIdV2v?: string; // For v2v mode (reference-guided video-to-video)
+  // LaoZhang API variants
+  apiIdFast?: string; // For fast quality variant
+  apiIdLandscape?: string; // For 16:9 landscape variant
+  apiIdLandscapeFast?: string; // For 16:9 fast landscape variant
+  apiIdVideo2?: string; // Alternative model ID (e.g., sora_video2)
+  apiId15s?: string; // For 15 second variant
   type: 'video';
   provider: KieProvider;
   description: string;
