@@ -55,20 +55,47 @@ interface FunnelData {
   };
 }
 
+interface LaoZhangStats {
+  period: number;
+  totals: {
+    generations: number;
+    success: number;
+    failed: number;
+    costUsd: number;
+    costRub: number;
+  };
+  byModel: Array<{
+    model: string;
+    count: number;
+    success: number;
+    failed: number;
+    costUsd: number;
+    costRub: number;
+  }>;
+}
+
 export default function AdminDashboard() {
   const [data, setData] = useState<FunnelData | null>(null);
+  const [laozhangStats, setLaozhangStats] = useState<LaoZhangStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<7 | 14 | 30>(30);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/admin/analytics/funnel?days=${period}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const json = await res.json();
+      const [funnelRes, laozhangRes] = await Promise.all([
+        fetch(`/api/admin/analytics/funnel?days=${period}`, { credentials: "include" }),
+        fetch(`/api/admin/laozhang-stats?days=${period}`, { credentials: "include" }),
+      ]);
+      
+      if (funnelRes.ok) {
+        const json = await funnelRes.json();
         setData(json);
+      }
+      
+      if (laozhangRes.ok) {
+        const json = await laozhangRes.json();
+        setLaozhangStats(json);
       }
     } catch (e) {
       console.error("Failed to fetch analytics:", e);
@@ -491,6 +518,80 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* LaoZhang API Stats */}
+      <Card className="border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-transparent">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-cyan-400" />
+            LaoZhang API (Nano Banana, Veo, Sora)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {laozhangStats ? (
+            <div className="space-y-6">
+              {/* Totals */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                  <p className="text-2xl font-bold text-[var(--text)]">{laozhangStats.totals.generations}</p>
+                  <p className="text-xs text-[var(--muted)]">Всего генераций</p>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <p className="text-2xl font-bold text-emerald-400">{laozhangStats.totals.success}</p>
+                  <p className="text-xs text-[var(--muted)]">Успешных</p>
+                </div>
+                <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                  <p className="text-2xl font-bold text-cyan-400">${laozhangStats.totals.costUsd.toFixed(2)}</p>
+                  <p className="text-xs text-[var(--muted)]">Потрачено (USD)</p>
+                </div>
+                <div className="p-3 rounded-xl bg-[var(--gold)]/10 border border-[var(--gold)]/20">
+                  <p className="text-2xl font-bold text-[var(--gold)]">{laozhangStats.totals.costRub.toLocaleString("ru")} ₽</p>
+                  <p className="text-xs text-[var(--muted)]">Потрачено (RUB)</p>
+                </div>
+              </div>
+              
+              {/* By Model */}
+              <div>
+                <h4 className="text-sm font-medium text-[var(--muted)] mb-3">По моделям</h4>
+                <div className="space-y-2">
+                  {laozhangStats.byModel.map((m) => (
+                    <div key={m.model} className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center text-sm",
+                          m.model.includes("veo") ? "bg-purple-500/20 text-purple-400" :
+                          m.model.includes("sora") ? "bg-blue-500/20 text-blue-400" :
+                          m.model.includes("pro") ? "bg-[var(--gold)]/20 text-[var(--gold)]" :
+                          "bg-emerald-500/20 text-emerald-400"
+                        )}>
+                          {m.model.includes("veo") || m.model.includes("sora") ? "🎬" : "🖼️"}
+                        </div>
+                        <div>
+                          <p className="font-medium text-[var(--text)]">{m.model}</p>
+                          <p className="text-xs text-[var(--muted)]">
+                            {m.success} успешных / {m.count} всего
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-cyan-400">${m.costUsd.toFixed(2)}</p>
+                        <p className="text-xs text-[var(--muted)]">{m.costRub} ₽</p>
+                      </div>
+                    </div>
+                  ))}
+                  {laozhangStats.byModel.length === 0 && (
+                    <p className="text-sm text-[var(--muted)] text-center py-4">Нет данных за этот период</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-[var(--muted)]">
+              Загрузка статистики LaoZhang...
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Links */}
       <Card>

@@ -7,234 +7,170 @@ export async function GET() {
     (
       <div
         style={{
+          height: '100%',
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
-          width: '100%',
-          height: '100%',
-          backgroundColor: '#0A0A0A',
-          position: 'relative',
-          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#0A0A0B',
+          backgroundImage: 'radial-gradient(circle at 25% 25%, #1a1a2e 0%, transparent 50%), radial-gradient(circle at 75% 75%, #16213e 0%, transparent 50%)',
+          fontFamily: 'Inter, sans-serif',
+          padding: '60px',
         }}
       >
-        {/* Background gradients */}
+        {/* Logo */}
         <div
           style={{
-            position: 'absolute',
-            top: '-20%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 800,
-            height: 800,
-            background: 'radial-gradient(circle, rgba(0,217,255,0.3) 0%, transparent 70%)',
-            filter: 'blur(60px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '40px',
           }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '-30%',
-            right: '-10%',
-            width: 600,
-            height: 600,
-            background: 'radial-gradient(circle, rgba(167,139,250,0.25) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '-20%',
-            left: '-10%',
-            width: 500,
-            height: 500,
-            background: 'radial-gradient(circle, rgba(236,72,153,0.2) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-          }}
-        />
+        >
+          <div
+            style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '20px',
+              background: 'linear-gradient(135deg, #CDFF00 0%, #00D9FF 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: '24px',
+            }}
+          >
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ color: '#0A0A0B' }}
+            >
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+              <circle cx="12" cy="12" r="4" fill="currentColor" />
+            </svg>
+          </div>
+          <span
+            style={{
+              fontSize: '64px',
+              fontWeight: 800,
+              color: 'white',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            LensRoom
+          </span>
+        </div>
 
-        {/* Content container */}
+        {/* Main headline */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            padding: '60px',
-            position: 'relative',
-            zIndex: 10,
+            textAlign: 'center',
           }}
         >
-          {/* Badge */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 20px',
-              borderRadius: 50,
-              backgroundColor: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              marginBottom: 32,
-            }}
-          >
-            <div
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                backgroundColor: '#00D9FF',
-                boxShadow: '0 0 10px #00D9FF',
-              }}
-            />
-            <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 20 }}>
-              AI Генератор Контента
-            </span>
-          </div>
-
-          {/* Main title */}
-          <h1
-            style={{
-              fontSize: 80,
+              fontSize: '72px',
               fontWeight: 800,
-              textAlign: 'center',
+              color: 'white',
               lineHeight: 1.1,
-              marginBottom: 20,
+              marginBottom: '20px',
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'center',
+              gap: '16px',
             }}
           >
-            <span style={{ color: '#FFFFFF' }}>Создавайте </span>
+            <span>Nano Banana Pro</span>
             <span
               style={{
-                background: 'linear-gradient(90deg, #00D9FF, #A78BFA, #EC4899)',
+                background: 'linear-gradient(135deg, #CDFF00 0%, #00D9FF 100%)',
                 backgroundClip: 'text',
                 color: 'transparent',
               }}
             >
-              невероятный
+              БЕЗЛИМИТ
             </span>
-            <span style={{ color: '#FFFFFF' }}> контент</span>
-          </h1>
-
-          {/* Subtitle */}
-          <p
-            style={{
-              fontSize: 28,
-              color: 'rgba(255,255,255,0.6)',
-              textAlign: 'center',
-              marginBottom: 40,
-              maxWidth: 800,
-            }}
-          >
-            Фото и видео студийного качества за секунды
-          </p>
-
-          {/* Models row */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 24,
-              marginBottom: 40,
-            }}
-          >
-            {[
-              { name: 'Nano Banana Pro', color: '#22C55E' },
-              { name: 'Veo 3.1', color: '#A78BFA' },
-              { name: 'Kling 2.6', color: '#EC4899' },
-              { name: 'Sora Pro', color: '#00D9FF' },
-            ].map((model) => (
-              <div
-                key={model.name}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 16px',
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${model.color}40`,
-                }}
-              >
-                <div
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    backgroundColor: model.color,
-                  }}
-                />
-                <span style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 600 }}>
-                  {model.name}
-                </span>
-              </div>
-            ))}
           </div>
-
-          {/* Bottom CTA style */}
+          
+          {/* Subheadline */}
+          <div
+            style={{
+              fontSize: '32px',
+              color: '#9CA3AF',
+              marginBottom: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+            }}
+          >
+            <span>в тарифах Creator+ и Business</span>
+          </div>
+          
+          {/* Features row */}
           <div
             style={{
               display: 'flex',
+              gap: '32px',
               alignItems: 'center',
-              gap: 32,
-              padding: '16px 32px',
-              borderRadius: 16,
-              backgroundColor: 'rgba(0,217,255,0.1)',
-              border: '1px solid rgba(0,217,255,0.3)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 24 }}>⭐</span>
-              <span style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 600 }}>
-                50 бесплатно
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                borderRadius: '100px',
+                backgroundColor: 'rgba(205, 255, 0, 0.1)',
+                border: '1px solid rgba(205, 255, 0, 0.3)',
+              }}
+            >
+              <span style={{ fontSize: '28px', color: '#CDFF00', fontWeight: 600 }}>
+                10+ AI моделей
               </span>
             </div>
             <div
               style={{
-                width: 1,
-                height: 24,
-                backgroundColor: 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                borderRadius: '100px',
+                backgroundColor: 'rgba(0, 217, 255, 0.1)',
+                border: '1px solid rgba(0, 217, 255, 0.3)',
               }}
-            />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 24 }}>⚡</span>
-              <span style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 600 }}>
-                Вход через Telegram
+            >
+              <span style={{ fontSize: '28px', color: '#00D9FF', fontWeight: 600 }}>
+                50⭐ бесплатно
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Logo/Brand */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 40,
-            right: 60,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
+          
+          {/* Models */}
           <div
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #00D9FF, #A78BFA)',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              gap: '16px',
+              marginTop: '40px',
+              fontSize: '24px',
+              color: '#6B7280',
             }}
           >
-            <span style={{ color: '#000', fontSize: 28, fontWeight: 800 }}>L</span>
+            <span>Veo 3.1</span>
+            <span>•</span>
+            <span>Sora 2</span>
+            <span>•</span>
+            <span>Kling</span>
+            <span>•</span>
+            <span>Flux</span>
+            <span>•</span>
+            <span>и другие</span>
           </div>
-          <span style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700 }}>
-            LensRoom
-          </span>
         </div>
       </div>
     ),

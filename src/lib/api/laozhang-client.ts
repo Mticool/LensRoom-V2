@@ -263,28 +263,11 @@ export class LaoZhangClient {
 
   /**
    * Edit images using Nano Banana Edit / Nano Banana Pro Edit
-   * POST /v1/images/edits
+   * POST /v1/images/edits (requires multipart/form-data)
    */
   async editImage(
     request: LaoZhangImageEditRequest
   ): Promise<LaoZhangImageResponse> {
-    const body: Record<string, unknown> = {
-      model: request.model,
-      prompt: request.prompt,
-      image: request.image,
-      n: request.n || 1,
-    };
-
-    if (request.mask) {
-      body.mask = request.mask;
-    }
-    if (request.size) {
-      body.size = request.size;
-    }
-    if (request.response_format) {
-      body.response_format = request.response_format;
-    }
-
     console.log("[LaoZhang Edit] Request:", {
       model: request.model,
       prompt: request.prompt.substring(0, 50),
@@ -292,16 +275,71 @@ export class LaoZhangClient {
       hasMask: !!request.mask,
     });
 
+    // Create FormData for multipart request
+    const formData = new FormData();
+    formData.append("model", request.model);
+    formData.append("prompt", request.prompt);
+    formData.append("n", String(request.n || 1));
+    
+    if (request.size) {
+      formData.append("size", request.size);
+    }
+    if (request.response_format) {
+      formData.append("response_format", request.response_format);
+    }
+    
+    // Handle image - could be URL or base64
+    if (request.image) {
+      if (request.image.startsWith("data:")) {
+        // Base64 data URL - convert to blob
+        const base64Data = request.image.split(",")[1];
+        const mimeType = request.image.split(";")[0].split(":")[1] || "image/png";
+        const imageBuffer = Buffer.from(base64Data, "base64");
+        const blob = new Blob([imageBuffer], { type: mimeType });
+        formData.append("image", blob, "image.png");
+      } else if (request.image.startsWith("http")) {
+        // URL - fetch and convert to blob
+        try {
+          const imageResponse = await fetch(request.image);
+          const imageBlob = await imageResponse.blob();
+          formData.append("image", imageBlob, "image.png");
+        } catch (fetchError) {
+          console.error("[LaoZhang Edit] Failed to fetch image URL:", fetchError);
+          throw new Error("Failed to fetch reference image");
+        }
+      } else {
+        // Assume raw base64
+        const imageBuffer = Buffer.from(request.image, "base64");
+        const blob = new Blob([imageBuffer], { type: "image/png" });
+        formData.append("image", blob, "image.png");
+      }
+    }
+    
+    if (request.mask) {
+      // Handle mask similarly
+      if (request.mask.startsWith("data:")) {
+        const base64Data = request.mask.split(",")[1];
+        const maskBuffer = Buffer.from(base64Data, "base64");
+        const blob = new Blob([maskBuffer], { type: "image/png" });
+        formData.append("mask", blob, "mask.png");
+      } else {
+        const maskBuffer = Buffer.from(request.mask, "base64");
+        const blob = new Blob([maskBuffer], { type: "image/png" });
+        formData.append("mask", blob, "mask.png");
+      }
+    }
+
     const response = await fetch(`${this.baseUrl}/images/edits`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
+        // Don't set Content-Type - let fetch set it with boundary for FormData
       },
-      body: JSON.stringify(body),
+      body: formData,
     });
 
     const responseText = await response.text();
+    console.log("[LaoZhang Edit] Response status:", response.status);
 
     if (!response.ok) {
       let errorMessage = response.statusText;
@@ -320,19 +358,67 @@ export class LaoZhangClient {
   /**
    * Generate video using Veo / Sora models
    * Uses chat/completions endpoint which returns video URL directly
+   * Supports: t2v (text only), i2v (single image), start_end (first + last frame)
    */
   async generateVideo(params: {
     model: string;
     prompt: string;
+    startImageUrl?: string; // First frame image URL (for i2v or start_end)
+    endImageUrl?: string; // Last frame image URL (for start_end mode)
   }): Promise<LaoZhangVideoResponse> {
+    // Build message content
+    let messageContent: string | { type: string; text?: string; image_url?: { url: string } }[];
+    
+    if (params.startImageUrl || params.endImageUrl) {
+      // i2v or start_end mode - use multimodal content
+      const contentParts: { type: string; text?: string; image_url?: { url: string } }[] = [
+        { type: "text", text: params.prompt }
+      ];
+      
+      // Add start/first frame image
+      if (params.startImageUrl) {
+        contentParts.push({
+          type: "image_url",
+          image_url: { url: params.startImageUrl }
+        });
+      }
+      
+      // Add end/last frame image (for start_end mode)
+      if (params.endImageUrl) {
+        // Add instruction about last frame
+        contentParts.push({
+          type: "text",
+          text: "This is the desired end frame/final state of the video:"
+        });
+        contentParts.push({
+          type: "image_url",
+          image_url: { url: params.endImageUrl }
+        });
+      }
+      
+      messageContent = contentParts;
+      console.log("[LaoZhang Video] Using i2v/start_end mode with images:", {
+        hasStart: !!params.startImageUrl,
+        hasEnd: !!params.endImageUrl
+      });
+    } else {
+      // t2v mode - text only
+      messageContent = params.prompt;
+    }
+    
     const body = {
       model: params.model,
       messages: [
-        { role: "user", content: params.prompt }
+        { role: "user", content: messageContent }
       ],
     };
 
-    console.log("[LaoZhang Video] Request:", JSON.stringify(body));
+    console.log("[LaoZhang Video] Request:", JSON.stringify({
+      model: params.model,
+      hasStartImage: !!params.startImageUrl,
+      hasEndImage: !!params.endImageUrl,
+      promptLength: params.prompt.length
+    }));
 
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",

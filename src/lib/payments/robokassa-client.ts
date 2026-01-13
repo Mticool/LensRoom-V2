@@ -212,11 +212,11 @@ export class RobokassaClient {
     email?: string;
   }): string {
     // Получаем SubscriptionId из env
-    // New plans: creator, creator_plus, business
+    // New plans: creator, creator_plus, business (with fallback to legacy env vars)
     const subscriptionIds: Record<string, string> = {
-      // New plans
-      creator: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '',
-      creator_plus: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '',
+      // New plans with fallback to legacy
+      creator: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR || '',
+      creator_plus: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || process.env.ROBOKASSA_SUBSCRIPTION_PRO || '',
       business: process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '',
       // Legacy mappings
       star: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR || '',

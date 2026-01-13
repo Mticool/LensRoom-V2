@@ -337,30 +337,36 @@ async function showMainMenu(chatId: number, firstName: string, telegramId: numbe
             });
         }
 
-        // Check if credits already exist
+        // Check if credits already exist with balance
         const { data: existingCredits } = await supabase
           .from('credits')
-          .select('id')
+          .select('id, package_stars, subscription_stars, amount')
           .eq('user_id', userId)
           .single();
 
-        if (!existingCredits) {
-          // Create credits with 50 bonus stars
+        // Check if credits don't exist OR exist but have 0 balance (created by adjust_credits)
+        const needsBonus = !existingCredits || 
+          (existingCredits.package_stars === 0 && 
+           existingCredits.subscription_stars === 0 && 
+           (existingCredits.amount || 0) === 0);
+
+        if (needsBonus) {
+          // Upsert credits with 50 bonus stars
           bonusStars = 50;
           const { error: creditsError } = await supabase
             .from('credits')
-            .insert({
+            .upsert({
               user_id: userId,
               amount: bonusStars,
               subscription_stars: 0,
               package_stars: bonusStars,
-            });
+            }, { onConflict: 'user_id' });
 
           if (creditsError) {
-            console.error('[TG Bot] Failed to create credits:', creditsError);
+            console.error('[TG Bot] Failed to create/update credits:', creditsError);
           } else {
             isNewUser = true;
-            console.log(`[TG Bot] Created credits for ${telegramId} with ${bonusStars}⭐ bonus`);
+            console.log(`[TG Bot] Created/updated credits for ${telegramId} with ${bonusStars}⭐ bonus`);
           }
         }
       }

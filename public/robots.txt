@@ -1,0 +1,59 @@
+# LensRoom - AI генератор изображений и видео
+# https://lensroom.ru
+
+User-agent: *
+Allow: /
+
+# Запрещаем индексацию служебных страниц
+Disallow: /api/
+Disallow: /admin/
+Disallow: /account/
+Disallow: /payment/
+Disallow: /auth/
+Disallow: /_next/
+Disallow: /library
+Disallow: /profile
+
+# Разрешаем индексацию публичных страниц
+Allow: /
+Allow: /generator
+Allow: /image
+Allow: /video
+Allow: /pricing
+Allow: /blog
+Allow: /blog/*
+Allow: /inspiration
+Allow: /about
+Allow: /terms
+Allow: /privacy
+Allow: /models
+Allow: /models/*
+
+# Яндекс-специфичные директивы
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /account/
+Disallow: /payment/
+Disallow: /auth/
+Disallow: /_next/
+Disallow: /library
+Disallow: /profile
+Clean-param: utm_source&utm_medium&utm_campaign&ref /
+
+# Google-специфичные директивы
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /account/
+Disallow: /payment/
+Disallow: /auth/
+Disallow: /_next/
+
+# Sitemap
+Sitemap: https://lensroom.ru/sitemap.xml
+
+# Host для Яндекса
+Host: https://lensroom.ru

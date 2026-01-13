@@ -421,14 +421,33 @@ export async function POST(request: NextRequest) {
           size: imageSize, 
           aspectRatio,
           quality,
+          mode,
+          hasReference: !!referenceImage,
         });
         
-        const laozhangResponse = await laozhangClient.generateImage({
-          model: laozhangModelId,
-          prompt: prompt,
-          n: 1,
-          size: imageSize,
-        });
+        let laozhangResponse;
+        
+        // Check if this is an image-to-image generation with reference
+        if (mode === 'i2i' && referenceImage) {
+          console.log('[API] LaoZhang i2i mode with reference image');
+          
+          // Use edit endpoint for image-to-image
+          laozhangResponse = await laozhangClient.editImage({
+            model: laozhangModelId,
+            prompt: prompt,
+            image: referenceImage, // URL or base64
+            n: 1,
+            size: imageSize,
+          });
+        } else {
+          // Standard text-to-image generation
+          laozhangResponse = await laozhangClient.generateImage({
+            model: laozhangModelId,
+            prompt: prompt,
+            n: 1,
+            size: imageSize,
+          });
+        }
         
         // Extract image URL or base64
         let imageUrl = laozhangResponse.data[0]?.url;

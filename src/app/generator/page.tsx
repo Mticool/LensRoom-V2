@@ -448,10 +448,15 @@ function GeneratorPageContent() {
       chatState.createNewChat(generatorState.currentModel, generatorState.activeSection);
     }
 
+    // For UI display - show variants count
+    const displayPrompt = prompt + (variantsCount > 1 ? ` (${variantsCount} варианта)` : '');
+    // For API - clean prompt without variants text (model handles n parameter)
+    const apiPrompt = prompt;
+    
     const userMessage: ChatMessage = {
       id: Date.now(),
       role: 'user',
-      content: prompt + (variantsCount > 1 ? ` (${variantsCount} варианта)` : ''),
+      content: displayPrompt,
       timestamp: new Date(),
     };
     
@@ -481,7 +486,7 @@ function GeneratorPageContent() {
         : '/api/generate/audio';
       
       const requestBody: Record<string, any> = {
-        prompt: userMessage.content,
+        prompt: apiPrompt, // Use clean prompt without "(X варианта)" text
         model: generatorState.currentModel,
       };
       

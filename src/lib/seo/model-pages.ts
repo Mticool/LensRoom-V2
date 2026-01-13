@@ -28,11 +28,13 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Нейросеть для генерации и редактирования изображений по тексту и референсу.",
     keywords: [
       "gpt image 1.5",
+      "gpt image lensroom",
       "openai image",
       "генерация изображений",
       "изображение по тексту",
       "редактирование изображения нейросеть",
       "нейросеть для картинок онлайн",
+      "lensroom gpt",
     ],
   },
   {
@@ -43,10 +45,12 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Генерация изображений в высоком качестве: детали, стиль и стабильный результат.",
     keywords: [
       "seedream 4.5",
+      "seedream lensroom",
       "генерация изображений нейросеть",
       "картинка по тексту",
       "нейросеть для изображений",
       "создать изображение онлайн",
+      "lensroom seedream",
     ],
   },
   {
@@ -57,10 +61,12 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Самый доступный способ создать изображение по тексту — быстро и недорого.",
     keywords: [
       "z-image",
+      "z-image lensroom",
       "генерация изображений дешево",
       "картинка по тексту онлайн",
       "нейросеть для картинок",
       "создать картинку недорого",
+      "lensroom z-image",
     ],
   },
   {
@@ -68,13 +74,17 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     name: "Nano Banana Pro",
     category: "image",
     generatorModelId: "nano-banana-pro",
-    description: "Премиальная генерация изображений: 1K–4K, варианты и режим фото→фото.",
+    description: "Премиальная генерация изображений: 1K–4K, варианты и режим фото→фото. Безлимит в Creator+ и Business.",
     keywords: [
       "nano banana pro",
+      "nano banana pro lensroom",
+      "nano banana безлимит",
       "нейросеть для фото",
       "генерация изображений 4k",
       "image to image",
       "создать фото нейросеть",
+      "lensroom nano banana",
+      "безлимитная генерация фото",
     ],
   },
   {
@@ -101,10 +111,12 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Перенос движений, жестов и мимики из motion‑референса на вашего персонажа.",
     keywords: [
       "kling motion control",
+      "kling motion control lensroom",
       "motion control нейросеть",
       "перенос движений на персонажа",
       "ai видео",
       "генерация видео по референсу",
+      "lensroom motion control",
     ],
   },
   {
@@ -116,10 +128,12 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Генерация видео с Kling: реализм, динамика и режимы text→video / image→video.",
     keywords: [
       "kling 2.6",
+      "kling 2.6 lensroom",
       "kling ai",
       "генерация видео нейросеть",
       "видео по тексту",
       "видео по картинке",
+      "lensroom kling",
     ],
   },
   {
@@ -190,10 +204,13 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Veo 3.1: реалистичные видео, кинематографичный стиль и высокое качество.",
     keywords: [
       "veo 3.1",
+      "veo 3.1 lensroom",
       "veo ai",
+      "veo google",
       "генерация видео",
       "ai видео генератор",
       "создать видео по тексту",
+      "lensroom veo",
     ],
   },
   {
@@ -205,10 +222,12 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Veo 3.1 Fast: быстрая генерация видео для тестов идей и быстрых итераций.",
     keywords: [
       "veo 3.1 fast",
+      "veo 3.1 fast lensroom",
       "veo ai fast",
       "быстрая генерация видео",
       "ai видео генератор",
       "создать видео по тексту",
+      "lensroom veo fast",
     ],
   },
   {
@@ -220,10 +239,12 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Veo 3.1 Quality: максимум качества и детализации для кинематографичного видео.",
     keywords: [
       "veo 3.1 quality",
+      "veo 3.1 quality lensroom",
       "veo ai качество",
       "генерация видео 1080p",
       "ai видео генератор",
       "создать видео по тексту",
+      "lensroom veo качество",
     ],
   },
   {
@@ -234,10 +255,13 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     description: "Sora 2: генерация видео по тексту и изображениям для креативных задач.",
     keywords: [
       "sora 2",
+      "sora 2 lensroom",
       "openai sora",
+      "sora openai онлайн",
       "генерация видео нейросеть",
       "видео по тексту",
       "ai видео онлайн",
+      "lensroom sora",
     ],
   },
   {

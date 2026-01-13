@@ -96,15 +96,20 @@ export async function POST(request: NextRequest) {
       
       // Определяем planId по subscriptionId
       // New plans: creator (990₽/1200⭐), creator_plus (1990₽/2550⭐), business (2990₽/3500⭐)
-      const subscriptionMap: Record<string, { planId: string; credits: number }> = {
-        // New plans
-        [process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '']: { planId: 'creator', credits: 1200 },
-        [process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '']: { planId: 'creator_plus', credits: 2550 },
-        [process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '']: { planId: 'business', credits: 3500 },
-        // Legacy mappings
-        [process.env.ROBOKASSA_SUBSCRIPTION_STAR || '']: { planId: 'creator', credits: 1200 },
-        [process.env.ROBOKASSA_SUBSCRIPTION_PRO || '']: { planId: 'creator_plus', credits: 2550 },
-      };
+      // Support both new and legacy env var names
+      const subscriptionMap: Record<string, { planId: string; credits: number }> = {};
+      
+      // Creator plan (legacy: STAR)
+      const creatorId = process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR;
+      if (creatorId) subscriptionMap[creatorId] = { planId: 'creator', credits: 1200 };
+      
+      // Creator+ plan (legacy: PRO)  
+      const creatorPlusId = process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || process.env.ROBOKASSA_SUBSCRIPTION_PRO;
+      if (creatorPlusId) subscriptionMap[creatorPlusId] = { planId: 'creator_plus', credits: 2550 };
+      
+      // Business plan
+      const businessId = process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS;
+      if (businessId) subscriptionMap[businessId] = { planId: 'business', credits: 3500 };
       
       const planInfo = subscriptionMap[subscriptionId];
       if (!planInfo) {

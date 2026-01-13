@@ -60,22 +60,28 @@ async function ensureAuthUserWithBonus(
     if (authUserId) {
       const { data: existingCredits } = await supabase
         .from('credits')
-        .select('id')
+        .select('id, package_stars, subscription_stars, amount')
         .eq('user_id', authUserId)
         .single();
 
-      if (!existingCredits) {
-        // New user - create credits with bonus
+      // Check if credits don't exist OR exist but have 0 balance (created by adjust_credits)
+      const needsBonus = !existingCredits || 
+        (existingCredits.package_stars === 0 && 
+         existingCredits.subscription_stars === 0 && 
+         (existingCredits.amount || 0) === 0);
+
+      if (needsBonus) {
+        // Upsert credits with bonus - handles both new records and 0-balance records
         await supabase
           .from('credits')
-          .insert({
+          .upsert({
             user_id: authUserId,
             amount: REGISTRATION_BONUS,
             subscription_stars: 0,
             package_stars: REGISTRATION_BONUS,
-          });
+          }, { onConflict: 'user_id' });
         bonusGiven = REGISTRATION_BONUS;
-        console.log(`[TG MiniApp Auth] Created credits with ${REGISTRATION_BONUS}⭐ bonus for ${authUserId}`);
+        console.log(`[TG MiniApp Auth] Created/updated credits with ${REGISTRATION_BONUS}⭐ bonus for ${authUserId}`);
       }
     }
   } catch (e) {

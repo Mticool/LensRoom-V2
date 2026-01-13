@@ -440,6 +440,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   },
   // === VEO 3.1 - LaoZhang API (much cheaper cost, same user price!) ===
   // LaoZhang cost: $0.015/video, user price unchanged
+  // Supports: t2v (text-to-video), i2v (image-to-video), start_end (first/last frame)
   {
     id: 'veo-3.1',
     name: 'Veo 3.1',
@@ -449,21 +450,21 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdLandscapeFast: 'veo-3.1-landscape-fast', // 16:9 fast variant
     type: 'video',
     provider: 'laozhang', // Switched to LaoZhang API!
-    description: 'Самая быстрая модель для видео (8 сек за ~1 минуту). Отличное качество, стабильная физика, хорошо держит движение камеры и объекты.',
+    description: 'Самая быстрая модель для видео (8 сек за ~1 минуту). Отличное качество, стабильная физика, хорошо держит движение камеры и объекты. Поддерживает режим первый-последний кадр (start_end).',
     rank: 1,
     featured: true,
     speed: 'slow',
     quality: 'ultra',
-    supportsI2v: false, // LaoZhang Veo - text-to-video only for now
+    supportsI2v: true, // LaoZhang Veo supports i2v via chat/completions with image_url
     supportsAudio: true,
-    supportsStartEnd: false,
+    supportsStartEnd: true, // First/last frame mode supported
     fixedDuration: 8, // Veo only supports 8 seconds
     pricing: {
       // ORIGINAL PRICING (unchanged for users)
       fast: { '8': 99 },
       quality: { '8': 490 },
     },
-    modes: ['t2v'],
+    modes: ['t2v', 'i2v', 'start_end'], // All video modes supported!
     durationOptions: [8],
     qualityOptions: ['fast', 'quality'],
     aspectRatios: ['16:9', '9:16'],

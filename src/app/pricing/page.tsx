@@ -156,20 +156,20 @@ export default function PricingPage() {
 
   const FAQ_ITEMS = [
     {
-      q: 'Что такое ⭐ (звёзды)?',
-      a: '⭐ — внутренняя валюта LensRoom. Вы видите цену заранее и платите только за запуск генерации. Разные модели стоят по-разному.',
+      q: 'Какие AI-модели доступны?',
+      a: 'Фото: Nano Banana (бесплатно), Nano Banana Pro (1-2K/4K), FLUX 2 Pro, GPT Image, Ideogram. Видео: Veo 3.1, Sora 2, Kling, WAN. Аудио: Suno AI. Все модели работают через единый интерфейс.',
     },
     {
-      q: 'Чем отличается подписка от пакета ⭐?',
-      a: 'Подписка — ежемесячный план с ⭐ и доступом к Pro-функциям. Звёзды из подписки даются на месяц и не переносятся на следующий. Пакеты — разовая покупка ⭐ без срока действия, они не сгорают.',
+      q: 'Что такое Nano Banana?',
+      a: 'Nano Banana — быстрая нейросеть для генерации изображений. Базовая версия БЕСПЛАТНА во всех тарифах. Pro-версия даёт качество 1-2K и 4K.',
     },
     {
       q: 'Что значит "безлимит" Pro 1-2K?',
-      a: 'В тарифах Creator+ и Business — Nano Banana Pro 1–2K входит без ограничений. Генерируйте сколько хочешь за 0⭐. 4K-режим оплачивается отдельно.',
+      a: 'В тарифах Creator+ и Business — Nano Banana Pro 1–2K входит БЕЗ ОГРАНИЧЕНИЙ. Генерируйте сколько хочешь за 0⭐. 4K-режим оплачивается звёздами.',
     },
     {
-      q: 'Звёзды из подписки переносятся на следующий месяц?',
-      a: 'Нет, ⭐ из подписки действуют только в текущем месяце. Неиспользованные звёзды сгорают при обновлении подписки. Если нужны ⭐ без срока — покупайте пакеты.',
+      q: 'Чем отличается подписка от пакета ⭐?',
+      a: 'Подписка — ежемесячный план со звёздами и доступом к Pro-функциям. Звёзды из подписки НЕ переносятся на следующий месяц. Пакеты — разовая покупка, звёзды не сгорают.',
     },
     {
       q: 'А если генерация не получилась — вернёте ⭐?',
@@ -178,10 +178,6 @@ export default function PricingPage() {
     {
       q: 'Какие способы оплаты?',
       a: 'Принимаем карты Visa, Mastercard, МИР, а также СБП и электронные кошельки через Robokassa.',
-    },
-    {
-      q: 'Есть ли возврат средств?',
-      a: 'Мы возвращаем деньги в течение 14 дней, если вы не использовали ⭐.',
     },
   ];
 
@@ -228,6 +224,80 @@ export default function PricingPage() {
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-violet-400" />
               <span>5000+ пользователей</span>
+            </div>
+          </motion.div>
+
+          {/* AI Models Overview */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="max-w-4xl mx-auto mb-12"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Photo Models */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <span className="text-lg">🖼️</span>
+                  </div>
+                  <h3 className="font-bold text-[var(--text)]">Фото</h3>
+                </div>
+                <ul className="space-y-1.5 text-sm text-[var(--text2)]">
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">FREE</span>
+                    <span>Nano Banana</span>
+                  </li>
+                  <li>• Nano Banana Pro (1-2K/4K)</li>
+                  <li>• FLUX 2 Pro</li>
+                  <li>• GPT Image</li>
+                  <li>• Ideogram v3</li>
+                </ul>
+              </div>
+
+              {/* Video Models */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <span className="text-lg">🎬</span>
+                  </div>
+                  <h3 className="font-bold text-[var(--text)]">Видео</h3>
+                </div>
+                <ul className="space-y-1.5 text-sm text-[var(--text2)]">
+                  <li>• Veo 3.1 (Google)</li>
+                  <li>• Sora 2 (OpenAI)</li>
+                  <li>• Kling 2.6</li>
+                  <li>• WAN</li>
+                  <li>• Grok Video</li>
+                </ul>
+              </div>
+
+              {/* Audio Models */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-pink-500/10 to-transparent border border-pink-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                    <span className="text-lg">🎵</span>
+                  </div>
+                  <h3 className="font-bold text-[var(--text)]">Аудио</h3>
+                </div>
+                <ul className="space-y-1.5 text-sm text-[var(--text2)]">
+                  <li>• Suno AI (музыка)</li>
+                  <li>• Генерация треков</li>
+                  <li>• Кавер-версии</li>
+                  <li>• Вокал + инструменты</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Free Banner */}
+            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-[var(--gold)]/10 to-emerald-500/10 border border-emerald-500/30 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Gift className="w-5 h-5 text-emerald-400" />
+                <span className="font-bold text-emerald-400">Nano Banana БЕСПЛАТНО во всех тарифах!</span>
+              </div>
+              <p className="text-sm text-[var(--text2)]">
+                А в Creator+ и Business — <span className="text-[var(--gold)] font-bold">Nano Banana Pro 1-2K тоже БЕЗЛИМИТ</span>
+              </p>
             </div>
           </motion.div>
 
@@ -527,6 +597,36 @@ function PlanCard({
   const isPopular = !!plan.popular;
   const isLoading = loading === plan.id;
 
+  // Features by plan
+  const planFeatures = {
+    creator: [
+      '🖼️ Nano Banana — БЕСПЛАТНО',
+      '🎬 Veo 3.1, Sora 2, Kling',
+      '🖼️ FLUX 2 Pro, GPT Image',
+      '🎵 Suno AI музыка',
+      '📁 Галерея без лимита',
+    ],
+    creator_plus: [
+      '🖼️ Nano Banana — БЕСПЛАТНО',
+      '✨ Nano Banana Pro 1-2K — БЕЗЛИМИТ',
+      '🎬 Veo 3.1, Sora 2, Kling',
+      '🖼️ FLUX 2 Pro, GPT Image, Ideogram',
+      '🎵 Suno AI музыка',
+      '⚡ Приоритетная очередь',
+    ],
+    business: [
+      '🖼️ Nano Banana — БЕСПЛАТНО',
+      '✨ Nano Banana Pro 1-2K — БЕЗЛИМИТ',
+      '🎬 Veo 3.1, Sora 2, Kling + все видео',
+      '🖼️ Все фото-модели без ограничений',
+      '🎵 Suno AI + голосовые модели',
+      '⚡ Максимальный приоритет',
+      '💼 API доступ (скоро)',
+    ],
+  };
+
+  const features = planFeatures[plan.id as keyof typeof planFeatures] || planFeatures.creator;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -553,7 +653,7 @@ function PlanCard({
         )}
 
         {/* Header */}
-        <div className={cn("text-center mb-5", isPopular && "pt-2")}>
+        <div className={cn("text-center mb-4", isPopular && "pt-2")}>
           <div className={cn(
             "w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3",
             isPopular ? "bg-[var(--gold)]/20" : "bg-white/10"
@@ -572,17 +672,16 @@ function PlanCard({
             </div>
           </div>
 
-          {/* Stars */}
+          {/* Stars badge */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
             <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
             <span className="text-sm font-bold text-white">
-              {plan.stars.toLocaleString()} ⭐
+              {plan.stars.toLocaleString()} ⭐ на платные модели
             </span>
-            <span className="text-xs text-[var(--muted)]">/мес</span>
           </div>
         </div>
 
-        {/* Included Feature Highlight */}
+        {/* Main Feature Highlight */}
         <div className={cn(
           "mb-4 p-3 rounded-xl text-center",
           plan.id === 'creator' 
@@ -590,9 +689,12 @@ function PlanCard({
             : "bg-gradient-to-r from-[var(--gold)]/20 to-amber-500/20 border-2 border-[var(--gold)]/50"
         )}>
           {plan.id === 'creator' ? (
-            <div className="flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm font-medium text-emerald-400">Nano Banana включён</span>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span className="text-base font-bold text-emerald-400">Nano Banana БЕСПЛАТНО</span>
+              </div>
+              <span className="text-xs text-emerald-400/70">Быстрая генерация изображений</span>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1">
@@ -600,20 +702,23 @@ function PlanCard({
                 <Infinity className="w-5 h-5 text-[var(--gold)]" />
                 <span className="text-base font-bold text-[var(--gold)]">Pro 1-2K БЕЗЛИМИТ</span>
               </div>
-              <span className="text-xs text-[var(--gold)]/70">Генерируй сколько хочешь — 0⭐</span>
+              <span className="text-xs text-[var(--gold)]/70">+ Nano Banana бесплатно</span>
             </div>
           )}
         </div>
 
-        {/* Features */}
-        <ul className="space-y-2 mb-5 flex-1">
-          {plan.capacity?.slice(0, 3).map((item, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-[var(--text2)]">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
+        {/* Features List */}
+        <div className="mb-5 flex-1">
+          <p className="text-xs text-[var(--muted)] uppercase tracking-wider mb-2 font-medium">Что входит:</p>
+          <ul className="space-y-2">
+            {features.map((item, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-[var(--text2)]">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         {/* CTA Button */}
         <Button

@@ -455,18 +455,43 @@ export async function POST(request: NextRequest) {
         // Select the right LaoZhang model based on aspect ratio and quality
         const laozhangModelId = getLaoZhangVideoModelId(model, aspectRatio, quality);
         
+        // Prepare image URLs for i2v / start_end modes
+        let startImageUrlForLaoZhang: string | undefined;
+        let endImageUrlForLaoZhang: string | undefined;
+        
+        // Handle i2v mode (single reference image)
+        if (mode === 'i2v' && imageUrl) {
+          startImageUrlForLaoZhang = imageUrl;
+          console.log('[API] LaoZhang i2v mode with reference image');
+        }
+        // Handle start_end mode (first + last frame)
+        else if (mode === 'start_end') {
+          if (imageUrl) startImageUrlForLaoZhang = imageUrl;
+          if (lastFrameUrl) endImageUrlForLaoZhang = lastFrameUrl;
+          console.log('[API] LaoZhang start_end mode:', {
+            hasStart: !!startImageUrlForLaoZhang,
+            hasEnd: !!endImageUrlForLaoZhang
+          });
+        }
+        
         console.log('[API] LaoZhang video request:', {
           model: laozhangModelId,
           originalModel: model,
           aspectRatio,
           quality,
+          mode,
+          hasStartImage: !!startImageUrlForLaoZhang,
+          hasEndImage: !!endImageUrlForLaoZhang,
           prompt: fullPrompt.substring(0, 50),
         });
         
         // Generate video (sync - returns URL directly)
+        // Supports t2v, i2v (with startImageUrl), start_end (with both images)
         const laozhangResponse = await laozhangClient.generateVideo({
           model: laozhangModelId,
           prompt: fullPrompt,
+          startImageUrl: startImageUrlForLaoZhang,
+          endImageUrl: endImageUrlForLaoZhang,
         });
         
         // Upload video to Supabase Storage for permanent storage
