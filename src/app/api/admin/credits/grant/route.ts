@@ -76,16 +76,32 @@ export async function POST(request: NextRequest) {
 
     const { data: creditsData } = await supabase
       .from("credits")
-      .select("amount")
+      .select("amount, subscription_stars, package_stars")
       .eq("user_id", userId)
       .maybeSingle();
 
-    const currentBalance = creditsData?.amount || 0;
-    const newBalance = currentBalance + amount;
+    const currentSubscription = creditsData?.subscription_stars || 0;
+    const currentPackage = creditsData?.package_stars || 0;
+    const legacyAmount = creditsData?.amount || 0;
+    
+    // Calculate current total (handle legacy data)
+    const currentBalance = currentSubscription + currentPackage > 0 
+      ? currentSubscription + currentPackage 
+      : legacyAmount;
+    
+    // Add to package_stars (admin grants never expire)
+    const newPackageStars = (currentPackage > 0 ? currentPackage : legacyAmount) + amount;
+    const newBalance = currentSubscription + newPackageStars;
 
     const { error: updateError } = await supabase
       .from("credits")
-      .upsert({ user_id: userId, amount: newBalance, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      .upsert({ 
+        user_id: userId, 
+        amount: newBalance, 
+        subscription_stars: currentSubscription,
+        package_stars: newPackageStars,
+        updated_at: new Date().toISOString() 
+      }, { onConflict: "user_id" });
 
     if (updateError) {
       console.error("[Admin Grant Credits] Update error:", updateError);

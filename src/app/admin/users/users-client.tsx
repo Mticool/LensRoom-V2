@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Users, Star } from "lucide-react";
 
 type Role = "user" | "manager" | "admin";
 
@@ -118,6 +119,79 @@ export default function AdminUsersClient() {
     }
   };
 
+  const handleMakePartner = async (u: AdminUserRow) => {
+    const percentStr = prompt(
+      `Добавить ${u.display_name} в партнёрскую программу?\n\nВведите процент с 1-й покупки (10-70):`,
+      "10"
+    );
+    if (!percentStr) return;
+    
+    const percent = parseInt(percentStr);
+    if (isNaN(percent) || percent < 10 || percent > 70) {
+      toast.error("Процент должен быть от 10 до 70");
+      return;
+    }
+
+    const recurringStr = prompt(
+      `Процент с повторных покупок (0-10, рекомендовано 2-5):`,
+      "0"
+    );
+    const recurringPercent = parseInt(recurringStr || "0");
+    if (isNaN(recurringPercent) || recurringPercent < 0 || recurringPercent > 10) {
+      toast.error("Процент должен быть от 0 до 10");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/partners/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          userId: u.auth_user_id,
+          percent,
+          recurringPercent,
+          tier: percent >= 50 ? "pro" : "classic",
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || "Ошибка добавления партнёра");
+      }
+      toast.success(`${u.display_name} добавлен в партнёрскую программу (${percent}% / ${recurringPercent}%)`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
+  const handleGrantCredits = async (u: AdminUserRow) => {
+    const amountStr = prompt(`Начислить звёзды для ${u.display_name}?\n\nТекущий баланс: ${u.credits_total} ⭐\nВведите количество:`, "1000");
+    if (!amountStr) return;
+    
+    const amount = parseInt(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Введите положительное число");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/credits/grant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ telegramId: u.telegram_id, amount }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        throw new Error(json?.error || "Ошибка начисления");
+      }
+      toast.success(`Начислено ${amount} ⭐ для ${u.display_name}`);
+      await fetchUsers(offset);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
   const columns: Column<AdminUserRow>[] = useMemo(
     () => [
       {
@@ -186,6 +260,20 @@ export default function AdminUsersClient() {
               <option value="manager">manager</option>
               <option value="admin">admin</option>
             </select>
+            <button
+              onClick={() => handleGrantCredits(u)}
+              title="Начислить звёзды"
+              className="p-2 rounded-lg bg-[var(--gold)]/20 text-[var(--gold)] hover:bg-[var(--gold)]/30 transition"
+            >
+              <Star className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleMakePartner(u)}
+              title="Добавить в партнёры"
+              className="p-2 rounded-lg bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 transition"
+            >
+              <Users className="w-4 h-4" />
+            </button>
           </div>
         ),
       },

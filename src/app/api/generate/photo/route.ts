@@ -454,15 +454,16 @@ export async function POST(request: NextRequest) {
         const b64Json = laozhangResponse.data[0]?.b64_json;
         
         // If we got base64, upload to Supabase storage
+        let originalPath: string | null = null;
         if (!imageUrl && b64Json) {
           console.log('[API] LaoZhang returned base64, uploading to storage...');
           const imageBuffer = Buffer.from(b64Json, 'base64');
           const fileName = `laozhang_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
-          const storagePath = `${userId}/${fileName}`;
+          originalPath = `${userId}/${fileName}`;
           
           const { error: uploadError } = await supabase.storage
             .from('generations')
-            .upload(storagePath, imageBuffer, {
+            .upload(originalPath, imageBuffer, {
               contentType: 'image/png',
               upsert: true
             });
@@ -474,7 +475,7 @@ export async function POST(request: NextRequest) {
           
           const { data: publicUrlData } = supabase.storage
             .from('generations')
-            .getPublicUrl(storagePath);
+            .getPublicUrl(originalPath);
           
           imageUrl = publicUrlData.publicUrl;
           console.log('[API] Uploaded LaoZhang image to:', imageUrl);
@@ -491,6 +492,7 @@ export async function POST(request: NextRequest) {
           .update({
             status: 'success',
             result_urls: [imageUrl],
+            original_path: originalPath,
             updated_at: new Date().toISOString(),
           })
           .eq('id', generation?.id);
@@ -610,15 +612,16 @@ export async function POST(request: NextRequest) {
         const b64Json = openaiResponse.data[0]?.b64_json;
         
         // If we got base64, upload to Supabase storage
+        let openaiOriginalPath: string | null = null;
         if (!imageUrl && b64Json) {
           console.log('[API] OpenAI returned base64, uploading to storage...');
           const imageBuffer = Buffer.from(b64Json, 'base64');
           const fileName = `openai_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
-          const storagePath = `${userId}/${fileName}`;
+          openaiOriginalPath = `${userId}/${fileName}`;
           
           const { error: uploadError } = await supabase.storage
             .from('generations')
-            .upload(storagePath, imageBuffer, {
+            .upload(openaiOriginalPath, imageBuffer, {
               contentType: 'image/png',
               upsert: true
             });
@@ -630,7 +633,7 @@ export async function POST(request: NextRequest) {
           
           const { data: publicUrlData } = supabase.storage
             .from('generations')
-            .getPublicUrl(storagePath);
+            .getPublicUrl(openaiOriginalPath);
           
           imageUrl = publicUrlData.publicUrl;
           console.log('[API] Uploaded base64 image to:', imageUrl);
@@ -647,6 +650,7 @@ export async function POST(request: NextRequest) {
           .update({
             status: 'success',
             result_urls: [imageUrl],
+            original_path: openaiOriginalPath,
             updated_at: new Date().toISOString(),
           })
           .eq('id', generation?.id);
