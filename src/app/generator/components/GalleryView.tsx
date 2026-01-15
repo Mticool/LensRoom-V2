@@ -19,7 +19,7 @@ interface GalleryItem {
   prompt: string;
   model: string;
   type: string;
-  timestamp?: string;
+  timestamp?: Date | string;
 }
 
 export function GalleryView({ 
