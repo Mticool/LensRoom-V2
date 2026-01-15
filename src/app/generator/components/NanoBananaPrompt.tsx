@@ -54,8 +54,10 @@ export function NanoBananaPrompt({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAspectMenu, setShowAspectMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const aspectRef = useRef<HTMLDivElement>(null);
   const qualityRef = useRef<HTMLDivElement>(null);
+  const dragCounterRef = useRef(0);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -99,10 +101,66 @@ export function NanoBananaPrompt({
     onFilesChange(uploadedFiles.filter((_, i) => i !== index));
   };
 
+  // Drag & Drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+      onFilesChange([...uploadedFiles, ...files]);
+    }
+  };
+
   return (
     <div className="relative">
       {/* Main Compact Block */}
-      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl overflow-hidden">
+      <div 
+        className={cn(
+          "bg-[#1a1a2e] border rounded-2xl overflow-hidden transition-all relative",
+          isDragging 
+            ? "border-cyan-500 border-2 shadow-lg shadow-cyan-500/20" 
+            : "border-white/10"
+        )}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Drag Overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 bg-cyan-500/10 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="text-center">
+              <ImageIcon className="w-12 h-12 text-cyan-400 mx-auto mb-2" />
+              <p className="text-cyan-400 font-medium">Отпустите чтобы загрузить</p>
+            </div>
+          </div>
+        )}
         {/* Textarea */}
         <div className="relative">
           <textarea
@@ -276,6 +334,7 @@ export function NanoBananaPrompt({
             <button
               onClick={handleFileSelect}
               disabled={isGenerating}
+              title="Загрузить референс изображение (или перетащите на блок)"
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-50",
                 uploadedFiles.length > 0
@@ -284,7 +343,9 @@ export function NanoBananaPrompt({
               )}
             >
               <Wand2 className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">Draw</span>
+              <span className="text-xs font-medium">
+                {uploadedFiles.length > 0 ? `${uploadedFiles.length} фото` : 'Draw'}
+              </span>
             </button>
           </div>
 
