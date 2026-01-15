@@ -97,7 +97,8 @@ export function GalleryView({
     setImageLoadStates(prev => ({ ...prev, [url]: true }));
   };
 
-  if (galleryItems.length === 0) {
+  // Show empty state only if not generating and no items
+  if (galleryItems.length === 0 && !isGenerating) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center max-w-md">
