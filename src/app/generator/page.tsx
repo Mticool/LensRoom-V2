@@ -1210,8 +1210,8 @@ function GeneratorPageContent() {
 
         {/* View Mode Toggle (Chat/Gallery) - Only for Nano Banana Pro - OUTSIDE Chat Area for visibility */}
         {generatorState.currentModel === 'nano-banana-pro' && !batchMode && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50">
-            <div className="flex items-center gap-1 p-1.5 rounded-xl bg-[var(--surface)]/95 backdrop-blur-xl border border-white/20 shadow-lg">
+          <div className="absolute top-[72px] md:top-16 left-1/2 -translate-x-1/2 z-[100]">
+            <div className="flex items-center gap-1 p-1.5 rounded-xl bg-[#1a1a2e] backdrop-blur-xl border-2 border-cyan-500/50 shadow-xl shadow-cyan-500/20">
               <button
                 onClick={() => setViewMode('chat')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
