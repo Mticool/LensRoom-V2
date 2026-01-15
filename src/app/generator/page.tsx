@@ -1407,22 +1407,24 @@ function GeneratorPageContent() {
 
           {/* Prompt Input - Nano Banana Pro uses special compact UI */}
           {generatorState.currentModel === 'nano-banana-pro' && !batchMode ? (
-            <div className="px-4 pb-4">
-              <NanoBananaPrompt
-                prompt={prompt}
-                onPromptChange={setPrompt}
-                aspectRatio={generatorState.settings?.aspect_ratio || '1:1'}
-                quality={generatorState.settings?.quality || '2K'}
-                variantsCount={Number(generatorState.settings?.variants) || 1}
-                uploadedFiles={uploadedFiles}
-                isGenerating={isGenerating}
-                currentCost={generatorState.currentCost}
-                onAspectRatioChange={(value) => handleSettingChange('aspect_ratio', value)}
-                onQualityChange={(value) => handleSettingChange('quality', value)}
-                onVariantsChange={(value) => handleSettingChange('variants', value)}
-                onFilesChange={setUploadedFiles}
-                onGenerate={handleGenerate}
-              />
+            <div className="px-4 pb-4 flex justify-center">
+              <div className="w-full max-w-3xl">
+                <NanoBananaPrompt
+                  prompt={prompt}
+                  onPromptChange={setPrompt}
+                  aspectRatio={generatorState.settings?.aspect_ratio || '1:1'}
+                  quality={generatorState.settings?.quality || '2K'}
+                  variantsCount={Number(generatorState.settings?.variants) || 1}
+                  uploadedFiles={uploadedFiles}
+                  isGenerating={isGenerating}
+                  currentCost={generatorState.currentCost}
+                  onAspectRatioChange={(value) => handleSettingChange('aspect_ratio', value)}
+                  onQualityChange={(value) => handleSettingChange('quality', value)}
+                  onVariantsChange={(value) => handleSettingChange('variants', value)}
+                  onFilesChange={setUploadedFiles}
+                  onGenerate={handleGenerate}
+                />
+              </div>
             </div>
           ) : (
             <PromptInput
