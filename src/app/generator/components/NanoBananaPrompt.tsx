@@ -204,10 +204,7 @@ export function NanoBananaPrompt({
           <div className="flex items-center gap-2 flex-wrap">
             {/* Model Badge */}
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-black font-bold text-xs">
-                G
-              </div>
-              <span className="text-xs font-medium text-white">Nano Banana</span>
+              <span className="text-xs font-medium text-white">Nano Banana Pro</span>
             </div>
 
             {/* Variants Counter */}
