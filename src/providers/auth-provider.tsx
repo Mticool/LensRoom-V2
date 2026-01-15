@@ -29,55 +29,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check both Supabase auth and Telegram session
     const checkAuth = async () => {
-      // First, check Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
-        setLoading(false);
-        return;
-      }
-
-      // If no Supabase session, check Telegram session cookie
-      const telegramCookie = Cookies.get('lr_session');
-      
-      if (telegramCookie) {
-        // Fetch user info from API (which validates Telegram session)
-        try {
-          const response = await fetch('/api/auth/me', {
-            credentials: 'include',
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            
-            // Create a mock User object for Telegram users
-            if (userData.user) {
-              setUser({
-                id: userData.user.id,
-                email: userData.user.email || `telegram_${userData.telegramId}@lensroom.local`,
-                created_at: userData.user.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                aud: 'authenticated',
-                role: 'authenticated',
-                app_metadata: {},
-                user_metadata: {
-                  telegram_id: userData.telegramId,
-                  username: userData.username,
-                  first_name: userData.firstName,
-                },
-              } as User);
-            }
-          }
-        } catch (error) {
-          console.error('[Auth] Failed to check Telegram session:', error);
+      try {
+        // First, check Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          setUser(session.user);
+          setLoading(false);
+          return;
         }
+
+        // If no Supabase session, check Telegram session cookie
+        const telegramCookie = Cookies.get('lr_session');
+        
+        if (telegramCookie) {
+          // Fetch user info from API (which validates Telegram session)
+          try {
+            const response = await fetch('/api/auth/me', {
+              credentials: 'include',
+              signal: AbortSignal.timeout(10000), // 10 second timeout
+            });
+            
+            if (response.ok) {
+              const userData = await response.json();
+              
+              // Create a mock User object for Telegram users
+              if (userData.user) {
+                setUser({
+                  id: userData.user.id,
+                  email: userData.user.email || `telegram_${userData.telegramId}@lensroom.local`,
+                  created_at: userData.user.created_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  aud: 'authenticated',
+                  role: 'authenticated',
+                  app_metadata: {},
+                  user_metadata: {
+                    telegram_id: userData.telegramId,
+                    username: userData.username,
+                    first_name: userData.firstName,
+                  },
+                } as User);
+              }
+            }
+          } catch (error) {
+            console.error('[Auth] Failed to check Telegram session:', error);
+          }
+        }
+      } catch (error) {
+        console.error('[Auth] checkAuth error:', error);
+      } finally {
+        // Always set loading to false, even if errors occurred
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     checkAuth();
+    
+    // Safety timeout: if loading is still true after 15 seconds, force it to false
+    const timeoutId = setTimeout(() => {
+      console.warn('[Auth] Loading timeout - forcing loading to false');
+      setLoading(false);
+    }, 15000);
 
     // Listen for Supabase auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -86,7 +98,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   const signUp = useCallback(async (email: string, password: string) => {

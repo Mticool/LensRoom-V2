@@ -1208,37 +1208,38 @@ function GeneratorPageContent() {
           {showSettings ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
+        {/* View Mode Toggle (Chat/Gallery) - Only for Nano Banana Pro - OUTSIDE Chat Area for visibility */}
+        {generatorState.currentModel === 'nano-banana-pro' && !batchMode && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50">
+            <div className="flex items-center gap-1 p-1.5 rounded-xl bg-[var(--surface)]/95 backdrop-blur-xl border border-white/20 shadow-lg">
+              <button
+                onClick={() => setViewMode('chat')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  viewMode === 'chat'
+                    ? 'bg-[var(--accent-primary)] text-black shadow-md'
+                    : 'text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Чат
+              </button>
+              <button
+                onClick={() => setViewMode('gallery')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  viewMode === 'gallery'
+                    ? 'bg-[var(--accent-primary)] text-black shadow-md'
+                    : 'text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Grid3x3 className="w-4 h-4" />
+                Галерея
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Chat Area */}
         <div className="flex-1 flex flex-col relative min-h-0">
-          {/* View Mode Toggle (Chat/Gallery) - Only for Nano Banana Pro */}
-          {generatorState.currentModel === 'nano-banana-pro' && !batchMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
-              <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
-                <button
-                  onClick={() => setViewMode('chat')}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    viewMode === 'chat'
-                      ? 'bg-[var(--accent-primary)] text-black'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Чат
-                </button>
-                <button
-                  onClick={() => setViewMode('gallery')}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    viewMode === 'gallery'
-                      ? 'bg-[var(--accent-primary)] text-black'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Grid3x3 className="w-4 h-4" />
-                  Галерея
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Batch Mode Toggle - Only show for models that support i2i */}
           {generatorState.activeSection === 'image' && generatorState.modelInfo?.supportsI2i && (

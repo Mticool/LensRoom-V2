@@ -57,28 +57,63 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
       // 1. Get login code from server
       const initResponse = await fetch('/api/auth/telegram/init', {
         method: 'POST',
+        signal: AbortSignal.timeout(15000), // 15 second timeout
       });
       
       if (!initResponse.ok) {
-        throw new Error('Failed to initialize login');
+        const errorData = await initResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to initialize login');
       }
       
       const { code, botLink: link } = await initResponse.json();
+      
+      if (!code || !link) {
+        throw new Error('Invalid response from server');
+      }
+      
       setLoginCode(code);
       setBotLink(link);
       setLoginState('waiting');
       
       // 2. Open Telegram
-      window.open(link, '_blank');
+      try {
+        window.open(link, '_blank');
+      } catch (e) {
+        console.error('Failed to open Telegram:', e);
+        toast.error('Не удалось открыть Telegram. Попробуйте скопировать ссылку вручную.');
+      }
       
       // 3. Start polling for status
+      let pollAttempts = 0;
+      const maxPollAttempts = 150; // 150 * 2 seconds = 5 minutes
+      
       pollingRef.current = setInterval(async () => {
+        pollAttempts++;
+        
+        if (pollAttempts > maxPollAttempts) {
+          // Auto-cancel after max attempts
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          setLoginState('error');
+          toast.error('Время ожидания истекло');
+          return;
+        }
+        
         try {
           const qs = new URLSearchParams({ code });
           if (referralCode) qs.set('ref', referralCode);
           const statusResponse = await fetch(`/api/auth/telegram/status?${qs.toString()}`, {
             credentials: 'include', // Critical: allows browser to save cookies from response
+            signal: AbortSignal.timeout(8000), // 8 second timeout for each poll
           });
+          
+          if (!statusResponse.ok) {
+            console.error('[Login] Status check failed:', statusResponse.status);
+            return; // Continue polling
+          }
+          
           const data = await statusResponse.json();
           
           if (data.status === 'authenticated') {
@@ -90,14 +125,19 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
             setLoginState('success');
             try { clearStoredReferralCode(); } catch {}
             
+            toast.success('Вы успешно вошли!');
+            
             // Wait a bit for cookie to be set, then refresh session
             setTimeout(async () => {
-              await refreshSession();
-              // Force page reload to ensure session is fully loaded
-              window.location.reload();
+              try {
+                await refreshSession();
+              } catch (e) {
+                console.error('[Login] Failed to refresh session:', e);
+              } finally {
+                // Force page reload to ensure session is fully loaded
+                window.location.reload();
+              }
             }, 500);
-            
-            toast.success('Вы успешно вошли!');
           } else if (data.status === 'expired') {
             // Code expired
             if (pollingRef.current) {
@@ -105,29 +145,20 @@ export function LoginDialog({ isOpen, onClose }: LoginDialogProps) {
               pollingRef.current = null;
             }
             setLoginState('error');
-            toast.error('Время ожидания истекло. Попробуйте снова.');
+            toast.error('Код авторизации истёк. Попробуйте снова.');
           }
+          // status === 'pending' or 'not_found' - continue polling
         } catch (error) {
-          console.error('Polling error:', error);
+          console.error('[Login] Polling error:', error);
+          // Don't stop polling on individual errors, server might be temporarily unavailable
         }
       }, 2000); // Poll every 2 seconds
       
-      // Auto-cancel after 5 minutes
-      setTimeout(() => {
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          if (loginState === 'waiting') {
-            setLoginState('error');
-            toast.error('Время ожидания истекло');
-          }
-        }
-      }, 5 * 60 * 1000);
-      
     } catch (error) {
-      console.error('Telegram login error:', error);
+      console.error('[Login] Telegram login error:', error);
       setLoginState('error');
-      toast.error('Не удалось начать вход');
+      const message = error instanceof Error ? error.message : 'Не удалось начать вход';
+      toast.error(message);
     }
   };
 

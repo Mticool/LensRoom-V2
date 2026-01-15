@@ -19,6 +19,7 @@ import {
   NBP_MODEL_KEY,
 } from "@/lib/quota/nano-banana-pro";
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
+import { resolveAspectRatio, logAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -405,21 +406,24 @@ export async function POST(request: NextRequest) {
         // For nano-banana-pro: 1k_2k -> gemini-3-pro-image-preview-2k, 4k -> gemini-3-pro-image-preview-4k
         const laozhangModelId = getLaoZhangModelId(effectiveModelId, quality || resolution);
         
-        // Determine size based on resolution/quality and aspect ratio
+        // Resolve aspect ratio with model-specific default
+        const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
+        logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'LaoZhang');
+        
         let imageSize: string;
         if (quality && ['1k', '1k_2k', '2k', '4k'].includes(quality.toLowerCase())) {
           // Resolution-based sizing
-          imageSize = resolutionToLaoZhangSize(quality, aspectRatio || '1:1');
+          imageSize = resolutionToLaoZhangSize(quality, finalAspectRatio);
         } else {
           // Default aspect ratio based sizing
-          imageSize = aspectRatioToLaoZhangSize(aspectRatio || '1:1');
+          imageSize = aspectRatioToLaoZhangSize(finalAspectRatio);
         }
         
         console.log('[API] LaoZhang request:', { 
           model: laozhangModelId,
           originalModel: modelInfo.apiId,
           size: imageSize, 
-          aspectRatio,
+          aspectRatio: finalAspectRatio,
           quality,
           mode,
           hasReference: !!referenceImage,
@@ -576,8 +580,12 @@ export async function POST(request: NextRequest) {
         openaiQuality = quality === 'high' ? 'high' : 'medium';
       }
       
+      // Resolve aspect ratio with model-specific default
+      const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
+      logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'OpenAI');
+      
       // Get size from aspect ratio (user selection)
-      const openaiSize = aspectRatioToOpenAISize(aspectRatio || '1:1');
+      const openaiSize = aspectRatioToOpenAISize(finalAspectRatio);
       
       try {
         const openaiClient = getOpenAIClient();
@@ -745,11 +753,15 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
+    // Resolve aspect ratio with model-specific default (for KIE providers)
+    const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
+    logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'KIE');
+    
     // Standard photo generation
     const generateParams: any = {
       model: modelInfo.apiId,
       prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
-      aspectRatio: aspectRatioMap[aspectRatio] || (String(aspectRatio || "1:1") as any),
+      aspectRatio: aspectRatioMap[finalAspectRatio] || String(finalAspectRatio),
       resolution: resolutionForKie,
       outputFormat: "png", // Always PNG for photos
     };

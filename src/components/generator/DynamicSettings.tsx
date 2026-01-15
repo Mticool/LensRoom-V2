@@ -76,25 +76,35 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
   useEffect(() => {
     const storageKey = `${SETTINGS_STORAGE_KEY}_${type}`;
     const savedSettings = localStorage.getItem(storageKey);
+    let hasLoadedFromStorage = false;
+    
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
         const modelSettings = parsed[modelId];
         if (modelSettings) {
+          console.log(`[DynamicSettings] Loading saved settings for ${modelId}:`, modelSettings);
           Object.entries(modelSettings).forEach(([key, value]) => {
             onChange(key, value);
           });
+          hasLoadedFromStorage = true;
         }
       } catch (e) {
-        console.error('Failed to load settings from localStorage:', e);
+        console.error('[DynamicSettings] Failed to load settings from localStorage:', e);
       }
     }
     
-    // Если нет сохранённых настроек, устанавливаем дефолтные
-    if (config && !savedSettings) {
+    // Если нет сохранённых настроек ИЛИ если какие-то настройки отсутствуют, устанавливаем дефолтные
+    if (config) {
+      console.log(`[DynamicSettings] Initializing defaults for ${modelId}, hasLoadedFromStorage:`, hasLoadedFromStorage);
       Object.entries(config.settings).forEach(([key, setting]) => {
-        if (setting.default !== undefined && values[key] === undefined) {
+        // Применяем дефолт если: 1) нет сохранённых настроек ИЛИ 2) значение не определено
+        const shouldSetDefault = setting.default !== undefined && (values[key] === undefined || !hasLoadedFromStorage);
+        if (shouldSetDefault) {
+          console.log(`[DynamicSettings] Setting default for ${key}:`, setting.default, 'current value:', values[key]);
           onChange(key, setting.default);
+        } else if (key === 'aspect_ratio') {
+          console.log(`[DynamicSettings] NOT setting default for aspect_ratio - current value:`, values[key], 'default would be:', setting.default);
         }
       });
     }
@@ -238,7 +248,10 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
               {setting.options?.map((option) => (
                 <button
                   key={String(option.value)}
-                  onClick={() => onChange(key, option.value)}
+                  onClick={() => {
+                    console.log(`[DynamicSettings] Button clicked:`, { key, option: option.value, label: option.label });
+                    onChange(key, option.value);
+                  }}
                   className={cn(
                     "px-3 py-2.5 rounded-[10px] text-[12px] font-medium transition-all duration-200",
                     value === option.value

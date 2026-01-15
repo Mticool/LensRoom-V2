@@ -17,6 +17,7 @@ import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
+import { resolveVideoAspectRatio, logVideoAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 export const maxDuration = 60; // 60 seconds timeout
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       resolution,
       audio, // ignored: we always enable sound when model supports it
       variants = 1,
-      aspectRatio = '16:9',
+      aspectRatio: aspectRatioFromBody,
       negativePrompt,
       referenceImage,
       startImage,
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest) {
       autoTrim = true, // Auto-trim videos > 30s
       shots, // For storyboard mode
     } = body;
+    
+    // Resolve aspect ratio with model-specific default
+    const aspectRatio = resolveVideoAspectRatio(aspectRatioFromBody, model);
+    logVideoAspectRatioResolution(aspectRatioFromBody, aspectRatio, model, 'Video');
 
     if (!prompt && mode !== 'storyboard') {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });

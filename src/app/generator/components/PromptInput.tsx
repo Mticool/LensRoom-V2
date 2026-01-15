@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Paperclip, Send, Upload, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ export function PromptInput({
   onClearChat,
 }: PromptInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
 
@@ -95,6 +96,13 @@ export function PromptInput({
       addFiles(files);
     }
   }, [addFiles]);
+
+  // Сбросить высоту textarea когда промпт очищается
+  useEffect(() => {
+    if (!prompt && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }, [prompt]);
 
   const getAcceptTypes = () => {
     switch (activeSection) {
@@ -222,16 +230,26 @@ export function PromptInput({
           </button>
           
           <textarea
+            ref={textareaRef}
             value={prompt}
             onChange={(e) => {
               onPromptChange(e.target.value);
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+              // Автоматическое изменение высоты
+              if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto';
+                textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 150) + 'px';
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 onGenerate();
+                // Сбросить высоту после генерации
+                setTimeout(() => {
+                  if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                  }
+                }, 100);
               }
             }}
             placeholder={getPlaceholder()}

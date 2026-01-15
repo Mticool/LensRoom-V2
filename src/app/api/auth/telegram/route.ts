@@ -125,22 +125,30 @@ export async function POST(request: NextRequest) {
       if (authUserId) {
         const REGISTRATION_BONUS = 50;
         
-        // Check if credits already exist with balance
-        const { data: existingCredits } = await supabase
+        console.log(`[Telegram Auth] Processing registration bonus for user ${authUserId}`);
+        
+        // Check if credits already exist with balance (use maybeSingle to handle no-row case)
+        const { data: existingCredits, error: creditsError } = await supabase
           .from('credits')
           .select('id, package_stars, subscription_stars, amount')
           .eq('user_id', authUserId)
-          .single();
+          .maybeSingle();
         
-        // Check if credits don't exist OR exist but have 0 balance
-        const needsBonus = !existingCredits || 
-          (existingCredits.package_stars === 0 && 
-           existingCredits.subscription_stars === 0 && 
-           (existingCredits.amount || 0) === 0);
+        if (creditsError) {
+          console.error('[Telegram Auth] Error checking credits:', creditsError);
+        }
+        
+        // Check if credits don't exist OR exist but have 0 balance (bonus not yet applied)
+        const currentTotal = existingCredits 
+          ? (existingCredits.package_stars || 0) + (existingCredits.subscription_stars || 0) + (existingCredits.amount || 0)
+          : 0;
+        const needsBonus = !existingCredits || currentTotal === 0;
+        
+        console.log(`[Telegram Auth] Current balance for ${authUserId}: ${currentTotal}⭐, needsBonus: ${needsBonus}`);
         
         if (needsBonus) {
           // Upsert credits with bonus - handles both new records and 0-balance records
-          await supabase
+          const { error: upsertCreditsError } = await supabase
             .from('credits')
             .upsert({
               user_id: authUserId,
@@ -148,7 +156,14 @@ export async function POST(request: NextRequest) {
               subscription_stars: 0,
               package_stars: REGISTRATION_BONUS,
             }, { onConflict: 'user_id' });
-          console.log(`[Telegram Auth] Created/updated credits with ${REGISTRATION_BONUS}⭐ bonus for ${authUserId}`);
+          
+          if (upsertCreditsError) {
+            console.error('[Telegram Auth] Failed to upsert credits:', upsertCreditsError);
+          } else {
+            console.log(`[Telegram Auth] ✅ Successfully created credits with ${REGISTRATION_BONUS}⭐ bonus for ${authUserId}`);
+          }
+        } else {
+          console.log(`[Telegram Auth] User ${authUserId} already has ${currentTotal}⭐, skipping bonus`);
         }
       }
 

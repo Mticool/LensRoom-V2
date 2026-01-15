@@ -218,7 +218,19 @@ export function Header() {
               <ThemeToggle />
               
               {authLoading ? (
-                <div className="w-24 h-10 bg-[var(--surface)] rounded-[12px] animate-pulse" />
+                <div className="flex items-center gap-2">
+                  <div className="w-24 h-10 bg-[var(--surface)] rounded-[12px] animate-pulse" />
+                  <button
+                    onClick={() => {
+                      window.localStorage.clear();
+                      window.location.reload();
+                    }}
+                    className="text-xs text-[var(--muted)] hover:text-[var(--text)] px-2 py-1 rounded"
+                    title="Сбросить и перезагрузить"
+                  >
+                    ⟳
+                  </button>
+                </div>
               ) : (telegramUser || supabaseUser) ? (
                 <div className="relative">
                   <button

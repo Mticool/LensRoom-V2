@@ -234,11 +234,19 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
           Опишите что хотите создать, и я сгенерирую для вас{' '}
           {activeSection === 'image' ? 'изображение' : activeSection === 'video' ? 'видео' : 'аудио'}
         </p>
-        <div className="mt-3 flex items-center justify-center gap-2 max-w-md mx-auto">
-          <Lightbulb className="w-4 h-4 text-[var(--accent-secondary)] flex-shrink-0" />
-          <p className="text-[13px] text-[var(--muted)]">
-            Совет: добавьте стиль, свет, фон и детали. Например: «студийная предметная съёмка, мягкий свет, белый фон».
-          </p>
+        <div className="mt-3 space-y-2 max-w-md mx-auto">
+          <div className="flex items-start justify-center gap-2">
+            <Lightbulb className="w-4 h-4 text-[var(--accent-secondary)] flex-shrink-0 mt-0.5" />
+            <p className="text-[13px] text-[var(--muted)] text-left">
+              Совет: добавьте стиль, свет, фон и детали. Например: «студийная предметная съёмка, мягкий свет, белый фон».
+            </p>
+          </div>
+          <div className="flex items-start justify-center gap-2 pt-2 border-t border-white/5">
+            <Lightbulb className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[13px] text-[var(--muted)] text-left">
+              При смене модели история сохраняется. Используйте "Очистить чат" для нового проекта.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -424,7 +432,7 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                           <video 
                             src={message.url} 
                             controls 
-                            className="w-full max-h-[450px] object-contain"
+                            className="w-full h-auto"
                           />
                         ) : message.type === 'audio' ? (
                           <audio 
@@ -436,7 +444,7 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
                           <img 
                             src={message.url} 
                             alt=""
-                            className="w-full max-h-[450px] object-contain"
+                            className="w-full h-auto"
                           />
                         )}
                       </div>

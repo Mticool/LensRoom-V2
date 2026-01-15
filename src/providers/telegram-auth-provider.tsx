@@ -91,7 +91,9 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   // Fetch current session on mount
   const refreshSession = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/session');
+      const response = await fetch('/api/auth/session', {
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      });
       const data = await response.json();
       setUser(data.user || null);
     } catch (error) {
@@ -145,6 +147,14 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
     }
 
     refreshSession();
+    
+    // Safety timeout: if loading is still true after 15 seconds, force it to false
+    const timeoutId = setTimeout(() => {
+      console.warn('[TelegramAuth] Loading timeout - forcing loading to false');
+      setLoading(false);
+    }, 15000);
+    
+    return () => clearTimeout(timeoutId);
   }, [refreshSession, signInWithTelegram]);
 
   // Sign out
