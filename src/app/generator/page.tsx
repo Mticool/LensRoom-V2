@@ -752,7 +752,8 @@ function GeneratorPageContent() {
                 content: results.length > 0 ? `Готово! (${results.length} фото)` : 'Ошибка генерации', 
                 urls: results, // Array of URLs for grid display
                 url: results[0], // Backwards compatibility
-                isGenerating: false 
+                isGenerating: false,
+                aspectRatio: requestBody.aspectRatio || '1:1' // Store aspect ratio for gallery
               }
             : m
         ));
@@ -783,7 +784,13 @@ function GeneratorPageContent() {
         
         chatState.setMessages(prev => prev.map(m => 
           m.id === assistantMessage.id 
-            ? { ...m, content: resultUrl ? 'Готово!' : 'Генерация завершена', url: resultUrl, isGenerating: false }
+            ? { 
+                ...m, 
+                content: resultUrl ? 'Готово!' : 'Генерация завершена', 
+                url: resultUrl, 
+                isGenerating: false,
+                aspectRatio: requestBody.aspectRatio || '1:1' // Store aspect ratio for gallery
+              }
             : m
         ));
       }
@@ -1419,7 +1426,7 @@ function GeneratorPageContent() {
                   variantsCount={Number(generatorState.settings?.variants) || 1}
                   uploadedFiles={uploadedFiles}
                   isGenerating={isGenerating}
-                  currentCost={generatorState.currentCost}
+                  currentCost={generatorState.currentCost * (Number(generatorState.settings?.variants) || 1)}
                   onAspectRatioChange={(value) => handleSettingChange('aspect_ratio', value)}
                   onQualityChange={(value) => handleSettingChange('quality', value)}
                   onVariantsChange={(value) => handleSettingChange('variants', value)}

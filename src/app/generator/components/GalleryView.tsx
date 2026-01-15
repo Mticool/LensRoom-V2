@@ -40,7 +40,25 @@ interface GalleryItem {
   model: string;
   type: string;
   timestamp?: Date | string;
+  aspectRatio?: string;
 }
+
+// Helper to get CSS aspect ratio class
+const getAspectRatioClass = (ratio?: string) => {
+  const ratioMap: Record<string, string> = {
+    '1:1': 'aspect-square',
+    '16:9': 'aspect-video',
+    '9:16': 'aspect-[9/16]',
+    '4:3': 'aspect-[4/3]',
+    '3:4': 'aspect-[3/4]',
+    '21:9': 'aspect-[21/9]',
+    '3:2': 'aspect-[3/2]',
+    '2:3': 'aspect-[2/3]',
+    '4:5': 'aspect-[4/5]',
+    '5:4': 'aspect-[5/4]',
+  };
+  return ratioMap[ratio || '1:1'] || 'aspect-square';
+};
 
 export function GalleryView({ 
   messages, 
@@ -71,6 +89,7 @@ export function GalleryView({
         model: message.model || 'Unknown',
         type: message.type || 'image',
         timestamp: message.timestamp,
+        aspectRatio: (message as any).aspectRatio || '1:1', // Get aspect ratio from message
       }));
     });
 
@@ -113,7 +132,7 @@ export function GalleryView({
               key={`generating-${idx}`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative aspect-square"
+              className="relative aspect-square" // Placeholders always square for now
             >
               <div className="relative w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-cyan-500/40">
                 {/* Animated Gradient */}
@@ -143,7 +162,10 @@ export function GalleryView({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="group relative aspect-square cursor-pointer"
+              className={cn(
+                "group relative cursor-pointer",
+                getAspectRatioClass(item.aspectRatio)
+              )}
               onClick={() => setSelectedItem(item)}
             >
               {/* Image Container */}
