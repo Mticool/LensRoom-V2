@@ -7,7 +7,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Layers, X, MessageSquare, SlidersHorizontal, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, X, MessageSquare, SlidersHorizontal, Plus, Grid3x3 } from 'lucide-react';
 import { computePrice, type PriceOptions } from '@/lib/pricing/compute-price';
 import { toast } from 'sonner';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -18,7 +18,8 @@ import {
   ChatSidebar, 
   ChatMessages, 
   PromptInput, 
-  SettingsSidebar 
+  SettingsSidebar,
+  GalleryView
 } from './components';
 import { 
   MODELS_CONFIG, 
@@ -264,13 +265,83 @@ function GeneratorPageContent() {
   const [batchImages, setBatchImages] = useState<UploadedImage[]>([]);
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+  
+  // View mode state (Chat or Gallery) - only for Nano Banana Pro
+  const [viewMode, setViewMode] = useState<'chat' | 'gallery'>('chat');
+  
+  // Test mode - persist in state so it doesn't reset on re-render
+  const [isTestMode, setIsTestMode] = useState(false);
+  
+  // Initialize test mode from URL on mount
+  useEffect(() => {
+    if (searchParams.get('test') === '1') {
+      setIsTestMode(true);
+    }
+  }, []);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const telegramAuth = useTelegramAuth();
   const supabaseAuth = useAuth();
   const { balance, fetchBalance } = useCreditsStore();
 
-  const user = telegramAuth.user || supabaseAuth.user;
+  // Test mode: create fake user
+  const testUser = isTestMode ? { id: 'test-user', name: 'Test User' } : null;
+  
+  const user = telegramAuth.user || supabaseAuth.user || testUser;
+
+  // Add test images in test mode for Gallery View testing
+  const testImagesAddedRef = useRef(false);
+  useEffect(() => {
+    if (isTestMode && !testImagesAddedRef.current) {
+      testImagesAddedRef.current = true;
+      
+      const testImages: ChatMessage[] = [
+        {
+          id: Date.now(),
+          role: 'assistant',
+          content: 'Красивый закат над океаном',
+          timestamp: new Date(),
+          url: 'https://picsum.photos/seed/sunset1/512/512',
+          type: 'image',
+          model: 'Nano Banana Pro',
+        },
+        {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: 'Горный пейзаж с озером',
+          timestamp: new Date(),
+          url: 'https://picsum.photos/seed/mountain1/512/512',
+          type: 'image',
+          model: 'Nano Banana Pro',
+        },
+        {
+          id: Date.now() + 2,
+          role: 'assistant',
+          content: 'Городская архитектура',
+          timestamp: new Date(),
+          url: 'https://picsum.photos/seed/city1/512/512',
+          type: 'image',
+          model: 'Nano Banana Pro',
+        },
+        {
+          id: Date.now() + 3,
+          role: 'assistant',
+          content: 'Природа и цветы',
+          timestamp: new Date(),
+          url: 'https://picsum.photos/seed/flowers1/512/512',
+          type: 'image',
+          model: 'Nano Banana Pro',
+        },
+      ];
+      
+      // Add test images to existing messages
+      chatState.setMessages(prev => [...prev, ...testImages]);
+      // Also set model to nano-banana-pro for Gallery View testing
+      generatorState.setCurrentModel('nano-banana-pro');
+      // Switch to gallery view automatically
+      setViewMode('gallery');
+    }
+  }, [isTestMode]);
 
   // Track previous model to detect changes
   const prevModelRef = useRef<string | null>(null);
@@ -438,7 +509,8 @@ function GeneratorPageContent() {
     // Calculate total cost for all variants
     const totalCost = generatorState.currentCost * variantsCount;
 
-    if (balance < totalCost) {
+    // Skip balance check in test mode
+    if (!isTestMode && balance < totalCost) {
       alert(`Недостаточно звёзд. Нужно ${totalCost}⭐ для ${variantsCount} фото`);
       return;
     }
@@ -492,8 +564,17 @@ function GeneratorPageContent() {
       
       // Flatten settings
       const { settings, activeSection } = generatorState;
+      console.log('[Generator] Current settings:', settings);
+      console.log('[Generator] aspect_ratio from settings:', settings?.aspect_ratio);
+      
       if (settings) {
-        if (settings.aspect_ratio) requestBody.aspectRatio = settings.aspect_ratio;
+        if (settings.aspect_ratio) {
+          requestBody.aspectRatio = settings.aspect_ratio;
+          console.log('[Generator] Setting aspectRatio in requestBody:', settings.aspect_ratio);
+        } else {
+          console.warn('[Generator] aspect_ratio not found in settings! Using default 9:16');
+          requestBody.aspectRatio = '9:16'; // Fallback для Nano Banana Pro
+        }
         if (settings.quality) requestBody.quality = settings.quality;
         if (settings.resolution) requestBody.resolution = settings.resolution;
         if (settings.duration) requestBody.duration = Number(settings.duration);
@@ -721,7 +802,8 @@ function GeneratorPageContent() {
     const pricePerImage = generatorState.currentCost;
     const totalCost = pricePerImage * batchImages.length;
 
-    if (balance < totalCost) {
+    // Skip balance check in test mode
+    if (!isTestMode && balance < totalCost) {
       toast.error(`Недостаточно звёзд. Нужно ${totalCost}⭐, у вас ${balance}⭐`);
       return;
     }
@@ -848,7 +930,12 @@ function GeneratorPageContent() {
 
   // Handlers
   const handleSettingChange = useCallback((key: string, value: any) => {
-    generatorState.setSettings(prev => ({ ...prev, [key]: value }));
+    console.log('[Generator] Setting changed:', { key, value, currentSettings: generatorState.settings });
+    generatorState.setSettings(prev => {
+      const updated = { ...prev, [key]: value };
+      console.log('[Generator] Updated settings:', updated);
+      return updated;
+    });
   }, [generatorState]);
 
   const handleDownload = useCallback(async (url: string, type: string) => {
@@ -945,6 +1032,12 @@ function GeneratorPageContent() {
     // Make generator fit exactly into remaining viewport height to avoid page scroll in small windows.
     // On mobile, we have an additional ~52px top bar for category tabs, so we use pt-[52px] on mobile.
     <div className="h-[calc(100vh-56px)] bg-[var(--bg)] flex flex-col relative overflow-hidden pt-[52px] md:pt-0">
+      {/* Test Mode Banner */}
+      {isTestMode && (
+        <div className="absolute top-0 left-0 right-0 z-50 bg-yellow-500/90 text-black text-center py-2 text-sm font-medium">
+          🧪 ТЕСТОВЫЙ РЕЖИМ — авторизация отключена, показаны демо-изображения
+        </div>
+      )}
       {/* Premium gradient background - syntx.ai style */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-mesh opacity-40" />
@@ -1117,6 +1210,36 @@ function GeneratorPageContent() {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col relative min-h-0">
+          {/* View Mode Toggle (Chat/Gallery) - Only for Nano Banana Pro */}
+          {generatorState.currentModel === 'nano-banana-pro' && !batchMode && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
+                <button
+                  onClick={() => setViewMode('chat')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    viewMode === 'chat'
+                      ? 'bg-[var(--accent-primary)] text-black'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Чат
+                </button>
+                <button
+                  onClick={() => setViewMode('gallery')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    viewMode === 'gallery'
+                      ? 'bg-[var(--accent-primary)] text-black'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Grid3x3 className="w-4 h-4" />
+                  Галерея
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Batch Mode Toggle - Only show for models that support i2i */}
           {generatorState.activeSection === 'image' && generatorState.modelInfo?.supportsI2i && (
             <div className="absolute top-4 right-4 z-30">
@@ -1241,6 +1364,14 @@ function GeneratorPageContent() {
                   </div>
                 </motion.div>
               </div>
+            ) : viewMode === 'gallery' && generatorState.currentModel === 'nano-banana-pro' ? (
+              // Gallery View - Only for Nano Banana Pro
+              <GalleryView
+                messages={chatState.messages}
+                onDownload={handleDownload}
+                onCopy={handleCopy}
+                modelFilter="Nano Banana Pro"
+              />
             ) : (
               // Normal chat messages
               <div className="max-w-3xl mx-auto px-4 py-6">
@@ -1352,7 +1483,7 @@ function GeneratorPageContent() {
         </div>
       </div>
 
-      <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginDialog isOpen={loginOpen && !isTestMode} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }
