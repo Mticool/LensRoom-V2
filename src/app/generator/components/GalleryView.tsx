@@ -82,15 +82,19 @@ export function GalleryView({
       const userMessage = userMessages[userMessages.length - 1]; // Берём последнее
       const prompt = userMessage?.content || message.content || 'Без промпта';
       
-      return urls.map((url, idx) => ({
-        id: message.id * 1000 + idx,
-        url,
-        prompt,
-        model: message.model || 'Unknown',
-        type: message.type || 'image',
-        timestamp: message.timestamp,
-        aspectRatio: (message as any).aspectRatio || '1:1', // Get aspect ratio from message
-      }));
+      return urls.map((url, idx) => {
+        const ratio = (message as any).aspectRatio || '1:1';
+        console.log('[GalleryView] Message aspectRatio:', ratio, 'Message:', message);
+        return {
+          id: message.id * 1000 + idx,
+          url,
+          prompt,
+          model: message.model || 'Unknown',
+          type: message.type || 'image',
+          timestamp: message.timestamp,
+          aspectRatio: ratio,
+        };
+      });
     });
 
   const handleImageLoad = (url: string) => {
