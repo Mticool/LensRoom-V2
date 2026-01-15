@@ -162,7 +162,7 @@ export function NanoBananaPrompt({
           </div>
         )}
         {/* Textarea with Upload Button */}
-        <div className="relative flex items-start gap-3 px-4 pt-4 pb-2">
+        <div className="relative flex items-start gap-3 px-4 pt-4 pb-2 rounded-t-2xl overflow-hidden">
           {/* Upload Button */}
           <button
             onClick={handleFileSelect}
@@ -265,11 +265,11 @@ export function NanoBananaPrompt({
               <AnimatePresence>
                 {showAspectMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: -8 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
+                    exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 mt-2 z-50 min-w-[100px] bg-[#1a1a2e] border border-white/20 rounded-xl shadow-2xl overflow-hidden"
+                    className="absolute bottom-full left-0 mb-2 z-50 min-w-[100px] bg-[#1a1a2e] border border-white/20 rounded-xl shadow-2xl overflow-hidden"
                   >
                     {ASPECT_RATIOS.map((ratio) => (
                       <button
@@ -314,11 +314,11 @@ export function NanoBananaPrompt({
               <AnimatePresence>
                 {showQualityMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: -8 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
+                    exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 mt-2 z-50 min-w-[120px] bg-[#1a1a2e] border border-white/20 rounded-xl shadow-2xl overflow-hidden"
+                    className="absolute bottom-full left-0 mb-2 z-50 min-w-[120px] bg-[#1a1a2e] border border-white/20 rounded-xl shadow-2xl overflow-hidden"
                   >
                     {QUALITIES.map((q) => (
                       <button
