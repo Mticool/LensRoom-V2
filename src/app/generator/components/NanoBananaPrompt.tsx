@@ -161,8 +161,24 @@ export function NanoBananaPrompt({
             </div>
           </div>
         )}
-        {/* Textarea */}
-        <div className="relative">
+        {/* Textarea with Upload Button */}
+        <div className="relative flex items-start gap-3 px-4 pt-4 pb-2">
+          {/* Upload Button */}
+          <button
+            onClick={handleFileSelect}
+            disabled={isGenerating}
+            title="Загрузить референс изображение"
+            className={cn(
+              "flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all mt-0.5",
+              uploadedFiles.length > 0
+                ? "bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30"
+                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+            )}
+          >
+            <ImageIcon className="w-5 h-5" />
+          </button>
+
+          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={prompt}
@@ -170,13 +186,13 @@ export function NanoBananaPrompt({
             onKeyDown={handleKeyDown}
             placeholder="Опишите что хотите создать..."
             disabled={isGenerating}
-            className="w-full px-4 pt-4 pb-2 bg-transparent text-white placeholder-gray-500 resize-none focus:outline-none text-[15px] leading-relaxed min-h-[60px] max-h-[120px]"
+            className="flex-1 bg-transparent text-white placeholder-gray-500 resize-none focus:outline-none text-[15px] leading-relaxed min-h-[32px] max-h-[120px]"
             rows={1}
           />
 
           {/* Uploaded Files Preview (if any) */}
           {uploadedFiles.length > 0 && (
-            <div className="px-4 pb-2 flex gap-2 flex-wrap">
+            <div className="pl-16 pr-4 pb-2 flex gap-2 flex-wrap">
               {uploadedFiles.map((file, idx) => (
                 <div key={idx} className="relative group">
                   <div className="w-16 h-16 rounded-lg overflow-hidden bg-black/30 border border-white/10">
@@ -321,30 +337,12 @@ export function NanoBananaPrompt({
                         <span>{q.label}</span>
                         <span className="text-[10px] text-gray-500">{q.cost}⭐</span>
                       </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Draw Button (Reference Image) */}
-            <button
-              onClick={handleFileSelect}
-              disabled={isGenerating}
-              title="Загрузить референс изображение (или перетащите на блок)"
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-50",
-                uploadedFiles.length > 0
-                  ? "bg-cyan-500/20 border border-cyan-500/40 text-cyan-400"
-                  : "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
-              )}
-            >
-              <Wand2 className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">
-                {uploadedFiles.length > 0 ? `${uploadedFiles.length} фото` : 'Draw'}
-              </span>
-            </button>
-          </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
 
           {/* Right Side: Generate Button */}
           <button
