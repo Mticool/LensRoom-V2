@@ -32,6 +32,7 @@ export interface ChatMessage {
   variantsCount?: number; // Number of variants requested
   isGenerating?: boolean;
   batchResults?: Array<{ url: string; clientId?: string }>;
+  aspectRatio?: string; // Aspect ratio for gallery display (e.g., '9:16', '16:9', '1:1')
 }
 
 export interface ChatSession {
