@@ -1384,6 +1384,8 @@ function GeneratorPageContent() {
                 onDownload={handleDownload}
                 onCopy={handleCopy}
                 modelFilter="Nano Banana Pro"
+                isGenerating={isGenerating}
+                generatingCount={Number(generatorState.settings?.variants) || 1}
               />
             ) : (
               // Normal chat messages

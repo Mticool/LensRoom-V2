@@ -6,11 +6,31 @@ import { Download, Copy, X, ZoomIn, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from '../config';
 
+// Add custom animation styles
+const shimmerKeyframes = `
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  @keyframes spin-slow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+  .animate-spin-slow {
+    animation: spin-slow 3s linear infinite;
+  }
+`;
+
 interface GalleryViewProps {
   messages: ChatMessage[];
   onDownload: (url: string, type: string) => void;
   onCopy: (url: string) => void;
   modelFilter?: string; // Фильтр по модели (например, только Nano Banana Pro)
+  isGenerating?: boolean; // Идет ли генерация
+  generatingCount?: number; // Количество генерируемых изображений
 }
 
 interface GalleryItem {
@@ -26,7 +46,9 @@ export function GalleryView({
   messages, 
   onDownload, 
   onCopy,
-  modelFilter 
+  modelFilter,
+  isGenerating = false,
+  generatingCount = 0
 }: GalleryViewProps) {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [imageLoadStates, setImageLoadStates] = useState<Record<string, boolean>>({});
@@ -37,7 +59,9 @@ export function GalleryView({
     .filter(m => !modelFilter || m.model === modelFilter) // Фильтр по модели
     .flatMap(message => {
       const urls = message.urls || (message.url ? [message.url] : []);
-      const userMessage = messages.find(m => m.role === 'user' && m.id < message.id);
+      // Найти ПОСЛЕДНЕЕ user-сообщение перед этим assistant-сообщением
+      const userMessages = messages.filter(m => m.role === 'user' && m.id < message.id);
+      const userMessage = userMessages[userMessages.length - 1]; // Берём последнее
       const prompt = userMessage?.content || message.content || 'Без промпта';
       
       return urls.map((url, idx) => ({
@@ -77,9 +101,41 @@ export function GalleryView({
 
   return (
     <>
+      {/* Add animation styles */}
+      <style dangerouslySetInnerHTML={{ __html: shimmerKeyframes }} />
+      
       {/* Gallery Grid */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {/* Generating Placeholders */}
+          {isGenerating && Array.from({ length: generatingCount }).map((_, idx) => (
+            <motion.div
+              key={`generating-${idx}`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative aspect-square"
+            >
+              <div className="relative w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-cyan-500/40">
+                {/* Animated Gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 animate-pulse" />
+                
+                {/* Shimmer Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                
+                {/* Generating Icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-cyan-500/20 flex items-center justify-center animate-spin-slow">
+                      <Maximize2 className="w-6 h-6 text-cyan-400" />
+                    </div>
+                    <p className="text-xs text-cyan-400 font-medium">Генерация...</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+          
+          {/* Actual Gallery Items */}
           {galleryItems.map((item) => (
             <motion.div
               key={item.id}
