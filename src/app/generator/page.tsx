@@ -19,7 +19,8 @@ import {
   ChatMessages, 
   PromptInput, 
   SettingsSidebar,
-  GalleryView
+  GalleryView,
+  CompactSettings
 } from './components';
 import { 
   MODELS_CONFIG, 
@@ -695,6 +696,16 @@ function GeneratorPageContent() {
         }
       }
       
+      // Debug log before sending request
+      console.log('[Generator] Final requestBody before send:', {
+        model: requestBody.model,
+        mode: requestBody.mode,
+        hasReferenceImage: !!requestBody.referenceImage,
+        referenceImageLength: requestBody.referenceImage?.length || 0,
+        aspectRatio: requestBody.aspectRatio,
+        quality: requestBody.quality,
+      });
+
       // Handle multiple variants with parallel requests
       if (variantsCount > 1 && generatorState.activeSection === 'image') {
         // Generate random seeds for each variant
@@ -1407,6 +1418,36 @@ function GeneratorPageContent() {
             hasMessages={chatState.messages.length > 0}
             onClearChat={clearChat}
           />
+
+          {/* Compact Settings - Only for Nano Banana Pro */}
+          {generatorState.currentModel === 'nano-banana-pro' && !batchMode && (
+            <div className="px-4 pb-3">
+              <CompactSettings
+                modelName="Nano Banana"
+                aspectRatio={generatorState.settings?.aspect_ratio || '1:1'}
+                quality={generatorState.settings?.quality || '2K'}
+                variantsCount={Number(generatorState.settings?.variants) || 1}
+                hasReferenceImage={uploadedFiles.length > 0}
+                onAspectRatioChange={(value) => handleSettingChange('aspect_ratio', value)}
+                onQualityChange={(value) => handleSettingChange('quality', value)}
+                onVariantsChange={(value) => handleSettingChange('variants', value)}
+                onDrawClick={() => {
+                  // Trigger file upload
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.multiple = true;
+                  input.onchange = (e) => {
+                    const files = (e.target as HTMLInputElement).files;
+                    if (files) {
+                      setUploadedFiles(Array.from(files));
+                    }
+                  };
+                  input.click();
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Settings Sidebar */}

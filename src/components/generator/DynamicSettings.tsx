@@ -94,17 +94,29 @@ export function DynamicSettings({ modelId, values, onChange, onValidationChange,
       }
     }
     
-    // Если нет сохранённых настроек ИЛИ если какие-то настройки отсутствуют, устанавливаем дефолтные
+    // Устанавливаем дефолтные значения для всех настроек, которых нет в сохранённых
     if (config) {
       console.log(`[DynamicSettings] Initializing defaults for ${modelId}, hasLoadedFromStorage:`, hasLoadedFromStorage);
+
+      // Получаем сохранённые настройки из localStorage напрямую
+      let savedModelSettings: Record<string, any> = {};
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          savedModelSettings = parsed[modelId] || {};
+        } catch (e) {}
+      }
+
       Object.entries(config.settings).forEach(([key, setting]) => {
-        // Применяем дефолт если: 1) нет сохранённых настроек ИЛИ 2) значение не определено
-        const shouldSetDefault = setting.default !== undefined && (values[key] === undefined || !hasLoadedFromStorage);
+        // Применяем дефолт если настройка НЕ сохранена в localStorage
+        const savedValue = savedModelSettings[key];
+        const shouldSetDefault = setting.default !== undefined && savedValue === undefined;
+
         if (shouldSetDefault) {
-          console.log(`[DynamicSettings] Setting default for ${key}:`, setting.default, 'current value:', values[key]);
+          console.log(`[DynamicSettings] Setting default for ${key}:`, setting.default, '(not in saved settings)');
           onChange(key, setting.default);
-        } else if (key === 'aspect_ratio') {
-          console.log(`[DynamicSettings] NOT setting default for aspect_ratio - current value:`, values[key], 'default would be:', setting.default);
+        } else {
+          console.log(`[DynamicSettings] Using saved value for ${key}:`, savedValue);
         }
       });
     }
