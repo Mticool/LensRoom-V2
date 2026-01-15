@@ -142,7 +142,7 @@ export function NanoBananaPrompt({
       {/* Main Compact Block */}
       <div 
         className={cn(
-          "bg-[#1a1a2e] border rounded-2xl overflow-hidden transition-all relative",
+          "bg-[#1a1a2e] border rounded-2xl transition-all relative",
           isDragging 
             ? "border-cyan-500 border-2 shadow-lg shadow-cyan-500/20" 
             : "border-white/10"
