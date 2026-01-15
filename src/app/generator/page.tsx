@@ -20,7 +20,8 @@ import {
   PromptInput, 
   SettingsSidebar,
   GalleryView,
-  CompactSettings
+  CompactSettings,
+  NanoBananaPrompt
 } from './components';
 import { 
   MODELS_CONFIG, 
@@ -1404,49 +1405,39 @@ function GeneratorPageContent() {
             )}
           </div>
 
-          {/* Prompt Input */}
-          <PromptInput
-            prompt={prompt}
-            onPromptChange={setPrompt}
-            uploadedFiles={batchMode ? [] : uploadedFiles}
-            onFilesChange={setUploadedFiles}
-            isGenerating={isGenerating || isBatchGenerating}
-            onGenerate={batchMode ? handleBatchGenerate : handleGenerate}
-            activeSection={generatorState.activeSection}
-            modelInfo={generatorState.modelInfo}
-            currentCost={batchMode ? generatorState.currentCost * batchImages.length : generatorState.currentCost}
-            hasMessages={chatState.messages.length > 0}
-            onClearChat={clearChat}
-          />
-
-          {/* Compact Settings - Only for Nano Banana Pro */}
-          {generatorState.currentModel === 'nano-banana-pro' && !batchMode && (
-            <div className="px-4 pb-3">
-              <CompactSettings
-                modelName="Nano Banana"
+          {/* Prompt Input - Nano Banana Pro uses special compact UI */}
+          {generatorState.currentModel === 'nano-banana-pro' && !batchMode ? (
+            <div className="px-4 pb-4">
+              <NanoBananaPrompt
+                prompt={prompt}
+                onPromptChange={setPrompt}
                 aspectRatio={generatorState.settings?.aspect_ratio || '1:1'}
                 quality={generatorState.settings?.quality || '2K'}
                 variantsCount={Number(generatorState.settings?.variants) || 1}
-                hasReferenceImage={uploadedFiles.length > 0}
+                uploadedFiles={uploadedFiles}
+                isGenerating={isGenerating}
+                currentCost={generatorState.currentCost}
                 onAspectRatioChange={(value) => handleSettingChange('aspect_ratio', value)}
                 onQualityChange={(value) => handleSettingChange('quality', value)}
                 onVariantsChange={(value) => handleSettingChange('variants', value)}
-                onDrawClick={() => {
-                  // Trigger file upload
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = 'image/*';
-                  input.multiple = true;
-                  input.onchange = (e) => {
-                    const files = (e.target as HTMLInputElement).files;
-                    if (files) {
-                      setUploadedFiles(Array.from(files));
-                    }
-                  };
-                  input.click();
-                }}
+                onFilesChange={setUploadedFiles}
+                onGenerate={handleGenerate}
               />
             </div>
+          ) : (
+            <PromptInput
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              uploadedFiles={batchMode ? [] : uploadedFiles}
+              onFilesChange={setUploadedFiles}
+              isGenerating={isGenerating || isBatchGenerating}
+              onGenerate={batchMode ? handleBatchGenerate : handleGenerate}
+              activeSection={generatorState.activeSection}
+              modelInfo={generatorState.modelInfo}
+              currentCost={batchMode ? generatorState.currentCost * batchImages.length : generatorState.currentCost}
+              hasMessages={chatState.messages.length > 0}
+              onClearChat={clearChat}
+            />
           )}
         </div>
 
