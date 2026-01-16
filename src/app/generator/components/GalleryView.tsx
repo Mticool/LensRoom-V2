@@ -42,6 +42,7 @@ interface GalleryItem {
   type: string;
   timestamp?: Date | string;
   aspectRatio?: string;
+  isGenerating?: boolean; // Флаг для плейсхолдера генерации
 }
 
 // Helper to get CSS aspect ratio class
@@ -90,34 +91,56 @@ export function GalleryView({
   const [imageLoadStates, setImageLoadStates] = useState<Record<string, boolean>>({});
 
   // Извлекаем все результаты из сообщений
+  // Включаем сообщения которые генерируются (isGenerating) ИЛИ уже имеют URL
   const galleryItems: GalleryItem[] = messages
-    .filter(m => m.role === 'assistant' && (m.url || m.urls))
+    .filter(m => m.role === 'assistant' && (m.url || m.urls || m.isGenerating))
     .filter(m => !modelFilter || m.model === modelFilter) // Фильтр по модели
-    .flatMap(message => {
+    .flatMap((message): GalleryItem[] => {
+      // Если сообщение генерируется - возвращаем плейсхолдер(ы)
+      if (message.isGenerating) {
+        const count = message.variantsCount || 1;
+        return Array.from({ length: count }, (_, idx): GalleryItem => ({
+          id: message.id * 1000 + idx,
+          url: '', // Пустой URL для плейсхолдера
+          prompt: message.content || 'Генерация...',
+          model: message.model || 'Unknown',
+          type: (message.type || 'image') as string,
+          timestamp: message.timestamp,
+          aspectRatio: (message as any).aspectRatio || '9:16',
+          isGenerating: true, // Флаг для отображения скелетона
+        }));
+      }
+      
       const urls = message.urls || (message.url ? [message.url] : []);
       // Найти ПОСЛЕДНЕЕ user-сообщение перед этим assistant-сообщением
       const userMessages = messages.filter(m => m.role === 'user' && m.id < message.id);
       const userMessage = userMessages[userMessages.length - 1]; // Берём последнее
       const prompt = userMessage?.content || message.content || 'Без промпта';
       
-      return urls.map((url, idx) => {
-        const ratio = (message as any).aspectRatio || '1:1';
-        const cssClass = getAspectRatioClass(ratio);
-        console.log('[GalleryView] Item:', {
+      return urls.map((url, idx): GalleryItem => {
+        // Читаем aspectRatio из сообщения - это ГЛАВНЫЙ источник правды
+        const messageRatio = (message as any).aspectRatio;
+        // Используем то что пришло из сообщения, fallback на дефолт только если пусто
+        const ratio = messageRatio || '1:1';
+        
+        console.log('[GalleryView] 📐 Item aspect ratio:', {
           messageId: message.id,
           idx,
-          aspectRatio: ratio,
-          cssClass,
-          fullMessage: message
+          messageRatio: messageRatio || 'NOT SET!',
+          finalRatio: ratio,
+          model: message.model,
+          messageKeys: Object.keys(message)
         });
+        
         return {
           id: message.id * 1000 + idx,
           url,
           prompt,
           model: message.model || 'Unknown',
-          type: message.type || 'image',
+          type: (message.type || 'image') as string,
           timestamp: message.timestamp,
           aspectRatio: ratio,
+          isGenerating: false, // Завершённые элементы
         };
       });
     });
@@ -156,8 +179,9 @@ export function GalleryView({
       {/* Gallery Grid */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {/* Generating Placeholders */}
-          {isGenerating && Array.from({ length: generatingCount }).map((_, idx) => (
+          {/* Generating Placeholders - OLD METHOD (now handled in galleryItems)
+              Keeping for backwards compatibility when isGenerating prop is true but no messages yet */}
+          {isGenerating && galleryItems.filter(i => i.isGenerating).length === 0 && Array.from({ length: generatingCount }).map((_, idx) => (
             <motion.div
               key={`generating-${idx}`}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -198,17 +222,44 @@ export function GalleryView({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="group relative cursor-pointer w-full"
-              onClick={() => setSelectedItem(item)}
+              className={cn(
+                "group relative w-full",
+                !item.isGenerating && "cursor-pointer"
+              )}
+              onClick={() => !item.isGenerating && setSelectedItem(item)}
             >
               {/* Aspect ratio container using padding-bottom trick */}
               <div 
                 className="relative w-full" 
                 style={{ paddingBottom: getAspectRatioPadding(item.aspectRatio) }}
               >
-              {/* Image Container */}
-              <div className="absolute inset-0 w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-[var(--border)]">
-                {item.type === 'video' ? (
+              {/* Image Container or Generating Skeleton */}
+              <div className={cn(
+                "absolute inset-0 w-full h-full rounded-lg overflow-hidden bg-[var(--surface)]",
+                item.isGenerating 
+                  ? "border border-cyan-500/40" 
+                  : "border border-[var(--border)]"
+              )}>
+                {/* GENERATING STATE - Show animated skeleton */}
+                {item.isGenerating ? (
+                  <>
+                    {/* Animated Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 animate-pulse" />
+                    
+                    {/* Shimmer Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                    
+                    {/* Generating Icon */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-cyan-500/20 flex items-center justify-center animate-spin-slow">
+                          <Maximize2 className="w-6 h-6 text-cyan-400" />
+                        </div>
+                        <p className="text-xs text-cyan-400 font-medium">Генерация...</p>
+                      </div>
+                    </div>
+                  </>
+                ) : item.type === 'video' ? (
                   <video 
                     src={item.url} 
                     className="w-full h-full object-cover"
@@ -236,7 +287,8 @@ export function GalleryView({
                   </>
                 )}
                 
-                {/* Hover Overlay with Prompt */}
+                {/* Hover Overlay with Prompt - only for completed items */}
+                {!item.isGenerating && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3">
                   <p className="text-white text-xs line-clamp-3 mb-2">
                     {item.prompt}
@@ -276,11 +328,14 @@ export function GalleryView({
                     </button>
                   </div>
                 </div>
+                )}
 
-                {/* Model Badge */}
+                {/* Model Badge - only for completed items */}
+                {!item.isGenerating && (
                 <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="text-[10px] font-medium text-white">{item.model}</span>
                 </div>
+                )}
               </div>
               </div>
             </motion.div>
@@ -290,6 +345,15 @@ export function GalleryView({
 
       {/* Lightbox Modal */}
       <AnimatePresence>
+        {selectedItem && (() => {
+          console.log('[Lightbox] 🔍 Opening with item:', {
+            id: selectedItem.id,
+            aspectRatio: selectedItem.aspectRatio,
+            url: selectedItem.url?.substring(0, 50) + '...',
+            allKeys: Object.keys(selectedItem)
+          });
+          return null;
+        })()}
         {selectedItem && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -314,7 +378,7 @@ export function GalleryView({
               className="relative max-w-6xl max-h-[90vh] flex flex-col gap-4"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Image/Video */}
+              {/* Image/Video with aspect ratio cropping */}
               <div className="relative flex items-center justify-center">
                 {selectedItem.type === 'video' ? (
                   <video 
@@ -324,12 +388,30 @@ export function GalleryView({
                     className="max-w-full max-h-[70vh] rounded-lg"
                   />
                 ) : (
-                  <img 
-                    src={selectedItem.url} 
-                    alt={selectedItem.prompt}
-                    className="max-w-full max-h-[70vh] rounded-lg object-contain"
-                  />
+                  /* Container with aspect ratio constraint */
+                  <div 
+                    className="relative max-w-full max-h-[70vh] rounded-lg overflow-hidden"
+                    style={{ 
+                      aspectRatio: selectedItem.aspectRatio?.replace(':', '/') || '1/1',
+                      maxWidth: selectedItem.aspectRatio === '9:16' || selectedItem.aspectRatio === '3:4' || selectedItem.aspectRatio === '2:3' 
+                        ? '40vh' // Vertical images - limit width
+                        : '90vw', // Horizontal/square - limit by viewport
+                      maxHeight: '70vh'
+                    }}
+                  >
+                    <img 
+                      src={selectedItem.url} 
+                      alt={selectedItem.prompt}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
                 )}
+                {/* Aspect Ratio Badge - ALWAYS show for debugging */}
+                <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-black/70 backdrop-blur-sm">
+                  <span className="text-xs font-medium text-cyan-400">
+                    {selectedItem.aspectRatio || 'NO RATIO!'}
+                  </span>
+                </div>
               </div>
 
               {/* Info & Actions */}

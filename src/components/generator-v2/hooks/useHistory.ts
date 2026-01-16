@@ -66,7 +66,26 @@ export function useHistory(mode: GeneratorMode) {
   }, [mode]);
 
   const addToHistory = useCallback((result: GenerationResult) => {
+    // If result has pendingId, update the pending item instead of adding new
+    if (result.pendingId) {
+      setHistory(prev => prev.map(item => 
+        item.id === result.pendingId
+          ? { ...result, id: result.id } // Replace with real result
+          : item
+      ));
+    } else {
+      setHistory(prev => [result, ...prev]);
+    }
+  }, []);
+  
+  // Add a pending placeholder to history
+  const addPendingToHistory = useCallback((result: GenerationResult) => {
     setHistory(prev => [result, ...prev]);
+  }, []);
+  
+  // Remove a pending item from history (e.g., on error)
+  const removePendingFromHistory = useCallback((pendingId: string) => {
+    setHistory(prev => prev.filter(item => item.id !== pendingId));
   }, []);
 
   const clearHistory = useCallback(() => {
@@ -78,6 +97,8 @@ export function useHistory(mode: GeneratorMode) {
     history,
     isLoading,
     addToHistory,
+    addPendingToHistory,
+    removePendingFromHistory,
     clearHistory,
     refresh: fetchHistory,
   };

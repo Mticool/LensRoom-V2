@@ -5,8 +5,9 @@ import { GeneratorMode, GenerationSettings, GenerationResult } from '../Generato
 
 interface UseGenerationOptions {
   onSuccess?: (result: GenerationResult) => void;
-  onError?: (error: string) => void;
+  onError?: (error: string, pendingId?: string) => void;
   onCreditsUsed?: (amount: number) => void;
+  onPending?: (pendingResult: GenerationResult) => void;
 }
 
 export function useGeneration(options: UseGenerationOptions = {}) {
@@ -43,6 +44,21 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     isGeneratingRef.current = true;
     setIsGenerating(true);
     setError(null);
+
+    // Create a pending placeholder ID
+    const pendingId = `pending_${Date.now()}`;
+    
+    // Immediately show pending placeholder in history
+    const pendingResult: GenerationResult = {
+      id: pendingId,
+      url: '', // Empty - will be filled on success
+      prompt,
+      mode,
+      settings,
+      timestamp: Date.now(),
+      status: 'pending',
+    };
+    optionsRef.current.onPending?.(pendingResult);
 
     try {
       const endpoint = mode === 'video' ? '/api/generate/video' : '/api/generate/photo';
@@ -108,6 +124,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
           mode,
           settings,
           timestamp: Date.now(),
+          status: 'success',
+          pendingId, // Link to pending placeholder for update
         };
         
         optionsRef.current.onSuccess?.(result);
@@ -145,6 +163,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
                 mode,
                 settings,
                 timestamp: Date.now(),
+                status: 'success',
+                pendingId, // Link to pending placeholder for update
               });
               return;
             }
@@ -170,7 +190,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : 'Неизвестная ошибка';
       setError(errorMessage);
-      optionsRef.current.onError?.(errorMessage);
+      optionsRef.current.onError?.(errorMessage, pendingId);
       return null;
     } finally {
       isGeneratingRef.current = false;

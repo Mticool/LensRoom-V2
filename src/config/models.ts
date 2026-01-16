@@ -358,14 +358,14 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   },
   {
     id: 'topaz-image-upscale',
-    name: 'Topaz Image Upscale',
+    name: 'Topaz Upscale',
     apiId: 'topaz/image-upscale',
     type: 'photo',
     provider: 'kie_market',
-    shortDescription: 'Апскейл до 4K/8K для печати и рекламы.',
-    description: 'Поднимает разрешение и детали. Используй для финальных материалов: баннеры, печать, крупные форматы, "чтобы не мыло".',
-    rank: 13,
-    featured: false,
+    shortDescription: 'Апскейл до 8K • Улучшение качества',
+    description: 'Профессиональный апскейл изображений до 8K разрешения. Улучшает детали, резкость и качество для печати, баннеров и крупных форматов.',
+    rank: 2,
+    featured: true,
     speed: 'medium',
     quality: 'ultra',
     supportsI2i: true,
@@ -377,7 +377,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     },
     qualityOptions: ['2k', '4k', '8k'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: '≤2K/4K/8K',
+    shortLabel: '2K/4K/8K',
   },
   
   // === GPT IMAGE - OpenAI ===

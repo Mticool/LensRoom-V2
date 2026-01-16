@@ -250,6 +250,9 @@ export async function POST(request: NextRequest) {
     let generation: any = null;
     let genError: any = null;
 
+    // Resolve aspect ratio (used for API call, but NOT saved to DB - column doesn't exist yet)
+    const finalAspectRatioForDb = resolveAspectRatio(aspectRatio, effectiveModelId);
+    
     const insertOnce = async () => {
       const r = await supabase
         .from("generations")
@@ -262,6 +265,7 @@ export async function POST(request: NextRequest) {
           negative_prompt: negativePrompt,
           credits_used: creditCost,
           status: "queued",
+          aspect_ratio: finalAspectRatioForDb, // Now saving aspect_ratio (migration applied)
         })
         .select()
         .single();

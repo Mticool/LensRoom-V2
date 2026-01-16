@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
+import { BottomTabBar } from '@/components/mobile';
 import './theme.css';
 
 export type GeneratorMode = 'image' | 'video';
@@ -54,6 +55,7 @@ export interface GenerationResult {
   timestamp: number;
   previewUrl?: string;
   status?: string;
+  pendingId?: string; // ID of pending placeholder to update on success
 }
 
 interface GeneratorV2Props {
@@ -120,13 +122,13 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
   }, [isAuthenticated]);
   
   // History hook
-  const { history, addToHistory, refresh: refreshHistory, isLoading: historyLoading } = useHistory(mode);
+  const { history, addToHistory, addPendingToHistory, removePendingFromHistory, refresh: refreshHistory, isLoading: historyLoading } = useHistory(mode);
 
   // Generation hook
   const { generate, isGenerating, error, clearError } = useGeneration({
     onSuccess: (result) => {
       setCurrentResult(result);
-      addToHistory(result);
+      addToHistory(result); // This will update the pending item with real result
       refreshCredits();
       toast.success('Генерация завершена!');
       // 🎉 Confetti celebration
@@ -134,8 +136,16 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
       // Show bot connect popup after first generation (if no notifications)
       botPopup.showAfterGeneration(hasNotifications);
     },
-    onError: (err) => {
+    onError: (err, pendingId) => {
+      // Remove pending placeholder on error
+      if (pendingId) {
+        removePendingFromHistory(pendingId);
+      }
       toast.error(err);
+    },
+    onPending: (pendingResult) => {
+      // Add pending placeholder to history immediately
+      addPendingToHistory(pendingResult);
     },
     onCreditsUsed: (amount) => {
       toast.info(`Списано ${amount} ⭐`);
@@ -555,6 +565,9 @@ export function GeneratorV2({ defaultMode = 'image' }: GeneratorV2Props) {
           refreshCredits();
         }}
       />
+
+      {/* Mobile Bottom Tab Bar */}
+      {isMobile && <BottomTabBar />}
     </div>
   );
 }

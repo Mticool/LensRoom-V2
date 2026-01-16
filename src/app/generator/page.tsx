@@ -20,15 +20,16 @@ import {
   PromptInput, 
   SettingsSidebar,
   GalleryView,
-  CompactSettings,
-  NanoBananaPrompt
+  CompactSettings
 } from './components';
+import { UniversalPromptBar } from './components/UniversalPromptBar';
 import { 
   MODELS_CONFIG, 
   SectionType, 
   ChatMessage, 
   ChatSession 
 } from './config';
+import { getModelById } from '@/config/models';
 
 // Batch components
 import { BatchImageUploader, type UploadedImage } from '@/components/generator-v2/BatchImageUploader';
@@ -252,6 +253,41 @@ function GeneratorPageContent() {
   const generatorState = useGeneratorState(sectionFromUrl, modelFromUrl);
   const chatState = useChatSessions();
   
+  // Load messages for current model on mount or model change
+  useEffect(() => {
+    if (!generatorState.currentModel) return;
+    
+    try {
+      const allModelChats = JSON.parse(localStorage.getItem('lensroom_model_chats') || '{}');
+      const modelMessages = allModelChats[generatorState.currentModel] || [];
+      
+      // Convert timestamps back to Date objects
+      const parsedMessages = modelMessages.map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp)
+      }));
+      
+      chatState.setMessages(parsedMessages);
+      console.log(`[Model Init] Loaded ${parsedMessages.length} messages for ${generatorState.currentModel}`);
+    } catch (e) {
+      console.error('[Model Init] Failed to load messages:', e);
+    }
+  }, [generatorState.currentModel]);
+  
+  // Auto-save messages when they change
+  useEffect(() => {
+    if (!generatorState.currentModel || chatState.messages.length === 0) return;
+    
+    try {
+      const allModelChats = JSON.parse(localStorage.getItem('lensroom_model_chats') || '{}');
+      allModelChats[generatorState.currentModel] = chatState.messages;
+      localStorage.setItem('lensroom_model_chats', JSON.stringify(allModelChats));
+      console.log(`[Model Auto-save] Saved ${chatState.messages.length} messages for ${generatorState.currentModel}`);
+    } catch (e) {
+      console.error('[Model Auto-save] Failed to save:', e);
+    }
+  }, [chatState.messages, generatorState.currentModel]);
+  
   const [prompt, setPrompt] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -268,8 +304,30 @@ function GeneratorPageContent() {
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   
-  // View mode state (Chat or Gallery) - only for Nano Banana Pro
-  const [viewMode, setViewMode] = useState<'chat' | 'gallery'>('chat');
+  // View mode state (Chat or Gallery) - per-model
+  // Default: Gallery for image models, Chat for others
+  const [viewMode, setViewMode] = useState<'chat' | 'gallery'>(
+    generatorState.activeSection === 'image' ? 'gallery' : 'chat'
+  );
+  
+  // Load viewMode from localStorage for current model
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storageKey = `lensroom_viewmode_${generatorState.currentModel}`;
+    const savedMode = localStorage.getItem(storageKey) as 'chat' | 'gallery' | null;
+    if (savedMode) {
+      setViewMode(savedMode);
+      console.log(`[ViewMode] Loaded for ${generatorState.currentModel}:`, savedMode);
+    }
+  }, [generatorState.currentModel]);
+  
+  // Save viewMode to localStorage when it changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storageKey = `lensroom_viewmode_${generatorState.currentModel}`;
+    localStorage.setItem(storageKey, viewMode);
+    console.log(`[ViewMode] Saved for ${generatorState.currentModel}:`, viewMode);
+  }, [viewMode, generatorState.currentModel]);
   
   // Test mode - persist in state so it doesn't reset on re-render
   const [isTestMode, setIsTestMode] = useState(false);
@@ -447,17 +505,51 @@ function GeneratorPageContent() {
     }
   }, []);
 
-  // Handle model change - just switch model, don't create chat
+  // Handle model change - save current chat and load new model's chat
   const handleModelChange = useCallback((newModel: string) => {
+    const currentModel = generatorState.currentModel;
+    console.log('[Model Switch] From:', currentModel, 'To:', newModel);
+    
+    // 1. Save current model's messages to localStorage
+    if (chatState.messages.length > 0 && currentModel) {
+      try {
+        const allModelChats = JSON.parse(localStorage.getItem('lensroom_model_chats') || '{}');
+        allModelChats[currentModel] = chatState.messages;
+        localStorage.setItem('lensroom_model_chats', JSON.stringify(allModelChats));
+        console.log(`[Model Switch] Saved ${chatState.messages.length} messages for ${currentModel}`);
+      } catch (e) {
+        console.error('[Model Switch] Failed to save messages:', e);
+      }
+    }
+    
+    // 2. Switch model
     generatorState.setCurrentModel(newModel);
     
-    // Disable batch mode if new model doesn't support i2i
+    // 3. Load new model's messages from localStorage
+    try {
+      const allModelChats = JSON.parse(localStorage.getItem('lensroom_model_chats') || '{}');
+      const modelMessages = allModelChats[newModel] || [];
+      
+      // Convert timestamps back to Date objects
+      const parsedMessages = modelMessages.map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp)
+      }));
+      
+      chatState.setMessages(parsedMessages);
+      console.log(`[Model Switch] Loaded ${parsedMessages.length} messages for ${newModel}`);
+    } catch (e) {
+      console.error('[Model Switch] Failed to load messages:', e);
+      chatState.setMessages([]);
+    }
+    
+    // 4. Disable batch mode if new model doesn't support i2i
     const newModelInfo = MODELS_CONFIG[generatorState.activeSection]?.models.find(m => m.id === newModel);
     if (!newModelInfo?.supportsI2i && batchMode) {
       setBatchMode(false);
       setBatchImages([]);
     }
-  }, [generatorState, batchMode]);
+  }, [generatorState, batchMode, chatState]);
 
   // Handle chat switch
   const handleSwitchChat = useCallback((chatId: string) => {
@@ -503,13 +595,13 @@ function GeneratorPageContent() {
       return;
     }
 
-    // Get variants count (only for nano-banana-pro, default 1)
-    const variantsCount = generatorState.currentModel === 'nano-banana-pro' 
+    // Get variants count (for all photo models, default 1)
+    const variantsCount = generatorState.activeSection === 'image'
       ? Number(generatorState.settings?.variants) || 1 
       : 1;
     
-    // Auto-switch to gallery view for nano-banana-pro with multiple variants
-    if (generatorState.currentModel === 'nano-banana-pro' && variantsCount > 1) {
+    // Auto-switch to gallery view for photo models with multiple variants
+    if (generatorState.activeSection === 'image' && variantsCount > 1) {
       setViewMode('gallery');
     }
     
@@ -539,6 +631,10 @@ function GeneratorPageContent() {
       timestamp: new Date(),
     };
     
+    // Определяем aspect ratio для плейсхолдера (универсальный дефолт для всех моделей)
+    const defaultAspectRatio = '1:1'; // Дефолт для всех моделей
+    const currentAspectRatio = generatorState.settings?.aspect_ratio || defaultAspectRatio;
+    
     const assistantMessage: ChatMessage = {
       id: Date.now() + 1,
       role: 'assistant',
@@ -548,6 +644,7 @@ function GeneratorPageContent() {
       model: generatorState.modelInfo?.name,
       isGenerating: true,
       variantsCount: variantsCount, // Store variants count for grid display
+      aspectRatio: currentAspectRatio, // Aspect ratio для плейсхолдера в галерее
     };
 
     const filesToUpload = [...uploadedFiles];
@@ -575,13 +672,16 @@ function GeneratorPageContent() {
       console.log('[Generator] aspect_ratio from settings:', settings?.aspect_ratio);
       
       if (settings) {
-        if (settings.aspect_ratio) {
-          requestBody.aspectRatio = settings.aspect_ratio;
-          console.log('[Generator] Setting aspectRatio in requestBody:', settings.aspect_ratio);
-        } else {
-          console.warn('[Generator] aspect_ratio not found in settings! Using default 9:16');
-          requestBody.aspectRatio = '9:16'; // Fallback для Nano Banana Pro
-        }
+        // ВАЖНО: aspect_ratio должен быть установлен из UI или использовать дефолт
+        // Универсальный дефолт: 1:1 (квадрат) для всех моделей
+        const defaultAspectRatio = '1:1';
+        requestBody.aspectRatio = settings.aspect_ratio || defaultAspectRatio;
+        console.log('[Generator] aspectRatio:', {
+          fromSettings: settings.aspect_ratio,
+          default: defaultAspectRatio,
+          final: requestBody.aspectRatio,
+          model: generatorState.currentModel
+        });
         if (settings.quality) requestBody.quality = settings.quality;
         if (settings.resolution) requestBody.resolution = settings.resolution;
         if (settings.duration) requestBody.duration = Number(settings.duration);
@@ -1153,6 +1253,24 @@ function GeneratorPageContent() {
                         </button>
                       );
                     })}
+                    
+                    {/* Topaz Upscale - отдельная ссылка для раздела image */}
+                    {section === 'image' && (
+                      <button
+                        onClick={() => {
+                          setShowModelPicker(false);
+                          router.push('/upscale');
+                        }}
+                        className="flex flex-col items-start p-3 rounded-xl border text-left transition-all touch-manipulation active:scale-[0.98] bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30 hover:border-cyan-500/50"
+                      >
+                        <div className="text-[12px] font-medium leading-tight text-cyan-400">
+                          Topaz Upscale
+                        </div>
+                        <div className="text-[9px] text-cyan-500/70 mt-0.5">
+                          2K/4K/8K • от 17⭐
+                        </div>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1234,8 +1352,8 @@ function GeneratorPageContent() {
           {showSettings ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
-        {/* View Mode Toggle (Chat/Gallery) - Only for Nano Banana Pro - OUTSIDE Chat Area for visibility */}
-        {generatorState.currentModel === 'nano-banana-pro' && !batchMode && (
+        {/* View Mode Toggle (Chat/Gallery) - For all photo models - OUTSIDE Chat Area for visibility */}
+        {generatorState.activeSection === 'image' && !batchMode && (
           <div className="absolute top-[72px] md:top-16 left-1/2 -translate-x-1/2 z-[100]">
             <div className="flex items-center gap-1 p-1.5 rounded-xl bg-[#1a1a2e] backdrop-blur-xl border-2 border-cyan-500/50 shadow-xl shadow-cyan-500/20">
               <button
@@ -1390,13 +1508,13 @@ function GeneratorPageContent() {
                   </div>
                 </motion.div>
               </div>
-            ) : viewMode === 'gallery' && generatorState.currentModel === 'nano-banana-pro' ? (
-              // Gallery View - Only for Nano Banana Pro
+            ) : viewMode === 'gallery' && generatorState.activeSection === 'image' ? (
+              // Gallery View - For all photo models
               <GalleryView
                 messages={chatState.messages}
                 onDownload={handleDownload}
                 onCopy={handleCopy}
-                modelFilter="Nano Banana Pro"
+                modelFilter={generatorState.modelInfo?.name}
                 isGenerating={isGenerating}
                 generatingCount={Number(generatorState.settings?.variants) || 1}
                 currentAspectRatio={generatorState.settings?.aspect_ratio || '1:1'}
@@ -1421,25 +1539,43 @@ function GeneratorPageContent() {
             )}
           </div>
 
-          {/* Prompt Input - Nano Banana Pro uses special compact UI */}
-          {generatorState.currentModel === 'nano-banana-pro' && !batchMode ? (
+          {/* Prompt Input - All photo models use universal compact UI */}
+          {generatorState.activeSection === 'image' && !batchMode ? (
             <div className="px-4 pb-4 flex justify-center">
               <div className="w-full max-w-3xl">
-                <NanoBananaPrompt
-                  prompt={prompt}
-                  onPromptChange={setPrompt}
-                  aspectRatio={generatorState.settings?.aspect_ratio || '1:1'}
-                  quality={generatorState.settings?.quality || '2K'}
-                  variantsCount={Number(generatorState.settings?.variants) || 1}
-                  uploadedFiles={uploadedFiles}
-                  isGenerating={isGenerating}
-                  currentCost={generatorState.currentCost * (Number(generatorState.settings?.variants) || 1)}
-                  onAspectRatioChange={(value) => handleSettingChange('aspect_ratio', value)}
-                  onQualityChange={(value) => handleSettingChange('quality', value)}
-                  onVariantsChange={(value) => handleSettingChange('variants', value)}
-                  onFilesChange={setUploadedFiles}
-                  onGenerate={handleGenerate}
-                />
+                {(() => {
+                  // Get full model info from models.ts config
+                  const fullModelInfo = getModelById(generatorState.currentModel);
+                  const aspectRatios = fullModelInfo?.type === 'photo' ? fullModelInfo.aspectRatios : ['1:1'];
+                  const qualityOptions = fullModelInfo?.type === 'photo' ? (fullModelInfo.qualityOptions || []).map(q => ({
+                    value: q,
+                    label: q.toUpperCase(),
+                    cost: generatorState.currentCost
+                  })) : [];
+                  
+                  return (
+                    <UniversalPromptBar
+                      modelId={generatorState.currentModel}
+                      modelName={generatorState.modelInfo?.name || 'Unknown Model'}
+                      prompt={prompt}
+                      onPromptChange={setPrompt}
+                      aspectRatio={generatorState.settings?.aspect_ratio || aspectRatios[0] || '1:1'}
+                      aspectRatios={aspectRatios}
+                      quality={generatorState.settings?.quality}
+                      qualityOptions={qualityOptions}
+                      variantsCount={Number(generatorState.settings?.variants) || 1}
+                      uploadedFiles={uploadedFiles}
+                      isGenerating={isGenerating}
+                      creditsPerVariant={generatorState.currentCost}
+                      onAspectRatioChange={(value) => handleSettingChange('aspect_ratio', value)}
+                      onQualityChange={(value) => handleSettingChange('quality', value)}
+                      onVariantsChange={(value) => handleSettingChange('variants', value)}
+                      onFilesChange={setUploadedFiles}
+                      onGenerate={handleGenerate}
+                      supportsI2i={fullModelInfo?.type === 'photo' ? fullModelInfo.supportsI2i : false}
+                    />
+                  );
+                })()}
               </div>
             </div>
           ) : (

@@ -233,6 +233,12 @@ html[data-theme="light"] [data-generator-v2="true"] {
   animation: shimmer 2s infinite;
 }
 
+/* Shimmer animation for pending state */
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background-size: 200% 100%;
+}
+
 /* Fade in on scroll */
 .fade-in-on-scroll {
   opacity: 0;
