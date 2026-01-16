@@ -86,7 +86,14 @@ export function GalleryView({
       
       return urls.map((url, idx) => {
         const ratio = (message as any).aspectRatio || '1:1';
-        console.log('[GalleryView] Message aspectRatio:', ratio, 'Message:', message);
+        const cssClass = getAspectRatioClass(ratio);
+        console.log('[GalleryView] Item:', {
+          messageId: message.id,
+          idx,
+          aspectRatio: ratio,
+          cssClass,
+          fullMessage: message
+        });
         return {
           id: message.id * 1000 + idx,
           url,

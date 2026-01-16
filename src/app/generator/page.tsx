@@ -745,6 +745,7 @@ function GeneratorPageContent() {
         }
         
         // Update message with multiple URLs
+        console.log('[Generator] Saving aspectRatio to message:', requestBody.aspectRatio);
         chatState.setMessages(prev => prev.map(m => 
           m.id === assistantMessage.id 
             ? { 
@@ -782,6 +783,7 @@ function GeneratorPageContent() {
           resultUrl = pollResult?.url || pollResult?.results?.[0]?.url;
         }
         
+        console.log('[Generator] Saving aspectRatio to message (single):', requestBody.aspectRatio);
         chatState.setMessages(prev => prev.map(m => 
           m.id === assistantMessage.id 
             ? { 
