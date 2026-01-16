@@ -61,17 +61,20 @@ const getAspectRatioClass = (ratio?: string) => {
   return ratioMap[ratio || '1:1'] || 'aspect-square';
 };
 
-// Helper to convert aspect ratio string to inline style (fallback for Tailwind arbitrary values)
-const getAspectRatioStyle = (ratio?: string): React.CSSProperties => {
-  if (!ratio || ratio === '1:1') return { aspectRatio: '1 / 1' };
+// Helper to calculate padding-bottom percentage for aspect ratio
+// This is a bulletproof method that works everywhere
+const getAspectRatioPadding = (ratio?: string): string => {
+  if (!ratio) return '100%'; // 1:1 default
   
-  // Parse ratio string (e.g., "9:16" -> 9/16)
   const parts = ratio.split(':');
   if (parts.length === 2) {
-    return { aspectRatio: `${parts[0]} / ${parts[1]}` };
+    const width = parseFloat(parts[0]);
+    const height = parseFloat(parts[1]);
+    // padding-bottom = (height / width) * 100%
+    return `${(height / width) * 100}%`;
   }
   
-  return { aspectRatio: '1 / 1' };
+  return '100%'; // fallback to square
 };
 
 export function GalleryView({ 
@@ -159,10 +162,14 @@ export function GalleryView({
               key={`generating-${idx}`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className={cn("relative", getAspectRatioClass(currentAspectRatio))}
-              style={getAspectRatioStyle(currentAspectRatio)}
+              className="relative w-full"
             >
-              <div className="relative w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-cyan-500/40">
+              {/* Aspect ratio container using padding-bottom trick */}
+              <div 
+                className="relative w-full" 
+                style={{ paddingBottom: getAspectRatioPadding(currentAspectRatio) }}
+              >
+              <div className="absolute inset-0 w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-cyan-500/40">
                 {/* Animated Gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 animate-pulse" />
                 
@@ -179,6 +186,7 @@ export function GalleryView({
                   </div>
                 </div>
               </div>
+              </div>
             </motion.div>
           ))}
           
@@ -190,15 +198,16 @@ export function GalleryView({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className={cn(
-                "group relative cursor-pointer",
-                getAspectRatioClass(item.aspectRatio)
-              )}
-              style={getAspectRatioStyle(item.aspectRatio)}
+              className="group relative cursor-pointer w-full"
               onClick={() => setSelectedItem(item)}
             >
+              {/* Aspect ratio container using padding-bottom trick */}
+              <div 
+                className="relative w-full" 
+                style={{ paddingBottom: getAspectRatioPadding(item.aspectRatio) }}
+              >
               {/* Image Container */}
-              <div className="relative w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-[var(--border)]">
+              <div className="absolute inset-0 w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-[var(--border)]">
                 {item.type === 'video' ? (
                   <video 
                     src={item.url} 
@@ -272,6 +281,7 @@ export function GalleryView({
                 <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="text-[10px] font-medium text-white">{item.model}</span>
                 </div>
+              </div>
               </div>
             </motion.div>
           ))}
