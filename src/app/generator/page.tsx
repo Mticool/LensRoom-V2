@@ -508,6 +508,11 @@ function GeneratorPageContent() {
       ? Number(generatorState.settings?.variants) || 1 
       : 1;
     
+    // Auto-switch to gallery view for nano-banana-pro with multiple variants
+    if (generatorState.currentModel === 'nano-banana-pro' && variantsCount > 1) {
+      setViewMode('gallery');
+    }
+    
     // Calculate total cost for all variants
     const totalCost = generatorState.currentCost * variantsCount;
 
