@@ -31,6 +31,7 @@ interface GalleryViewProps {
   modelFilter?: string; // Фильтр по модели (например, только Nano Banana Pro)
   isGenerating?: boolean; // Идет ли генерация
   generatingCount?: number; // Количество генерируемых изображений
+  currentAspectRatio?: string; // Текущий выбранный формат для плейсхолдеров
 }
 
 interface GalleryItem {
@@ -66,7 +67,8 @@ export function GalleryView({
   onCopy,
   modelFilter,
   isGenerating = false,
-  generatingCount = 0
+  generatingCount = 0,
+  currentAspectRatio = '1:1'
 }: GalleryViewProps) {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [imageLoadStates, setImageLoadStates] = useState<Record<string, boolean>>({});
@@ -137,7 +139,7 @@ export function GalleryView({
               key={`generating-${idx}`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative aspect-square" // Placeholders always square for now
+              className={cn("relative", getAspectRatioClass(currentAspectRatio))}
             >
               <div className="relative w-full h-full rounded-lg overflow-hidden bg-[var(--surface)] border border-cyan-500/40">
                 {/* Animated Gradient */}

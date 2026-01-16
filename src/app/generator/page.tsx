@@ -1244,13 +1244,12 @@ function GeneratorPageContent() {
               </button>
               <button
                 onClick={() => setViewMode('gallery')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   viewMode === 'gallery'
                     ? 'bg-[var(--accent-primary)] text-black shadow-md'
                     : 'text-gray-400 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <Grid3x3 className="w-4 h-4" />
                 Галерея
               </button>
             </div>
@@ -1393,6 +1392,7 @@ function GeneratorPageContent() {
                 modelFilter="Nano Banana Pro"
                 isGenerating={isGenerating}
                 generatingCount={Number(generatorState.settings?.variants) || 1}
+                currentAspectRatio={generatorState.settings?.aspect_ratio || '1:1'}
               />
             ) : (
               // Normal chat messages
