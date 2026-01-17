@@ -97,6 +97,19 @@ export async function deductCredits(
   const newPackageStars = balance.packageStars - fromPackage;
   const newTotal = newSubscriptionStars + newPackageStars;
 
+  // Validate that balance won't go negative (prevent race conditions)
+  if (newTotal < 0) {
+    console.error(`[SplitCredits] Balance would go negative: ${newTotal} (current: ${balance.totalBalance}, deducting: ${amount})`);
+    return {
+      success: false,
+      subscriptionStars: balance.subscriptionStars,
+      packageStars: balance.packageStars,
+      totalBalance: balance.totalBalance,
+      deductedFromSubscription: 0,
+      deductedFromPackage: 0,
+    };
+  }
+
   // Update database
   const { error } = await supabase
     .from('credits')

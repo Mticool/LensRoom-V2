@@ -16,6 +16,7 @@ import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
+import { refundCredits } from "@/lib/credits/refund";
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 import { resolveVideoAspectRatio, logVideoAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
 
@@ -702,6 +703,26 @@ export async function POST(request: NextRequest) {
         }
       } catch (error: any) {
         console.error('[API] FAL.ai error:', error);
+
+        // Refund credits for failed generation
+        if (generation?.id && !skipCredits) {
+          console.log(`[API] Refunding ${creditCost}⭐ for failed FAL.ai generation ${generation.id}`);
+          await refundCredits(
+            supabase,
+            userId,
+            generation.id,
+            creditCost,
+            'fal_api_error',
+            { error: error?.message || String(error), model: model }
+          );
+
+          // Update generation status to failed
+          await supabase
+            .from('generations')
+            .update({ status: 'failed', error_message: error?.message || String(error) })
+            .eq('id', generation.id);
+        }
+
         throw error;
       }
     }

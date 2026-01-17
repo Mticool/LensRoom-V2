@@ -901,7 +901,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
   // 
   // ДИНАМИЧЕСКОЕ ЦЕНООБРАЗОВАНИЕ (per-second):
   // - 720p: 16⭐/сек
-  // - 1080p: 22⭐/сек
+  // - 1080p: 25⭐/сек
   // - Округление: ceil((duration * rate) / 5) * 5
   // - Лимиты: 3-30 сек
   "kling-motion-control": {
@@ -915,7 +915,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         type: "buttons",
         options: [
           { value: "720p", label: "720p • 16⭐/сек" },
-          { value: "1080p", label: "1080p • 22⭐/сек" }
+          { value: "1080p", label: "1080p • 25⭐/сек" }
         ],
         default: "720p",
         description: "Цена зависит от длительности видео (3-30 сек)",

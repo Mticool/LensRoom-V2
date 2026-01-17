@@ -811,7 +811,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   // 
   // ДИНАМИЧЕСКОЕ ЦЕНООБРАЗОВАНИЕ (per-second):
   // - 720p: 16⭐/сек
-  // - 1080p: 22⭐/сек
+  // - 1080p: 25⭐/сек
   // - Округление: ceil((duration * rate) / 5) * 5
   // - Лимиты: 3-30 сек
   {
@@ -829,11 +829,11 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true, // Требует изображение персонажа
     supportsAudio: false,
     // Pricing: ДИНАМИЧЕСКАЯ (per-second)
-    // 720p: 16⭐/сек, 1080p: 22⭐/сек
+    // 720p: 16⭐/сек, 1080p: 25⭐/сек
     // Минимальная цена: 3с × 16⭐ = 48⭐ → округлено до 50⭐
     pricing: {
       '720p': { perSecond: 16 }, // Dynamic per-second
-      '1080p': { perSecond: 22 },
+      '1080p': { perSecond: 25 }, // Fixed: was 22, should be 25 (matches motionControl.ts RATE_1080P)
     },
     modes: ['i2v'], // Только Image-to-Video (с референсным видео)
     durationOptions: [], // Длительность = длительность референсного видео (3-30 сек)
