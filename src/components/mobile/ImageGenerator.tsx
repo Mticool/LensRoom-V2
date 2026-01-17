@@ -9,8 +9,11 @@ import { PHOTO_MODELS } from '@/config/models';
 import type { PhotoModelConfig, PhotoQuality } from '@/config/models';
 import { ModelSelectorSheet } from './ModelSelectorSheet';
 import { ImageUploadButton } from './ImageUploadButton';
+import { OfflineBanner } from './OfflineBanner';
 import { useAuth } from '@/components/generator-v2/hooks/useAuth';
 import logger from '@/lib/logger';
+import { useHaptic } from '@/lib/hooks/useHaptic';
+import { useOnlineStatus } from '@/lib/hooks/useOnlineStatus';
 
 const modelIcons: Record<string, string> = {
   'nano-banana': '🍌',
@@ -56,6 +59,8 @@ function ImageGeneratorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { credits, isAuthenticated } = useAuth();
+  const { light, success, error: errorHaptic } = useHaptic();
+  const isOnline = useOnlineStatus();
 
   // Получаем модель из URL или используем первую
   const initialModelId = searchParams?.get('model') || 'nano-banana-pro';
@@ -77,6 +82,7 @@ function ImageGeneratorContent() {
   const currentPrice = getPriceForQuality(selectedModel, selectedQuality);
 
   const handleModelSelect = (model: PhotoModelConfig) => {
+    light();
     setSelectedModel(model);
     setShowModelSelector(false);
     // Сброс настроек под новую модель
@@ -94,20 +100,30 @@ function ImageGeneratorContent() {
 
   const handleGenerate = async () => {
     if (!prompt.trim() && !uploadedImage) {
+      errorHaptic();
       toast.error('Пожалуйста, введите промпт или загрузите изображение');
       return;
     }
 
+    if (!isOnline) {
+      errorHaptic();
+      toast.error('Нет подключения к интернету');
+      return;
+    }
+
     if (!isAuthenticated) {
+      light();
       router.push('/login');
       return;
     }
 
     if (credits < currentPrice) {
+      errorHaptic();
       toast.error('Недостаточно кредитов');
       return;
     }
 
+    light();
     setIsGenerating(true);
     try {
       // TODO: Implement actual generation API call
@@ -122,8 +138,10 @@ function ImageGeneratorContent() {
       // Simulate generation
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      success();
       setGenerationCount(prev => Math.min(prev + 1, maxGenerations));
     } catch (error) {
+      errorHaptic();
       logger.error('Generation failed:', error);
       toast.error('Ошибка генерации. Попробуйте снова.');
     } finally {
@@ -133,6 +151,9 @@ function ImageGeneratorContent() {
 
   return (
     <div className="min-h-screen bg-[#0F0F10] pb-20">
+      {/* Offline Banner */}
+      <OfflineBanner isOnline={isOnline} />
+
       {/* Header */}
       <div className="sticky top-0 z-40 bg-[#0F0F10]/98 backdrop-blur-xl border-b border-[#27272A]">
         <div className="flex items-center justify-between px-4 py-3 pt-safe">
@@ -242,7 +263,10 @@ function ImageGeneratorContent() {
             {selectedModel.aspectRatios.map((ratio) => (
               <button
                 key={ratio}
-                onClick={() => setSelectedAspectRatio(ratio)}
+                onClick={() => {
+                  light();
+                  setSelectedAspectRatio(ratio);
+                }}
                 className={`
                   px-4 py-2 rounded-xl text-sm font-medium
                   transition-all active:scale-95
@@ -268,7 +292,10 @@ function ImageGeneratorContent() {
                 return (
                   <button
                     key={quality}
-                    onClick={() => setSelectedQuality(quality)}
+                    onClick={() => {
+                      light();
+                      setSelectedQuality(quality);
+                    }}
                     className={`
                       px-4 py-2 rounded-xl text-sm font-medium
                       transition-all active:scale-95 flex items-center gap-1.5
@@ -291,7 +318,12 @@ function ImageGeneratorContent() {
         <div className="flex items-center justify-between p-4 rounded-2xl bg-[#18181B] border border-[#27272A]">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setGenerationCount(Math.max(1, generationCount - 1))}
+              onClick={() => {
+                if (generationCount > 1) {
+                  light();
+                  setGenerationCount(Math.max(1, generationCount - 1));
+                }
+              }}
               disabled={generationCount <= 1}
               className="w-8 h-8 rounded-lg bg-[#27272A] flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-transform"
             >
@@ -304,7 +336,12 @@ function ImageGeneratorContent() {
               <div className="text-xs text-[#71717A]">Количество</div>
             </div>
             <button
-              onClick={() => setGenerationCount(Math.min(maxGenerations, generationCount + 1))}
+              onClick={() => {
+                if (generationCount < maxGenerations) {
+                  light();
+                  setGenerationCount(Math.min(maxGenerations, generationCount + 1));
+                }
+              }}
               disabled={generationCount >= maxGenerations}
               className="w-8 h-8 rounded-lg bg-[#27272A] flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-transform"
             >

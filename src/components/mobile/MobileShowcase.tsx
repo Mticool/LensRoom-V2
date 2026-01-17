@@ -1,19 +1,32 @@
 'use client';
 
 import { ModelCard } from './ModelCard';
+import { ModelCardSkeleton } from './ModelCardSkeleton';
+import { OfflineBanner } from './OfflineBanner';
 import { HorizontalScroll } from './HorizontalScroll';
 import { BottomTabBar } from './BottomTabBar';
 import { PHOTO_MODELS, VIDEO_MODELS } from '@/config/models';
 import { Search, Star, Sparkles, Zap, Play, Image as ImageIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/generator-v2/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useOnlineStatus } from '@/lib/hooks/useOnlineStatus';
+import { useHaptic } from '@/lib/hooks/useHaptic';
 
 export function MobileShowcase() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const { credits, isAuthenticated } = useAuth();
+  const isOnline = useOnlineStatus();
+  const { light } = useHaptic();
+
+  // Simulate initial loading (models are static, but auth might be loading)
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Фильтрация моделей
   const featuredModels = [
@@ -71,6 +84,9 @@ export function MobileShowcase() {
 
   return (
     <div className="min-h-screen bg-[#0F0F10] pb-20">
+      {/* Offline Banner */}
+      <OfflineBanner isOnline={isOnline} />
+
       {/* Шапка */}
       <div className="sticky top-0 z-40 bg-[#0F0F10]/98 backdrop-blur-xl border-b border-[#27272A]">
         <div className="px-4 pt-safe pb-3">
@@ -132,7 +148,10 @@ export function MobileShowcase() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    onClick={() => router.push(action.path)}
+                    onClick={() => {
+                      light();
+                      router.push(action.path);
+                    }}
                     className="group relative overflow-hidden rounded-2xl p-3 bg-[#18181B] border border-[#27272A] hover:border-[#3F3F46] active:scale-95 transition-all"
                   >
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-2`}>
@@ -151,46 +170,78 @@ export function MobileShowcase() {
               title="Популярное"
               icon="🔥"
             >
-              {featuredModels.map((model) => (
-                <ModelCard key={model.id} model={model} variant="large" />
-              ))}
+              {isLoading ? (
+                <>
+                  {[...Array(6)].map((_, i) => (
+                    <ModelCardSkeleton key={i} variant="large" />
+                  ))}
+                </>
+              ) : (
+                featuredModels.map((model) => (
+                  <ModelCard key={model.id} model={model} variant="large" />
+                ))
+              )}
             </HorizontalScroll>
           </>
         )}
 
         {/* Фото модели */}
-        {photoModels.length > 0 && (
+        {(isLoading || photoModels.length > 0) && (
           <HorizontalScroll
             title="Фото генераторы"
             icon="📸"
           >
-            {photoModels.map((model) => (
-              <ModelCard key={model.id} model={model} />
-            ))}
+            {isLoading ? (
+              <>
+                {[...Array(8)].map((_, i) => (
+                  <ModelCardSkeleton key={i} variant="compact" />
+                ))}
+              </>
+            ) : (
+              photoModels.map((model) => (
+                <ModelCard key={model.id} model={model} />
+              ))
+            )}
           </HorizontalScroll>
         )}
 
         {/* Видео модели */}
-        {videoModels.length > 0 && (
+        {(isLoading || videoModels.length > 0) && (
           <HorizontalScroll
             title="Видео генераторы"
             icon="🎬"
           >
-            {videoModels.map((model) => (
-              <ModelCard key={model.id} model={model} />
-            ))}
+            {isLoading ? (
+              <>
+                {[...Array(6)].map((_, i) => (
+                  <ModelCardSkeleton key={i} variant="compact" />
+                ))}
+              </>
+            ) : (
+              videoModels.map((model) => (
+                <ModelCard key={model.id} model={model} />
+              ))
+            )}
           </HorizontalScroll>
         )}
 
         {/* Инструменты */}
-        {!searchQuery && toolModels.length > 0 && (
+        {!searchQuery && (isLoading || toolModels.length > 0) && (
           <HorizontalScroll
             title="Инструменты"
             icon="🛠️"
           >
-            {toolModels.map((model) => (
-              <ModelCard key={model.id} model={model} />
-            ))}
+            {isLoading ? (
+              <>
+                {[...Array(4)].map((_, i) => (
+                  <ModelCardSkeleton key={i} variant="compact" />
+                ))}
+              </>
+            ) : (
+              toolModels.map((model) => (
+                <ModelCard key={model.id} model={model} />
+              ))
+            )}
           </HorizontalScroll>
         )}
 

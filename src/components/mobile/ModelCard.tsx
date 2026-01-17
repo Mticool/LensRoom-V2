@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, Video, Image as ImageIcon, Zap, Star, Clock } from 'lucide-react';
 import type { ModelConfig, PhotoModelConfig, VideoModelConfig } from '@/config/models';
+import { useHaptic } from '@/lib/hooks/useHaptic';
 
 interface ModelCardProps {
   model: ModelConfig;
@@ -61,13 +62,16 @@ function getShortDesc(model: ModelConfig): string {
 export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
   const router = useRouter();
   const [isPressed, setIsPressed] = useState(false);
-  
+  const { light } = useHaptic();
+
   const isPhoto = model.type === 'photo';
   const icon = modelIcons[model.id] || (isPhoto ? '📸' : '🎬');
   const minPrice = getMinPrice(model);
   const shortLabel = 'shortLabel' in model ? model.shortLabel : undefined;
-  
+
   const handleClick = () => {
+    // Haptic feedback on click
+    light();
     // Переходим на страницу генератора с выбранной моделью
     const path = isPhoto ? `/create/image?model=${model.id}` : `/create/studio?model=${model.id}`;
     router.push(path);
