@@ -2,7 +2,7 @@
 
 ### 0) Preconditions
 - **DB migrations applied**: up to `016_admin_analytics_indexes.sql` (and all earlier schema migrations).
-- **Env configured**: copy `.env.example` → `.env.local` (local) / set env vars in Vercel.
+- **Env configured**: copy `.env.example` → `.env.local` (local) / set env vars on VPS server.
 - **Build clean**: `npm run build` проходит без ошибок.
 
 ### 1) Studio — фото (critical path)
@@ -69,7 +69,7 @@ npm run start
 ```
 
 ### 8) Rollback plan (minimum)
-- Vercel: rollback до предыдущего deployment.
+- VPS: SSH на сервер, git reset к предыдущему коммиту, npm ci && npm run build, pm2 restart (см. DEPLOY.sh для инструкций).
 - DB: миграции 015/016 безопасны (idempotent), но для отката нужен manual rollback (drop policies/indexes) — только при крайней необходимости.
 
 
