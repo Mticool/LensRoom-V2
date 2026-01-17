@@ -267,9 +267,10 @@ async function pollBatchStatus(
 Для продакшена batch обработка должна использовать систему очередей:
 
 **Варианты:**
-1. **BullMQ** (Redis) - рекомендуется для VPS
+1. **BullMQ** (Redis) - рекомендуется
 2. **AWS SQS** + Lambda
 3. **Google Cloud Tasks**
+4. **Vercel Edge Functions** + Upstash
 
 **Пример с BullMQ:**
 

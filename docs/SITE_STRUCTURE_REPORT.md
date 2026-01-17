@@ -655,8 +655,9 @@ npm start
 ```
 
 ### ☁️ **Hosting:**
-- **VPS на vdska.ru** (текущий хостинг)
-- Деплой через SSH и PM2 (используется DEPLOY.sh script)
+- **Vercel** (рекомендуется)
+- **Railway**
+- **DigitalOcean App Platform**
 
 ---
 
