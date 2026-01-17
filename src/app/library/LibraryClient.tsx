@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import { getModelById } from "@/config/models";
 import { NoGenerationsEmpty } from "@/components/ui/empty-state";
 import { GenerationGridSkeleton } from "@/components/ui/skeleton";
-import { BottomTabBar } from "@/components/mobile";
 import {
   type LibraryItem,
   type UiStatus,
@@ -694,9 +693,6 @@ export function LibraryClient() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Mobile Bottom Tab Bar */}
-      <BottomTabBar />
     </div>
   );
 }

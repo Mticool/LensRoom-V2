@@ -8,7 +8,6 @@ import {
   Bell, Mail, Shield
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { BottomTabBar } from '@/components/mobile';
 
 interface UserData {
   id: string;
@@ -225,8 +224,6 @@ export default function AccountPage() {
         </motion.button>
       </div>
 
-      {/* Bottom Tab Bar */}
-      <BottomTabBar />
     </div>
   );
 }
