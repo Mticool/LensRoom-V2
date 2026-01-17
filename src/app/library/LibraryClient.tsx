@@ -18,32 +18,12 @@ import { getModelById } from "@/config/models";
 import { NoGenerationsEmpty } from "@/components/ui/empty-state";
 import { GenerationGridSkeleton } from "@/components/ui/skeleton";
 import { BottomTabBar } from "@/components/mobile";
-
-type LibraryItem = {
-  id: string;
-  user_id: string;
-  type: string;
-  status: string;
-  created_at: string;
-  updated_at?: string;
-  prompt?: string;
-  model_name?: string;
-  preview_status: "none" | "processing" | "ready" | "failed";
-  originalUrl: string | null;
-  previewUrl: string | null;
-  posterUrl: string | null;
-  displayUrl: string | null;
-};
-
-type UiStatus = "queued" | "generating" | "success" | "failed";
-
-function normalizeStatus(s: any): UiStatus {
-  const v = String(s || "").toLowerCase();
-  if (v === "success" || v === "completed" || v === "succeeded") return "success";
-  if (v === "queued" || v === "waiting" || v === "queuing") return "queued";
-  if (v === "generating" || v === "processing" || v === "pending") return "generating";
-  return "failed";
-}
+import {
+  type LibraryItem,
+  type UiStatus,
+  normalizeStatus
+} from "@/lib/validation/library";
+import { handleError } from "@/lib/errors/error-handler";
 
 function getAgeSeconds(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
@@ -101,7 +81,11 @@ export function LibraryClient() {
   const LIMIT = 24;
 
   useEffect(() => {
-    try { fetchFavorites(); } catch (e) { console.error('[Library] Error fetching favorites:', e); }
+    try {
+      fetchFavorites();
+    } catch (error) {
+      handleError(error, 'Library - fetchFavorites');
+    }
   }, [fetchFavorites]);
 
   useEffect(() => {
@@ -115,7 +99,9 @@ export function LibraryClient() {
             loadCategories();
           }
         }
-      } catch (e) { console.error("[Library] Failed to check role:", e); }
+      } catch (error) {
+        handleError(error, 'Library - checkRole');
+      }
     };
     checkRole();
   }, []);
@@ -127,7 +113,9 @@ export function LibraryClient() {
         const data = await res.json();
         if (Array.isArray(data.categories)) setCategories(data.categories);
       }
-    } catch (e) { console.error("[Library] Failed to load categories:", e); }
+    } catch (error) {
+      handleError(error, 'Library - loadCategories');
+    }
   };
 
   const fetchGenerations = useCallback(async (offset = 0, append = false, silent = false) => {
@@ -150,8 +138,9 @@ export function LibraryClient() {
       setItems((prev) => (append ? [...prev, ...newItems] : newItems));
       setHasMore(json?.meta?.hasMore || newItems.length === LIMIT);
       lastFetchRef.current = Date.now();
-    } catch (e) {
-      if (!silent) setError(e instanceof Error ? e.message : "Ошибка загрузки");
+    } catch (error) {
+      const errorMessage = handleError(error, 'Library - fetchGenerations');
+      if (!silent) setError(errorMessage);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -319,8 +308,9 @@ export function LibraryClient() {
       }
       toast.success("Опубликовано!");
       setPublishModalOpen(false);
-    } catch (e: any) {
-      toast.error(e?.message || "Ошибка публикации");
+    } catch (error) {
+      const errorMessage = handleError(error, 'Library - publishToGallery');
+      toast.error(errorMessage);
     } finally {
       setIsPublishing(false);
     }
