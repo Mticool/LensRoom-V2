@@ -158,6 +158,11 @@ const nextConfig: NextConfig = {
       "framer-motion",
       "date-fns",
       "@tanstack/react-query",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-select",
+      "@radix-ui/react-tabs",
     ],
     // Increase body size limit for large image uploads (8MB+ images)
     serverActions: {
@@ -165,12 +170,84 @@ const nextConfig: NextConfig = {
     },
   },
 
+  // Aggressive code splitting for better performance
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            // Vendor chunk for rarely-changing libraries
+            vendor: {
+              name: 'vendor',
+              chunks: 'all',
+              test: /node_modules/,
+              priority: 20,
+              reuseExistingChunk: true,
+            },
+            // Separate chunk for Radix UI (large library)
+            radix: {
+              name: 'radix',
+              test: /[\\/]node_modules[\\/]@radix-ui/,
+              chunks: 'all',
+              priority: 30,
+              reuseExistingChunk: true,
+            },
+            // Separate chunk for framer-motion (large library)
+            framer: {
+              name: 'framer',
+              test: /[\\/]node_modules[\\/]framer-motion/,
+              chunks: 'all',
+              priority: 30,
+              reuseExistingChunk: true,
+            },
+            // Separate chunk for React Query
+            reactQuery: {
+              name: 'react-query',
+              test: /[\\/]node_modules[\\/]@tanstack[\\/]react-query/,
+              chunks: 'all',
+              priority: 30,
+              reuseExistingChunk: true,
+            },
+            // Common chunk for reused code (minimum 2 modules)
+            common: {
+              name: 'common',
+              minChunks: 2,
+              priority: 10,
+              reuseExistingChunk: true,
+              enforce: true,
+            },
+          },
+        },
+      };
+    }
+    return config;
+  },
+
   // Redirects for old routes (keeping SEO landing pages: /video, /image)
   async redirects() {
     return [
       {
+        source: '/studio',
+        destination: '/create/studio',
+        permanent: false,
+      },
+      {
+        source: '/generator',
+        destination: '/create/studio',
+        permanent: false,
+      },
+      {
         source: '/create',
-        destination: '/generator',
+        destination: '/create/studio',
+        permanent: false,
+      },
+      {
+        source: '/login',
+        destination: '/m',
         permanent: false,
       },
       {
@@ -180,15 +257,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/design',
-        destination: '/generator',
-        permanent: false,
-      },
-      // /video - now SEO landing page, no redirect
-      // /image - SEO landing page
-      // Redirect /create/studio to /studio (preserve existing route)
-      {
-        source: '/create/studio',
-        destination: '/studio',
+        destination: '/create/studio',
         permanent: false,
       },
     ];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { Upload, X, Video, Loader2, RefreshCw, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -20,11 +20,11 @@ interface VideoUploaderProps {
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (per KIE documentation)
 const ACCEPTED_FORMATS = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm'];
 
-export function VideoUploader({ 
-  value, 
-  onChange, 
-  mode, 
-  className, 
+export function VideoUploader({
+  value,
+  onChange,
+  mode,
+  className,
   disabled,
   label = 'Референсное видео',
   hint = 'MP4, MOV, MKV • 3-30 сек • До 100MB',
@@ -35,6 +35,17 @@ export function VideoUploader({
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const objectUrlRef = useRef<string | null>(null);
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     // Validate file type
@@ -51,28 +62,39 @@ export function VideoUploader({
 
     setIsUploading(true);
     try {
+      // Cleanup previous object URL if exists
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+
       // Create object URL to check video duration
       const objectUrl = URL.createObjectURL(file);
+      objectUrlRef.current = objectUrl;
       const video = document.createElement('video');
-      
+
       video.onloadedmetadata = () => {
         const duration = video.duration;
-        URL.revokeObjectURL(objectUrl);
-        
+        // Cleanup object URL after use
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+          objectUrlRef.current = null;
+        }
+
         // Only validate minimum - max will be handled by auto-trim
         if (duration < 3) {
           toast.error('Видео слишком короткое. Минимум 3 секунды');
           setIsUploading(false);
           return;
         }
-        
+
         // Show warning for long videos but allow (auto-trim will handle it)
         if (duration > 30) {
           toast.warning('Видео длиннее 30 сек — будет обрезано');
         }
-        
+
         setVideoDuration(duration); // Keep exact duration, not rounded
-        
+
         // Read file as data URL
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -87,16 +109,24 @@ export function VideoUploader({
         };
         reader.readAsDataURL(file);
       };
-      
+
       video.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
+        // Cleanup object URL on error
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+          objectUrlRef.current = null;
+        }
         toast.error('Ошибка обработки видео');
         setIsUploading(false);
       };
-      
+
       video.src = objectUrl;
     } catch (error) {
-      console.error('Upload error:', error);
+      // Cleanup object URL on exception
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
       toast.error('Ошибка загрузки');
       setIsUploading(false);
     }

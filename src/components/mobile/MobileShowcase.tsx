@@ -4,13 +4,16 @@ import { ModelCard } from './ModelCard';
 import { HorizontalScroll } from './HorizontalScroll';
 import { BottomTabBar } from './BottomTabBar';
 import { PHOTO_MODELS, VIDEO_MODELS } from '@/config/models';
-import { Search, Star, Sparkles } from 'lucide-react';
+import { Search, Star, Sparkles, Zap, Play, Image as ImageIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/components/generator-v2/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 export function MobileShowcase() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const { credits } = useAuth();
+  const { credits, isAuthenticated } = useAuth();
 
   // Фильтрация моделей
   const featuredModels = [
@@ -20,7 +23,7 @@ export function MobileShowcase() {
     .sort((a, b) => a.rank - b.rank)
     .slice(0, 6);
 
-  const photoModels = PHOTO_MODELS.filter(m => 
+  const photoModels = PHOTO_MODELS.filter(m =>
     searchQuery ? m.name.toLowerCase().includes(searchQuery.toLowerCase()) : true
   ).sort((a, b) => a.rank - b.rank);
 
@@ -29,36 +32,68 @@ export function MobileShowcase() {
   ).sort((a, b) => a.rank - b.rank);
 
   const toolModels = [
-    ...PHOTO_MODELS.filter(m => 
-      m.id === 'topaz-image-upscale' || 
+    ...PHOTO_MODELS.filter(m =>
+      m.id === 'topaz-image-upscale' ||
       m.id === 'recraft-remove-background'
     ),
-    ...VIDEO_MODELS.filter(m => 
-      m.id === 'kling-ai-avatar' || 
+    ...VIDEO_MODELS.filter(m =>
+      m.id === 'kling-ai-avatar' ||
       m.id === 'kling-motion-control'
     ),
-  ].filter(m => 
+  ].filter(m =>
     searchQuery ? m.name.toLowerCase().includes(searchQuery.toLowerCase()) : true
   );
+
+  // Quick actions
+  const quickActions = [
+    {
+      id: 'create-image',
+      title: 'Создать фото',
+      icon: ImageIcon,
+      color: 'from-emerald-500 to-teal-500',
+      path: '/create/image',
+    },
+    {
+      id: 'create-video',
+      title: 'Создать видео',
+      icon: Play,
+      color: 'from-violet-500 to-purple-500',
+      path: '/create/studio?type=video',
+    },
+    {
+      id: 'library',
+      title: 'Моя библиотека',
+      icon: Star,
+      color: 'from-amber-500 to-orange-500',
+      path: '/library',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#0F0F10] pb-20">
       {/* Шапка */}
-      <div className="sticky top-0 z-40 bg-[#0F0F10]/95 backdrop-blur-xl border-b border-[#27272A]">
-        <div className="px-4 pt-3 pb-3">
+      <div className="sticky top-0 z-40 bg-[#0F0F10]/98 backdrop-blur-xl border-b border-[#27272A]">
+        <div className="px-4 pt-safe pb-3">
           {/* Лого и баланс */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 pt-2">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[#00D9FF]" />
-              <h1 className="text-lg font-bold text-white">LensRoom</h1>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00D9FF] to-[#0EA5E9] flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white">LensRoom</h1>
+                <p className="text-[10px] text-[#71717A]">AI Creative Studio</p>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#27272A]">
-              <Star className="w-3.5 h-3.5 text-yellow-500" />
-              <span className="text-sm font-semibold text-white">
-                {credits.toLocaleString()}
-              </span>
-            </div>
+
+            {isAuthenticated && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                <Star className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-sm font-semibold text-white">
+                  {credits.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Поиск */}
@@ -66,15 +101,15 @@ export function MobileShowcase() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
             <input
               type="text"
-              placeholder="Поиск моделей..."
+              placeholder="Поиск AI моделей..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="
-                w-full h-10 pl-10 pr-4 rounded-xl
+                w-full h-11 pl-10 pr-4 rounded-xl
                 bg-[#18181B] border border-[#27272A]
                 text-white placeholder:text-[#71717A]
                 focus:outline-none focus:border-[#00D9FF]
-                transition-colors
+                transition-colors text-sm
               "
             />
           </div>
@@ -85,6 +120,32 @@ export function MobileShowcase() {
       <div className="pt-4">
         {!searchQuery && (
           <>
+            {/* Quick Actions */}
+            <div className="px-4 mb-6">
+              <h2 className="text-sm font-semibold text-[#A1A1AA] mb-3 uppercase tracking-wide">
+                Быстрый старт
+              </h2>
+              <div className="grid grid-cols-3 gap-2">
+                {quickActions.map((action, index) => (
+                  <motion.button
+                    key={action.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={() => router.push(action.path)}
+                    className="group relative overflow-hidden rounded-2xl p-3 bg-[#18181B] border border-[#27272A] hover:border-[#3F3F46] active:scale-95 transition-all"
+                  >
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-2`}>
+                      <action.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-xs font-medium text-white text-left">
+                      {action.title}
+                    </p>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
             {/* Популярное */}
             <HorizontalScroll
               title="Популярное"
@@ -100,7 +161,7 @@ export function MobileShowcase() {
         {/* Фото модели */}
         {photoModels.length > 0 && (
           <HorizontalScroll
-            title="Фото модели"
+            title="Фото генераторы"
             icon="📸"
           >
             {photoModels.map((model) => (
@@ -112,7 +173,7 @@ export function MobileShowcase() {
         {/* Видео модели */}
         {videoModels.length > 0 && (
           <HorizontalScroll
-            title="Видео модели"
+            title="Видео генераторы"
             icon="🎬"
           >
             {videoModels.map((model) => (

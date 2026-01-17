@@ -13,9 +13,9 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { id: 'home', label: 'Главная', icon: Home, path: '/create' },
+  { id: 'home', label: 'Главная', icon: Home, path: '/m' },
   { id: 'create', label: 'Создать', icon: Sparkles, path: '/create/studio' },
-  { id: 'history', label: 'История', icon: History, path: '/account/history' },
+  { id: 'history', label: 'История', icon: History, path: '/library' },
   { id: 'profile', label: 'Профиль', icon: User, path: '/account' },
 ];
 
@@ -24,9 +24,9 @@ export function BottomTabBar() {
   const router = useRouter();
 
   const getActiveTab = (): TabId => {
-    if (pathname === '/create' || pathname === '/') return 'home';
+    if (pathname === '/m' || pathname === '/') return 'home';
     if (pathname.startsWith('/create/studio') || pathname.startsWith('/create/')) return 'create';
-    if (pathname.includes('/history')) return 'history';
+    if (pathname.startsWith('/library')) return 'history';
     if (pathname.startsWith('/account')) return 'profile';
     return 'home';
   };
@@ -34,20 +34,26 @@ export function BottomTabBar() {
   const activeTab = getActiveTab();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0F0F10]/95 backdrop-blur-xl border-t border-[#27272A] safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0F0F10]/98 backdrop-blur-xl border-t border-[#27272A]">
+      <div
+        className="flex items-center justify-around px-2"
+        style={{
+          height: 'calc(4rem + env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
-          
+
           return (
             <button
               key={tab.id}
               onClick={() => router.push(tab.path)}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-2 transition-all duration-200 ${
-                isActive 
-                  ? 'text-[#00D9FF]' 
-                  : 'text-[#71717A] hover:text-[#A1A1AA]'
+              className={`flex flex-col items-center justify-center flex-1 h-16 py-2 transition-all duration-200 active:scale-95 ${
+                isActive
+                  ? 'text-[#00D9FF]'
+                  : 'text-[#71717A] active:text-[#A1A1AA]'
               }`}
             >
               <div className={`relative ${isActive ? 'scale-110' : ''} transition-transform duration-200`}>

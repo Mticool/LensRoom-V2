@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { GenerationSettings, GenerationResult } from '../GeneratorV2';
 import type { UploadedImage } from '../BatchImageUploader';
+import logger from '@/lib/logger';
 
 export interface BatchResult {
   generationId: string;
@@ -54,17 +55,29 @@ export function useBatchGeneration(options: UseBatchGenerationOptions = {}) {
     }
   }, []);
 
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
+
   const generateBatch = useCallback(async (
     prompt: string,
     images: UploadedImage[],
     settings: GenerationSettings
   ): Promise<BatchResult[] | null> => {
-    if (isGeneratingRef.current) return null;
+    // Prevent concurrent batch generations (race condition protection)
+    if (isGeneratingRef.current) {
+      return null;
+    }
+
     if (!images.length) {
       setError('No images provided');
       return null;
     }
 
+    // Atomically set generating flag
     isGeneratingRef.current = true;
     setIsGenerating(true);
     setError(null);
@@ -132,7 +145,7 @@ export function useBatchGeneration(options: UseBatchGenerationOptions = {}) {
             const statusData = await statusRes.json();
 
             if (!statusRes.ok) {
-              console.error('Batch status error:', statusData);
+              logger.error('Batch status error:', statusData);
               return;
             }
 
@@ -158,7 +171,7 @@ export function useBatchGeneration(options: UseBatchGenerationOptions = {}) {
               resolve(batchResults);
             }
           } catch (e) {
-            console.error('Batch poll error:', e);
+            logger.error('Batch poll error:', e);
           }
         }, 2000); // Poll every 2 seconds
       });

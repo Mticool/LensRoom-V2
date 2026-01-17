@@ -1,6 +1,3 @@
-// Re-export generator types
-export * from "./generator";
-
 // ===== COMMON TYPES =====
 
 export type ID = string;

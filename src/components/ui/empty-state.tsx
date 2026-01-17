@@ -125,16 +125,6 @@ export function NoVideosEmpty() {
   );
 }
 
-export function NoProductsEmpty() {
-  return (
-    <EmptyState
-      icon={<Package className="w-8 h-8 text-[var(--muted)]" />}
-      title="Нет товаров"
-      description="Создайте продуктовые изображения с AI"
-      action={{ label: 'E-Com Studio', href: '/create/products' }}
-    />
-  );
-}
 
 export function EmptyFolder() {
   return (
@@ -166,13 +156,3 @@ export function ErrorEmpty({ onRetry }: { onRetry?: () => void }) {
     />
   );
 }
-
-
-
-
-
-
-
-
-
-

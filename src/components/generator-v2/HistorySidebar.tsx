@@ -155,7 +155,7 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
             </p>
           </div>
         ) : (
-          <div className="p-2 space-y-1.5">
+          <div className="p-2 space-y-1">
             {history.map((result) => {
               const isPending = result.status === 'pending';
               const thumbnailDims = getThumbnailDimensions(result.settings?.size);
@@ -167,7 +167,7 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
                     key={result.id}
                     className="w-full rounded-lg overflow-hidden border border-[#00D9FF]/30 bg-[#00D9FF]/5 animate-pulse"
                   >
-                    <div className="flex gap-2 p-2">
+                    <div className="flex gap-2 p-1.5">
                       {/* Skeleton thumbnail with aspect ratio */}
                       <div className={`relative ${thumbnailDims.className} rounded-md bg-gradient-to-br from-[#00D9FF]/20 to-[#27272A] overflow-hidden flex-shrink-0 flex items-center justify-center`}>
                         <Sparkles className="w-5 h-5 text-[#00D9FF] animate-pulse" />
@@ -200,7 +200,7 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
                   className="w-full group rounded-lg overflow-hidden border border-transparent hover:border-[#3F3F46] bg-[#27272A]/30 hover:bg-[#27272A]/60 transition-all text-left"
                 >
                   {/* Compact thumbnail + info row */}
-                  <div className="flex gap-2 p-2">
+                  <div className="flex gap-2 p-1.5">
                     {/* Thumbnail with aspect ratio */}
                     <div className={`relative ${thumbnailDims.className} rounded-md bg-[#27272A] overflow-hidden flex-shrink-0`}>
                       {result.previewUrl || result.url ? (
@@ -254,7 +254,7 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
                   </div>
 
                   {/* Actions - shown on hover */}
-                  <div className="px-2 pb-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="px-1.5 pb-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {onEdit && result.mode === 'image' && (
                       <button
                         onClick={(e) => handleEdit(e, result)}

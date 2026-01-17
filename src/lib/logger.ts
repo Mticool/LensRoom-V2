@@ -1,44 +1,30 @@
 /**
- * Conditional logger - outputs only in development mode
- * Use instead of console.log for cleaner production builds
- * 
- * @example
- * import { logger } from '@/lib/logger';
- * logger.log('[Component] message', data);
- * logger.error('[API] error', error);
+ * Development-only logger utility
+ * All console logs are stripped in production builds
  */
 
-const isDev = process.env.NODE_ENV !== 'production';
-
-type LogArgs = Parameters<typeof console.log>;
+const isDev = process.env.NODE_ENV === 'development';
 
 export const logger = {
-  log: (...args: LogArgs) => {
+  log: (...args: unknown[]) => {
     if (isDev) console.log(...args);
   },
-  
-  warn: (...args: LogArgs) => {
+  error: (...args: unknown[]) => {
+    if (isDev) console.error(...args);
+  },
+  warn: (...args: unknown[]) => {
     if (isDev) console.warn(...args);
   },
-  
-  error: (...args: LogArgs) => {
-    // Errors always logged (important for debugging production issues)
-    console.error(...args);
-  },
-  
-  info: (...args: LogArgs) => {
+  info: (...args: unknown[]) => {
     if (isDev) console.info(...args);
   },
-  
-  debug: (...args: LogArgs) => {
+  debug: (...args: unknown[]) => {
     if (isDev) console.debug(...args);
   },
-  
-  /** Force log even in production (use sparingly) */
-  force: (...args: LogArgs) => {
-    console.log(...args);
+  table: (data: unknown) => {
+    if (isDev) console.table(data);
   },
 };
 
+// For backward compatibility, export as default too
 export default logger;
-

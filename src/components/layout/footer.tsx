@@ -7,8 +7,7 @@ import { Sparkles } from "lucide-react";
 const footerLinks = {
   product: [
     { label: "AI Фото", href: "/create" },
-    { label: "AI Видео", href: "/create/video" },
-    { label: "E-Com Studio", href: "/create/products" },
+    { label: "AI Видео", href: "/create?section=video" },
   ],
   resources: [
     { label: "Библиотека", href: "/library" },
@@ -25,8 +24,15 @@ const footerLinks = {
 export function Footer() {
   const pathname = usePathname();
   
-  // Скрываем футер на страницах генератора
-  if (pathname === '/create' || pathname.startsWith('/create/') || pathname === '/generator' || pathname.startsWith('/generator/')) {
+  // Скрываем футер на страницах генератора и мобильной версии
+  if (
+    pathname === '/create' || 
+    pathname.startsWith('/create/') || 
+    pathname === '/generator' || 
+    pathname.startsWith('/generator/') ||
+    pathname === '/m' ||
+    pathname.startsWith('/m/')
+  ) {
     return null;
   }
 

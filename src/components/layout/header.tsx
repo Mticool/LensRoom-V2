@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -14,6 +14,7 @@ import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
+import logger from '@/lib/logger';
 
 // Модели для дропдаунов — стиль syntx.ai
 const MODELS = {
@@ -72,7 +73,7 @@ export function Header() {
     }
   }, [telegramUser, supabaseUser, fetchBalance]);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       if (telegramUser) {
         await telegramAuth.signOut();
@@ -83,30 +84,32 @@ export function Header() {
       setUserMenuOpen(false);
       toast.success('Вы вышли из аккаунта');
     } catch (error) {
-      console.error('Sign out error:', error);
+      logger.error('Sign out error:', error);
       toast.error('Ошибка выхода');
     }
-  };
+  }, [telegramUser, supabaseUser, telegramAuth, supabaseAuth]);
 
-  const handleConnectBot = () => {
+  const handleConnectBot = useCallback(() => {
     const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LensRoomBot';
     window.open(`https://t.me/${botUsername}?start=notify`, '_blank');
     setUserMenuOpen(false);
-  };
+  }, []);
 
-  const displayName =
+  const displayName = useMemo(() =>
     telegramUser?.firstName ||
     telegramUser?.username ||
     supabaseUser?.email ||
-    'Пользователь';
+    'Пользователь',
+    [telegramUser?.firstName, telegramUser?.username, supabaseUser?.email]
+  );
 
-  const navigation: Array<{ name: string; href?: string; dropdown?: 'design' | 'video' | 'audio' }> = [
-    { name: 'Дизайн', dropdown: 'design' },
-    { name: 'Видео', dropdown: 'video' },
-    { name: 'Аудио', dropdown: 'audio' },
+  const navigation = useMemo(() => [
+    { name: 'Дизайн', dropdown: 'design' as const },
+    { name: 'Видео', dropdown: 'video' as const },
+    { name: 'Аудио', dropdown: 'audio' as const },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },
-  ];
+  ], []);
 
   return (
     <>

@@ -1,26 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { GeneratorV2 } from "@/components/generator-v2/GeneratorV2";
-import { MobileShowcase } from "@/components/mobile";
 
 export default function CreatePage() {
-  const [isMobile, setIsMobile] = useState(false);
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      // Редирект на мобильную версию
+      router.replace('/m');
+    } else {
+      setChecking(false);
+    }
+  }, [router]);
 
-  // На мобильных показываем витрину, на десктопе - генератор
-  if (isMobile) {
-    return <MobileShowcase />;
+  // Пока проверяем - ничего не показываем
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-[#0F0F10] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#c6fe00]" />
+      </div>
+    );
   }
 
+  // Desktop версия
   return <GeneratorV2 defaultMode="image" />;
 }

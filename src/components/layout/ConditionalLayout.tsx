@@ -7,9 +7,10 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isGeneratorPage = pathname === '/create' || pathname.startsWith('/create/');
   const isTestPage = pathname === '/test-minimal';
+  const isMobilePage = pathname === '/m' || pathname.startsWith('/m/');
 
-  if (isTestPage) {
-    // Test pages only - no header/footer
+  if (isTestPage || isMobilePage) {
+    // Test pages and mobile showcase - no header/footer
     return <div className="min-h-screen">{children}</div>;
   }
 
@@ -21,4 +22,3 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     </>
   );
 }
-

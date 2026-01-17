@@ -2,8 +2,16 @@
 
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
+import { MobileButton } from "@/components/ui/mobile-button";
 import { RotateCcw, Sparkles, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Haptic feedback utility
+const haptic = (style: 'light' | 'medium' = 'light') => {
+  if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate(style === 'light' ? 10 : 15);
+  }
+};
 
 interface BottomActionBarProps {
   stars: number;
@@ -32,53 +40,67 @@ export const BottomActionBar = memo(function BottomActionBar({
         className="px-3 sm:px-6 py-3 flex flex-col gap-3"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
       >
-        {/* Mobile layout: compact two rows */}
+        {/* Mobile layout: improved with larger touch targets */}
         <div className="flex sm:hidden items-center gap-2">
           {/* Price left */}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-shrink-0">
             <div className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Цена</div>
             <div className="text-sm font-bold text-[var(--text)]">{stars}⭐</div>
           </div>
-          
-          {/* Action buttons right */}
+
+          {/* Action buttons right - using MobileButton for better UX */}
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={onReset}
-              className="flex items-center justify-center w-10 h-10 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] active:scale-95 transition-transform"
+            <MobileButton
+              variant="icon"
+              size="icon"
+              onClick={() => {
+                haptic('light');
+                onReset();
+              }}
               title="Сбросить"
+              haptic="none"
             >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+              <RotateCcw className="w-5 h-5" />
+            </MobileButton>
             {onOpenLibrary && (
-              <button
-                onClick={onOpenLibrary}
-                className="relative flex items-center justify-center w-10 h-10 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] active:scale-95 transition-transform"
+              <MobileButton
+                variant="icon"
+                size="icon"
+                onClick={() => {
+                  haptic('light');
+                  onOpenLibrary();
+                }}
                 title="История"
+                className="relative"
+                haptic="none"
               >
-                <FolderOpen className="w-4 h-4" />
+                <FolderOpen className="w-5 h-5" />
                 {newResultsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--gold)] text-black text-[10px] font-bold">
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-white text-black text-[10px] font-bold shadow-lg border border-gray-200">
                     {newResultsCount}
                   </span>
                 )}
-              </button>
+              </MobileButton>
             )}
           </div>
         </div>
-        
-        {/* Mobile: Full-width generate button */}
-        <Button
-          onClick={onGenerate}
+
+        {/* Mobile: Full-width generate button with improved styling */}
+        <MobileButton
+          variant="primary"
+          size="lg"
+          fullWidth
+          onClick={() => {
+            haptic('medium');
+            onGenerate();
+          }}
           disabled={!canGenerate}
-          className={cn(
-            "sm:hidden rounded-xl bg-white text-black hover:bg-white/90 w-full",
-            "disabled:opacity-50 disabled:pointer-events-none",
-            "h-12 text-base font-semibold active:scale-[0.98] transition-transform"
-          )}
+          className="sm:hidden"
+          haptic="none"
         >
-          <Sparkles className="w-5 h-5 mr-2" />
+          <Sparkles className="w-5 h-5" />
           Сгенерировать • {stars}⭐
-        </Button>
+        </MobileButton>
 
         {/* Desktop layout */}
         <div className="hidden sm:flex items-center gap-3">

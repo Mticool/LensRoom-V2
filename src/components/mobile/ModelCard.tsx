@@ -69,7 +69,8 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
   
   const handleClick = () => {
     // Переходим на страницу генератора с выбранной моделью
-    router.push(`/create/studio?model=${model.id}`);
+    const path = isPhoto ? `/create/image?model=${model.id}` : `/create/studio?model=${model.id}`;
+    router.push(path);
   };
 
   if (variant === 'large') {

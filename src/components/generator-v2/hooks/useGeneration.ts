@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { GeneratorMode, GenerationSettings, GenerationResult } from '../GeneratorV2';
+import logger from '@/lib/logger';
+import { apiFetch } from '@/lib/api-fetch';
 
 interface UseGenerationOptions {
   onSuccess?: (result: GenerationResult) => void;
@@ -13,21 +15,28 @@ interface UseGenerationOptions {
 export function useGeneration(options: UseGenerationOptions = {}) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Store options in ref to avoid dependency issues
   const optionsRef = useRef(options);
   optionsRef.current = options;
-  
+
   // Track if currently generating
   const isGeneratingRef = useRef(false);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
+      clearTimeout(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
   }, []);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   const generate = useCallback(async (
     prompt: string,
@@ -38,9 +47,12 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     videoDuration?: number | null,
     autoTrim?: boolean
   ): Promise<GenerationResult | null> => {
-    // Use ref to check if generating
-    if (isGeneratingRef.current) return null;
-    
+    // Prevent concurrent generations (race condition protection)
+    if (isGeneratingRef.current) {
+      return null;
+    }
+
+    // Atomically set generating flag
     isGeneratingRef.current = true;
     setIsGenerating(true);
     setError(null);
@@ -132,7 +144,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         return result;
       }
 
-      // Poll for completion
+      // Poll for completion with adaptive intervals
       const result = await new Promise<GenerationResult | null>((resolve) => {
         let attempts = 0;
         const maxAttempts = 120;
@@ -140,9 +152,9 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         const generationId = data.generationId;
         const provider = data.provider || 'kie_market';
 
-        pollIntervalRef.current = setInterval(async () => {
+        const poll = async () => {
           attempts++;
-          
+
           if (attempts > maxAttempts) {
             stopPolling();
             setError('Таймаут генерации');
@@ -151,7 +163,13 @@ export function useGeneration(options: UseGenerationOptions = {}) {
           }
 
           try {
-            const res = await fetch(`/api/jobs/${jobId}?provider=${provider}`);
+            // Use optimized fetch with retry and deduplication
+            const res = await apiFetch(`/api/jobs/${jobId}?provider=${provider}`, {
+              retry: {
+                maxRetries: 2,
+                initialDelay: 500,
+              },
+            });
             const jobData = await res.json();
 
             if (jobData.status === 'completed' || jobData.status === 'success') {
@@ -175,10 +193,28 @@ export function useGeneration(options: UseGenerationOptions = {}) {
               resolve(null);
               return;
             }
+
+            // Adaptive polling: start at 1s, gradually increase to 5s
+            const baseInterval = 1000;
+            const maxInterval = 5000;
+            const nextInterval = Math.min(
+              baseInterval * Math.pow(1.2, Math.min(attempts, 10)),
+              maxInterval
+            );
+
+            // Schedule next poll
+            pollIntervalRef.current = setTimeout(poll, nextInterval);
           } catch (e) {
-            console.error('Poll error:', e);
+            logger.error('Poll error:', e);
+
+            // On error, retry with exponential backoff
+            const errorBackoff = Math.min(1000 * Math.pow(2, attempts), 5000);
+            pollIntervalRef.current = setTimeout(poll, errorBackoff);
           }
-        }, 1000);
+        };
+
+        // Start first poll
+        poll();
       });
 
       if (result) {

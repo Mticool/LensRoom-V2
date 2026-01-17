@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { apiFetch } from '@/lib/api-fetch';
+import logger from '@/lib/logger';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -23,9 +25,15 @@ export function useAuth() {
 
   const checkAuth = useCallback(async () => {
     try {
-      // First check session status via /api/auth/me
-      const response = await fetch('/api/auth/me');
-      
+      // Use optimized fetch with deduplication and retry
+      const response = await apiFetch('/api/auth/me', {
+        dedupe: true,
+        retry: {
+          maxRetries: 2,
+          initialDelay: 500,
+        },
+      });
+
       if (!response.ok) {
         setAuth({
           isAuthenticated: false,
@@ -39,13 +47,19 @@ export function useAuth() {
       }
 
       const data = await response.json();
-      
+
       // API returns { user: { id }, telegramId, username, firstName, role, ... }
       if (data.user || data.telegramId) {
-        // Fetch credits separately
+        // Fetch credits separately with deduplication
         let credits = 0;
         try {
-          const creditsRes = await fetch('/api/credits/balance');
+          const creditsRes = await apiFetch('/api/credits/balance', {
+            dedupe: true,
+            retry: {
+              maxRetries: 2,
+              initialDelay: 500,
+            },
+          });
           if (creditsRes.ok) {
             const creditsData = await creditsRes.json();
             credits = creditsData.balance || creditsData.credits || 0;
@@ -73,7 +87,7 @@ export function useAuth() {
         });
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      logger.error('Auth check failed:', error);
       setAuth(prev => ({ ...prev, isLoading: false, isAuthenticated: false }));
     }
   }, []);
