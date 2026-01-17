@@ -250,7 +250,7 @@ async function handleLoginCode(
       '✅ *Авторизация успешна!*\n\n' +
       '🎉 Вы вошли в LensRoom через Telegram.\n\n' +
       'Вернитесь на сайт — страница обновится автоматически.\n\n' +
-      '🌐 [Открыть LensRoom](https://lensroom.ru/generator)',
+      '🌐 [Открыть LensRoom](https://lensroom.ru/create)',
       {
         parseMode: 'Markdown',
         replyMarkup: createInlineKeyboard([

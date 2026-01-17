@@ -1,0 +1,300 @@
+[
+  {
+    "id": "grok-imagine",
+    "name": "Grok Imagine",
+    "provider": "kie_market",
+    "apiId": "grok-imagine/text-to-image",
+    "supportsI2i": false,
+    "aspectRatios": [
+      "1:1",
+      "3:2",
+      "2:3"
+    ],
+    "parameterType": "none",
+    "qualityOptions": [],
+    "pricing": {
+      "default": {
+        "stars": 15,
+        "rub": "25.20",
+        "usd": "0.2490"
+      }
+    }
+  },
+  {
+    "id": "nano-banana",
+    "name": "Nano Banana",
+    "provider": "laozhang",
+    "apiId": "gemini-2.5-flash-image-preview",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3"
+    ],
+    "parameterType": "quality",
+    "qualityOptions": [
+      "turbo",
+      "balanced",
+      "quality"
+    ],
+    "pricing": {
+      "turbo": {
+        "stars": 7,
+        "rub": "11.76",
+        "usd": "0.1162"
+      },
+      "balanced": {
+        "stars": 7,
+        "rub": "11.76",
+        "usd": "0.1162"
+      },
+      "quality": {
+        "stars": 7,
+        "rub": "11.76",
+        "usd": "0.1162"
+      }
+    }
+  },
+  {
+    "id": "nano-banana-pro",
+    "name": "Nano Banana Pro",
+    "provider": "laozhang",
+    "apiId": "gemini-3-pro-image-preview",
+    "apiId2k": "gemini-3-pro-image-preview-2k",
+    "apiId4k": "gemini-3-pro-image-preview-4k",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4"
+    ],
+    "parameterType": "resolution",
+    "qualityOptions": [
+      "1k_2k",
+      "4k"
+    ],
+    "pricing": {
+      "1k_2k": {
+        "stars": 30,
+        "rub": "50.40",
+        "usd": "0.4980"
+      },
+      "4k": {
+        "stars": 40,
+        "rub": "67.20",
+        "usd": "0.6640"
+      }
+    }
+  },
+  {
+    "id": "seedream-4.5",
+    "name": "Seedream 4.5",
+    "provider": "kie_market",
+    "apiId": "seedream/4.5-text-to-image",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4",
+      "2:3",
+      "3:2",
+      "21:9"
+    ],
+    "parameterType": "quality",
+    "qualityOptions": [
+      "turbo",
+      "balanced",
+      "quality"
+    ],
+    "pricing": {
+      "turbo": {
+        "stars": 11,
+        "rub": "18.48",
+        "usd": "0.1826"
+      },
+      "balanced": {
+        "stars": 11,
+        "rub": "18.48",
+        "usd": "0.1826"
+      },
+      "quality": {
+        "stars": 11,
+        "rub": "18.48",
+        "usd": "0.1826"
+      }
+    }
+  },
+  {
+    "id": "flux-2-pro",
+    "name": "FLUX.2 Pro",
+    "provider": "kie_market",
+    "apiId": "flux-2/pro-text-to-image",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3"
+    ],
+    "parameterType": "resolution",
+    "qualityOptions": [
+      "1k",
+      "2k"
+    ],
+    "pricing": {
+      "1k": {
+        "stars": 9,
+        "rub": "15.12",
+        "usd": "0.1494"
+      },
+      "2k": {
+        "stars": 12,
+        "rub": "20.16",
+        "usd": "0.1992"
+      }
+    }
+  },
+  {
+    "id": "z-image",
+    "name": "Z-image",
+    "provider": "kie_market",
+    "apiId": "z-image",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4"
+    ],
+    "parameterType": "quality",
+    "qualityOptions": [
+      "turbo",
+      "balanced",
+      "quality"
+    ],
+    "pricing": {
+      "turbo": {
+        "stars": 2,
+        "rub": "3.36",
+        "usd": "0.0332"
+      },
+      "balanced": {
+        "stars": 2,
+        "rub": "3.36",
+        "usd": "0.0332"
+      },
+      "quality": {
+        "stars": 2,
+        "rub": "3.36",
+        "usd": "0.0332"
+      }
+    }
+  },
+  {
+    "id": "recraft-remove-background",
+    "name": "Recraft Remove Background",
+    "provider": "kie_market",
+    "apiId": "recraft/remove-background",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3"
+    ],
+    "parameterType": "quality",
+    "qualityOptions": [
+      "turbo",
+      "balanced",
+      "quality"
+    ],
+    "pricing": {
+      "turbo": {
+        "stars": 2,
+        "rub": "3.36",
+        "usd": "0.0332"
+      },
+      "balanced": {
+        "stars": 2,
+        "rub": "3.36",
+        "usd": "0.0332"
+      },
+      "quality": {
+        "stars": 2,
+        "rub": "3.36",
+        "usd": "0.0332"
+      }
+    }
+  },
+  {
+    "id": "topaz-image-upscale",
+    "name": "Topaz Upscale",
+    "provider": "kie_market",
+    "apiId": "topaz/image-upscale",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3"
+    ],
+    "parameterType": "resolution",
+    "qualityOptions": [
+      "2k",
+      "4k",
+      "8k"
+    ],
+    "pricing": {
+      "2k": {
+        "stars": 17,
+        "rub": "28.56",
+        "usd": "0.2822"
+      },
+      "4k": {
+        "stars": 34,
+        "rub": "57.12",
+        "usd": "0.5644"
+      },
+      "8k": {
+        "stars": 67,
+        "rub": "112.56",
+        "usd": "1.1123"
+      }
+    }
+  },
+  {
+    "id": "gpt-image",
+    "name": "GPT Image 1.5",
+    "provider": "kie_market",
+    "apiId": "gpt-image/1.5-text-to-image",
+    "supportsI2i": true,
+    "aspectRatios": [
+      "1:1",
+      "3:2",
+      "2:3"
+    ],
+    "parameterType": "quality",
+    "qualityOptions": [
+      "medium",
+      "high"
+    ],
+    "pricing": {
+      "medium": {
+        "stars": 17,
+        "rub": "28.56",
+        "usd": "0.2822"
+      },
+      "high": {
+        "stars": 67,
+        "rub": "112.56",
+        "usd": "1.1123"
+      }
+    }
+  }
+]

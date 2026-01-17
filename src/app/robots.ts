@@ -15,7 +15,7 @@ export default function robots(): MetadataRoute.Robots {
           "/library/",
           "/account/",
           "/payment/",
-          "/generator/",
+          "/create/",
           "/studio/",
           "/create/",
         ],
@@ -23,12 +23,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "Googlebot",
         allow: "/",
-        disallow: ["/api/", "/admin/", "/generator/", "/studio/", "/create/"],
+        disallow: ["/api/", "/admin/", "/create/", "/studio/", "/create/"],
       },
       {
         userAgent: "Yandex",
         allow: "/",
-        disallow: ["/api/", "/admin/", "/generator/", "/studio/", "/create/"],
+        disallow: ["/api/", "/admin/", "/create/", "/studio/", "/create/"],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

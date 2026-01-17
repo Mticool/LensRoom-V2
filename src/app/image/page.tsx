@@ -117,7 +117,7 @@ export default function ImagePage() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/generator?section=image"
+              href="/create?section=image"
               className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all hover:scale-105"
             >
               <Palette className="w-5 h-5" />
@@ -180,7 +180,7 @@ export default function ImagePage() {
           
           <div className="text-center mt-10">
             <Link
-              href="/generator?section=image"
+              href="/create?section=image"
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all"
             >
               Начать генерацию
@@ -247,7 +247,7 @@ export default function ImagePage() {
             Присоединяйтесь к тысячам дизайнеров и маркетологов
           </p>
           <Link
-            href="/generator?section=image"
+            href="/create?section=image"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-gray-100 transition-all"
           >
             Начать бесплатно

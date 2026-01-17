@@ -506,7 +506,7 @@ export function Header() {
                 {/* Quick Actions */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <Link
-                    href="/generator?section=image"
+                    href="/create?section=image"
                     onClick={() => setMobileMenuOpen(false)}
                     className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-primary)]/50 transition-colors"
                   >
@@ -515,7 +515,7 @@ export function Header() {
                     <p className="text-xs text-[var(--muted)] mt-0.5">Создать изображение</p>
                   </Link>
                   <Link
-                    href="/generator?section=video"
+                    href="/create?section=video"
                     onClick={() => setMobileMenuOpen(false)}
                     className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-secondary)]/50 transition-colors"
                   >

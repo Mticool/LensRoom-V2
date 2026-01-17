@@ -28,8 +28,8 @@ export function Footer() {
   if (
     pathname === '/create' || 
     pathname.startsWith('/create/') || 
-    pathname === '/generator' || 
-    pathname.startsWith('/generator/') ||
+    pathname === '/create' || 
+    pathname.startsWith('/create/') ||
     pathname === '/m' ||
     pathname.startsWith('/m/')
   ) {

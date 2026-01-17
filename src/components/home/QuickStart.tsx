@@ -167,7 +167,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                       <RefreshCw className="w-4 h-4" />
                       Ещё раз
                     </button>
-                    <Link href="/generator" className="flex-1">
+                    <Link href="/create" className="flex-1">
                       <button className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white text-sm font-medium">
                         Создать своё
                         <ArrowRight className="w-4 h-4" />
@@ -200,7 +200,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                   >
                     Назад
                   </button>
-                  <Link href="/generator" className="flex-1">
+                  <Link href="/create" className="flex-1">
                     <button className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white text-sm font-medium">
                       Регистрация
                     </button>
@@ -258,7 +258,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                     className="w-full px-6 py-4 pr-32 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent-primary)]/50 transition-colors"
                   />
                   <Link 
-                    href={customPrompt ? `/generator?prompt=${encodeURIComponent(customPrompt)}` : '/generator'}
+                    href={customPrompt ? `/generator?prompt=${encodeURIComponent(customPrompt)}` : '/create'}
                     className="absolute right-2 top-1/2 -translate-y-1/2"
                   >
                     <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white text-sm font-medium">

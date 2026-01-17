@@ -108,7 +108,7 @@ export default function VideoPage() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/generator?section=video"
+              href="/create?section=video"
               className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all hover:scale-105"
             >
               <Play className="w-5 h-5" />
@@ -171,7 +171,7 @@ export default function VideoPage() {
           
           <div className="text-center mt-10">
             <Link
-              href="/generator?section=video"
+              href="/create?section=video"
               className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all"
             >
               Начать генерацию
@@ -218,7 +218,7 @@ export default function VideoPage() {
             Присоединяйтесь к тысячам создателей контента
           </p>
           <Link
-            href="/generator?section=video"
+            href="/create?section=video"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-purple-600 font-bold rounded-xl hover:bg-gray-100 transition-all"
           >
             Начать бесплатно

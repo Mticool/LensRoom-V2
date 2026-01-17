@@ -271,8 +271,8 @@ export default function HomePage() {
             transition={{ delay: 0.5 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Link href="/generator">
-              <motion.button 
+            <Link href="/create">
+              <motion.button
                 whileHover={{ scale: 1.03, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 className="group relative px-10 py-5 rounded-2xl bg-[#CDFF00] text-black font-bold text-lg overflow-hidden shadow-[0_0_60px_rgba(205,255,0,0.3)]"
@@ -411,8 +411,8 @@ export default function HomePage() {
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ delay: index * 0.08 }}
               >
-                <Link 
-                  href={`/generator?section=${work.type === 'video' ? 'video' : 'image'}&model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`}
+                <Link
+                  href={`/create?section=${work.type === 'video' ? 'video' : 'image'}&model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`}
                 >
                   <motion.div
                     whileHover={{ scale: 1.03, y: -8 }}
@@ -538,8 +538,8 @@ export default function HomePage() {
               </p>
               
               {/* CTA */}
-              <Link href="/generator?section=video&model=kling-motion-control">
-                <motion.button 
+              <Link href="/create?section=video&model=kling-motion-control">
+                <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white font-semibold shadow-lg shadow-[#a78bfa]/25"
@@ -636,7 +636,7 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05 }}
               >
-                <Link href={`/generator?section=image&model=nano-banana-pro&prompt=${encodeURIComponent(style.prompt)}`}>
+                <Link href={`/create?section=image&model=nano-banana-pro&prompt=${encodeURIComponent(style.prompt)}`}>
                   <motion.div
                     whileHover={{ scale: 1.05, y: -5 }}
                     whileTap={{ scale: 0.95 }}
@@ -750,8 +750,8 @@ export default function HomePage() {
             Присоединяйся к тысячам креаторов. Первые 50⭐ — в подарок.
           </p>
           
-          <Link href="/generator">
-            <motion.button 
+          <Link href="/create">
+            <motion.button
               whileHover={{ scale: 1.03, y: -3 }}
               whileTap={{ scale: 0.98 }}
               className="group relative px-12 py-6 rounded-2xl bg-[#CDFF00] text-black font-bold text-xl overflow-hidden shadow-[0_0_80px_rgba(205,255,0,0.4)]"

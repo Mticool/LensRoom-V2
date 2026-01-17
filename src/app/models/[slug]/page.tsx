@@ -47,7 +47,7 @@ export default async function ModelLandingPage({ params }: Props) {
         if (v != null && String(v).length > 0) params.set(k, String(v));
       }
     }
-    return `/generator?${params.toString()}`;
+    return `/create?${params.toString()}`;
   })();
 
   return (
