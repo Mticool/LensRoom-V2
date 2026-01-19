@@ -1,7 +1,7 @@
 "use client";
 
-import { StudioRuntime } from "@/components/studio/StudioRuntime";
+import { StudioWorkspaces } from "@/components/generator-v2/StudioWorkspaces";
 
 export default function StudioPage() {
-  return <StudioRuntime defaultKind="photo" />;
+  return <StudioWorkspaces />;
 }

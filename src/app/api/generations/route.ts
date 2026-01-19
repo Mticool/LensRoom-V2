@@ -26,7 +26,7 @@ interface GenerationPatchInput {
 // Only include fields used by Library/Studio UI.
 const GENERATIONS_SELECT =
   // NOTE: some older DB schemas don't have `results` column.
-  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,credits_used,task_id,asset_url,preview_url,thumbnail_url,preview_path,poster_path,preview_status,result_urls,error,is_favorite,created_at,updated_at";
+  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,credits_used,task_id,thread_id,asset_url,preview_url,thumbnail_url,preview_path,poster_path,preview_status,result_urls,error,is_favorite,created_at,updated_at";
 
 // GET - Fetch user's generations (history)
 export async function GET(request: NextRequest) {
@@ -51,6 +51,8 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type");
     const status = searchParams.get("status");
     const favorites = searchParams.get("favorites") === "true";
+    const modelId = (searchParams.get("model_id") || "").trim() || null;
+    const threadId = (searchParams.get("thread_id") || "").trim() || null;
     const limitRaw = parseInt(searchParams.get("limit") || "50");
     const offsetRaw = parseInt(searchParams.get("offset") || "0");
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 50;
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
     const sync = searchParams.get("sync") === "true";
     const fallbackSyncEnabled = env.bool("KIE_FALLBACK_SYNC");
 
-    const buildQuery = (select: string) => {
+    const buildQuery = (select: string, opts?: { ignoreThreadFilter?: boolean }) => {
       let query = supabase
         .from("generations")
         .select(select)
@@ -69,6 +71,8 @@ export async function GET(request: NextRequest) {
       if (type) query = query.eq("type", type);
       if (status) query = query.eq("status", status);
       if (favorites) query = query.eq("is_favorite", true);
+      if (modelId) query = query.eq("model_id", modelId);
+      if (threadId && !opts?.ignoreThreadFilter) query = query.eq("thread_id", threadId);
       return query;
     };
 
@@ -81,7 +85,9 @@ export async function GET(request: NextRequest) {
         code === "42703" || /column .* does not exist/i.test(msg) || /does not exist/i.test(msg);
 
       if (isMissingColumn) {
-        ({ data, error } = await buildQuery("*"));
+        // Best-effort backwards compatibility:
+        // - If thread_id column doesn't exist yet, drop thread filter.
+        ({ data, error } = await buildQuery("*", { ignoreThreadFilter: true }));
       }
     }
 

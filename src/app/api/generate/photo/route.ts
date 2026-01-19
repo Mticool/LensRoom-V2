@@ -10,6 +10,7 @@ import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { getPhotoVariantByIds } from "@/config/photoVariantRegistry";
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
+import sharp from "sharp";
 import {
   isNanoBananaPro,
   calculateNBPCost,
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, outputFormat } = body;
+    const threadIdRaw = body?.threadId;
     const legacyModel = body?.model;
     const baseModelId = body?.modelId;
     const variantId = body?.variantId;
@@ -86,6 +88,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    type OutputFormat = "png" | "jpg" | "webp";
+    const rawOut = String(outputFormat || "").trim().toLowerCase();
+    let requestedOutputFormat: OutputFormat =
+      rawOut === "jpg" ? "jpg" : rawOut === "webp" ? "webp" : "png";
+    // Some tools require PNG (alpha), force server-side.
+    if (effectiveModelId === "recraft-remove-background") {
+      requestedOutputFormat = "png";
+    }
+
     // Calculate credit cost using new pricing system
     const { quality: legacyQuality, resolution: legacyResolution } = body;
     const quality =
@@ -95,7 +106,7 @@ export async function POST(request: NextRequest) {
     const resolution =
       resolvedParams?.resolution && resolvedParams.resolution !== "default"
         ? String(resolvedParams.resolution)
-        : legacyResolution || quality || undefined;
+        : legacyResolution || undefined;
 
     // If variant payload was used, enforce stars from variant registry (server-side).
     // Otherwise fall back to computePrice for legacy payload.
@@ -152,6 +163,34 @@ export async function POST(request: NextRequest) {
     
     // Check credits using admin client
     const supabase = getSupabaseAdmin();
+
+    // Optional: validate threadId and ensure it belongs to user + matches model.
+    const threadId = threadIdRaw ? String(threadIdRaw).trim() : "";
+    if (threadId) {
+      try {
+        const { data: thread, error: threadErr } = await supabase
+          .from("studio_threads")
+          .select("id,user_id,model_id")
+          .eq("id", threadId)
+          .eq("user_id", userId)
+          .single();
+
+        if (threadErr || !thread) {
+          return NextResponse.json({ error: "Invalid threadId" }, { status: 400 });
+        }
+
+        // Match against resolved effective model id (e.g. 'seedream-4.5')
+        if (thread.model_id && String(thread.model_id) !== String(effectiveModelId)) {
+          return NextResponse.json(
+            { error: "threadId does not match selected model" },
+            { status: 400 }
+          );
+        }
+      } catch (e) {
+        console.error("[API] threadId validation error:", e);
+        return NextResponse.json({ error: "Failed to validate threadId" }, { status: 500 });
+      }
+    }
 
     // === NANO BANANA PRO QUOTA LOGIC ===
     // For NBP, determine actual cost based on plan entitlements
@@ -266,6 +305,7 @@ export async function POST(request: NextRequest) {
           credits_used: creditCost,
           status: "queued",
           aspect_ratio: finalAspectRatioForDb, // Now saving aspect_ratio (migration applied)
+          thread_id: threadId || null,
         })
         .select()
         .single();
@@ -347,10 +387,17 @@ export async function POST(request: NextRequest) {
     const uploadDataUrlToStorage = async (dataUrl: string, suffix: string) => {
       const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
       if (!match) return dataUrl; // already a URL
-      const mime = match[1];
+      let mime = match[1];
       const b64 = match[2];
-      const buffer = Buffer.from(b64, 'base64');
-      const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+      let buffer: Buffer = Buffer.from(b64, "base64") as unknown as Buffer;
+      let ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+
+      // Normalize HEIC/HEIF uploads to JPEG to keep storage + downstream providers compatible.
+      if (mime.includes("heic") || mime.includes("heif")) {
+        buffer = (await sharp(buffer).jpeg({ quality: 92 }).toBuffer()) as unknown as Buffer;
+        mime = "image/jpeg";
+        ext = "jpg";
+      }
       const path = `${userId}/inputs/${Date.now()}_${suffix}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('generations')
@@ -358,6 +405,41 @@ export async function POST(request: NextRequest) {
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('generations').getPublicUrl(path);
       return pub.publicUrl;
+    };
+
+    const encodeImageBuffer = async (
+      input: Buffer,
+      fmt: OutputFormat
+    ): Promise<{ buffer: Buffer; ext: string; contentType: string }> => {
+      if (fmt === "jpg") {
+        const out = await sharp(input).jpeg({ quality: 92 }).toBuffer();
+        return { buffer: out, ext: "jpg", contentType: "image/jpeg" };
+      }
+      if (fmt === "webp") {
+        const out = await sharp(input).webp({ quality: 90 }).toBuffer();
+        return { buffer: out, ext: "webp", contentType: "image/webp" };
+      }
+      const out = await sharp(input).png().toBuffer();
+      return { buffer: out, ext: "png", contentType: "image/png" };
+    };
+
+    const uploadGeneratedImageBuffer = async (
+      input: Buffer,
+      providerPrefix: string,
+      fmt: OutputFormat
+    ): Promise<{ publicUrl: string; storagePath: string }> => {
+      const encoded = await encodeImageBuffer(input, fmt);
+      const fileName = `${providerPrefix}_${Date.now()}_${Math.random().toString(36).slice(2)}.${encoded.ext}`;
+      const storagePath = `${userId}/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("generations")
+        .upload(storagePath, encoded.buffer, {
+          contentType: encoded.contentType,
+          upsert: true,
+        });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from("generations").getPublicUrl(storagePath);
+      return { publicUrl: publicUrlData.publicUrl, storagePath };
     };
 
     let imageInputs: string[] | undefined = undefined;
@@ -372,29 +454,25 @@ export async function POST(request: NextRequest) {
     const fixed = (modelInfo as any)?.fixedResolution as string | undefined;
     const q = String(quality || '').toLowerCase();
     const r = String(resolution || '').toLowerCase();
-    
-    // Map quality/resolution to KIE API format
-    // Nano Banana Pro uses: 1K, 2K, 4K
-    let resolutionForKie: string;
-    if (fixed) {
-      resolutionForKie = fixed;
-    } else if (r === '1k_2k' || q === '1k_2k') {
-      // Nano Banana Pro: 1k_2k -> 2K (default to higher quality in this tier)
-      resolutionForKie = '2K';
-    } else if (r === '4k' || q === '4k') {
-      resolutionForKie = '4K';
-    } else if (r === '8k' || q === '8k') {
-      resolutionForKie = '8K';
-    } else if (r === '2k' || q === '2k') {
-      resolutionForKie = '2K';
-    } else if (r === '1k' || q === '1k') {
-      resolutionForKie = '1K';
-    } else if (typeof resolution === 'string' && resolution && !resolution.includes('_')) {
-      // Other explicit resolution values (uppercase them)
-      resolutionForKie = resolution.toUpperCase();
-    } else {
-      // Default fallback
-      resolutionForKie = '1K';
+    const apiModelId = String(modelInfo.apiId || "");
+    const isFlux2 = apiModelId.includes("flux-2");
+    const isSeedream45 = apiModelId.startsWith("seedream/4.5");
+    // Map to KIE `resolution` ONLY when the model actually uses it.
+    // (Some models like Seedream/Z-image do NOT accept `resolution` and will error if we pass e.g. "BALANCED".)
+    let resolutionForKie: string | undefined;
+    if (fixed || isFlux2) {
+      if (fixed) {
+        resolutionForKie = fixed;
+      } else if (r === '2k' || q === '2k') {
+        resolutionForKie = '2K';
+      } else if (r === '4k' || q === '4k') {
+        resolutionForKie = '4K';
+      } else if (r === '1k' || q === '1k') {
+        resolutionForKie = '1K';
+      } else {
+        // Flux defaults to 1K if not specified
+        resolutionForKie = '1K';
+      }
     }
 
     let response: any;
@@ -457,53 +535,49 @@ export async function POST(request: NextRequest) {
           });
         }
         
-        // Extract image URL or base64
-        let imageUrl = laozhangResponse.data[0]?.url;
+        // Prefer storing to our bucket to keep URLs stable and enforce requested format.
+        const imageUrlFromProvider = laozhangResponse.data[0]?.url;
         const b64Json = laozhangResponse.data[0]?.b64_json;
-        
-        // If we got base64, upload to Supabase storage
-        let originalPath: string | null = null;
-        if (!imageUrl && b64Json) {
-          console.log('[API] LaoZhang returned base64, uploading to storage...');
-          const imageBuffer = Buffer.from(b64Json, 'base64');
-          const fileName = `laozhang_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
-          originalPath = `${userId}/${fileName}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('generations')
-            .upload(originalPath, imageBuffer, {
-              contentType: 'image/png',
-              upsert: true
-            });
-          
-          if (uploadError) {
-            console.error('[API] Failed to upload LaoZhang image:', uploadError);
-            throw new Error(`Failed to save generated image: ${uploadError.message}`);
+
+        let sourceBuffer: Buffer | null = null;
+        if (b64Json) {
+          sourceBuffer = Buffer.from(b64Json, "base64");
+        } else if (imageUrlFromProvider) {
+          const dl = await fetch(imageUrlFromProvider);
+          if (!dl.ok) {
+            throw new Error(`Failed to download LaoZhang image: ${dl.status}`);
           }
-          
-          const { data: publicUrlData } = supabase.storage
-            .from('generations')
-            .getPublicUrl(originalPath);
-          
-          imageUrl = publicUrlData.publicUrl;
-          console.log('[API] Uploaded LaoZhang image to:', imageUrl);
+          sourceBuffer = Buffer.from(await dl.arrayBuffer());
         }
-        
-        if (!imageUrl) {
-          console.error('[API] LaoZhang response has no image:', JSON.stringify(laozhangResponse));
-          throw new Error('No image URL in LaoZhang response');
+
+        if (!sourceBuffer) {
+          console.error("[API] LaoZhang response has no image:", JSON.stringify(laozhangResponse));
+          throw new Error("No image in LaoZhang response");
         }
-        
+
+        let finalUrl = imageUrlFromProvider;
+        let originalPath: string | null = null;
+        try {
+          const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, "laozhang", requestedOutputFormat);
+          finalUrl = uploaded.publicUrl;
+          originalPath = uploaded.storagePath;
+        } catch (uploadErr: any) {
+          console.error("[API] Failed to upload LaoZhang image to storage:", uploadErr);
+          if (!finalUrl) {
+            throw new Error(uploadErr?.message || "Failed to store generated image");
+          }
+        }
+
         // Update generation record with success
         await supabase
-          .from('generations')
+          .from("generations")
           .update({
-            status: 'success',
-            result_urls: [imageUrl],
+            status: "success",
+            result_urls: finalUrl ? [finalUrl] : [],
             original_path: originalPath,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', generation?.id);
+          .eq("id", generation?.id);
         
         // Log generation run for analytics
         try {
@@ -529,7 +603,7 @@ export async function POST(request: NextRequest) {
           provider: 'laozhang',
           kind: 'image',
           creditCost: creditCost,
-          results: [{ url: imageUrl }],
+          results: finalUrl ? [{ url: finalUrl }] : [],
         });
       } catch (laozhangError: any) {
         console.error('[API] LaoZhang generation failed:', laozhangError);
@@ -590,6 +664,8 @@ export async function POST(request: NextRequest) {
       
       // Get size from aspect ratio (user selection)
       const openaiSize = aspectRatioToOpenAISize(finalAspectRatio);
+      const openaiOutputFormat: "png" | "jpeg" | "webp" =
+        requestedOutputFormat === "webp" ? "webp" : requestedOutputFormat === "jpg" ? "jpeg" : "png";
       
       try {
         const openaiClient = getOpenAIClient();
@@ -602,6 +678,7 @@ export async function POST(request: NextRequest) {
           n: 1,
           quality: openaiQuality,
           size: openaiSize,
+          output_format: openaiOutputFormat,
         };
         
         console.log('[API] OpenAI request:', { model: openaiRequest.model, quality: openaiRequest.quality, size: openaiRequest.size, aspectRatio });
@@ -619,53 +696,48 @@ export async function POST(request: NextRequest) {
           } : null
         }));
         
-        // Extract image - check both URL and base64
-        let imageUrl = openaiResponse.data[0]?.url;
+        const imageUrlFromProvider = openaiResponse.data[0]?.url;
         const b64Json = openaiResponse.data[0]?.b64_json;
-        
-        // If we got base64, upload to Supabase storage
-        let openaiOriginalPath: string | null = null;
-        if (!imageUrl && b64Json) {
-          console.log('[API] OpenAI returned base64, uploading to storage...');
-          const imageBuffer = Buffer.from(b64Json, 'base64');
-          const fileName = `openai_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
-          openaiOriginalPath = `${userId}/${fileName}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('generations')
-            .upload(openaiOriginalPath, imageBuffer, {
-              contentType: 'image/png',
-              upsert: true
-            });
-          
-          if (uploadError) {
-            console.error('[API] Failed to upload base64 image:', uploadError);
-            throw new Error(`Failed to save generated image: ${uploadError.message}`);
+
+        let sourceBuffer: Buffer | null = null;
+        if (b64Json) {
+          sourceBuffer = Buffer.from(b64Json, "base64");
+        } else if (imageUrlFromProvider) {
+          const dl = await fetch(imageUrlFromProvider);
+          if (!dl.ok) {
+            throw new Error(`Failed to download OpenAI image: ${dl.status}`);
           }
-          
-          const { data: publicUrlData } = supabase.storage
-            .from('generations')
-            .getPublicUrl(openaiOriginalPath);
-          
-          imageUrl = publicUrlData.publicUrl;
-          console.log('[API] Uploaded base64 image to:', imageUrl);
+          sourceBuffer = Buffer.from(await dl.arrayBuffer());
         }
-        
-        if (!imageUrl) {
-          console.error('[API] OpenAI response has no image:', JSON.stringify(openaiResponse));
-          throw new Error('No image URL in OpenAI response');
+
+        if (!sourceBuffer) {
+          console.error("[API] OpenAI response has no image:", JSON.stringify(openaiResponse));
+          throw new Error("No image in OpenAI response");
         }
-        
+
+        let finalUrl = imageUrlFromProvider;
+        let openaiOriginalPath: string | null = null;
+        try {
+          const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, "openai", requestedOutputFormat);
+          finalUrl = uploaded.publicUrl;
+          openaiOriginalPath = uploaded.storagePath;
+        } catch (uploadErr: any) {
+          console.error("[API] Failed to upload OpenAI image to storage:", uploadErr);
+          if (!finalUrl) {
+            throw new Error(uploadErr?.message || "Failed to store generated image");
+          }
+        }
+
         // Update generation record with success
         await supabase
-          .from('generations')
+          .from("generations")
           .update({
-            status: 'success',
-            result_urls: [imageUrl],
+            status: "success",
+            result_urls: finalUrl ? [finalUrl] : [],
             original_path: openaiOriginalPath,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', generation?.id);
+          .eq("id", generation?.id);
         
         // Log provider cost for analytics
         const providerCostUsd = getOpenAIProviderCost(openaiQuality, openaiSize);
@@ -703,7 +775,7 @@ export async function POST(request: NextRequest) {
           kind: 'image',
           creditCost: creditCost,
           // Include results directly so polling can be skipped
-          results: [{ url: imageUrl }],
+          results: finalUrl ? [{ url: finalUrl }] : [],
         });
       } catch (openaiError: any) {
         console.error('[API] OpenAI generation failed:', openaiError);
@@ -762,22 +834,31 @@ export async function POST(request: NextRequest) {
     logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'KIE');
     
     // Standard photo generation
+    const kieOutputFormat: "png" | "jpg" = requestedOutputFormat === "jpg" ? "jpg" : "png";
     const generateParams: any = {
       model: modelInfo.apiId,
       prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
       aspectRatio: aspectRatioMap[finalAspectRatio] || String(finalAspectRatio),
-      resolution: resolutionForKie,
-      outputFormat: "png", // Always PNG for photos
+      outputFormat: kieOutputFormat,
     };
+
+    // Only set `resolution` for models that actually accept it (e.g. FLUX.2 Pro).
+    if (resolutionForKie) {
+      generateParams.resolution = resolutionForKie;
+    }
     
     // Add quality only if it's a valid quality option (not resolution-based)
     // For Nano Banana Pro and similar models, quality is resolution-based ('1k_2k', '4k', etc.)
     // Don't pass quality separately for these models - the API uses resolution parameter instead
     // Also exclude generic quality values that shouldn't be passed for resolution-based models
     const resolutionBasedQualityValues = ['1k_2k', '4k', '1k', '2k', '8k', 'fast', 'turbo', 'balanced', 'quality', 'ultra'];
-    const isResolutionBasedModel = effectiveModelId.includes('nano-banana') || effectiveModelId.includes('imagen');
-    
-    if (quality && !resolutionBasedQualityValues.includes(quality.toLowerCase()) && !isResolutionBasedModel) {
+    const isResolutionBasedModel = effectiveModelId.includes('nano-banana') || effectiveModelId.includes('imagen') || apiModelId.includes("flux-2");
+
+    // Seedream maps Turbo/Balanced/Quality -> basic/high inside kie-client, so pass it through.
+    if (isSeedream45 && quality) {
+      generateParams.quality = String(quality);
+    } else if (quality && !resolutionBasedQualityValues.includes(quality.toLowerCase()) && !isResolutionBasedModel) {
+      // For other models: only pass non-resolution-like quality enums.
       generateParams.quality = quality;
     }
     
