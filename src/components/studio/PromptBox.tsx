@@ -7,12 +7,16 @@ export function PromptBox({
   mode,
   prompt,
   onPromptChange,
+  negativePrompt,
+  onNegativePromptChange,
   scenes,
   onScenesChange,
 }: {
   mode: Mode;
   prompt: string;
   onPromptChange: (v: string) => void;
+  negativePrompt: string;
+  onNegativePromptChange: (v: string) => void;
   scenes: string[];
   onScenesChange: (v: string[]) => void;
 }) {
@@ -64,17 +68,37 @@ export function PromptBox({
             ))}
           </div>
         ) : (
-          <textarea
-            value={prompt}
-            onChange={(e) => onPromptChange(e.target.value)}
-            placeholder="Например: студийная предметная съемка, мягкий свет, минимализм, очень высокая детализация…"
-            rows={6}
-            className={cn(
-              "w-full rounded-[12px] border bg-[var(--surface2)] px-4 py-3 text-sm",
-              "border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] outline-none",
-              "focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_1px_rgba(0,217,255,0.12)] transition-all duration-200"
-            )}
-          />
+          <div className="space-y-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Промпт</div>
+              <textarea
+                value={prompt}
+                onChange={(e) => onPromptChange(e.target.value)}
+                placeholder="Например: студийная предметная съемка, мягкий свет, минимализм, очень высокая детализация…"
+                rows={5}
+                className={cn(
+                  "w-full rounded-[12px] border bg-[var(--surface2)] px-4 py-3 text-sm",
+                  "border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] outline-none",
+                  "focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_1px_rgba(0,217,255,0.12)] transition-all duration-200"
+                )}
+              />
+            </div>
+
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Негативный промпт (опционально)</div>
+              <textarea
+                value={negativePrompt}
+                onChange={(e) => onNegativePromptChange(e.target.value)}
+                placeholder="Например: blur, artifacts, low quality, extra fingers…"
+                rows={2}
+                className={cn(
+                  "w-full rounded-[12px] border bg-[var(--surface2)] px-4 py-3 text-sm",
+                  "border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] outline-none",
+                  "focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_1px_rgba(0,217,255,0.12)] transition-all duration-200"
+                )}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

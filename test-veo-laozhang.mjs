@@ -1,5 +1,5 @@
 // Test LaoZhang Veo 3.1 video generation
-const API_KEY = "sk-6otw6MVfegbV04VeA87b140c8c35440489C46cBcE84aAfA4";
+const API_KEY = process.env.LAOZHANG_API_KEY;
 const BASE_URL = "https://api.laozhang.ai/v1";
 
 async function testVeoVideo(model, prompt) {
@@ -107,6 +107,10 @@ async function testVeoI2V(model, prompt, imageUrl) {
 
 async function main() {
   console.log("=== LaoZhang Veo 3.1 Test ===\n");
+  if (!API_KEY) {
+    console.error("Missing LAOZHANG_API_KEY in environment.");
+    process.exit(1);
+  }
   
   // Test t2v first
   const models = [

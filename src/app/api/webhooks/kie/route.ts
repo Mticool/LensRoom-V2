@@ -68,11 +68,16 @@ export async function POST(request: NextRequest) {
       // Find generation by task_id
       const { data: gen } = await supabase
         .from('generations')
-        .select('id, user_id, type')
+        .select('id, user_id, type, status')
         .eq('task_id', taskId)
         .single();
       
       if (gen) {
+        const st = String(gen.status || "").toLowerCase();
+        if (st === "cancelled") {
+          console.log("[KIE Webhook] Skipping update for cancelled generation:", gen.id);
+          return NextResponse.json({ success: true, taskId, skipped: "cancelled" });
+        }
         await supabase
           .from('generations')
           .update({

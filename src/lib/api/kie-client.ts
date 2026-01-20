@@ -146,6 +146,9 @@ export interface GenerateImageRequest {
   outputFormat?: "png" | "jpg";
   quality?: "fast" | "turbo" | "balanced" | "quality" | "ultra";
   imageInputs?: string[];
+  // Tool-specific params
+  scale?: string; // legacy alias for Topaz: "2x" | "4x"
+  upscaleFactor?: number | string; // Topaz Upscale: 2 | 4 (API expects `upscale_factor`)
 }
 
 export interface GenerateImageResponse {
@@ -172,8 +175,8 @@ export interface GenerateVideoRequest {
   videoUrl?: string; // For motion control: reference video
   duration?: number | string;
   aspectRatio?: string;
-  sound?: boolean;
-  mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'motion_control';
+  sound?: boolean | string;
+  mode?: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'storyboard' | 'motion_control';
   resolution?: string; // For bytedance: 480p/720p/1080p; For motion control: 720p/1080p
   quality?: string; // For sora-pro: standard/high
   // For storyboard mode
@@ -464,21 +467,34 @@ export class KieAIClient {
     while (Date.now() - startTime < maxWaitMs) {
       const status = await this.veoGetStatus(taskId);
 
-      console.log(`[VEO] Task ${taskId} status: successFlag=${status.data.successFlag}`);
+      const data: any = (status as any)?.data;
+      const successFlag: number | undefined = typeof data?.successFlag === "number" ? data.successFlag : undefined;
+      if (typeof successFlag !== "number") {
+        // KIE occasionally returns { code, message, data: null } for invalid/expired taskIds.
+        // Avoid crashing with "Cannot read properties of null (reading 'successFlag')".
+        const msg =
+          (status as any)?.message ||
+          (status as any)?.msg ||
+          "Invalid Veo status response (missing data.successFlag)";
+        throw new KieAPIError(`[VEO] ${msg}`, 502);
+      }
 
-      if (status.data.successFlag === 1) {
+      console.log(`[VEO] Task ${taskId} status: successFlag=${successFlag}`);
+
+      if (successFlag === 1) {
         // Success
-        const urls =
-          status.data.response?.resultUrls ||
-          status.data.info?.resultUrls ||
+        const urlsRaw =
+          data.response?.resultUrls ||
+          data.info?.resultUrls ||
           [];
+        const urls: string[] = Array.isArray(urlsRaw) ? urlsRaw.filter((u: unknown): u is string => typeof u === "string") : [];
         console.log(`[VEO] Task ${taskId} completed with ${urls.length} video(s)`);
         return urls;
-      } else if (status.data.successFlag === 2 || status.data.successFlag === 3) {
+      } else if (successFlag === 2 || successFlag === 3) {
         // Failed or invalid
         const errorMsg =
-          status.data.errorMessage ||
-          status.data.info?.errorMsg ||
+          data.errorMessage ||
+          data.info?.errorMsg ||
           'Video generation failed';
         throw new KieAPIError(errorMsg, 500);
       }
@@ -515,6 +531,15 @@ export class KieAIClient {
       if (params.model.includes('flux-2')) {
         input.resolution = params.resolution || '1K';
         input.aspect_ratio = params.aspectRatio || '16:9';
+      } else if (params.model.startsWith('grok-imagine/')) {
+        // Grok Imagine expects `mode`: normal | fun | spicy
+        input.aspect_ratio = params.aspectRatio || '1:1';
+        const m = String(params.quality || '').toLowerCase();
+        if (m === 'normal' || m === 'fun' || m === 'spicy') {
+          input.mode = m;
+        } else {
+          input.mode = 'normal';
+        }
       } else if (params.model.startsWith('seedream/4.5')) {
         // Seedream requires `quality`: basic (2K) / high (4K)
         input.aspect_ratio = params.aspectRatio || '1:1';
@@ -536,13 +561,25 @@ export class KieAIClient {
         // For other models, add parameters conditionally
         if (params.aspectRatio) input.aspect_ratio = params.aspectRatio;
         if (params.resolution) input.resolution = params.resolution;
+        // Topaz Upscale requires `upscale_factor`
+        if (params.model.includes('topaz/')) {
+          let factor: number = 2;
+          const raw = (params.upscaleFactor ?? params.scale ?? '') as any;
+          if (typeof raw === 'number' && Number.isFinite(raw)) factor = raw;
+          else {
+            const s = String(raw || '').trim().toLowerCase();
+            if (s === '4' || s === '4x') factor = 4;
+            else factor = 2;
+          }
+          input.upscale_factor = String(factor);
+        }
       }
 
       if (params.outputFormat) input.output_format = params.outputFormat;
       // Only pass quality for models that explicitly support it
       // Nano Banana Pro uses resolution parameter instead of quality
       // Seedream uses its own quality format (basic/high) handled above
-      const skipQualityModels = ['qwen/image-edit', 'nano-banana-pro', 'nano-banana'];
+      const skipQualityModels = ['qwen/image-edit', 'nano-banana-pro', 'nano-banana', 'grok-imagine'];
       if (params.quality && !skipQualityModels.some(m => params.model === m || params.model.includes(m)) && !params.model.startsWith('seedream/4.5')) {
         input.quality = params.quality;
       }
@@ -553,6 +590,10 @@ export class KieAIClient {
         // All KIE models use image_url for i2i reference
         // Some also accept strength/denoise parameters
         input.image_url = imgUrl;
+        // Some tools (e.g. Recraft Remove Background / Topaz Upscale) expect `image` instead of `image_url`.
+        if (params.model.includes('recraft/') || params.model.includes('topaz/')) {
+          input.image = imgUrl;
+        }
         
         // Add model-specific parameters
         if (params.model.includes('flux')) {
@@ -830,6 +871,24 @@ export class KieAIClient {
       }
     }
 
+    // === WAN specific parameters ===
+    else if (params.model.includes('wan/')) {
+      if (params.duration) input.duration = String(params.duration);
+      if (params.aspectRatio) input.aspect_ratio = params.aspectRatio;
+      if (params.resolution) input.resolution = params.resolution;
+      if (params.sound !== undefined) input.sound = params.sound;
+
+      // I2V: reference image
+      if (params.mode === 'i2v' && params.imageUrl) {
+        input.image_urls = [params.imageUrl];
+      }
+      // V2V: reference video URL (KIE model: wan/*-video-to-video)
+      if (params.mode === 'v2v' && params.videoUrl) {
+        input.video_url = params.videoUrl;
+        input.video_urls = [params.videoUrl];
+      }
+    }
+
     // === Generic fallback ===
     else {
       if (params.duration) input.duration = String(params.duration);
@@ -924,21 +983,37 @@ export class KieAIClient {
   private async getVeoVideoStatus(taskId: string): Promise<GenerateVideoResponse> {
     try {
       const response = await this.veoGetStatus(taskId);
-      const data = response.data;
+      const data: any = (response as any)?.data;
+      const successFlag: number | undefined = typeof data?.successFlag === "number" ? data.successFlag : undefined;
+      if (typeof successFlag !== "number") {
+        const msg =
+          (response as any)?.message ||
+          (response as any)?.msg ||
+          "Invalid Veo status response (missing data.successFlag)";
+        // Return a non-crashing "failed" status so polling endpoints don't explode on null data.
+        return {
+          id: taskId,
+          status: "failed",
+          progress: 0,
+          outputs: [],
+          error: `[VEO] ${msg}`,
+        };
+      }
 
       let outputs: GenerateVideoResponse["outputs"];
       let status: GenerationStatus = "processing";
       let progress = 50;
       let error: string | undefined;
 
-      if (data.successFlag === 1) {
+      if (successFlag === 1) {
         // Success
         status = "completed";
         progress = 100;
-        let urls =
+        const urlsRaw =
           data.response?.resultUrls ||
           data.info?.resultUrls ||
           [];
+        let urls: string[] = Array.isArray(urlsRaw) ? urlsRaw.filter((u: unknown): u is string => typeof u === "string") : [];
 
         // Some Veo tasks return successFlag=1 but resultUrls is empty.
         // In that case, try to fetch 1080p URL via get-1080p-video endpoint.
@@ -958,7 +1033,7 @@ export class KieAIClient {
           height: 1080,
           duration: 8,
         }));
-      } else if (data.successFlag === 2 || data.successFlag === 3) {
+      } else if (successFlag === 2 || successFlag === 3) {
         // Failed
         status = "failed";
         progress = 0;
@@ -1163,9 +1238,18 @@ export class KieAIClient {
   private mockCreateTask(request: CreateTaskRequest): Promise<CreateTaskResponse> {
     const taskId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const isVideo = request.model.includes("sora") || request.model.includes("kling") || 
-                    request.model.includes("luma") || request.model.includes("runway") ||
-                    request.model.includes("veo") || request.model.includes("bytedance");
+    const m = String(request.model || "").toLowerCase();
+    const isVideo =
+      m.includes("text-to-video") ||
+      m.includes("image-to-video") ||
+      m.includes("video-to-video") ||
+      m.includes("sora") ||
+      m.includes("kling") ||
+      m.includes("wan") ||
+      m.includes("luma") ||
+      m.includes("runway") ||
+      m.includes("veo") ||
+      m.includes("bytedance");
     
     this.mockTaskProgress.set(taskId, {
       startTime: Date.now(),

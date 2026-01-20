@@ -210,7 +210,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
       quality: 7,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
+    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
     shortLabel: 'Turbo/Quality',
   },
   {
@@ -258,7 +258,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
       quality: 11,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '21:9'],
+    // Keep in sync with KIE supported aspect ratios (see src/config/kie-api-settings.ts)
+    aspectRatios: ['1:1', '16:9', '9:16', '3:2', '2:3'],
     shortLabel: 'Turbo/Quality',
   },
   {
@@ -280,7 +281,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
       '2k': 12,
     },
     qualityOptions: ['1k', '2k'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
+    // Keep in sync with KIE supported aspect ratios (see src/config/kie-api-settings.ts)
+    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
     shortLabel: '1K/2K',
   },
   // Z-image: model id is "z-image" (per docs)
@@ -342,7 +344,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     shortDescription: 'Удаление фона за 1 клик.',
     description: 'Быстрый инструмент для вырезки объекта и прозрачного фона. Полезно для карточек, превью и маркетинговых материалов.',
     rank: 12,
-    featured: false,
+    featured: true,
     speed: 'fast',
     quality: 'standard',
     supportsI2i: true,
@@ -370,14 +372,14 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      // NEW PRICING: 2k (10 credits) = 17⭐, 4k (20 credits) = 34⭐, 8k (40 credits) = 67⭐
+      // Topaz Upscale (KIE): upscale_factor "2" | "4"
+      // Use quality labels as "2k"/"4k" in pricing/UI
       '2k': 17,
       '4k': 34,
-      '8k': 67,
     },
-    qualityOptions: ['2k', '4k', '8k'],
+    qualityOptions: ['2k', '4k'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
-    shortLabel: '2K/4K/8K',
+    shortLabel: '2K/4K',
   },
   
   // === GPT IMAGE - OpenAI ===
@@ -800,7 +802,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modes: ['i2v', 'start_end'], // Поддерживает start + end frames
     durationOptions: [5, 10],
     fixedDuration: undefined,
-    aspectRatios: ['auto', '16:9', '9:16', '1:1', '4:3', '3:4'],
+    // fal.ai O1 Standard supports 16:9 / 9:16 / 1:1 (and can default if omitted)
+    // Keep `auto` as a UI helper which is mapped to provider default.
+    aspectRatios: ['auto', '16:9', '9:16', '1:1'],
     shortLabel: 'от 120⭐ • 5-10s',
   },
 

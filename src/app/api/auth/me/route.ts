@@ -10,7 +10,16 @@ export async function GET() {
     const telegramSession = await getSession();
     
     if (!telegramSession) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      // Keep this endpoint non-erroring for anonymous users; client can treat missing session as logged out.
+      return NextResponse.json({
+        user: null,
+        telegramId: null,
+        username: null,
+        firstName: null,
+        photoUrl: null,
+        isAdmin: false,
+        role: 'user',
+      });
     }
 
     const authUserId = await getAuthUserId(telegramSession);

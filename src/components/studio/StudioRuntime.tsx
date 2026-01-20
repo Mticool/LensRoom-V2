@@ -10,6 +10,7 @@ import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
 // Removed: import { approxRubFromStars } from "@/config/pricing";
 import { computePrice } from "@/lib/pricing/compute-price";
+import { calcMotionControlStars, validateMotionControlDuration, type MotionControlResolution } from "@/lib/pricing/motionControl";
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { usePreferencesStore } from "@/stores/preferences-store";
 
@@ -43,13 +44,52 @@ type ActiveJob = {
   opened?: boolean;
 };
 
+async function getVideoDurationSeconds(file: File): Promise<number> {
+  const url = URL.createObjectURL(file);
+  try {
+    const duration = await new Promise<number>((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        const d = Number(video.duration || 0);
+        if (!Number.isFinite(d) || d <= 0) reject(new Error("Invalid video duration"));
+        else resolve(d);
+      };
+      video.onerror = () => reject(new Error("Failed to read video metadata"));
+      video.src = url;
+    });
+    return duration;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 async function fileToDataUrl(file: File): Promise<string> {
+  const normalized = await normalizeImageForUpload(file);
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("FileReader failed"));
     reader.onloadend = () => resolve(String(reader.result || ""));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(normalized);
   });
+}
+
+function isHeicLike(file: File): boolean {
+  const name = (file.name || "").toLowerCase();
+  const t = (file.type || "").toLowerCase();
+  return (
+    t === "image/heic" ||
+    t === "image/heif" ||
+    name.endsWith(".heic") ||
+    name.endsWith(".heif")
+  );
+}
+
+async function normalizeImageForUpload(file: File): Promise<File> {
+  if (!isHeicLike(file)) return file;
+  // NOTE: HEIC conversion removed due to Turbopack/HMR instability in dev.
+  // Please upload JPEG/PNG/WebP for now.
+  throw new Error("HEIC пока не поддерживается. Загрузите JPG, PNG или WebP.");
 }
 
 async function safeReadJson(response: Response): Promise<any> {
@@ -87,7 +127,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   // Common UI state
   const [mode, setMode] = useState<Mode>(kind === "photo" ? "t2i" : "t2v");
   const [quality, setQuality] = useState<Quality>("" as Quality);
-  const [outputFormat, setOutputFormat] = useState<"png" | "jpg">("png");
+  const [outputFormat, setOutputFormat] = useState<"png" | "jpg" | "webp">("png");
   const [aspect, setAspect] = useState<Aspect>("1:1" as Aspect);
   const [duration, setDuration] = useState<Duration>(5 as Duration);
   const [audio, setAudio] = useState<boolean>(true);
@@ -97,11 +137,14 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const [referenceVideoUrl, setReferenceVideoUrl] = useState<string>(""); // V2V reference video URL
 
   const [prompt, setPrompt] = useState<string>("");
+  const [negativePrompt, setNegativePrompt] = useState<string>("");
   const [scenes, setScenes] = useState<string[]>(["", "", ""]);
 
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
   const [firstFrame, setFirstFrame] = useState<File | null>(null);
   const [lastFrame, setLastFrame] = useState<File | null>(null);
+  const [motionReferenceVideo, setMotionReferenceVideo] = useState<File | null>(null);
+  const [motionReferenceVideoDurationSec, setMotionReferenceVideoDurationSec] = useState<number | null>(null);
 
   // Runtime output state
   const [status, setStatus] = useState<RuntimeStatus>("idle");
@@ -243,6 +286,15 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const studioModelKey = effectiveModelId || selectedModelId;
   const studioModel = useMemo(() => getStudioModelByKey(studioModelKey) || models[0], [studioModelKey, models]);
 
+  const photoOutputFormatOptions = useMemo(() => {
+    if (!modelInfo || modelInfo.type !== "photo") return ["png", "jpg"] as const;
+    // Some tools should remain PNG-only (alpha channel).
+    if (modelInfo.id === "recraft-remove-background") return ["png"] as const;
+    // OpenAI gpt-image supports webp, but most paths use KIE or LaoZhang and may not.
+    if (modelInfo.provider === "openai") return ["png", "jpg", "webp"] as const;
+    return ["png", "jpg"] as const;
+  }, [modelInfo]);
+
   // Keep selections valid when model changes
   useEffect(() => {
     if (!studioModel) return;
@@ -286,6 +338,8 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     setReferenceImage(null);
     setFirstFrame(null);
     setLastFrame(null);
+    setMotionReferenceVideo(null);
+    setMotionReferenceVideoDurationSec(null);
 
     // Reset runtime output
     setStatus("idle");
@@ -295,6 +349,27 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     setSoundPreset("");
     setReferenceVideoUrl("");
   }, [studioModel?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Derive duration for Motion Control reference video
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!motionReferenceVideo) {
+        setMotionReferenceVideoDurationSec(null);
+        return;
+      }
+      try {
+        const d = await getVideoDurationSeconds(motionReferenceVideo);
+        if (!cancelled) setMotionReferenceVideoDurationSec(d);
+      } catch (e) {
+        console.warn("[Studio] Failed to read motion video duration:", e);
+        if (!cancelled) setMotionReferenceVideoDurationSec(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [motionReferenceVideo]);
 
   // Auto-correct settings when WAN variant changes
   useEffect(() => {
@@ -335,6 +410,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const needsStartEnd = mode === "start_end";
   const isStoryboard = mode === "storyboard";
   const needsV2vReference = mode === "v2v" && studioModel?.key === 'wan';
+  const needsMotionControlVideo = mode === "i2v" && studioModel?.key === "kling-motion-control";
 
   const canGenerate = useMemo(() => {
     if (!modelInfo) return false;
@@ -342,9 +418,14 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     if (needsReference && !referenceImage) return false;
     if (needsStartEnd && (!firstFrame || !lastFrame)) return false;
     if (needsV2vReference && !referenceVideoUrl?.trim()) return false;
+    if (needsMotionControlVideo && (!motionReferenceVideo || !motionReferenceVideoDurationSec)) return false;
+    if (needsMotionControlVideo && motionReferenceVideoDurationSec) {
+      const v = validateMotionControlDuration(motionReferenceVideoDurationSec, true);
+      if (!v.valid) return false;
+    }
     if (isStoryboard) return scenes.some((s) => s.trim().length > 0);
     return prompt.trim().length > 0;
-  }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, needsV2vReference, referenceVideoUrl, isStoryboard, scenes, prompt]);
+  }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, needsV2vReference, referenceVideoUrl, needsMotionControlVideo, motionReferenceVideo, motionReferenceVideoDurationSec, isStoryboard, scenes, prompt]);
 
   const price = useMemo(() => {
     if (!modelInfo) return { stars: 0, credits: 0 };
@@ -373,17 +454,37 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
     // For WAN model, use resolution from state if available, otherwise from quality
     const effectiveResolution = resolution || (isResolution ? String(quality) : undefined);
 
+    // Kling Motion Control: pricing depends on reference video duration (3–30s)
+    if (v.id === "kling-motion-control") {
+      const mcResolution = (effectiveResolution || "720p") as MotionControlResolution;
+      const d = motionReferenceVideoDurationSec || 0;
+      const stars = calcMotionControlStars(d, mcResolution, true) || 0;
+      return { stars, credits: stars };
+    }
+
     return computePrice(v.id, {
       mode: mode as any,
       duration: duration as any,
       // bytedance uses resolutionOptions; computePrice expects videoQuality to key into pricing
       videoQuality: String(quality || "") as any,
       resolution: effectiveResolution as any, // For WAN per-second pricing
-      audio: !!v.supportsAudio,
+      audio: v.supportsAudio ? (v.id === "wan" ? !!soundPreset : audio) : false,
       modelVariant: modelVariant || undefined,
       variants: 1,
     });
-  }, [modelInfo, kind, selectedVariant, quality, mode, duration, modelVariant, resolution]);
+  }, [
+    modelInfo,
+    kind,
+    selectedVariant,
+    quality,
+    mode,
+    duration,
+    modelVariant,
+    resolution,
+    soundPreset,
+    audio,
+    motionReferenceVideoDurationSec,
+  ]);
 
   const pollJob = useCallback(async (jobId: string, kind: "image" | "video", provider?: string) => {
     const maxAttempts = 180;
@@ -592,10 +693,11 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
           variantId: selectedVariant.id,
           params: selectedParams,
           prompt,
+          negativePrompt: negativePrompt?.trim() || undefined,
           aspectRatio: String(aspect),
           variants: 1,
           mode: mode === "i2i" ? "i2i" : "t2i",
-          outputFormat: "png", // Always PNG for photos
+          outputFormat,
         };
 
         if (mode === "i2i") {
@@ -619,6 +721,10 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         }
 
         const jobId = String(data.jobId);
+        
+        // Let Library refresh immediately to show queued/generating item
+        invalidateCached("generations:");
+        try { window.dispatchEvent(new CustomEvent("generations:refresh")); } catch {}
         
         // Check if generation already completed (e.g., OpenAI sync response)
         if (data.status === 'completed' && Array.isArray(data.results) && data.results[0]?.url) {
@@ -685,6 +791,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         mode,
         prompt: isStoryboard ? undefined : prompt,
         shots: isStoryboard ? scenes.filter((s) => s.trim()).map((s) => ({ prompt: s.trim() })) : undefined,
+        negativePrompt: isStoryboard ? undefined : (negativePrompt?.trim() || undefined),
         duration,
         aspectRatio: String(aspect),
         quality: isResolution ? undefined : String(quality || ""),
@@ -696,6 +803,14 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       if (mode === "i2v") {
         if (!referenceImage) throw new Error("referenceImage is required for i2v");
         payload.referenceImage = await fileToDataUrl(referenceImage);
+
+        // Kling Motion Control requires an additional reference video with motions
+        if (v.id === "kling-motion-control") {
+          if (!motionReferenceVideo) throw new Error("referenceVideo is required for Motion Control");
+          payload.referenceVideo = await fileToDataUrl(motionReferenceVideo);
+          payload.videoDuration = motionReferenceVideoDurationSec || undefined;
+          payload.autoTrim = true;
+        }
       }
 
       if (mode === "start_end") {
@@ -725,6 +840,11 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       }
 
       const jobId = String(data.jobId);
+      
+      // Let Library refresh immediately to show queued/generating item
+      invalidateCached("generations:");
+      try { window.dispatchEvent(new CustomEvent("generations:refresh")); } catch {}
+
       const job: ActiveJob = {
         jobId,
         kind: "video",
@@ -748,7 +868,30 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
       toast.error(msg);
       setIsStarting(false);
     }
-  }, [modelInfo, canGenerate, quality, prompt, aspect, duration, mode, referenceImage, firstFrame, lastFrame, scenes, audio, isStoryboard, startPollingJob]);
+  }, [
+    modelInfo,
+    canGenerate,
+    quality,
+    prompt,
+    negativePrompt,
+    aspect,
+    duration,
+    mode,
+    modelVariant,
+    resolution,
+    soundPreset,
+    referenceVideoUrl,
+    outputFormat,
+    referenceImage,
+    firstFrame,
+    lastFrame,
+    motionReferenceVideo,
+    motionReferenceVideoDurationSec,
+    scenes,
+    audio,
+    isStoryboard,
+    startPollingJob,
+  ]);
 
   const newResultsCount = useMemo(() => {
     return activeJobs.filter((j) => j.status === "success" && !j.opened).length;
@@ -756,10 +899,13 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
   const handleReset = useCallback(() => {
     setPrompt("");
+    setNegativePrompt("");
     setScenes(["", "", ""]);
     setReferenceImage(null);
     setFirstFrame(null);
     setLastFrame(null);
+    setMotionReferenceVideo(null);
+    setMotionReferenceVideoDurationSec(null);
     setStatus("idle");
     setProgress(0);
     setLastError(null);
@@ -907,6 +1053,9 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                   aspect={aspect as any}
                   onAspectChange={(a) => setAspect(a as any)}
                   aspectOptions={studioModel?.aspectRatios || ["1:1"]}
+                  outputFormat={outputFormat}
+                  onOutputFormatChange={(f) => setOutputFormat(f)}
+                  outputFormatOptions={photoOutputFormatOptions}
                   referenceImage={referenceImage}
                   onReferenceImageChange={setReferenceImage}
                   currentPlan={currentPlan}
@@ -930,6 +1079,9 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
                   onResolutionChange={setResolution}
                   referenceImage={referenceImage}
                   onReferenceImageChange={setReferenceImage}
+                  motionReferenceVideo={motionReferenceVideo}
+                  onMotionReferenceVideoChange={setMotionReferenceVideo}
+                  motionReferenceVideoDurationSec={motionReferenceVideoDurationSec}
                   soundPreset={soundPreset}
                   onSoundPresetChange={setSoundPreset}
                   referenceVideoUrl={referenceVideoUrl}
@@ -939,7 +1091,15 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
             </div>
 
             <div className="lg:shrink-0">
-              <PromptBox mode={mode} prompt={prompt} onPromptChange={setPrompt} scenes={scenes} onScenesChange={setScenes} />
+              <PromptBox
+                mode={mode}
+                prompt={prompt}
+                onPromptChange={setPrompt}
+                negativePrompt={negativePrompt}
+                onNegativePromptChange={setNegativePrompt}
+                scenes={scenes}
+                onScenesChange={setScenes}
+              />
             </div>
           </div>
         </div>

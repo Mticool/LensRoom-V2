@@ -99,3 +99,37 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const userId = await requireTelegramUserId();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json().catch(() => null);
+    const threadId = String(body?.threadId || body?.id || "").trim();
+    const titleRaw = String(body?.title || "").trim();
+
+    if (!threadId) return badRequest("threadId is required");
+    if (!titleRaw) return badRequest("title is required");
+    if (titleRaw.length > 80) return badRequest("title is too long");
+
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("studio_threads")
+      .update({ title: titleRaw, updated_at: new Date().toISOString() })
+      .eq("id", threadId)
+      .eq("user_id", userId)
+      .select("id,user_id,model_id,title,created_at,updated_at")
+      .single();
+
+    if (error) {
+      console.error("[Studio Threads API] PATCH error:", error);
+      return NextResponse.json({ error: "Failed to update thread" }, { status: 500 });
+    }
+
+    return NextResponse.json({ thread: data as StudioThread }, { status: 200 });
+  } catch (e) {
+    console.error("[Studio Threads API] PATCH exception:", e);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+

@@ -30,29 +30,66 @@ export async function refundCredits(
   }
 
   try {
-    // Get current balance
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('credits')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !userData) {
-      console.error('[Refund] Failed to get user balance:', userError);
-      return { success: false, creditsRefunded: 0, error: 'User not found' };
+    // Ensure credits row exists
+    try {
+      const { error: insErr } = await supabase.from('credits').insert({
+        user_id: userId,
+        subscription_stars: 0,
+        package_stars: 0,
+        amount: 0,
+        updated_at: new Date().toISOString(),
+      } as any);
+      if (insErr && String((insErr as any).code || '') !== '23505') {
+        console.error('[Refund] ensure credits row insert error:', insErr);
+      }
+    } catch {
+      // ignore
     }
 
-    const newBalance = (userData.credits || 0) + creditsToRefund;
+    // Optimistic CAS update: refund into package_stars and keep amount synced.
+    const maxAttempts = 10;
+    let newBalance: number | undefined = undefined;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const { data: row, error: readErr } = await supabase
+        .from('credits')
+        .select('subscription_stars,package_stars')
+        .eq('user_id', userId)
+        .single();
+      if (readErr || !row) {
+        console.error('[Refund] Failed to get credits balance:', readErr);
+        return { success: false, creditsRefunded: 0, error: 'Credits row not found' };
+      }
 
-    // Update balance
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ credits: newBalance })
-      .eq('id', userId);
+      const sub = Number((row as any).subscription_stars ?? 0) || 0;
+      const pkg = Number((row as any).package_stars ?? 0) || 0;
+      const nextPkg = pkg + creditsToRefund;
+      const nextTotal = sub + nextPkg;
 
-    if (updateError) {
-      console.error('[Refund] Failed to update balance:', updateError);
-      return { success: false, creditsRefunded: 0, error: 'Failed to update balance' };
+      const { data: upd, error: updErr } = await supabase
+        .from('credits')
+        .update({
+          package_stars: nextPkg,
+          amount: nextTotal,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .eq('subscription_stars', sub)
+        .eq('package_stars', pkg)
+        .select('amount');
+
+      if (updErr) {
+        console.error('[Refund] Failed to update credits:', updErr);
+        return { success: false, creditsRefunded: 0, error: 'Failed to update balance' };
+      }
+      const updatedRow = Array.isArray(upd) ? (upd[0] as any) : (upd as any);
+      if (updatedRow) {
+        newBalance = nextTotal;
+        break;
+      }
+      if (attempt === maxAttempts) {
+        console.error('[Refund] CAS retry exhausted');
+        return { success: false, creditsRefunded: 0, error: 'Failed to update balance (retry exhausted)' };
+      }
     }
 
     // Log transaction

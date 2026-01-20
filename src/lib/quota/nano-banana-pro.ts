@@ -265,11 +265,53 @@ export async function refundStars(
   if (stars <= 0) return;
   
   try {
-    // Increment credits
-    await supabase.rpc('adjust_credits', {
-      p_user_id: userId,
-      p_amount: stars,
-    });
+    // Refund should work with split credits (package_stars) + keep legacy amount synced.
+    // Use optimistic CAS update so it works even if DB RPC helpers aren't installed.
+    try {
+      const { error: insErr } = await supabase.from('credits').insert({
+        user_id: userId,
+        subscription_stars: 0,
+        package_stars: 0,
+        amount: 0,
+        updated_at: new Date().toISOString(),
+      } as any);
+      if (insErr && String((insErr as any).code || '') !== '23505') {
+        console.error('[Quota] ensure credits row insert error:', insErr);
+      }
+    } catch {
+      // ignore
+    }
+
+    const maxAttempts = 10;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const { data: row, error: readErr } = await supabase
+        .from('credits')
+        .select('subscription_stars,package_stars')
+        .eq('user_id', userId)
+        .single();
+      if (readErr || !row) throw readErr || new Error('credits row not found');
+
+      const sub = Number((row as any).subscription_stars ?? 0) || 0;
+      const pkg = Number((row as any).package_stars ?? 0) || 0;
+      const nextPkg = pkg + stars;
+      const nextTotal = sub + nextPkg;
+
+      const { data: upd, error: updErr } = await supabase
+        .from('credits')
+        .update({
+          package_stars: nextPkg,
+          amount: nextTotal,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .eq('subscription_stars', sub)
+        .eq('package_stars', pkg)
+        .select('user_id');
+
+      if (updErr) throw updErr;
+      if (Array.isArray(upd) ? upd.length > 0 : !!upd) break;
+      if (attempt === maxAttempts) throw new Error('refund CAS retry exhausted');
+    }
     
     // Record refund transaction
     await supabase.from('credit_transactions').insert({

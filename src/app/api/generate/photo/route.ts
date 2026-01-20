@@ -514,30 +514,46 @@ export async function POST(request: NextRequest) {
         let laozhangResponse;
         
         // Check if this is an image-to-image generation with reference
-        if (mode === 'i2i' && referenceImage) {
-          console.log('[API] LaoZhang i2i mode with reference image');
-          
-          // Use edit endpoint for image-to-image
-          laozhangResponse = await laozhangClient.editImage({
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          if (mode === 'i2i' && referenceImage) {
+            console.log('[API] LaoZhang i2i mode with reference image');
+            laozhangResponse = await laozhangClient.editImage({
+              model: laozhangModelId,
+              prompt: prompt,
+              image: referenceImage, // URL or base64
+              n: 1,
+              size: imageSize,
+              response_format: "b64_json",
+            });
+          } else {
+            laozhangResponse = await laozhangClient.generateImage({
+              model: laozhangModelId,
+              prompt: prompt,
+              n: 1,
+              size: imageSize,
+              response_format: "b64_json",
+            });
+          }
+
+          const imageUrlFromProviderAttempt = laozhangResponse?.data?.[0]?.url;
+          const b64JsonAttempt = laozhangResponse?.data?.[0]?.b64_json;
+          if (imageUrlFromProviderAttempt || b64JsonAttempt) break;
+
+          console.warn('[API] LaoZhang returned empty data, retrying...', {
+            attempt,
+            maxAttempts,
             model: laozhangModelId,
-            prompt: prompt,
-            image: referenceImage, // URL or base64
-            n: 1,
             size: imageSize,
           });
-        } else {
-          // Standard text-to-image generation
-          laozhangResponse = await laozhangClient.generateImage({
-            model: laozhangModelId,
-            prompt: prompt,
-            n: 1,
-            size: imageSize,
-          });
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 800));
+          }
         }
         
         // Prefer storing to our bucket to keep URLs stable and enforce requested format.
-        const imageUrlFromProvider = laozhangResponse.data[0]?.url;
-        const b64Json = laozhangResponse.data[0]?.b64_json;
+        const imageUrlFromProvider = laozhangResponse?.data?.[0]?.url;
+        const b64Json = laozhangResponse?.data?.[0]?.b64_json;
 
         let sourceBuffer: Buffer | null = null;
         if (b64Json) {
@@ -608,11 +624,10 @@ export async function POST(request: NextRequest) {
       } catch (laozhangError: any) {
         console.error('[API] LaoZhang generation failed:', laozhangError);
         
-        // Refund credits on error
-        await supabase.rpc('adjust_credits', {
-          p_user_id: userId,
-          p_amount: creditCost,
-        });
+        // Refund only if we actually charged stars (skip managers/admins and included-by-plan runs)
+        if (!skipCredits && !isIncludedByPlan && actualCreditCost > 0) {
+          await refundStars(supabase, userId, actualCreditCost, generation?.id);
+        }
         
         // Update generation status
         await supabase
@@ -780,11 +795,10 @@ export async function POST(request: NextRequest) {
       } catch (openaiError: any) {
         console.error('[API] OpenAI generation failed:', openaiError);
         
-        // Refund credits on error
-        await supabase.rpc('adjust_credits', {
-          p_user_id: userId,
-          p_amount: creditCost,
-        });
+        // Refund only if we actually charged stars (skip managers/admins and included-by-plan runs)
+        if (!skipCredits && !isIncludedByPlan && actualCreditCost > 0) {
+          await refundStars(supabase, userId, actualCreditCost, generation?.id);
+        }
         
         // Update generation status
         await supabase
@@ -853,10 +867,14 @@ export async function POST(request: NextRequest) {
     // Also exclude generic quality values that shouldn't be passed for resolution-based models
     const resolutionBasedQualityValues = ['1k_2k', '4k', '1k', '2k', '8k', 'fast', 'turbo', 'balanced', 'quality', 'ultra'];
     const isResolutionBasedModel = effectiveModelId.includes('nano-banana') || effectiveModelId.includes('imagen') || apiModelId.includes("flux-2");
+    const isGptImage = effectiveModelId === "gpt-image" || String(apiModelId || "").includes("gpt-image");
 
     // Seedream maps Turbo/Balanced/Quality -> basic/high inside kie-client, so pass it through.
     if (isSeedream45 && quality) {
       generateParams.quality = String(quality);
+    } else if (isGptImage) {
+      // GPT Image on KIE requires quality (medium/high). Default to medium if not provided.
+      generateParams.quality = String(quality || "medium");
     } else if (quality && !resolutionBasedQualityValues.includes(quality.toLowerCase()) && !isResolutionBasedModel) {
       // For other models: only pass non-resolution-like quality enums.
       generateParams.quality = quality;
@@ -864,6 +882,28 @@ export async function POST(request: NextRequest) {
     
     if (imageInputs && imageInputs.length > 0) {
       generateParams.imageInputs = imageInputs;
+    }
+
+    // Tool params: Topaz Upscale requires `scale` ("2x" | "4x")
+    const isTopazUpscale =
+      effectiveModelId === "topaz-image-upscale" || String(apiModelId || "").includes("topaz/image-upscale");
+    if (isTopazUpscale) {
+      const raw =
+        (resolvedParams?.upscaleFactor ??
+          resolvedParams?.upscale_factor ??
+          resolvedParams?.scale ??
+          (clientParams as any)?.upscaleFactor ??
+          (clientParams as any)?.upscale_factor ??
+          (clientParams as any)?.scale ??
+          (body as any)?.upscaleFactor ??
+          (body as any)?.upscale_factor ??
+          (body as any)?.scale ??
+          "") as any;
+
+      const s = String(raw || "").trim().toLowerCase();
+      // Accept: "4", "4x", "4k" => "4"; everything else defaults to "2"
+      const upscaleFactor = s === "4" || s === "4x" || s === "4k" ? "4" : "2";
+      generateParams.upscaleFactor = upscaleFactor;
     }
     
     console.log('[API] Generating image with params:', {
@@ -876,12 +916,53 @@ export async function POST(request: NextRequest) {
     try {
       response = await kieClient.generateImage(generateParams);
     } catch (kieError: any) {
+      const errMsg = kieError?.message || "KIE API error";
       console.error('[API] KIE generateImage error:', {
         message: kieError?.message,
         code: kieError?.code,
         errorCode: kieError?.errorCode,
       });
-      throw kieError;
+
+      // Refund only if we actually charged stars (skip managers/admins and included-by-plan runs)
+      if (!skipCredits && !isIncludedByPlan && actualCreditCost > 0) {
+        await refundStars(supabase, userId, actualCreditCost, generation?.id);
+      }
+
+      // Update generation status (best-effort)
+      if (generation?.id) {
+        try {
+          await supabase
+            .from("generations")
+            .update({
+              status: "failed",
+              error: errMsg,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", generation.id);
+        } catch (e) {
+          console.error("[API] Failed to update generation on KIE error:", e);
+        }
+      }
+
+      // Log failed run for NBP analytics (best-effort)
+      if (!skipCredits && isNanoBananaPro(effectiveModelId)) {
+        try {
+          await recordGenerationRun(supabase, {
+            generationId: generation?.id,
+            userId,
+            provider: modelInfo.provider,
+            providerModel: modelInfo.apiId,
+            variantKey: nbpVariantKey || '1k_2k',
+            starsCharged: 0,
+            includedByPlan: isIncludedByPlan,
+            status: 'refunded',
+          });
+        } catch (e) {
+          console.error('[API] Failed to record refunded NBP run:', e);
+        }
+      }
+
+      return NextResponse.json({ error: errMsg }, { status: 500 });
     }
 
     // Attach task_id to DB record so callbacks / sync can find it reliably

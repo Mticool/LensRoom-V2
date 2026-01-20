@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
@@ -10,6 +10,13 @@ const inter = Inter({
   subsets: ["latin", "cyrillic"],
   display: "swap",
   variable: "--font-inter",
+  preload: true,
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-space-grotesk",
   preload: true,
 });
 
@@ -266,7 +273,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" data-theme="dark" suppressHydrationWarning className={inter.variable}>
+    <html lang="ru" data-theme="dark" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head>
         {/* Preconnect to critical origins */}
         <link rel="preconnect" href="https://ndhykojwzazgmgvjaqgt.supabase.co" />

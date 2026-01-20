@@ -5,6 +5,9 @@ import type { KieProvider } from "@/config/models";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { syncKieTaskToDb } from "@/lib/kie/sync-task";
+import { refundCredits } from "@/lib/credits/refund";
+import { requireAuth } from "@/lib/auth/requireRole";
+import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 
 export async function GET(
   request: NextRequest,
@@ -26,12 +29,20 @@ export async function GET(
     // === FAL PROVIDER (Kling O1) ===
     if (provider === 'fal') {
       try {
+        const supabase = getSupabaseAdmin();
+        const { data: dbGen } = await supabase
+          .from("generations")
+          .select("id, user_id, status, credits_used, type")
+          .eq("task_id", jobId)
+          .maybeSingle();
+
         const falClient = getFalClient();
         const falStatus = await falClient.queryKlingO1I2VStatus(jobId);
         
         if (falStatus.status === 'COMPLETED') {
           // Fetch the actual result from response endpoint
           let videoUrl: string | null = null;
+          let contentType: string | null = null;
           try {
             const resultResponse = await fetch(
               `https://queue.fal.run/fal-ai/kling-video/requests/${jobId}`,
@@ -44,9 +55,52 @@ export async function GET(
             if (resultResponse.ok) {
               const resultData = await resultResponse.json();
               videoUrl = resultData.video?.url || null;
+              contentType = resultData.video?.content_type || null;
             }
           } catch (resultErr) {
             console.error('[API] Failed to get FAL result:', resultErr);
+          }
+
+          // Persist result to DB + storage so Library can display it.
+          let finalUrl: string | null = videoUrl;
+          let storagePath: string | null = null;
+          if (videoUrl && dbGen?.user_id) {
+            try {
+              const dl = await fetch(videoUrl);
+              if (!dl.ok) throw new Error(`Failed to download FAL video: ${dl.status}`);
+
+              const arrayBuf = await dl.arrayBuffer();
+              const buffer = Buffer.from(arrayBuf);
+              const ext = (contentType || "").includes("quicktime") ? "mov" : "mp4";
+              const ct = contentType || (ext === "mov" ? "video/quicktime" : "video/mp4");
+              storagePath = `${dbGen.user_id}/fal_${jobId}.${ext}`;
+
+              const { error: uploadError } = await supabase.storage
+                .from("generations")
+                .upload(storagePath, buffer, { contentType: ct, upsert: true });
+              if (uploadError) throw uploadError;
+
+              const { data: pub } = supabase.storage.from("generations").getPublicUrl(storagePath);
+              finalUrl = pub.publicUrl;
+            } catch (e) {
+              console.error("[API] Failed to store FAL video, falling back to provider URL:", e);
+              finalUrl = videoUrl;
+              storagePath = null;
+            }
+
+            try {
+              await supabase
+                .from("generations")
+                .update({
+                  status: "success",
+                  result_urls: finalUrl ? [finalUrl] : [],
+                  original_path: storagePath,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", dbGen.id);
+            } catch (e) {
+              console.error("[API] Failed to update generations for FAL completion:", e);
+            }
           }
           
           return NextResponse.json({
@@ -54,9 +108,9 @@ export async function GET(
             jobId,
             status: 'completed',
             progress: 100,
-            results: videoUrl ? [{
+            results: finalUrl ? [{
               id: jobId,
-              url: videoUrl,
+              url: finalUrl,
             }] : [],
             kind: 'video',
             provider: 'fal',
@@ -84,6 +138,36 @@ export async function GET(
               }
             }
           } catch {}
+
+          // Persist failure and refund (best-effort).
+          if (dbGen?.id) {
+            try {
+              await supabase
+                .from("generations")
+                .update({
+                  status: "failed",
+                  error: errorDetail,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", dbGen.id);
+            } catch (e) {
+              console.error("[API] Failed to update generations for FAL failure:", e);
+            }
+
+            const beforeStatus = String(dbGen.status || "").toLowerCase();
+            const isAlreadyTerminal = beforeStatus === "success" || beforeStatus === "failed" || beforeStatus === "completed";
+            const creditsToRefund = Number(dbGen.credits_used || 0);
+            if (!isAlreadyTerminal && creditsToRefund > 0 && dbGen.user_id) {
+              try {
+                await refundCredits(supabase, String(dbGen.user_id), String(dbGen.id), creditsToRefund, "fal_generation_failed", {
+                  jobId,
+                  error: errorDetail,
+                });
+              } catch (e) {
+                console.error("[API] Failed to refund credits for FAL failure:", e);
+              }
+            }
+          }
           
           return NextResponse.json({
             success: false,
@@ -136,6 +220,17 @@ export async function GET(
       .single();
     
     if (dbGen) {
+      if (String(dbGen.status || "").toLowerCase() === "cancelled") {
+        return NextResponse.json({
+          success: true,
+          jobId,
+          status: "cancelled",
+          progress: 0,
+          results: [],
+          error: dbGen.error || "Cancelled",
+          kind: dbGen.type || kind,
+        });
+      }
       if (dbGen.status === 'success' && dbGen.result_urls?.length) {
         return NextResponse.json({
           success: true,
@@ -281,5 +376,76 @@ export async function GET(
       },
       { status: 500 }
     );
+  }
+}
+
+// POST - Cancel a job (best-effort)
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ jobId: string }> }
+) {
+  try {
+    const { jobId } = await params;
+    if (!jobId) return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
+
+    // Auth: prefer role-based auth, fallback to Telegram session
+    let userId: string;
+    try {
+      const auth = await requireAuth();
+      userId = auth.authUserId;
+    } catch {
+      const telegramSession = await getSession();
+      if (!telegramSession) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      userId = (await getAuthUserId(telegramSession)) || "";
+      if (!userId) return NextResponse.json({ error: "User account not found" }, { status: 404 });
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { data: gen } = await supabase
+      .from("generations")
+      .select("id,user_id,status,credits_used,result_urls,asset_url,type")
+      .eq("task_id", jobId)
+      .maybeSingle();
+
+    if (!gen) return NextResponse.json({ error: "Generation not found" }, { status: 404 });
+    if (String(gen.user_id) !== String(userId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const st = String(gen.status || "").toLowerCase();
+    const hasResult = Array.isArray((gen as any).result_urls) && (gen as any).result_urls.length > 0;
+    const hasAsset = !!(gen as any).asset_url;
+    const isTerminal = st === "success" || st === "failed" || st === "completed" || st === "cancelled";
+
+    if (isTerminal && (hasResult || hasAsset)) {
+      return NextResponse.json({ success: true, jobId, status: st });
+    }
+
+    // NOTE: KIE/LaoZhang don't expose a reliable public cancel API in our current integration.
+    // Best-effort: mark as cancelled + prevent webhook/sync overrides.
+    await supabase
+      .from("generations")
+      .update({
+        status: "cancelled",
+        error: "cancelled_by_user",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", gen.id);
+
+    // Refund credits on cancel (best-effort). Safe if webhook/sync respects cancelled.
+    const creditsToRefund = Number((gen as any).credits_used || 0);
+    if (creditsToRefund > 0) {
+      try {
+        await refundCredits(supabase, String(userId), String(gen.id), creditsToRefund, "user_cancelled", {
+          jobId,
+          type: gen.type,
+        });
+      } catch (e) {
+        console.error("[API] Failed to refund credits on cancel:", e);
+      }
+    }
+
+    return NextResponse.json({ success: true, jobId, status: "cancelled" });
+  } catch (error: any) {
+    console.error("[API] Cancel job error:", error?.message || error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

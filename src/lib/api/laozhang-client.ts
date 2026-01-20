@@ -579,7 +579,8 @@ export function isLaoZhangVideoModel(modelId: string): boolean {
 export function getLaoZhangVideoModelId(
   lensroomModelId: string,
   aspectRatio?: string,
-  quality?: string
+  quality?: string,
+  duration?: number | string
 ): string {
   // Veo 3.1 mapping
   if (lensroomModelId === "veo-3.1") {
@@ -595,8 +596,10 @@ export function getLaoZhangVideoModelId(
   // Sora 2 mapping
   if (lensroomModelId === "sora-2" || lensroomModelId.startsWith("sora")) {
     const isLandscape = aspectRatio === "16:9" || aspectRatio === "landscape";
-    const is15s = lensroomModelId.includes("15s");
-    
+
+    const d = typeof duration === "number" ? duration : Number(duration);
+    const is15s = Number.isFinite(d) ? d >= 15 : false;
+
     if (is15s) return LAOZHANG_MODELS.SORA_VIDEO2_15S;
     if (isLandscape) return LAOZHANG_MODELS.SORA_VIDEO2_LANDSCAPE;
     return LAOZHANG_MODELS.SORA_2;

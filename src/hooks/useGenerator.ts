@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useCreditsStore } from '@/stores/credits-store';
 
 export interface Generation {
   id: string;
@@ -71,11 +72,24 @@ export function useGenerator() {
   // Fetch balance
   const fetchBalance = useCallback(async () => {
     try {
-      const res = await fetch('/api/credits/balance');
+      const res = await fetch('/api/credits/balance', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setState(prev => ({ ...prev, balance: data.balance || 0 }));
-        return data.balance;
+        const next = Number(data.balance || data.credits || 0) || 0;
+        setState(prev => ({ ...prev, balance: next }));
+
+        // Sync to global header/store
+        try {
+          useCreditsStore.getState().setBalance(
+            next,
+            typeof data.subscriptionStars === 'number' ? data.subscriptionStars : undefined,
+            typeof data.packageStars === 'number' ? data.packageStars : undefined
+          );
+        } catch {
+          // ignore cross-store sync errors
+        }
+
+        return next;
       }
     } catch (error) {
       console.error('Failed to fetch balance:', error);

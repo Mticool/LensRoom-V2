@@ -61,6 +61,30 @@ module.exports = {
         PREVIEWS_WORKER_DEBUG: "false",
       },
     },
+    {
+      // Minimal health monitor (PM2-managed)
+      // Exits after N consecutive failures so PM2 restarts and logs show the issue.
+      name: "lensroom-monitor",
+      cwd: "/opt/lensroom/current",
+      script: "node",
+      args: "scripts/monitor-health.js",
+      interpreter: "none",
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: "10s",
+      restart_delay: 5000,
+      watch: false,
+      env_file: "/opt/lensroom/current/.env.local",
+      env: {
+        NODE_ENV: "production",
+        MONITOR_TARGET_URL: "http://127.0.0.1:3002/api/health",
+        MONITOR_INTERVAL_MS: "60000",
+        MONITOR_FAIL_THRESHOLD: "3",
+        MONITOR_TIMEOUT_MS: "8000",
+      },
+    },
   ],
 };
 

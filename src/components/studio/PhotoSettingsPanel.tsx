@@ -157,6 +157,9 @@ export interface PhotoSettingsPanelProps {
   onAspectChange: (a: string) => void;
   aspectOptions: string[];
 
+  outputFormat: "png" | "jpg" | "webp";
+  onOutputFormatChange: (f: "png" | "jpg" | "webp") => void;
+  outputFormatOptions?: ReadonlyArray<"png" | "jpg" | "webp">;
 
   referenceImage: File | null;
   onReferenceImageChange: (f: File | null) => void;
@@ -173,6 +176,9 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
   aspect,
   onAspectChange,
   aspectOptions,
+  outputFormat,
+  onOutputFormatChange,
+  outputFormatOptions = ["png", "jpg"],
   referenceImage,
   onReferenceImageChange,
   currentPlan = "free",
@@ -221,6 +227,32 @@ export const PhotoSettingsPanel = memo(function PhotoSettingsPanel({
       </div>
 
       <div className="p-5 space-y-5">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Формат файла</div>
+          <div className="flex gap-2 flex-wrap">
+            {outputFormatOptions.map((fmt) => (
+              <button
+                key={fmt}
+                onClick={() => onOutputFormatChange(fmt)}
+                className={cn(
+                  "h-9 px-3 rounded-2xl border text-sm font-medium transition-all",
+                  "motion-reduce:transition-none",
+                  fmt === outputFormat
+                    ? "bg-[var(--gold)]/20 border-[var(--gold)] text-[var(--gold)] shadow-lg shadow-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
+                    : "bg-transparent text-white/90 border-white/10 hover:border-white/20 hover:bg-[var(--surface2)]"
+                )}
+              >
+                {fmt.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {outputFormat === "jpg" && model.title.toLowerCase().includes("remove background") && (
+            <div className="text-xs text-[var(--muted)] mt-2">
+              Для удаления фона лучше использовать PNG (прозрачность).
+            </div>
+          )}
+        </div>
+
         <div>
           <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Режим</div>
           <div className="flex flex-wrap gap-2">

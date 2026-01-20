@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { getCreditBalance } from '@/lib/credits/split-credits';
 
 export async function GET() {
   try {
@@ -24,23 +25,15 @@ export async function GET() {
       );
     }
 
-    // Fetch balance
+    // Fetch split balance (subscription + package stars)
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from('credits')
-      .select('amount')
-      .eq('user_id', userId)
-      .single();
+    const creditBalance = await getCreditBalance(supabase, userId);
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No credits record found
-        return NextResponse.json({ balance: 0 });
-      }
-      throw error;
-    }
-
-    return NextResponse.json({ balance: data?.amount || 0 });
+    return NextResponse.json({
+      balance: creditBalance.totalBalance,
+      subscriptionStars: creditBalance.subscriptionStars,
+      packageStars: creditBalance.packageStars,
+    });
   } catch (error) {
     console.error('[API] Error fetching balance:', error);
     return NextResponse.json(

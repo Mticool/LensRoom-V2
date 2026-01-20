@@ -26,7 +26,7 @@ interface GenerationPatchInput {
 // Only include fields used by Library/Studio UI.
 const GENERATIONS_SELECT =
   // NOTE: some older DB schemas don't have `results` column.
-  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,credits_used,task_id,thread_id,asset_url,preview_url,thumbnail_url,preview_path,poster_path,preview_status,result_urls,error,is_favorite,created_at,updated_at";
+  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,aspect_ratio,params,credits_used,task_id,thread_id,asset_url,preview_url,thumbnail_url,preview_path,poster_path,preview_status,result_urls,error,is_favorite,created_at,updated_at";
 
 // GET - Fetch user's generations (history)
 export async function GET(request: NextRequest) {

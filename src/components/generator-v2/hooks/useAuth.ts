@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-fetch';
 import logger from '@/lib/logger';
+import { useCreditsStore } from '@/stores/credits-store';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -57,6 +58,8 @@ export function useAuth() {
       if (data.user || data.telegramId) {
         // Fetch credits separately with deduplication
         let credits = 0;
+        let subscriptionStars: number | undefined;
+        let packageStars: number | undefined;
         try {
           const creditsRes = await apiFetch('/api/credits/balance', {
             dedupe: true,
@@ -68,6 +71,8 @@ export function useAuth() {
           if (creditsRes.ok) {
             const creditsData = await creditsRes.json();
             credits = creditsData.balance || creditsData.credits || 0;
+            if (typeof creditsData.subscriptionStars === 'number') subscriptionStars = creditsData.subscriptionStars;
+            if (typeof creditsData.packageStars === 'number') packageStars = creditsData.packageStars;
             console.log('[useAuth] Credits fetched:', credits);
           }
         } catch {
@@ -84,6 +89,13 @@ export function useAuth() {
           username: data.username || data.firstName || null,
           role: data.role || 'user',
         });
+
+        // Sync to global header/store
+        try {
+          useCreditsStore.getState().setBalance(Number(credits) || 0, subscriptionStars, packageStars);
+        } catch {
+          // ignore cross-store sync errors
+        }
       } else {
         console.log('[useAuth] No user/telegramId in response - setting isAuthenticated=false');
         setAuth({
@@ -108,13 +120,25 @@ export function useAuth() {
 
   const refreshCredits = useCallback(async () => {
     try {
-      const response = await fetch('/api/credits/balance');
+      const response = await fetch('/api/credits/balance', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
+        const nextCredits = data.balance || data.credits || 0;
         setAuth(prev => ({
           ...prev,
-          credits: data.balance || data.credits || 0,
+          credits: nextCredits,
         }));
+
+        // Sync to global header/store (Header uses useCreditsStore)
+        try {
+          useCreditsStore.getState().setBalance(
+            Number(nextCredits) || 0,
+            typeof data.subscriptionStars === 'number' ? data.subscriptionStars : undefined,
+            typeof data.packageStars === 'number' ? data.packageStars : undefined
+          );
+        } catch {
+          // ignore cross-store sync errors
+        }
       }
     } catch (error) {
       console.error('Credits refresh failed:', error);

@@ -149,6 +149,17 @@ export function LibraryClient() {
 
   useEffect(() => { fetchGenerations(0, false); }, [fetchGenerations]);
 
+  // Allow other parts of the app (e.g. StudioRuntime) to trigger a one-shot refresh
+  // so queued/generating items appear in Library immediately.
+  useEffect(() => {
+    const handler = () => {
+      invalidateCached("generations:");
+      fetchGenerations(0, false, true);
+    };
+    window.addEventListener("generations:refresh", handler as EventListener);
+    return () => window.removeEventListener("generations:refresh", handler as EventListener);
+  }, [fetchGenerations]);
+
   // Filter and build grid
   const grid = useMemo(() => {
     let filtered = items;

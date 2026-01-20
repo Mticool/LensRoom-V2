@@ -28,7 +28,11 @@ export interface FalKlingO1Request {
 
 export interface FalKlingO1I2VRequest {
   prompt: string;
-  image_url: string; // Required: начальное изображение
+  // NOTE: O1 supports start/end frames (first/last frame).
+  // Some older endpoints use `image_url` for start-only; we keep it optional for compatibility.
+  start_image_url: string; // Required: стартовое изображение
+  end_image_url?: string; // Optional: конечное изображение
+  image_url?: string; // legacy alias for start_image_url
   duration?: '5' | '10'; // 5 сек ($0.56) или 10 сек ($1.12)
   aspect_ratio?: '16:9' | '9:16' | '1:1'; // Default: 16:9
 }

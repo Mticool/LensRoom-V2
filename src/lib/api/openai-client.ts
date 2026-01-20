@@ -23,6 +23,7 @@ export interface OpenAIImageGenerationRequest {
   quality?: "medium" | "high"; // Required for generation
   size?: "1024x1024" | "1024x1536" | "1536x1024"; // Required for generation
   n?: number; // Number of images (default 1, max 1 for gpt-image-1)
+  output_format?: "png" | "jpeg" | "webp";
   // Note: gpt-image-1 uses output_format (png/jpeg/webp), not response_format (url/b64_json)
 }
 
@@ -83,7 +84,7 @@ export class OpenAIClient {
       model: request.model || OPENAI_IMAGE_MODEL,
       prompt: request.prompt,
       n: request.n || 1,
-      output_format: "png", // Explicit output format
+      output_format: request.output_format || "png",
     };
     
     // Quality and size are required for gpt-image-1

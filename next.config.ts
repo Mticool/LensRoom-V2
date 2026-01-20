@@ -1,10 +1,99 @@
 import path from "path";
+import fs from "fs";
 import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
+
+function parseDotenv(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const lines = raw.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    // support: export KEY=VALUE
+    const noExport = trimmed.startsWith("export ") ? trimmed.slice("export ".length).trim() : trimmed;
+    const eq = noExport.indexOf("=");
+    if (eq <= 0) continue;
+    const key = noExport.slice(0, eq).trim();
+    let val = noExport.slice(eq + 1).trim();
+    // strip inline comments only for unquoted values
+    const isQuoted = (val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"));
+    if (!isQuoted) {
+      const hash = val.indexOf(" #");
+      if (hash !== -1) val = val.slice(0, hash).trim();
+    }
+    if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+    else if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1);
+    // minimal unescape for common sequences
+    val = val.replace(/\\n/g, "\n");
+    if (key) out[key] = val;
+  }
+  return out;
+}
+
+function loadEnvFromCandidateFiles() {
+  // Next.js already loads .env.local/.env.* in the project root.
+  // This helper is specifically for local setups where env lives *outside* `lensroom-v2/`
+  // (e.g. a shared `~/.env`), which previously made auth/generation "randomly break" in dev.
+  const isProd = process.env.NODE_ENV === "production";
+  if (isProd) return;
+
+  const candidates = [
+    // local project root (should already work, but harmless)
+    path.resolve(__dirname, ".env.local"),
+    path.resolve(__dirname, ".env.local.production"),
+    path.resolve(__dirname, ".env.production"),
+    path.resolve(__dirname, ".env"),
+    // parent(s)
+    path.resolve(__dirname, "..", ".env.local"),
+    path.resolve(__dirname, "..", ".env.local.production"),
+    path.resolve(__dirname, "..", ".env.production"),
+    path.resolve(__dirname, "..", ".env"),
+    path.resolve(__dirname, "..", "..", ".env.local"),
+    path.resolve(__dirname, "..", "..", ".env.local.production"),
+    path.resolve(__dirname, "..", "..", ".env.production"),
+    path.resolve(__dirname, "..", "..", ".env"),
+    path.resolve(__dirname, "..", "..", "..", ".env.local"),
+    path.resolve(__dirname, "..", "..", "..", ".env.local.production"),
+    path.resolve(__dirname, "..", "..", "..", ".env.production"),
+    path.resolve(__dirname, "..", "..", "..", ".env"),
+  ];
+
+  for (const p of candidates) {
+    try {
+      if (!fs.existsSync(p)) continue;
+      const raw = fs.readFileSync(p, "utf8");
+      const parsed = parseDotenv(raw);
+      // Only set missing vars; do not override explicit env.
+      for (const [k, v] of Object.entries(parsed)) {
+        if (process.env[k] === undefined) process.env[k] = v;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Common aliases (projects sometimes keep server vars without NEXT_PUBLIC_ prefix).
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_URL) {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.SUPABASE_URL;
+  }
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY) {
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const alt =
+      process.env.SUPABASE_SERVICE_KEY ||
+      process.env.SUPABASE_SERVICE_ROLE ||
+      process.env.SUPABASE_SERVICE_ROLE_TOKEN;
+    if (alt) process.env.SUPABASE_SERVICE_ROLE_KEY = alt;
+  }
+}
+
+// Load env before Next config is evaluated (dev only).
+loadEnvFromCandidateFiles();
 
 // Fix Next/Turbopack choosing wrong workspace root when multiple lockfiles exist
 // (e.g. a stray ~/package-lock.json).

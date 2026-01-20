@@ -26,7 +26,14 @@ export async function POST(request: NextRequest) {
     // Ensure Telegram integration configured (return stable JSON instead of throwing in prod).
     const missing: string[] = [];
     if (!env.optional("TELEGRAM_BOT_TOKEN")) missing.push("TELEGRAM_BOT_TOKEN");
-    if (!env.optional("JWT_SECRET")) missing.push("JWT_SECRET");
+    if (missing.length) {
+      console.error("[Telegram Auth] Integration is not configured:", missing.join(", "));
+      return integrationNotConfigured("telegram", missing);
+    }
+
+    // Supabase is required for Telegram auth (profile + credits).
+    if (!env.optional("NEXT_PUBLIC_SUPABASE_URL")) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!env.optional("SUPABASE_SERVICE_ROLE_KEY")) missing.push("SUPABASE_SERVICE_ROLE_KEY");
     if (missing.length) {
       console.error("[Telegram Auth] Integration is not configured:", missing.join(", "));
       return integrationNotConfigured("telegram", missing);

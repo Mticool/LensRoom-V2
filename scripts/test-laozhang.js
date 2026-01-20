@@ -10,7 +10,7 @@
  *   node scripts/test-laozhang.js "prompt"     # Custom prompt for image test
  */
 
-const API_KEY = "sk-6otw6MVfegbV04VeA87b140c8c35440489C46cBcE84aAfA4";
+const API_KEY = process.env.LAOZHANG_API_KEY;
 const BASE_URL = "https://api.laozhang.ai/v1";
 
 // Image models
@@ -125,6 +125,11 @@ async function testVideoGeneration(modelName, modelId, prompt) {
 }
 
 async function main() {
+  if (!API_KEY) {
+    console.error("Missing LAOZHANG_API_KEY in environment.");
+    process.exit(1);
+  }
+
   const arg = process.argv[2] || "all";
   const testMode = ["all", "image", "video"].includes(arg) ? arg : "image";
   const imagePrompt = testMode === "image" && arg !== "image" ? arg : "A professional product photo of a luxury watch, studio lighting, 8k";
@@ -132,7 +137,7 @@ async function main() {
   
   console.log("\n🚀 LaoZhang API Test");
   console.log(`API: ${BASE_URL}`);
-  console.log(`Key: ${API_KEY.substring(0, 10)}...${API_KEY.substring(API_KEY.length - 4)}`);
+  console.log(`Key: set (redacted)`);
   console.log(`Mode: ${testMode.toUpperCase()}`);
   
   const results = [];

@@ -22,11 +22,14 @@ export async function GET(
   }
 
   // Вернуть capabilities
+  const isToolModel = modelId === 'topaz-image-upscale' || modelId === 'recraft-remove-background';
   const capabilities = {
-    aspectRatios: model.aspectRatios || ['1:1'],
+    aspectRatios: isToolModel ? ['1:1'] : (model.aspectRatios || ['1:1']),
     qualityOptions: model.qualityOptions || [],
-    supportsVariants: true, // Все модели поддерживают 1-4 варианта
+    supportsVariants: !isToolModel, // tool-модели ограничиваем 1/1
+    maxVariants: isToolModel ? 1 : 4,
     supportsI2i: model.supportsI2i,
+    requiresReferenceImage: isToolModel ? true : false,
   };
 
   return NextResponse.json(capabilities);

@@ -8,9 +8,10 @@ interface ModelSelectorProps {
   value: string;
   onChange: (modelId: string) => void;
   disabled?: boolean;
+  direction?: 'up' | 'down';
 }
 
-export function ModelSelector({ value, onChange, disabled }: ModelSelectorProps) {
+export function ModelSelector({ value, onChange, disabled, direction = 'up' }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -68,7 +69,11 @@ export function ModelSelector({ value, onChange, disabled }: ModelSelectorProps)
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-72 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg shadow-xl overflow-hidden z-50 max-h-96 overflow-y-auto">
+        <div
+          className={`absolute left-0 w-72 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg shadow-xl overflow-hidden z-50 max-h-96 overflow-y-auto ${
+            direction === "down" ? "top-full mt-2" : "bottom-full mb-2"
+          }`}
+        >
           {activeModels.map((model) => {
             const Icon = getModelIcon(model);
             const pricingLabel = getPricingLabel(model);

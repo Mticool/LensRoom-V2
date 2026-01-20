@@ -6,6 +6,7 @@ type CacheEntry<T> = {
 };
 
 const TTL_MS = 5 * 1000; // 5 seconds (short TTL for fast preview updates)
+const MAX_CACHE_SIZE = 50; // Maximum number of cached entries
 
 const cache = new Map<CacheKey, CacheEntry<any>>();
 const inFlight = new Map<CacheKey, Promise<any>>();
@@ -21,6 +22,14 @@ export async function cachedJson<T>(key: CacheKey, fetcher: () => Promise<T>): P
   const p = (async () => {
     try {
       const v = await fetcher();
+      
+      // Limit cache size using LRU strategy
+      if (cache.size >= MAX_CACHE_SIZE) {
+        // Remove the oldest (first) entry
+        const firstKey = cache.keys().next().value;
+        if (firstKey) cache.delete(firstKey);
+      }
+      
       cache.set(key, { value: v, expiresAt: Date.now() + TTL_MS });
       return v;
     } finally {
@@ -37,5 +46,3 @@ export function invalidateCached(keyPrefix: string) {
     if (k.startsWith(keyPrefix)) cache.delete(k);
   }
 }
-
-

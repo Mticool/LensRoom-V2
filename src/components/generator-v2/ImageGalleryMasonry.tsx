@@ -9,26 +9,74 @@ import type { GenerationResult } from './GeneratorV2';
 interface ImageGalleryMasonryProps {
   images: GenerationResult[];
   isGenerating: boolean;
+  layout?: 'masonry' | 'grid';
   onRegenerate?: (prompt: string, settings: any) => void;
   onImageClick?: (image: GenerationResult) => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 export function ImageGalleryMasonry({ 
   images, 
   isGenerating,
+  layout = 'masonry',
   onRegenerate,
-  onImageClick 
+  onImageClick,
+  emptyTitle,
+  emptyDescription,
 }: ImageGalleryMasonryProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const cardClassName =
+    layout === "grid"
+      ? "relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-colors"
+      : "relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02]";
+
+  const getAspect = (size?: string): { w: number; h: number } => {
+    const s = String(size || "").trim();
+    const m = s.match(/^(\d+)\s*[:/]\s*(\d+)$/);
+    if (!m) return { w: 1, h: 1 };
+    const w = Number(m[1]);
+    const h = Number(m[2]);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return { w: 1, h: 1 };
+    return { w, h };
+  };
+
+  const getTileStyle = (size?: string) => {
+    const { w, h } = getAspect(size);
+    // Cap overall visual size similar to Higgsfield reference:
+    // - Max width ~350px
+    // - Max height ~600px (so 9:16 stays around ~337x600)
+    const maxWidthByHeight = 600 * (w / h);
+    const maxWidth = Math.max(220, Math.min(350, maxWidthByHeight));
+    return {
+      aspectRatio: `${w} / ${h}`,
+      maxWidth: `${Math.round(maxWidth)}px`,
+      width: "100%",
+    } as const;
+  };
+
+  const getAspectRatioStyle = (size?: string) => {
+    const { w, h } = getAspect(size);
+    return { aspectRatio: `${w} / ${h}` } as const;
+  };
 
   const handleDownload = async (image: GenerationResult) => {
     try {
       const response = await fetch(image.url);
       const blob = await response.blob();
+      const mime = String(blob.type || "").toLowerCase();
+      const preferred = String((image as any)?.settings?.outputFormat || "").toLowerCase();
+      const ext =
+        mime.includes("png") ? "png" :
+        mime.includes("webp") ? "webp" :
+        mime.includes("jpeg") || mime.includes("jpg") ? "jpg" :
+        preferred === "webp" ? "webp" :
+        preferred === "jpg" ? "jpg" :
+        "png";
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `lensroom-${image.id}.png`;
+      a.download = `lensroom-${image.id}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -67,7 +115,11 @@ export function ImageGalleryMasonry({
   };
 
   const handleZoom = (image: GenerationResult) => {
-    // Open in new tab for full screen view
+    // Prefer in-app viewer if provided
+    if (onImageClick) {
+      onImageClick(image);
+      return;
+    }
     window.open(image.url, '_blank');
   };
 
@@ -101,10 +153,10 @@ export function ImageGalleryMasonry({
             <ZoomIn className="w-10 h-10 text-[#A1A1AA]" />
           </div>
           <h3 className="text-lg font-medium text-white mb-2">
-            Начните создавать
+            {emptyTitle || "Начните создавать"}
           </h3>
           <p className="text-sm text-[#A1A1AA]">
-            Введите описание изображения и нажмите "Сгенерировать"
+            {emptyDescription || 'Введите описание изображения и нажмите "Сгенерировать"'}
           </p>
         </div>
       </div>
@@ -112,53 +164,48 @@ export function ImageGalleryMasonry({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
-      {/* Masonry Grid using CSS Columns - сохраняет aspect ratio каждого изображения */}
-      <div 
-        className="masonry-grid"
-        style={{
-          columnCount: 'auto',
-          columnFill: 'balance',
-          columnGap: '16px',
-          // Responsive columns
-          ...(typeof window !== 'undefined' && {
-            columnCount: window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4
-          })
-        }}
-      >
-        {isGenerating && renderSkeletons()}
-        
-        {images.map((image) => {
-          const isDemo = image.id.startsWith('demo-');
-          
-          return (
-          <div
-            key={image.id}
-            className="break-inside-avoid mb-4"
-            onMouseEnter={() => setHoveredId(image.id)}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            <div className="relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02]">
-              {/* Image - сохраняет оригинальное соотношение сторон */}
-              <div 
-                className="w-full h-auto"
-                onClick={() => onImageClick?.(image)}
-                style={{ display: 'block' }}
+    <div className="flex-1 overflow-y-auto px-2 md:px-3 py-2">
+      {layout === 'grid' ? (
+        <div
+          className="grid gap-1 md:gap-2"
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 350px))",
+            justifyContent: "center",
+          }}
+        >
+          {isGenerating && renderSkeletons()}
+          {images.map((image) => {
+            const isDemo = image.id.startsWith('demo-');
+            return (
+              <div
+                key={image.id}
+                className="justify-self-center w-full"
+                style={{ maxWidth: getTileStyle(image.settings?.size).maxWidth }}
+                onMouseEnter={() => setHoveredId(image.id)}
+                onMouseLeave={() => setHoveredId(null)}
               >
-                {/* Show skeleton loader for pending images */}
-                {image.status === 'pending' ? (
-                  <div className="w-full aspect-square bg-[#27272A] animate-pulse flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
+                <div className={cardClassName}>
+                  <div
+                    className="relative w-full overflow-hidden"
+                    onClick={() => onImageClick?.(image)}
+                    style={getTileStyle(image.settings?.size)}
+                  >
+                    {image.status === 'pending' ? (
+                      <>
+                        <div className="absolute inset-0 bg-[#27272A] animate-pulse" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
+                        </div>
+                      </>
+                    ) : (
+                      <OptimizedImage
+                        src={image.url}
+                        alt={image.prompt}
+                        className="absolute inset-0"
+                        priority={false}
+                      />
+                    )}
                   </div>
-                ) : (
-                  <OptimizedImage
-                    src={image.url}
-                    alt={image.prompt}
-                    className="w-full h-auto"
-                    priority={false}
-                  />
-                )}
-              </div>
               
               {/* Demo Badge */}
               {isDemo && (
@@ -169,10 +216,10 @@ export function ImageGalleryMasonry({
 
               {/* Hover Overlay */}
               {hoveredId === image.id && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity">
+                <div className="absolute inset-0 pointer-events-none">
                   {/* Action Buttons в правом нижнем углу (hide for demo images) */}
                   {!isDemo && (
-                    <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+                    <div className="absolute bottom-3 right-3 flex flex-col gap-2 pointer-events-auto">
                       {/* Скачать */}
                       <button
                         onClick={(e) => {
@@ -236,20 +283,150 @@ export function ImageGalleryMasonry({
                       )}
                     </div>
                   )}
-
-                  {/* Prompt в левом нижнем углу - минималистично */}
-                  <div className="absolute bottom-3 left-3 right-16 max-w-[70%]">
-                    <p className="text-xs text-white drop-shadow-lg line-clamp-2">
-                      {image.prompt}
-                    </p>
-                  </div>
                 </div>
               )}
-            </div>
-          </div>
-          );
-        })}
-      </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Masonry Grid using CSS Columns - сохраняет aspect ratio каждого изображения */
+        <div
+          className="masonry-grid"
+          style={{
+            columnCount: 'auto',
+            columnFill: 'balance',
+            columnGap: '16px',
+            // Responsive columns
+            ...(typeof window !== 'undefined' && {
+              columnCount: window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4
+            })
+          }}
+        >
+          {isGenerating && renderSkeletons()}
+
+          {images.map((image) => {
+            const isDemo = image.id.startsWith('demo-');
+
+            return (
+              <div
+                key={image.id}
+                className="break-inside-avoid mb-4"
+                onMouseEnter={() => setHoveredId(image.id)}
+                onMouseLeave={() => setHoveredId(null)}
+              >
+                <div className={cardClassName}>
+                  {/* Image - сохраняет оригинальное соотношение сторон */}
+                  <div
+                    className="w-full h-auto"
+                    onClick={() => onImageClick?.(image)}
+                    style={{ display: 'block' }}
+                  >
+                    {/* Show skeleton loader for pending images */}
+                    {image.status === 'pending' ? (
+                      <div
+                        className="w-full bg-[#27272A] animate-pulse"
+                        style={getAspectRatioStyle(image.settings?.size)}
+                      >
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
+                        </div>
+                      </div>
+                    ) : (
+                      <OptimizedImage
+                        src={image.url}
+                        alt={image.prompt}
+                        className="w-full h-auto"
+                        priority={false}
+                      />
+                    )}
+                  </div>
+
+                  {/* Demo Badge */}
+                  {isDemo && (
+                    <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#CDFF00] text-black text-xs font-medium">
+                      Пример
+                    </div>
+                  )}
+
+                  {/* Hover Overlay */}
+                  {hoveredId === image.id && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      {/* Action Buttons в правом нижнем углу (hide for demo images) */}
+                      {!isDemo && (
+                        <div className="absolute bottom-3 right-3 flex flex-col gap-2 pointer-events-auto">
+                          {/* Скачать */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(image);
+                            }}
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            title="Скачать"
+                          >
+                            <Download className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                          </button>
+
+                          {/* Копировать ссылку */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyLink(image);
+                            }}
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            title="Копировать ссылку"
+                          >
+                            <Link2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                          </button>
+
+                          {/* Поделиться */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShare(image);
+                            }}
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            title="Поделиться"
+                          >
+                            <Share2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                          </button>
+
+                          {/* Увеличить */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleZoom(image);
+                            }}
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            title="Открыть в полном размере"
+                          >
+                            <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                          </button>
+
+                          {/* Перегенерировать */}
+                          {onRegenerate && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRegenerate(image);
+                              }}
+                              className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                              title="Перегенерировать"
+                            >
+                              <RotateCcw className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <style jsx>{`
         .masonry-grid {

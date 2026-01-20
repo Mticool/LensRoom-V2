@@ -75,12 +75,11 @@ export async function deductCredits(
   userId: string,
   amount: number
 ): Promise<DeductResult> {
-  // Get current balance
-  const balance = await getCreditBalance(supabase, userId);
-
-  if (balance.totalBalance < amount) {
+  const safeAmount = Number(amount) || 0;
+  if (safeAmount <= 0) {
+    const balance = await getCreditBalance(supabase, userId);
     return {
-      success: false,
+      success: true,
       subscriptionStars: balance.subscriptionStars,
       packageStars: balance.packageStars,
       totalBalance: balance.totalBalance,
@@ -89,69 +88,129 @@ export async function deductCredits(
     };
   }
 
-  // Calculate deduction split
-  const fromSubscription = Math.min(balance.subscriptionStars, amount);
-  const fromPackage = amount - fromSubscription;
+  // IMPORTANT: must be safe under concurrency (Studio 4/4 parallel requests).
+  // We implement optimistic CAS updates to avoid race conditions without requiring DB RPCs.
 
-  const newSubscriptionStars = balance.subscriptionStars - fromSubscription;
-  const newPackageStars = balance.packageStars - fromPackage;
-  const newTotal = newSubscriptionStars + newPackageStars;
-
-  // Validate that balance won't go negative (prevent race conditions)
-  if (newTotal < 0) {
-    console.error(`[SplitCredits] Balance would go negative: ${newTotal} (current: ${balance.totalBalance}, deducting: ${amount})`);
-    return {
-      success: false,
-      subscriptionStars: balance.subscriptionStars,
-      packageStars: balance.packageStars,
-      totalBalance: balance.totalBalance,
-      deductedFromSubscription: 0,
-      deductedFromPackage: 0,
-    };
-  }
-
-  // Update database
-  const { error } = await supabase
-    .from('credits')
-    .update({
-      subscription_stars: newSubscriptionStars,
-      package_stars: newPackageStars,
-      amount: newTotal, // Keep legacy column in sync
+  // Best-effort: ensure credits row exists (do not overwrite if it already exists).
+  try {
+    const { error: insErr } = await supabase.from('credits').insert({
+      user_id: userId,
+      subscription_stars: 0,
+      package_stars: 0,
+      amount: 0,
       updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('[SplitCredits] Deduct error:', error);
-    return {
-      success: false,
-      subscriptionStars: balance.subscriptionStars,
-      packageStars: balance.packageStars,
-      totalBalance: balance.totalBalance,
-      deductedFromSubscription: 0,
-      deductedFromPackage: 0,
-    };
+    } as any);
+    // Ignore duplicates
+    if (insErr && String((insErr as any).code || '') !== '23505') {
+      // If insert fails for another reason, continue to reads (getCreditBalance will handle).
+      console.error('[SplitCredits] ensure credits row insert error:', insErr);
+    }
+  } catch {
+    // ignore
   }
 
-  // Audit log
-  if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
-    console.log('[⭐ SPLIT] Deduction:', JSON.stringify({
-      userId,
-      amount,
-      fromSubscription,
-      fromPackage,
-      before: { sub: balance.subscriptionStars, pkg: balance.packageStars },
-      after: { sub: newSubscriptionStars, pkg: newPackageStars },
-    }));
+  const maxAttempts = 10;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const balanceBefore = await getCreditBalance(supabase, userId);
+    if (balanceBefore.totalBalance < safeAmount) {
+      return {
+        success: false,
+        subscriptionStars: balanceBefore.subscriptionStars,
+        packageStars: balanceBefore.packageStars,
+        totalBalance: balanceBefore.totalBalance,
+        deductedFromSubscription: 0,
+        deductedFromPackage: 0,
+      };
+    }
+
+    const fromSubscription = Math.min(balanceBefore.subscriptionStars, safeAmount);
+    const fromPackage = safeAmount - fromSubscription;
+    const newSubscriptionStars = balanceBefore.subscriptionStars - fromSubscription;
+    const newPackageStars = balanceBefore.packageStars - fromPackage;
+    const newTotal = newSubscriptionStars + newPackageStars;
+
+    if (newTotal < 0) {
+      console.error(
+        `[SplitCredits] Balance would go negative: ${newTotal} (current: ${balanceBefore.totalBalance}, deducting: ${safeAmount})`
+      );
+      return {
+        success: false,
+        subscriptionStars: balanceBefore.subscriptionStars,
+        packageStars: balanceBefore.packageStars,
+        totalBalance: balanceBefore.totalBalance,
+        deductedFromSubscription: 0,
+        deductedFromPackage: 0,
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('credits')
+      .update({
+        subscription_stars: newSubscriptionStars,
+        package_stars: newPackageStars,
+        amount: newTotal, // keep legacy column in sync
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      // CAS: only update if no other concurrent update happened
+      .eq('subscription_stars', balanceBefore.subscriptionStars)
+      .eq('package_stars', balanceBefore.packageStars)
+      .select('subscription_stars,package_stars,amount');
+
+    if (error) {
+      console.error('[SplitCredits] Deduct error (cas):', error);
+      return {
+        success: false,
+        subscriptionStars: balanceBefore.subscriptionStars,
+        packageStars: balanceBefore.packageStars,
+        totalBalance: balanceBefore.totalBalance,
+        deductedFromSubscription: 0,
+        deductedFromPackage: 0,
+      };
+    }
+
+    const updatedRow = Array.isArray(data) ? (data[0] as any) : (data as any);
+    if (updatedRow) {
+      const updatedSub = Number(updatedRow.subscription_stars ?? 0) || 0;
+      const updatedPkg = Number(updatedRow.package_stars ?? 0) || 0;
+      const updatedTotal = updatedSub + updatedPkg;
+
+      if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
+        console.log('[⭐ SPLIT] Deduction (cas):', JSON.stringify({
+          userId,
+          amount: safeAmount,
+          fromSubscription,
+          fromPackage,
+          before: { sub: balanceBefore.subscriptionStars, pkg: balanceBefore.packageStars },
+          after: { sub: updatedSub, pkg: updatedPkg },
+          attempt,
+        }));
+      }
+
+      return {
+        success: true,
+        subscriptionStars: updatedSub,
+        packageStars: updatedPkg,
+        totalBalance: updatedTotal,
+        deductedFromSubscription: fromSubscription,
+        deductedFromPackage: fromPackage,
+      };
+    }
+
+    // If we updated 0 rows, a concurrent update won. Retry.
+    if (attempt === maxAttempts) {
+      console.error('[SplitCredits] CAS retry exhausted');
+    }
   }
 
+  const finalBalance = await getCreditBalance(supabase, userId);
   return {
-    success: true,
-    subscriptionStars: newSubscriptionStars,
-    packageStars: newPackageStars,
-    totalBalance: newTotal,
-    deductedFromSubscription: fromSubscription,
-    deductedFromPackage: fromPackage,
+    success: false,
+    subscriptionStars: finalBalance.subscriptionStars,
+    packageStars: finalBalance.packageStars,
+    totalBalance: finalBalance.totalBalance,
+    deductedFromSubscription: 0,
+    deductedFromPackage: 0,
   };
 }
 

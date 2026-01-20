@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       quality,
       resolution,
       audio, // ignored: we always enable sound when model supports it
+      soundPreset, // WAN sound presets (string)
       variants = 1,
       aspectRatio: aspectRatioFromBody,
       negativePrompt,
@@ -50,13 +51,21 @@ export async function POST(request: NextRequest) {
       startImage,
       endImage,
       referenceVideo, // For motion control: video with movements to transfer
+      videoUrl: v2vVideoUrl, // For WAN v2v: reference video URL
       videoDuration, // Duration of reference video in seconds
       autoTrim = true, // Auto-trim videos > 30s
+      keepAudio, // For Kling O1 Edit (FAL): keep original audio
       shots, // For storyboard mode
     } = body;
     
+    // Normalize aspect ratio: UI may send "auto" which should mean "use model default"
+    const normalizedAspectFromBody =
+      typeof aspectRatioFromBody === "string" && aspectRatioFromBody.trim() === "auto"
+        ? undefined
+        : aspectRatioFromBody;
+
     // Resolve aspect ratio with model-specific default
-    const aspectRatio = resolveVideoAspectRatio(aspectRatioFromBody, model);
+    const aspectRatio = resolveVideoAspectRatio(normalizedAspectFromBody, model);
     logVideoAspectRatioResolution(aspectRatioFromBody, aspectRatio, model, 'Video');
 
     if (!prompt && mode !== 'storyboard') {
@@ -84,8 +93,77 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate modelVariant (if provided)
+    const activeVariant = modelVariant && Array.isArray(modelInfo.modelVariants)
+      ? modelInfo.modelVariants.find((v) => v.id === modelVariant) || null
+      : null;
+    if (modelVariant && Array.isArray(modelInfo.modelVariants) && !activeVariant) {
+      return NextResponse.json(
+        { error: `Invalid modelVariant '${modelVariant}' for ${modelInfo.id}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate duration/resolution/quality/aspect vs model capabilities (best-effort)
+    const allowedDurations =
+      typeof modelInfo.fixedDuration === "number"
+        ? [String(modelInfo.fixedDuration)]
+        : (activeVariant?.durationOptions || modelInfo.durationOptions || []).map((d) => String(d));
+    if (duration !== undefined && allowedDurations.length && !allowedDurations.includes(String(duration))) {
+      return NextResponse.json(
+        { error: `Duration '${duration}' is not supported by ${modelInfo.name}. Supported: ${allowedDurations.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const allowedResolutions = (activeVariant?.resolutionOptions || modelInfo.resolutionOptions || []).map(String);
+    if (resolution && allowedResolutions.length && !allowedResolutions.includes(String(resolution))) {
+      return NextResponse.json(
+        { error: `Resolution '${resolution}' is not supported by ${modelInfo.name}. Supported: ${allowedResolutions.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const allowedQualities = (modelInfo.qualityOptions || []).map(String);
+    if (quality && allowedQualities.length && !allowedQualities.includes(String(quality))) {
+      return NextResponse.json(
+        { error: `Quality '${quality}' is not supported by ${modelInfo.name}. Supported: ${allowedQualities.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const allowedAspects = (activeVariant?.aspectRatios || modelInfo.aspectRatios || []).map(String);
+    if (normalizedAspectFromBody && allowedAspects.length && !allowedAspects.includes(String(normalizedAspectFromBody))) {
+      return NextResponse.json(
+        { error: `Aspect ratio '${normalizedAspectFromBody}' is not supported by ${modelInfo.name}. Supported: ${allowedAspects.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Require start image for i2v/start_end (for models that expose those modes)
+    if ((mode === "i2v" || mode === "start_end") && !referenceImage && !startImage) {
+      return NextResponse.json(
+        { error: "Start image is required for this mode" },
+        { status: 400 }
+      );
+    }
+
     // Calculate credit cost using pricing system
-    const alwaysSound = !!modelInfo.supportsAudio;
+    const wanSoundPreset = typeof soundPreset === 'string' ? soundPreset.trim() : '';
+    const soundEnabled =
+      modelInfo.supportsAudio ? (typeof audio === 'boolean' ? audio : true) : false;
+    const audioForParams = model === "wan" ? !!wanSoundPreset : soundEnabled;
+
+    // Validate WAN sound preset (if provided)
+    if (model === "wan" && wanSoundPreset) {
+      const allowedSound = (activeVariant?.soundOptions || []).map(String);
+      if (allowedSound.length && !allowedSound.includes(wanSoundPreset)) {
+        return NextResponse.json(
+          { error: `Invalid soundPreset '${wanSoundPreset}' for WAN. Supported: ${allowedSound.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
     
     // Special pricing for Motion Control (per-second dynamic pricing)
     let creditCost: number;
@@ -133,7 +211,7 @@ export async function POST(request: NextRequest) {
         duration: duration || modelInfo.fixedDuration || 5,
         videoQuality: quality,
         resolution: resolution || undefined, // For WAN per-second pricing
-        audio: alwaysSound,
+        audio: model === 'wan' ? !!wanSoundPreset : soundEnabled,
         modelVariant: modelVariant || undefined,
         variants,
       });
@@ -221,7 +299,7 @@ export async function POST(request: NextRequest) {
           }),
           quality: quality || 'default',
           resolution: resolution || 'default',
-          audio: !!modelInfo.supportsAudio,
+          audio: soundEnabled,
           priceStars: creditCost,
           deductedFromSubscription: deductResult.deductedFromSubscription,
           deductedFromPackage: deductResult.deductedFromPackage,
@@ -260,6 +338,19 @@ export async function POST(request: NextRequest) {
           model_name: modelInfo.name,
           prompt: prompt,
           negative_prompt: negativePrompt,
+          aspect_ratio: aspectRatio,
+          params: {
+            mode,
+            duration: model === "kling-motion-control" ? (effectiveDuration ?? videoDuration ?? null) : (duration ?? modelInfo.fixedDuration ?? null),
+            quality: quality ?? null,
+            resolution: resolution ?? null,
+            modelVariant: modelVariant ?? null,
+            audio: audioForParams,
+            soundPreset: model === "wan" ? (wanSoundPreset || null) : null,
+            videoDuration: videoDuration ?? null,
+            autoTrim: typeof autoTrim === "boolean" ? autoTrim : null,
+            keepAudio: typeof keepAudio === "boolean" ? keepAudio : null,
+          },
           credits_used: creditCost,
           status: "queued",
         })
@@ -321,9 +412,16 @@ export async function POST(request: NextRequest) {
       // data:image/png;base64,xxxx OR data:video/mp4;base64,xxxx
       const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
       if (!match) return dataUrl; // already a URL
-      const mime = match[1];
+      let mime = match[1];
       const b64 = match[2];
-      const buffer = Buffer.from(b64, 'base64');
+      let buffer: Buffer = Buffer.from(b64, 'base64') as unknown as Buffer;
+      
+      // Normalize HEIC/HEIF images to JPEG for compatibility (providers rarely accept HEIC URLs).
+      if (mime.includes('heic') || mime.includes('heif')) {
+        const sharp = (await import('sharp')).default;
+        buffer = (await sharp(buffer).jpeg({ quality: 92 }).toBuffer()) as unknown as Buffer;
+        mime = 'image/jpeg';
+      }
       // Determine extension based on mime type
       let ext = 'bin';
       if (mime.includes('png')) ext = 'png';
@@ -385,18 +483,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Handle V2V reference video URL (WAN 2.6)
+    if (mode === 'v2v') {
+      if (!v2vVideoUrl) {
+        return NextResponse.json(
+          { error: 'Reference video URL is required for video-to-video mode' },
+          { status: 400 }
+        );
+      }
+      // Accept either direct URL or data URL
+      videoUrl = await uploadDataUrlToStorage(v2vVideoUrl, 'v2v_ref');
+    }
+
     // Select correct API model ID based on mode and variant
     // If modelVariant is specified (for unified models like Kling), use variant's apiId
     let apiModelId = modelInfo.apiId;
     if (modelVariant && modelInfo.modelVariants) {
       const variant = modelInfo.modelVariants.find(v => v.id === modelVariant);
       if (variant) {
-        if ((mode === 'i2v' || mode === 'start_end') && variant.apiIdI2v) {
+        if (mode === 'v2v' && variant.apiIdV2v) {
+          apiModelId = variant.apiIdV2v;
+        } else if ((mode === 'i2v' || mode === 'start_end') && variant.apiIdI2v) {
           apiModelId = variant.apiIdI2v;
         } else {
           apiModelId = variant.apiId;
         }
       }
+    } else if (mode === 'v2v' && modelInfo.apiIdV2v) {
+      apiModelId = modelInfo.apiIdV2v;
     } else if ((mode === 'i2v' || mode === 'start_end') && modelInfo.apiIdI2v) {
       apiModelId = modelInfo.apiIdI2v;
     }
@@ -459,7 +573,7 @@ export async function POST(request: NextRequest) {
         const laozhangClient = getLaoZhangClient();
         
         // Select the right LaoZhang model based on aspect ratio and quality
-        const laozhangModelId = getLaoZhangVideoModelId(model, aspectRatio, quality);
+        const laozhangModelId = getLaoZhangVideoModelId(model, aspectRatio, quality, duration);
         
         // Prepare image URLs for i2v / start_end modes
         let startImageUrlForLaoZhang: string | undefined;
@@ -654,7 +768,8 @@ export async function POST(request: NextRequest) {
           
           const falResponse = await falClient.submitKlingO1ImageToVideo({
             prompt: fullPrompt,
-            image_url: startImageUrl,
+            start_image_url: startImageUrl,
+            end_image_url: endImageUrl || undefined,
             duration: String(durationSec) as '5' | '10',
             aspect_ratio: aspectRatio as '16:9' | '9:16' | '1:1' || '16:9',
           });
@@ -669,7 +784,7 @@ export async function POST(request: NextRequest) {
         }
         // Kling O1 Video-to-Video Edit
         else if (model === 'kling-o1-edit') {
-          if (!referenceImage) { // referenceImage используется как video_url
+          if (!v2vVideoUrl) {
             return NextResponse.json(
               { error: 'Video URL is required for Kling O1 Edit' },
               { status: 400 }
@@ -677,11 +792,11 @@ export async function POST(request: NextRequest) {
           }
           
           // Upload video/images if they are data URLs
-          let videoUrl = referenceImage;
+          let videoUrl = v2vVideoUrl;
           let imageUrls = startImage ? [startImage] : undefined;
           
-          if (referenceImage.startsWith('data:')) {
-            videoUrl = await uploadDataUrlToStorage(referenceImage, 'video');
+          if (v2vVideoUrl.startsWith('data:')) {
+            videoUrl = await uploadDataUrlToStorage(v2vVideoUrl, 'video');
           }
           
           if (startImage && startImage.startsWith('data:')) {
@@ -693,6 +808,7 @@ export async function POST(request: NextRequest) {
             prompt: fullPrompt,
             video_url: videoUrl,
             image_urls: imageUrls,
+            keep_audio: typeof keepAudio === "boolean" ? keepAudio : true,
           });
           
           response = {
@@ -738,7 +854,7 @@ export async function POST(request: NextRequest) {
           videoUrl: videoUrl, // For motion control
           duration: duration || modelInfo.fixedDuration || 5,
           aspectRatio: aspectRatio,
-          sound: alwaysSound,
+          sound: model === 'wan' ? (wanSoundPreset || false) : (model === 'kling-motion-control' ? false : soundEnabled),
           mode: model === 'kling-motion-control' ? 'motion_control' : mode,
           resolution: resolution,
           quality: quality,

@@ -345,7 +345,7 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
   const st = String(generation.status || "").toLowerCase();
   
   // Check if preview/poster needed for already-completed generations
-  const isTerminalStatus = st === "completed" || st === "success" || st === "failed";
+  const isTerminalStatus = st === "completed" || st === "success" || st === "failed" || st === "cancelled";
   
   if (isTerminalStatus) {
     const isPhoto = String(generation.type || "").toLowerCase() === "photo";
@@ -366,7 +366,7 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     
     console.log(`[Sync DEBUG] status=${st}, type=${generation.type}, preview_status=${previewStatus}, needsPreview=${needsPreview}, needsPoster=${needsPoster}, sourceAsset=${sourceAssetUrl ? 'found' : 'none'}`);
     
-    if ((needsPreview || needsPoster) && st !== "failed") {
+    if ((needsPreview || needsPoster) && st !== "failed" && st !== "cancelled") {
       if (!sourceAssetUrl) {
         console.warn(`[Preview] ⚠️ generationId=${generation.id} needs preview but no asset URL found`);
         await safeUpdateGeneration(supabase, generation.id, {
@@ -393,7 +393,7 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     
     return { 
       ok: true, 
-      status: st === "failed" ? "failed" : "completed", 
+      status: st === "cancelled" ? "cancelled" : (st === "failed" ? "failed" : "completed"),
       assetUrl: sourceAssetUrl || null 
     };
   }

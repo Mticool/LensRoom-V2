@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { validateWebAppData } from '@/lib/telegram/bot-client';
+import { createSessionToken, setSessionCookie } from '@/lib/telegram/auth';
+import { getCreditBalance } from '@/lib/credits/split-credits';
 
 const REGISTRATION_BONUS = 50;
 
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
     // Check if telegram profile exists
     const { data: existingProfile } = await supabase
       .from('telegram_profiles')
-      .select('id, auth_user_id, first_name, telegram_username')
+      .select('id, auth_user_id, first_name, telegram_username, photo_url, is_admin, role')
       .eq('telegram_id', telegramUser.id)
       .single();
 
@@ -178,15 +180,31 @@ export async function POST(request: NextRequest) {
     let packageStars = 0;
 
     if (authUserId) {
-      const { data: credits } = await supabase
-        .from('credits')
-        .select('amount, subscription_stars, package_stars')
-        .eq('user_id', authUserId)
-        .single();
+      try {
+        const creditBalance = await getCreditBalance(supabase, authUserId);
+        balance = creditBalance.totalBalance;
+        subscriptionStars = creditBalance.subscriptionStars;
+        packageStars = creditBalance.packageStars;
+      } catch {
+        // ignore
+      }
+    }
 
-      balance = credits?.amount || 0;
-      subscriptionStars = credits?.subscription_stars || 0;
-      packageStars = credits?.package_stars || 0;
+    // Set lr_session cookie so the normal web app (and /api/auth/me) sees the user as authenticated.
+    // This is critical for enabling the Generate button on /create.
+    try {
+      const token = await createSessionToken({
+        profileId: profileId || existingProfile?.id || '',
+        telegramId: telegramUser.id,
+        username: existingProfile?.telegram_username || telegramUser.username || null,
+        firstName: existingProfile?.first_name || telegramUser.first_name || null,
+        photoUrl: (existingProfile as any)?.photo_url || null,
+        isAdmin: !!(existingProfile as any)?.is_admin || (existingProfile as any)?.role === 'admin',
+        role: ((existingProfile as any)?.role as any) || 'user',
+      });
+      await setSessionCookie(token);
+    } catch (e) {
+      console.warn('[TG MiniApp Auth] Failed to set session cookie (ignored):', e);
     }
 
     return NextResponse.json({
@@ -233,7 +251,8 @@ export async function GET(request: NextRequest) {
       first_name,
       last_name,
       username,
-      user_id
+      user_id,
+      auth_user_id
     `)
     .eq('telegram_id', parseInt(telegramId))
     .single();
@@ -246,7 +265,7 @@ export async function GET(request: NextRequest) {
   const { data: credits } = await supabase
     .from('credits')
     .select('amount, subscription_stars, package_stars')
-    .eq('user_id', profile.id)
+    .eq('user_id', (profile as any).auth_user_id || (profile as any).user_id || profile.id)
     .single();
 
   return NextResponse.json({

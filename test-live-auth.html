@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>🔍 Test Live Auth - LensRoom</title>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0F0F10;
+      color: #fff;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #00D9FF, #CDFF00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      color: #A1A1AA;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .section {
+      background: #1A1A1C;
+      border: 1px solid #3A3A3C;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status {
+      padding: 16px;
+      border-radius: 8px;
+      margin: 12px 0;
+      border-left: 4px solid;
+    }
+    .status.success {
+      background: rgba(0, 217, 255, 0.1);
+      border-color: #00D9FF;
+    }
+    .status.error {
+      background: rgba(255, 0, 0, 0.1);
+      border-color: #FF0000;
+    }
+    .status.warning {
+      background: rgba(255, 165, 0, 0.1);
+      border-color: #FFA500;
+    }
+    .status.info {
+      background: rgba(205, 255, 0, 0.1);
+      border-color: #CDFF00;
+    }
+    .status strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    .status pre {
+      background: #0F0F10;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+    button {
+      background: #00D9FF;
+      color: #0F0F10;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #00BFDD;
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      background: #3A3A3C;
+      color: #6B6B6E;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #3A3A3C;
+      border-top-color: #00D9FF;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #CDFF00;
+      color: #0F0F10;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .summary-card {
+      background: #0F0F10;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .summary-card .value {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 8px 0;
+    }
+    .summary-card .label {
+      font-size: 12px;
+      color: #A1A1AA;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Live Auth Check</h1>
+    <p class="subtitle">Диагностика авторизации на lensroom.ru в реальном времени</p>
+
+    <!-- Summary Dashboard -->
+    <div class="section">
+      <h2>📊 Статус</h2>
+      <div class="summary" id="summary">
+        <div class="summary-card">
+          <div class="label">Авторизация</div>
+          <div class="value" id="auth-status">⏳</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Баланс</div>
+          <div class="value" id="balance-status">⏳</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Кнопка Generate</div>
+          <div class="value" id="button-status">⏳</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test 1: Auth Check -->
+    <div class="section">
+      <h2>🔐 1. Проверка Авторизации</h2>
+      <div class="button-group">
+        <button onclick="checkAuth()">Проверить /api/auth/me</button>
+        <button onclick="checkLocalStorage()">Проверить localStorage</button>
+        <button onclick="checkCookies()">Проверить Cookies</button>
+      </div>
+      <div id="auth-result"></div>
+    </div>
+
+    <!-- Test 2: Credits Check -->
+    <div class="section">
+      <h2>💰 2. Проверка Баланса</h2>
+      <div class="button-group">
+        <button onclick="checkCredits()">Проверить /api/credits/balance</button>
+      </div>
+      <div id="credits-result"></div>
+    </div>
+
+    <!-- Test 3: Generate Button Logic -->
+    <div class="section">
+      <h2>🎨 3. Логика Кнопки Generate</h2>
+      <div class="button-group">
+        <button onclick="checkGenerateButton()">Проверить Условия</button>
+      </div>
+      <div id="button-result"></div>
+    </div>
+
+    <!-- Test 4: Fix Actions -->
+    <div class="section">
+      <h2>🔧 4. Действия для Исправления</h2>
+      <div id="fix-actions"></div>
+    </div>
+  </div>
+
+  <script>
+    let authData = null;
+    let creditsData = null;
+
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        runAllTests();
+      }, 500);
+    });
+
+    async function runAllTests() {
+      await checkAuth();
+      await checkCredits();
+      await checkGenerateButton();
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const authStatus = document.getElementById('auth-status');
+      const balanceStatus = document.getElementById('balance-status');
+      const buttonStatus = document.getElementById('button-status');
+
+      // Auth Status
+      if (authData && (authData.user || authData.telegramId)) {
+        authStatus.textContent = '✅';
+        authStatus.style.color = '#00D9FF';
+      } else {
+        authStatus.textContent = '❌';
+        authStatus.style.color = '#FF0000';
+      }
+
+      // Balance Status
+      if (creditsData && creditsData.balance > 0) {
+        balanceStatus.textContent = creditsData.balance + '⭐';
+        balanceStatus.style.color = '#CDFF00';
+      } else {
+        balanceStatus.textContent = '0⭐';
+        balanceStatus.style.color = '#FF0000';
+      }
+
+      // Button Status
+      const isAuthenticated = authData && (authData.user || authData.telegramId);
+      const hasCredits = creditsData && creditsData.balance >= 30;
+      const canGenerate = isAuthenticated && hasCredits;
+
+      if (canGenerate) {
+        buttonStatus.textContent = '✅';
+        buttonStatus.style.color = '#00D9FF';
+      } else {
+        buttonStatus.textContent = '❌';
+        buttonStatus.style.color = '#FF0000';
+      }
+    }
+
+    async function checkAuth() {
+      const result = document.getElementById('auth-result');
+      result.innerHTML = '<div class="status info"><span class="loading"></span> Проверяем...</div>';
+
+      try {
+        const response = await fetch('https://lensroom.ru/api/auth/me', {
+          credentials: 'include'
+        });
+        authData = await response.json();
+
+        let html = '';
+
+        if (response.ok && (authData.user || authData.telegramId)) {
+          html += `<div class="status success">
+            <strong>✅ Авторизация OK</strong>
+            <pre>${JSON.stringify(authData, null, 2)}</pre>
+          </div>`;
+        } else {
+          html += `<div class="status error">
+            <strong>❌ Не авторизован</strong>
+            <p>Сервер вернул: <code>${response.status} ${response.statusText}</code></p>
+            <pre>${JSON.stringify(authData, null, 2)}</pre>
+          </div>`;
+        }
+
+        result.innerHTML = html;
+      } catch (error) {
+        result.innerHTML = `<div class="status error">
+          <strong>❌ Ошибка запроса</strong>
+          <p>${error.message}</p>
+        </div>`;
+      }
+
+      updateSummary();
+    }
+
+    function checkLocalStorage() {
+      const result = document.getElementById('auth-result');
+      
+      try {
+        const lensroomUser = localStorage.getItem('lensroom-user');
+        
+        let html = '';
+        
+        if (lensroomUser) {
+          const user = JSON.parse(lensroomUser);
+          html += `<div class="status success">
+            <strong>✅ localStorage найден</strong>
+            <pre>${JSON.stringify(user, null, 2)}</pre>
+          </div>`;
+        } else {
+          html += `<div class="status error">
+            <strong>❌ localStorage пуст</strong>
+            <p>Ключ 'lensroom-user' не найден</p>
+          </div>`;
+        }
+
+        result.innerHTML = html;
+      } catch (error) {
+        result.innerHTML = `<div class="status error">
+          <strong>❌ Ошибка:</strong> ${error.message}
+        </div>`;
+      }
+    }
+
+    function checkCookies() {
+      const result = document.getElementById('auth-result');
+      
+      const cookies = document.cookie.split(';').map(c => c.trim());
+      const lrSession = cookies.find(c => c.startsWith('lr_session='));
+      
+      let html = '';
+      
+      if (lrSession) {
+        html += `<div class="status success">
+          <strong>✅ Cookie lr_session найден</strong>
+          <pre>${lrSession.substring(0, 100)}...</pre>
+        </div>`;
+      } else {
+        html += `<div class="status error">
+          <strong>❌ Cookie lr_session отсутствует</strong>
+          <p>Telegram авторизация не активна</p>
+          <p><strong>Все cookies:</strong></p>
+          <pre>${cookies.join('\n')}</pre>
+        </div>`;
+      }
+
+      result.innerHTML = html;
+    }
+
+    async function checkCredits() {
+      const result = document.getElementById('credits-result');
+      result.innerHTML = '<div class="status info"><span class="loading"></span> Проверяем...</div>';
+
+      try {
+        const response = await fetch('https://lensroom.ru/api/credits/balance', {
+          credentials: 'include'
+        });
+        creditsData = await response.json();
+
+        let html = '';
+
+        if (response.ok && creditsData.balance !== undefined) {
+          const balance = creditsData.balance;
+          const statusClass = balance >= 30 ? 'success' : (balance > 0 ? 'warning' : 'error');
+          const icon = balance >= 30 ? '✅' : (balance > 0 ? '⚠️' : '❌');
+          
+          html += `<div class="status ${statusClass}">
+            <strong>${icon} Баланс: ${balance}⭐</strong>
+            <p>Минимум для генерации: 30⭐ (1K качество)</p>
+            <pre>${JSON.stringify(creditsData, null, 2)}</pre>
+          </div>`;
+        } else {
+          html += `<div class="status error">
+            <strong>❌ Не удалось получить баланс</strong>
+            <p>Ответ: <code>${response.status} ${response.statusText}</code></p>
+            <pre>${JSON.stringify(creditsData, null, 2)}</pre>
+          </div>`;
+        }
+
+        result.innerHTML = html;
+      } catch (error) {
+        result.innerHTML = `<div class="status error">
+          <strong>❌ Ошибка запроса:</strong> ${error.message}
+        </div>`;
+      }
+
+      updateSummary();
+    }
+
+    function checkGenerateButton() {
+      const result = document.getElementById('button-result');
+      const fixActions = document.getElementById('fix-actions');
+
+      const isAuthenticated = authData && (authData.user || authData.telegramId);
+      const hasCredits = creditsData && creditsData.balance >= 30;
+      const balance = creditsData?.balance || 0;
+
+      let html = '<div class="status info"><strong>📋 Условия активации кнопки Generate:</strong></div>';
+
+      // Check 1: Authentication
+      if (isAuthenticated) {
+        html += `<div class="status success">
+          <strong>✅ 1. Авторизация: OK</strong>
+          <p>isAuthenticated = true</p>
+        </div>`;
+      } else {
+        html += `<div class="status error">
+          <strong>❌ 1. Авторизация: FAILED</strong>
+          <p>isAuthenticated = false</p>
+          <p><strong>Причина:</strong> /api/auth/me не вернул user</p>
+        </div>`;
+      }
+
+      // Check 2: Credits
+      if (hasCredits) {
+        html += `<div class="status success">
+          <strong>✅ 2. Баланс: OK</strong>
+          <p>credits (${balance}⭐) >= estimatedCost (30⭐)</p>
+        </div>`;
+      } else {
+        html += `<div class="status error">
+          <strong>❌ 2. Баланс: FAILED</strong>
+          <p>credits (${balance}⭐) < estimatedCost (30⭐)</p>
+          <p><strong>Причина:</strong> Недостаточно кредитов</p>
+        </div>`;
+      }
+
+      // Check 3: Prompt (assumed OK)
+      html += `<div class="status success">
+        <strong>✅ 3. Промпт: OK</strong>
+        <p>prompt.trim().length > 0 (должен быть не пустым)</p>
+      </div>`;
+
+      // Final result
+      const canGenerate = isAuthenticated && hasCredits;
+      
+      if (canGenerate) {
+        html += `<div class="status success">
+          <strong>🎉 РЕЗУЛЬТАТ: Кнопка Generate АКТИВНА</strong>
+          <p>Все условия выполнены!</p>
+        </div>`;
+
+        fixActions.innerHTML = `<div class="status success">
+          <strong>✅ Всё работает!</strong>
+          <p>Кнопка Generate должна быть зелёной и активной.</p>
+          <p>Если она всё ещё неактивна:</p>
+          <ol style="margin-left: 20px; margin-top: 10px;">
+            <li>Перезагрузите страницу (Ctrl+R)</li>
+            <li>Очистите кэш (Ctrl+Shift+R)</li>
+            <li>Проверьте промпт (должен быть не пустым)</li>
+          </ol>
+        </div>`;
+      } else {
+        html += `<div class="status error">
+          <strong>❌ РЕЗУЛЬТАТ: Кнопка Generate НЕАКТИВНА</strong>
+          <p>Не выполнены условия выше ☝️</p>
+        </div>`;
+
+        // Fix actions
+        let fixHtml = '';
+        if (!isAuthenticated) {
+          fixHtml += `<div class="status error">
+            <strong>🔧 Действие 1: Авторизуйтесь</strong>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+              <li>Откройте <a href="https://lensroom.ru" style="color: #00D9FF;">https://lensroom.ru</a></li>
+              <li>Нажмите "Войти через Telegram"</li>
+              <li>Авторизуйтесь в Telegram</li>
+              <li>Вернитесь на сайт</li>
+            </ol>
+          </div>`;
+        }
+
+        if (!hasCredits) {
+          fixHtml += `<div class="status warning">
+            <strong>🔧 Действие 2: Пополните баланс</strong>
+            <p>Текущий баланс: ${balance}⭐</p>
+            <p>Необходимо: 30⭐ (минимум)</p>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+              <li>Перейдите в раздел "Тарифы"</li>
+              <li>Выберите пакет звёзд</li>
+              <li>Оплатите через Telegram Stars</li>
+            </ol>
+          </div>`;
+        }
+
+        fixActions.innerHTML = fixHtml;
+      }
+
+      result.innerHTML = html;
+    }
+  </script>
+</body>
+</html>

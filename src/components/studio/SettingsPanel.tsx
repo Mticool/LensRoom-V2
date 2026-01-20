@@ -80,6 +80,10 @@ interface SettingsPanelProps {
   onResolutionChange?: (r: string) => void;
   referenceImage: File | null;
   onReferenceImageChange: (f: File | null) => void;
+  // Kling Motion Control: reference video (file)
+  motionReferenceVideo?: File | null;
+  onMotionReferenceVideoChange?: (f: File | null) => void;
+  motionReferenceVideoDurationSec?: number | null;
   // WAN-specific: Sound presets
   soundPreset?: string;
   onSoundPresetChange?: (s: string) => void;
@@ -106,12 +110,16 @@ export const SettingsPanel = memo(function SettingsPanel({
   onResolutionChange,
   referenceImage,
   onReferenceImageChange,
+  motionReferenceVideo,
+  onMotionReferenceVideoChange,
+  motionReferenceVideoDurationSec,
   soundPreset,
   onSoundPresetChange,
   referenceVideoUrl,
   onReferenceVideoUrlChange,
 }: SettingsPanelProps) {
   const refId = useId();
+  const motionVideoId = useId();
 
   // Check if model has variants (like Kling/WAN)
   const modelConfig = getModelById(model.key);
@@ -121,6 +129,7 @@ export const SettingsPanel = memo(function SettingsPanel({
   // Get current variant config for WAN dynamic filtering
   const isWan = model.key === 'wan';
   const currentVariant = modelVariants.find(v => v.id === modelVariant);
+  const isMotionControl = model.key === "kling-motion-control";
   
   // Dynamic options based on WAN variant
   const effectiveModes = isWan && currentVariant?.modes 
@@ -143,6 +152,7 @@ export const SettingsPanel = memo(function SettingsPanel({
   const showAudio = model.kind === "video" && !!model.supportsAudio && mode !== "storyboard" && !isWan; // Hide audio toggle for WAN (use sound presets instead)
   const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v");
   const showV2vReference = mode === "v2v" && isWan;
+  const showMotionControlVideo = isMotionControl;
 
   return (
     <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
@@ -236,8 +246,8 @@ export const SettingsPanel = memo(function SettingsPanel({
           </div>
         </div>
 
-        {/* Resolution selector for models with resolutionOptions (e.g., WAN) */}
-        {model.kind === "video" && effectiveResolutions.length > 0 && onResolutionChange && (
+        {/* Resolution selector (WAN only; others use quality tiers) */}
+        {isWan && effectiveResolutions.length > 0 && onResolutionChange && (
           <div>
             <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Разрешение</div>
             <div className="flex gap-2 flex-wrap">
@@ -377,6 +387,43 @@ export const SettingsPanel = memo(function SettingsPanel({
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{referenceImage ? referenceImage.name : "Загрузить изображение"}</div>
                   <div className="text-xs text-[var(--muted)]">Используется для i2i / i2v</div>
+                </div>
+              </div>
+            </label>
+          </div>
+        )}
+
+        {/* Motion Control reference video (required) */}
+        {showMotionControlVideo && onMotionReferenceVideoChange && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Референс движения (видео)</div>
+            <label
+              htmlFor={motionVideoId}
+              className={cn(
+                "block rounded-[18px] border border-white/10 bg-[var(--surface2)] overflow-hidden cursor-pointer",
+                "transition-colors hover:border-white/20 motion-reduce:transition-none"
+              )}
+            >
+              <input
+                id={motionVideoId}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => onMotionReferenceVideoChange(e.target.files?.[0] || null)}
+              />
+              <div className="flex items-center gap-3 p-4">
+                <div className="w-12 h-12 rounded-2xl bg-black/30 border border-white/10 flex items-center justify-center overflow-hidden">
+                  <Upload className="w-5 h-5 text-white/70" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">
+                    {motionReferenceVideo ? motionReferenceVideo.name : "Загрузить видео (3–30 сек)"}
+                  </div>
+                  <div className="text-xs text-[var(--muted)]">
+                    {motionReferenceVideoDurationSec
+                      ? `Длительность: ~${Math.round(motionReferenceVideoDurationSec)}с`
+                      : "Нужно для Kling Motion Control"}
+                  </div>
                 </div>
               </div>
             </label>
