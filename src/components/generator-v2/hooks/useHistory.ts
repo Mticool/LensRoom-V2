@@ -35,6 +35,9 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       settings: {
         model: gen.model_id || '',
         size: normalizeAspectRatio(gen.aspect_ratio),
+        quality: gen?.params?.quality || undefined,
+        outputFormat: gen?.params?.outputFormat || undefined,
+        negativePrompt: gen.negative_prompt || undefined,
       } as GenerationSettings,
       timestamp: new Date(gen.created_at).getTime(),
       previewUrl: gen.preview_url || gen.result_urls?.[0] || '',

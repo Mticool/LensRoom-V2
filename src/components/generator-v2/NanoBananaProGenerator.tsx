@@ -111,6 +111,64 @@ export function NanoBananaProGenerator() {
   // Oldest → newest. New generations should appear at the bottom.
   const allImages = [...history, ...images, ...demoImages];
 
+  function extractGenerationUuid(rawId: string | undefined | null): string | null {
+    const id = String(rawId || "").trim();
+    if (!id) return null;
+    // Accept `uuid` or `uuid-0` (we suffix local results for uniqueness).
+    const m = id.match(
+      /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:-\d+)?$/i
+    );
+    return m ? m[1] : null;
+  }
+
+  const readBlobAsDataUrl = useCallback(async (blob: Blob): Promise<string> => {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read_failed"));
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  const fetchAsReferenceDataUrl = useCallback(
+    async (img: GenerationResult): Promise<string> => {
+      const genId = extractGenerationUuid(img.id);
+      // Prefer same-origin proxy (avoids CORS).
+      if (genId) {
+        const resp = await fetch(
+          `/api/generations/${encodeURIComponent(genId)}/download?kind=original&proxy=1`,
+          { credentials: "include" }
+        );
+        if (!resp.ok) throw new Error("download_failed");
+        const blob = await resp.blob();
+        return await readBlobAsDataUrl(blob);
+      }
+
+      // Fallback: try direct fetch (may fail on CORS for some providers).
+      if (!img.url) throw new Error("no_url");
+      const resp = await fetch(img.url);
+      if (!resp.ok) throw new Error("fetch_failed");
+      const blob = await resp.blob();
+      return await readBlobAsDataUrl(blob);
+    },
+    [readBlobAsDataUrl]
+  );
+
+  const handleUseAsReference = useCallback(
+    async (img: GenerationResult) => {
+      try {
+        const dataUrl = await fetchAsReferenceDataUrl(img);
+        setReferenceImage(dataUrl);
+        setPrompt(String(img.prompt || ""));
+        if (img.settings?.size) setAspectRatio(String(img.settings.size));
+        toast.success("Фото добавлено как референс");
+      } catch {
+        toast.error("Не удалось загрузить референс");
+      }
+    },
+    [fetchAsReferenceDataUrl]
+  );
+
   // Generate handler
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -177,11 +235,13 @@ export function NanoBananaProGenerator() {
       }
 
       const data = await response.json();
+      const baseGenerationId = String(data.generationId || "");
 
       // Check if results are immediately available (parallel generation)
       if (data.status === 'completed' && data.results && data.results.length > 0) {
         const newImages: GenerationResult[] = data.results.map((result: { url: string }, i: number) => ({
-          id: `${Date.now()}-${i}`,
+          // Keep DB generationId for downloads; add suffix for React list uniqueness.
+          id: `${baseGenerationId || Date.now()}-${i}`,
           url: result.url,
           prompt,
           mode: 'image' as const,
@@ -202,11 +262,11 @@ export function NanoBananaProGenerator() {
         toast.success(`Сгенерировано ${newImages.length} ${newImages.length === 1 ? 'изображение' : 'изображений'}!`);
       } else if (data.jobId) {
         // Poll for results (async generation)
-        await pollJobStatus(data.jobId, pendingImages.map(img => img.id));
+        await pollJobStatus(data.jobId, pendingImages.map(img => img.id), baseGenerationId);
       } else if (data.urls) {
         // Direct URLs (legacy format)
         const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
-          id: `${Date.now()}-${i}`,
+          id: `${baseGenerationId || Date.now()}-${i}`,
           url,
           prompt,
           mode: 'image' as const,
@@ -248,7 +308,7 @@ export function NanoBananaProGenerator() {
   }, [isAuthenticated, prompt, aspectRatio, quality, quantity, negativePrompt, seed, steps, credits, estimatedCost, refreshCredits, refreshHistory]);
 
   // Poll job status
-  const pollJobStatus = async (jobId: string, pendingIds: string[]) => {
+  const pollJobStatus = async (jobId: string, pendingIds: string[], generationId?: string) => {
     const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
     let attempts = 0;
 
@@ -259,7 +319,7 @@ export function NanoBananaProGenerator() {
 
         if (data.status === 'completed' && data.urls) {
           const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
-            id: `${Date.now()}-${i}`,
+            id: `${generationId || Date.now()}-${i}`,
             url,
             prompt,
             mode: 'image' as const,
@@ -350,6 +410,7 @@ export function NanoBananaProGenerator() {
           isGenerating={isGenerating}
           autoScrollToBottom
           onRegenerate={handleRegenerate}
+          onUseAsReference={handleUseAsReference}
           hasMore={hasMore}
           onLoadMore={loadMore}
           isLoadingMore={isLoadingMore}

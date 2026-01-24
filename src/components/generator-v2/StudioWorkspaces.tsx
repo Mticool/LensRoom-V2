@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Copy, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Download, Heart, RotateCcw, Share2, ImagePlus } from "lucide-react";
 
 import { ImageGalleryMasonry } from "@/components/generator-v2/ImageGalleryMasonry";
 import { ControlBarBottom } from "@/components/generator-v2/ControlBarBottom";
@@ -16,6 +16,7 @@ import type { GenerationResult, GenerationSettings } from "@/components/generato
 import { getModelById } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
 import { openExternal } from "@/lib/telegram/webview";
+import { useFavoritesStore } from "@/stores/favorites-store";
 
 function buildSearchParams(
   base: ReadonlyURLSearchParams,
@@ -208,6 +209,7 @@ export function StudioWorkspaces() {
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const [isThreadsOpen, setIsThreadsOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<GenerationResult | null>(null);
+  const { toggleFavorite, isFavorite: isFavoriteId, fetchFavorites, _hasHydrated } = useFavoritesStore();
 
   const activeThread = useMemo(
     () => threads.find((t) => t.id === selectedThreadId) || null,
@@ -315,7 +317,10 @@ export function StudioWorkspaces() {
     const image = viewerImage;
     if (!image?.url) return;
     try {
-      const response = await fetch(image.url);
+      const isDemo = String(image.id || "").startsWith("demo-");
+      const downloadUrl = !isDemo && image.id ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original` : image.url;
+      const response = await fetch(downloadUrl, { credentials: "include" });
+      if (!response.ok) throw new Error("download_failed");
       const blob = await response.blob();
       const mime = String(blob.type || "").toLowerCase();
       const preferred = String((image as any)?.settings?.outputFormat || "").toLowerCase();
@@ -336,6 +341,9 @@ export function StudioWorkspaces() {
       window.URL.revokeObjectURL(url);
       toast.success("Изображение скачано");
     } catch {
+      try {
+        window.open(image.url, "_blank");
+      } catch {}
       toast.error("Ошибка при скачивании");
     }
   }, [viewerImage]);
@@ -350,6 +358,90 @@ export function StudioWorkspaces() {
       toast.error("Не удалось скопировать");
     }
   }, [viewerImage]);
+
+  // Load favorites once (best-effort, when hydrated)
+  useEffect(() => {
+    if (!_hasHydrated) return;
+    fetchFavorites().catch(() => {});
+  }, [_hasHydrated, fetchFavorites]);
+
+  const handleViewerShare = useCallback(async () => {
+    const image = viewerImage;
+    if (!image?.url) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "LensRoom",
+          text: image.prompt || "",
+          url: image.url,
+        });
+        return;
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(image.url);
+      toast.success("Ссылка скопирована");
+    } catch {
+      toast.error("Не удалось скопировать");
+    }
+  }, [viewerImage]);
+
+  const handleViewerToggleFavorite = useCallback(async () => {
+    const image = viewerImage;
+    if (!image?.id) return;
+    const currently = isFavoriteId(image.id);
+    try {
+      await toggleFavorite(image.id);
+      toast.success(currently ? "Удалено из избранного" : "Добавлено в избранное");
+    } catch {
+      toast.error("Не удалось сохранить");
+    }
+  }, [viewerImage, toggleFavorite, isFavoriteId]);
+
+  const readBlobAsDataUrl = useCallback(async (blob: Blob): Promise<string> => {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read_failed"));
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  const fetchGenerationAsDataUrl = useCallback(
+    async (image: GenerationResult): Promise<string> => {
+      const isDemo = String(image.id || "").startsWith("demo-");
+      const url = !isDemo && image.id
+        ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original&proxy=1`
+        : image.url;
+      const resp = await fetch(url, { credentials: "include" });
+      if (!resp.ok) throw new Error("download_failed");
+      const blob = await resp.blob();
+      return await readBlobAsDataUrl(blob);
+    },
+    [readBlobAsDataUrl]
+  );
+
+  const handleUseAsReferenceFromGallery = useCallback(
+    async (image: GenerationResult) => {
+      if (!image?.url) return;
+      if (!supportsI2i) {
+        toast.error("Эта модель не поддерживает референс");
+        return;
+      }
+      try {
+        const dataUrl = await fetchGenerationAsDataUrl(image);
+        setReferenceImage(dataUrl);
+        setPrompt(String(image.prompt || ""));
+        if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
+        toast.success("Фото добавлено как референс");
+      } catch {
+        toast.error("Не удалось загрузить референс");
+      }
+    },
+    [supportsI2i, fetchGenerationAsDataUrl]
+  );
 
   const qualityOptions = useMemo(() => getQualityOptionsForModel(selectedModelId), [selectedModelId]);
 
@@ -658,6 +750,108 @@ export function StudioWorkspaces() {
     };
   }, []);
 
+  const startSingleGeneration = useCallback(
+    async (generationPrompt: string, settings: GenerationSettings, refDataUrl: string | null) => {
+      if (!photoModel) {
+        toast.error("Модель недоступна");
+        return;
+      }
+      if (!selectedThreadId) {
+        toast.error("Чат не выбран");
+        return;
+      }
+      if (!isAuthenticated) {
+        await startTelegramLogin();
+        return;
+      }
+
+      const batchId = Date.now();
+      const pending: GenerationResult = {
+        id: `pending_${batchId}_0`,
+        url: "",
+        prompt: generationPrompt,
+        mode: "image",
+        settings,
+        timestamp: batchId,
+        status: "pending",
+      };
+      setLocalItems((prev) => [...prev, pending]);
+
+      try {
+        await generateOne(pending.id, generationPrompt, settings, refDataUrl, null);
+        invalidateCache();
+        refreshHistory();
+        await refreshCredits();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Ошибка генерации";
+        updateLocalItem(pending.id, null);
+        toast.error(msg);
+      }
+    },
+    [
+      photoModel,
+      selectedThreadId,
+      isAuthenticated,
+      startTelegramLogin,
+      generateOne,
+      invalidateCache,
+      refreshHistory,
+      refreshCredits,
+      updateLocalItem,
+    ]
+  );
+
+  const handleViewerRecreate = useCallback(async () => {
+    const image = viewerImage;
+    if (!image) return;
+    const modelId = String(image.settings?.model || selectedModelId);
+    const tool = isToolModelId(modelId);
+    if (tool) {
+      toast.error("Для этой модели нужен референс (i2i)");
+      return;
+    }
+    const generationPrompt = String(image.prompt || "").trim();
+    if (!generationPrompt) {
+      toast.error("Промпт пустой");
+      return;
+    }
+
+    // Prefill bottom bar for user clarity
+    setPrompt(generationPrompt);
+    if (typeof image.settings?.negativePrompt === "string") setNegativePrompt(image.settings.negativePrompt);
+    if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
+    if (typeof image.settings?.quality === "string") {
+      setQualityLabel(qualityLabelFromApi(modelId, image.settings.quality));
+    }
+
+    const settings: GenerationSettings = {
+      ...image.settings,
+      model: modelId,
+      size: normalizeAspect(String(image.settings?.size || aspectRatio)) || String(image.settings?.size || aspectRatio),
+      variants: 1,
+    };
+
+    await startSingleGeneration(generationPrompt, settings, null);
+  }, [viewerImage, selectedModelId, aspectRatio, startSingleGeneration]);
+
+  const handleViewerUseAsReference = useCallback(async () => {
+    const image = viewerImage;
+    if (!image?.url) return;
+    if (!supportsI2i) {
+      toast.error("Эта модель не поддерживает референс");
+      return;
+    }
+    try {
+      const dataUrl = await fetchGenerationAsDataUrl(image);
+      setReferenceImage(dataUrl);
+      setPrompt(String(image.prompt || ""));
+      if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
+      toast.success("Фото добавлено как референс");
+    } catch {
+      toast.error("Не удалось загрузить референс");
+    }
+  }, [viewerImage, supportsI2i, fetchGenerationAsDataUrl]);
+
   // Ensure threads exist for model; ensure active thread is valid
   useEffect(() => {
     let cancelled = false;
@@ -884,6 +1078,7 @@ export function StudioWorkspaces() {
           layout="grid"
           autoScrollToBottom
           onImageClick={handleImageClick}
+          onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
           emptyTitle={isToolModel ? "Загрузите фото" : undefined}
           emptyDescription={
             isToolModel ? 'Нажмите «+» внизу и загрузите изображение для обработки' : undefined
@@ -931,67 +1126,131 @@ export function StudioWorkspaces() {
             if (!open) setViewerImage(null);
           }}
         >
-          <DialogContent className="max-w-none w-auto p-0 gap-0 border-0 bg-transparent shadow-none">
-            <div
-              className="relative flex items-center justify-center"
-              onTouchStart={onViewerTouchStart}
-              onTouchEnd={onViewerTouchEnd}
-              style={{
-                width: `min(calc(100vw - 1rem), ${getViewerBox(viewerImage?.settings?.size).width}px)`,
-                height: `min(calc(100vh - 5rem), ${getViewerBox(viewerImage?.settings?.size).height}px)`,
-              }}
-            >
-              {/* Image */}
-              {viewerImage?.url ? (
-                <img
-                  src={viewerImage.url}
-                  alt={viewerImage.prompt || "Generated image"}
-                  className="max-w-full max-h-full object-contain rounded-xl select-none"
-                  draggable={false}
-                />
-              ) : null}
+          <DialogContent className="max-w-none w-[min(96vw,1200px)] max-h-[calc(100vh-2rem)] p-0 gap-0 border border-white/10 bg-[#0B0B0C] shadow-2xl overflow-hidden">
+            <div className="flex flex-col md:flex-row items-stretch">
+              {/* Left: image */}
+              <div
+                className="relative flex items-center justify-center md:flex-1 bg-black"
+                onTouchStart={onViewerTouchStart}
+                onTouchEnd={onViewerTouchEnd}
+                style={{
+                  width: "100%",
+                  height: `min(calc(100vh - 2rem), ${getViewerBox(viewerImage?.settings?.size).height}px)`,
+                }}
+              >
+                {viewerImage?.url ? (
+                  <img
+                    src={viewerImage.url}
+                    alt={viewerImage.prompt || "Generated image"}
+                    className="max-w-full max-h-full object-contain select-none"
+                    draggable={false}
+                  />
+                ) : null}
 
-              {/* Quick actions (avoid DialogContent built-in close button at top-right) */}
-              <div className="absolute top-3 left-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleViewerCopyLink}
-                  className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
-                  title="Копировать ссылку"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleViewerDownload}
-                  className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
-                  title="Скачать"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
+                {/* Quick actions */}
+                <div className="absolute top-3 left-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleViewerCopyLink}
+                    className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
+                    title="Копировать ссылку"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleViewerDownload}
+                    className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
+                    title="Скачать"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Prev/Next */}
+                {viewerList.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goPrev}
+                      className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
+                      title="Предыдущее"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
+                      title="Следующее"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                ) : null}
               </div>
 
-              {/* Prev/Next */}
-              {viewerList.length > 1 ? (
-                <>
+              {/* Right: details */}
+              <aside className="md:w-[420px] border-t md:border-t-0 md:border-l border-white/10 bg-[#0F0F10] p-4 md:p-5 overflow-y-auto">
+                <div className="text-xs text-white/50">Характеристики</div>
+                <div className="mt-1 text-sm font-semibold text-white break-words">
+                  {viewerImage?.prompt || "—"}
+                </div>
+
+                <div className="mt-4 grid grid-cols-[110px_1fr] gap-x-3 gap-y-2 text-sm">
+                  <div className="text-white/50">Модель</div>
+                  <div className="text-white/90 text-right break-words whitespace-normal">
+                      {getModelById(String(viewerImage?.settings?.model || selectedModelId))?.name || String(viewerImage?.settings?.model || selectedModelId)}
+                  </div>
+                  <div className="text-white/50">Формат</div>
+                  <div className="text-white/90 text-right break-words whitespace-normal">
+                    {String(viewerImage?.settings?.size || "—")}
+                  </div>
+                  <div className="text-white/50">Качество</div>
+                  <div className="text-white/90 text-right break-words whitespace-normal">
+                      {viewerImage?.settings?.quality ? qualityLabelFromApi(String(viewerImage?.settings?.model || selectedModelId), String(viewerImage.settings.quality)) : "—"}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={goPrev}
-                    className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
-                    title="Предыдущее"
+                    onClick={handleViewerShare}
+                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <Share2 className="w-4 h-4" />
+                    Поделиться
                   </button>
+
                   <button
                     type="button"
-                    onClick={goNext}
-                    className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
-                    title="Следующее"
+                    onClick={handleViewerToggleFavorite}
+                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm"
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <Heart className={`w-4 h-4 ${viewerImage?.id && isFavoriteId(viewerImage.id) ? "text-rose-400" : "text-white"}`} />
+                    В избранное
                   </button>
-                </>
-              ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleViewerRecreate}
+                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-[#CDFF00] text-black font-semibold text-sm hover:bg-[#B8E600] col-span-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Пересоздать заново
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleViewerUseAsReference}
+                    disabled={!supportsI2i}
+                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm col-span-2 disabled:opacity-50"
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    Использовать как референс
+                  </button>
+                </div>
+              </aside>
             </div>
           </DialogContent>
         </Dialog>

@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Download, Share2, RotateCcw, Loader2, ZoomIn, Link2, Maximize2, Copy, AlertCircle } from 'lucide-react';
+import { Download, Share2, RotateCcw, Loader2, ZoomIn, Maximize2, AlertCircle, Heart, ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
 import type { GenerationResult } from './GeneratorV2';
+import { useFavoritesStore } from '@/stores/favorites-store';
 
 interface ImageGalleryMasonryProps {
   images: GenerationResult[];
@@ -12,6 +13,8 @@ interface ImageGalleryMasonryProps {
   layout?: 'masonry' | 'grid';
   onRegenerate?: (prompt: string, settings: any) => void;
   onImageClick?: (image: GenerationResult) => void;
+  /** Use an existing image as a reference for i2i flows. */
+  onUseAsReference?: (image: GenerationResult) => void;
   emptyTitle?: string;
   emptyDescription?: string;
   /** Auto-scroll to the bottom when new items appear (only if user is near bottom). */
@@ -39,6 +42,7 @@ export function ImageGalleryMasonry({
   layout = 'grid',
   onRegenerate,
   onImageClick,
+  onUseAsReference,
   emptyTitle,
   emptyDescription,
   autoScrollToBottom = false,
@@ -48,6 +52,7 @@ export function ImageGalleryMasonry({
   isLoadingMore = false,
 }: ImageGalleryMasonryProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const { toggleFavorite, isFavorite: isFavoriteId } = useFavoritesStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastLenRef = useRef<number>(images.length);
   const cardClassName =
@@ -114,8 +119,13 @@ export function ImageGalleryMasonry({
   }, [autoScrollToBottom, autoScrollThresholdPx, images.length]);
 
   const handleDownload = async (image: GenerationResult) => {
+    if (!image?.url) return;
     try {
-      const response = await fetch(image.url);
+      const isDemo = String(image.id || "").startsWith("demo-");
+      const downloadUrl = !isDemo && image.id ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original` : image.url;
+      const response = await fetch(downloadUrl, { credentials: "include" });
+      if (!response.ok) throw new Error("download_failed");
+
       const blob = await response.blob();
       const mime = String(blob.type || "").toLowerCase();
       const preferred = String((image as any)?.settings?.outputFormat || "").toLowerCase();
@@ -136,6 +146,10 @@ export function ImageGalleryMasonry({
       window.URL.revokeObjectURL(url);
       toast.success('Изображение скачано');
     } catch (error) {
+      // Fallback to direct URL open
+      try {
+        window.open(image.url, "_blank");
+      } catch {}
       toast.error('Ошибка при скачивании');
     }
   };
@@ -158,15 +172,6 @@ export function ImageGalleryMasonry({
     }
   };
 
-  const handleCopyLink = async (image: GenerationResult) => {
-    try {
-      await navigator.clipboard.writeText(image.url);
-      toast.success('Ссылка скопирована');
-    } catch (error) {
-      toast.error('Не удалось скопировать');
-    }
-  };
-
   const handleZoom = (image: GenerationResult) => {
     // Prefer in-app viewer if provided
     if (onImageClick) {
@@ -181,6 +186,24 @@ export function ImageGalleryMasonry({
       onRegenerate(image.prompt, image.settings);
       toast.info('Перегенерация...');
     }
+  };
+
+  const handleToggleFavorite = async (image: GenerationResult) => {
+    if (!image?.id) return;
+    // Avoid toggling for placeholders/demos
+    if (String(image.id).startsWith("demo-") || String(image.id).startsWith("pending_")) return;
+    const currently = isFavoriteId(image.id);
+    try {
+      await toggleFavorite(image.id);
+      toast.success(currently ? "Удалено из избранного" : "Добавлено в избранное");
+    } catch {
+      toast.error("Не удалось сохранить");
+    }
+  };
+
+  const handleUseAsReference = (image: GenerationResult) => {
+    if (!onUseAsReference) return;
+    onUseAsReference(image);
   };
 
   // Show loading skeletons when generating
@@ -294,6 +317,32 @@ export function ImageGalleryMasonry({
                   {/* Action Buttons в правом нижнем углу (hide for demo images) */}
                   {!isDemo && (
                     <div className="absolute bottom-3 right-3 flex flex-col gap-2 pointer-events-auto">
+                      {/* Открыть / View */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleZoom(image);
+                        }}
+                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
+                        title="Открыть"
+                      >
+                        <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                      </button>
+                      
+                      {/* Использовать как референс */}
+                      {onUseAsReference && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUseAsReference(image);
+                          }}
+                          className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
+                          title="Использовать как референс"
+                        >
+                          <ImagePlus className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                        </button>
+                      )}
+
                       {/* Скачать */}
                       <button
                         onClick={(e) => {
@@ -305,20 +354,24 @@ export function ImageGalleryMasonry({
                       >
                         <Download className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
                       </button>
-                      
-                      {/* Копировать ссылку */}
+
+                      {/* В избранное */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCopyLink(image);
+                          void handleToggleFavorite(image);
                         }}
                         className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                        title="Копировать ссылку"
+                        title="В избранное"
                       >
-                        <Link2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                        <Heart
+                          className={`w-5 h-5 group-hover:text-[#CDFF00] ${
+                            image.id && isFavoriteId(image.id) ? "text-rose-400" : "text-white"
+                          }`}
+                        />
                       </button>
-                      
-                      {/* Поделиться */}
+
+                      {/* Поделиться (fallback = copy link) */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -328,18 +381,6 @@ export function ImageGalleryMasonry({
                         title="Поделиться"
                       >
                         <Share2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
-                      </button>
-                      
-                      {/* Увеличить */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleZoom(image);
-                        }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                        title="Открыть в полном размере"
-                      >
-                        <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
                       </button>
                       
                       {/* Перегенерировать */}
@@ -359,6 +400,13 @@ export function ImageGalleryMasonry({
                   )}
                 </div>
               )}
+                </div>
+
+                {/* Prompt caption (Higgsfield-style) */}
+                <div className="mt-2">
+                  <div className="text-[11px] leading-snug text-white/75 line-clamp-2">
+                    {image.prompt || ""}
+                  </div>
                 </div>
               </div>
             );
@@ -438,6 +486,32 @@ export function ImageGalleryMasonry({
                       {/* Action Buttons в правом нижнем углу (hide for demo images) */}
                       {!isDemo && (
                         <div className="absolute bottom-3 right-3 flex flex-col gap-2 pointer-events-auto">
+                          {/* Открыть / View */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleZoom(image);
+                            }}
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
+                            title="Открыть"
+                          >
+                            <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                          </button>
+
+                          {/* Использовать как референс */}
+                          {onUseAsReference && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUseAsReference(image);
+                              }}
+                              className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
+                              title="Использовать как референс"
+                            >
+                              <ImagePlus className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                            </button>
+                          )}
+
                           {/* Скачать */}
                           <button
                             onClick={(e) => {
@@ -450,19 +524,23 @@ export function ImageGalleryMasonry({
                             <Download className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
                           </button>
 
-                          {/* Копировать ссылку */}
+                          {/* В избранное */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleCopyLink(image);
+                              void handleToggleFavorite(image);
                             }}
                             className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                            title="Копировать ссылку"
+                            title="В избранное"
                           >
-                            <Link2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                            <Heart
+                              className={`w-5 h-5 group-hover:text-[#CDFF00] ${
+                                image.id && isFavoriteId(image.id) ? "text-rose-400" : "text-white"
+                              }`}
+                            />
                           </button>
 
-                          {/* Поделиться */}
+                          {/* Поделиться (fallback = copy link) */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -472,18 +550,6 @@ export function ImageGalleryMasonry({
                             title="Поделиться"
                           >
                             <Share2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
-                          </button>
-
-                          {/* Увеличить */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleZoom(image);
-                            }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                            title="Открыть в полном размере"
-                          >
-                            <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
                           </button>
 
                           {/* Перегенерировать */}
@@ -503,6 +569,13 @@ export function ImageGalleryMasonry({
                       )}
                     </div>
                   )}
+                </div>
+
+                {/* Prompt caption */}
+                <div className="mt-2">
+                  <div className="text-[11px] leading-snug text-white/75 line-clamp-2">
+                    {image.prompt || ""}
+                  </div>
                 </div>
               </div>
             );

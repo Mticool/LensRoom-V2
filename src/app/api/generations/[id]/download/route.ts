@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getSourceAssetUrl } from '@/lib/previews/asset-url';
+import { getAuthUserId, getSession } from '@/lib/telegram/auth';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -8,11 +9,14 @@ type RouteContext = {
 
 /**
  * GET /api/generations/[id]/download?kind=original|preview|poster
+ * Optional: &proxy=1 to stream bytes from our origin (avoids CORS when client needs Blob/DataURL).
  * 
  * Download generation asset with signed URL
  * 
  * Auth: Requires session (Telegram or Supabase)
- * Returns: 302 redirect to signed URL or error
+ * Returns:
+ * - default: 302 redirect to signed URL / direct URL
+ * - proxy=1: 200 with file bytes (same-origin)
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
@@ -20,6 +24,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const generationId = params.id;
     const searchParams = request.nextUrl.searchParams;
     const kind = searchParams.get('kind') || 'original';
+    const proxy = searchParams.get('proxy') === '1' || searchParams.get('proxy') === 'true';
 
     if (!['original', 'preview', 'poster'].includes(kind)) {
       return NextResponse.json(
@@ -28,17 +33,29 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Get authenticated user
+    // Get authenticated user (Telegram or Supabase).
+    // NOTE: Most of the app uses Telegram auth; Supabase cookie session may be absent.
     const supabase = await createServerSupabaseClient();
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    let userId: string | null = null;
 
-    const userId = session?.user?.id;
+    // Prefer Telegram session (primary auth in LensRoom).
+    const telegramSession = await getSession();
+    if (telegramSession) {
+      userId = await getAuthUserId(telegramSession);
+    }
+
+    // Fallback to Supabase session cookie (e.g., admin panel / web auth).
+    if (!userId) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      userId = session?.user?.id || null;
+    }
+
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -61,6 +78,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     let storagePath: string | null = null;
     const bucket = 'generations';
+    let directUrl: string | null = null;
 
     // Determine which file to download based on kind
     if (kind === 'preview') {
@@ -103,9 +121,52 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
       // If not storage URL, redirect directly
       if (!storagePath) {
-        console.log(`[Download] Direct redirect for ${generationId}: ${assetUrl.substring(0, 60)}...`);
-        return NextResponse.redirect(assetUrl);
+        directUrl = assetUrl;
+        if (!proxy) {
+          console.log(`[Download] Direct redirect for ${generationId}: ${assetUrl.substring(0, 60)}...`);
+          return NextResponse.redirect(assetUrl);
+        }
       }
+    }
+
+    // Proxy mode: stream file bytes from server to avoid browser CORS issues.
+    if (proxy) {
+      // Resolve final URL (signed for storage, or direct external URL).
+      let finalUrl: string | null = null;
+      if (directUrl) {
+        finalUrl = directUrl;
+      } else if (storagePath) {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(storagePath, 300);
+
+        if (signedError || !signedData?.signedUrl) {
+          console.error(`[Download] Failed to create signed URL:`, signedError);
+          return NextResponse.json({ error: 'Failed to generate download URL' }, { status: 500 });
+        }
+        finalUrl = signedData.signedUrl;
+      }
+
+      if (!finalUrl) {
+        return NextResponse.json({ error: 'Asset URL not found' }, { status: 404 });
+      }
+
+      const upstream = await fetch(finalUrl);
+      if (!upstream.ok) {
+        return NextResponse.json({ error: 'Failed to fetch asset' }, { status: 502 });
+      }
+
+      const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+      const arrayBuffer = await upstream.arrayBuffer();
+
+      return new NextResponse(arrayBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          'Content-Disposition': 'inline',
+        },
+      });
     }
 
     // Generate signed URL for storage path

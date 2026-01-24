@@ -293,6 +293,47 @@ export async function POST(request: NextRequest) {
     const finalAspectRatioForDb = resolveAspectRatio(aspectRatio, effectiveModelId);
     
     const insertOnce = async () => {
+      // Persist minimal generation params for UI (avoid storing large blobs like base64 images).
+      const safeClientParams = (() => {
+        if (!clientParams || typeof clientParams !== "object") return null;
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(clientParams as Record<string, unknown>)) {
+          if (v == null) continue;
+          if (typeof v === "string") {
+            // Drop huge strings (likely accidental data URLs).
+            if (v.length > 500) continue;
+            out[k] = v;
+            continue;
+          }
+          if (typeof v === "number" || typeof v === "boolean") {
+            out[k] = v;
+            continue;
+          }
+          // Keep small arrays/objects only if JSON-safe and reasonably sized.
+          try {
+            const s = JSON.stringify(v);
+            if (s.length > 1000) continue;
+            out[k] = v;
+          } catch {
+            // ignore
+          }
+        }
+        return Object.keys(out).length ? out : null;
+      })();
+
+      const paramsForDb: Record<string, unknown> = {
+        mode: String(mode || "t2i"),
+        variants: Number(variants || 1),
+        outputFormat: requestedOutputFormat,
+        quality: quality || null,
+        resolution: resolution || null,
+        provider: modelInfo.provider,
+        apiModelId: modelInfo.apiId,
+        baseModelId: baseModelId || null,
+        variantId: resolvedVariantId || null,
+        ...(safeClientParams ? { clientParams: safeClientParams } : {}),
+      };
+
       const r = await supabase
         .from("generations")
         .insert({
@@ -306,6 +347,7 @@ export async function POST(request: NextRequest) {
           status: "queued",
           aspect_ratio: finalAspectRatioForDb, // Now saving aspect_ratio (migration applied)
           thread_id: threadId || null,
+          params: paramsForDb,
         })
         .select()
         .single();
