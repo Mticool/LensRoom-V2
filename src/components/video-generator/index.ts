@@ -12,6 +12,9 @@ export { AdvancedSettings } from './AdvancedSettings';
 export { CostEstimator } from './CostEstimator';
 export { GenerateButton } from './GenerateButton';
 
+// Tab Content Components
+export { MotionTabContent } from './MotionTabContent';
+
 // Job Queue Components (Phase 3)
 export { JobQueue } from './JobQueue';
 export { JobCard } from './JobCard';

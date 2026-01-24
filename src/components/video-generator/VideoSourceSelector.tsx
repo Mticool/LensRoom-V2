@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Image, Film, Video, Wand2, Scissors } from 'lucide-react';
+import { FileText, Image, Film, Video, Scissors } from 'lucide-react';
 import type { VideoMode } from '@/types/video-generator';
 
 interface VideoSourceSelectorProps {
@@ -21,10 +21,6 @@ interface VideoSourceSelectorProps {
   // V2V mode
   v2vInputVideo?: string | null;
 
-  // Motion Control mode
-  motionVideo?: string | null;
-  characterImage?: string | null;
-
   // Video Edit mode
   editVideo?: string | null;
   editRefImage?: string | null;
@@ -43,18 +39,16 @@ export function VideoSourceSelector({
   startFrame,
   endFrame,
   v2vInputVideo,
-  motionVideo,
-  characterImage,
   editVideo,
   editRefImage,
   availableModes = ['text', 'image', 'reference'], // Default: basic modes
 }: VideoSourceSelectorProps) {
+  // Motion Control moved to separate tab - not shown here
   const allModes: { value: VideoMode; label: string; icon: typeof FileText; description?: string }[] = [
     { value: 'text', label: 'Текст', icon: FileText, description: 'Text-to-Video' },
     { value: 'image', label: 'Картинка', icon: Image, description: 'Image-to-Video' },
     { value: 'reference', label: 'Референс', icon: Film, description: 'Reference Video / Start+End Frames' },
     { value: 'v2v', label: 'Видео→Видео', icon: Video, description: 'Video-to-Video' },
-    { value: 'motion', label: 'Motion', icon: Wand2, description: 'Motion Control (Kling)' },
     { value: 'edit', label: 'Редактор', icon: Scissors, description: 'Video Editing (Kling O1)' },
   ];
 
@@ -207,25 +201,6 @@ export function VideoSourceSelector({
           currentFile={v2vInputVideo}
           fileType="video"
         />
-      )}
-
-      {value === 'motion' && (
-        <>
-          <FileUploadField
-            label="Motion референс видео"
-            accept="video/*"
-            field="motionVideo"
-            currentFile={motionVideo}
-            fileType="video"
-          />
-          <FileUploadField
-            label="Изображение персонажа"
-            accept="image/*"
-            field="characterImage"
-            currentFile={characterImage}
-            fileType="image"
-          />
-        </>
       )}
 
       {value === 'edit' && (

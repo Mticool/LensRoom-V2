@@ -22,6 +22,7 @@ import {
   GenerateButton,
   JobQueue,
 } from './index';
+import { MotionTabContent } from './MotionTabContent';
 
 export function VideoGeneratorPage() {
   // URL params for restoring generation settings
@@ -49,10 +50,6 @@ export function VideoGeneratorPage() {
 
   // V2V mode
   const [v2vInputVideo, setV2vInputVideo] = useState<string | null>(null);
-
-  // Motion Control mode
-  const [motionVideo, setMotionVideo] = useState<string | null>(null);
-  const [characterImage, setCharacterImage] = useState<string | null>(null);
 
   // Video Edit mode
   const [editVideo, setEditVideo] = useState<string | null>(null);
@@ -230,12 +227,6 @@ export function VideoGeneratorPage() {
         case 'v2vInputVideo':
           setV2vInputVideo(dataUrl);
           break;
-        case 'motionVideo':
-          setMotionVideo(dataUrl);
-          break;
-        case 'characterImage':
-          setCharacterImage(dataUrl);
-          break;
         case 'editVideo':
           setEditVideo(dataUrl);
           break;
@@ -284,11 +275,6 @@ export function VideoGeneratorPage() {
       return;
     }
 
-    if (mode === 'motion' && (!motionVideo || !characterImage)) {
-      toast.error('Загрузите motion видео и изображение персонажа');
-      return;
-    }
-
     if (mode === 'edit' && !editVideo) {
       toast.error('Загрузите видео для редактирования');
       return;
@@ -308,8 +294,6 @@ export function VideoGeneratorPage() {
       startFrame,
       endFrame,
       v2vInputVideo,
-      motionVideo,
-      characterImage,
       editVideo,
       editRefImage,
       keepAudio,
@@ -528,7 +512,18 @@ export function VideoGeneratorPage() {
           <div className="space-y-6">
             <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-6">
               {/* Settings Tabs */}
-              <SettingsTabs activeTab={activeTab} onTabChange={setActiveTab}>
+              <SettingsTabs 
+                activeTab={activeTab} 
+                onTabChange={setActiveTab}
+                motionContent={
+                  <MotionTabContent
+                    isAuthenticated={isAuthenticated}
+                    credits={credits}
+                    refreshCredits={refreshCredits}
+                    onLoginRequired={() => setLoginOpen(true)}
+                  />
+                }
+              >
                 {/* Video Tab Content */}
                 <div className="space-y-6">
                   {/* Source Selector */}
@@ -543,8 +538,6 @@ export function VideoGeneratorPage() {
                     startFrame={startFrame}
                     endFrame={endFrame}
                     v2vInputVideo={v2vInputVideo}
-                    motionVideo={motionVideo}
-                    characterImage={characterImage}
                     editVideo={editVideo}
                     editRefImage={editRefImage}
                     availableModes={modelCapabilities?.availableModes || ['text', 'image', 'reference']}
@@ -648,7 +641,18 @@ export function VideoGeneratorPage() {
           {/* Settings */}
           <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-4">
             {/* Settings Tabs (Mobile) */}
-            <SettingsTabs activeTab={activeTab} onTabChange={setActiveTab}>
+            <SettingsTabs 
+              activeTab={activeTab} 
+              onTabChange={setActiveTab}
+              motionContent={
+                <MotionTabContent
+                  isAuthenticated={isAuthenticated}
+                  credits={credits}
+                  refreshCredits={refreshCredits}
+                  onLoginRequired={() => setLoginOpen(true)}
+                />
+              }
+            >
               <div className="space-y-4">
                 <VideoSourceSelector
                   value={mode}
@@ -661,8 +665,6 @@ export function VideoGeneratorPage() {
                   startFrame={startFrame}
                   endFrame={endFrame}
                   v2vInputVideo={v2vInputVideo}
-                  motionVideo={motionVideo}
-                  characterImage={characterImage}
                   editVideo={editVideo}
                   editRefImage={editRefImage}
                   availableModes={modelCapabilities?.availableModes || ['text', 'image', 'reference']}

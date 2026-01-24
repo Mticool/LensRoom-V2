@@ -44,37 +44,6 @@ interface GeneratorBottomSheetProps {
   onOpenMenu: () => void;
 }
 
-// Tiny chip component for quick settings
-function Chip({ 
-  children, 
-  active, 
-  onClick, 
-  disabled 
-}: { 
-  children: React.ReactNode; 
-  active?: boolean; 
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`
-        h-7 px-2.5 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all whitespace-nowrap
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}
-        ${active 
-          ? 'bg-[#CDFF00] text-black' 
-          : 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
-        }
-      `}
-    >
-      {children}
-    </button>
-  );
-}
-
 // Aspect ratio icon based on value
 function AspectIcon({ ratio, className }: { ratio: string; className?: string }) {
   if (ratio.includes('9:16') || ratio.includes('2:3')) {
@@ -116,10 +85,9 @@ export function GeneratorBottomSheet({
   onOpenMenu,
 }: GeneratorBottomSheetProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showAspectMenu, setShowAspectMenu] = useState(false);
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const [showQuantityMenu, setShowQuantityMenu] = useState(false);
+  const [activeMenu, setActiveMenu] = useState<'aspect' | 'quality' | 'quantity' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -201,13 +169,6 @@ export function GeneratorBottomSheet({
 
   const totalCost = estimatedCost * quantity;
 
-  // Close all menus
-  const closeAllMenus = () => {
-    setShowAspectMenu(false);
-    setShowQualityMenu(false);
-    setShowQuantityMenu(false);
-  };
-
   // Get short quality label
   const getQualityLabel = (q: string) => {
     const lower = q.toLowerCase();
@@ -217,30 +178,123 @@ export function GeneratorBottomSheet({
   };
 
   // Get short aspect label
-  const getAspectLabel = (a: string) => {
-    return a.replace(':', '∶');
+  const getAspectLabel = (a: string) => a.replace(':', '∶');
+
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
   };
 
   return (
-    <div
-      className="md:hidden fixed left-0 right-0 bottom-0 z-40"
-      style={{ pointerEvents: "none" }}
-    >
-      {/* Click outside to close menus */}
-      {(showAspectMenu || showQualityMenu || showQuantityMenu) && (
+    <div className="md:hidden fixed left-0 right-0 bottom-0 z-40">
+      {/* Backdrop for closing menus */}
+      {activeMenu && (
         <div 
           className="fixed inset-0 z-40" 
-          style={{ pointerEvents: "auto" }}
-          onClick={closeAllMenus} 
+          onClick={() => setActiveMenu(null)} 
         />
       )}
 
+      {/* Popup menus - rendered at root level for proper z-index */}
+      <AnimatePresence>
+        {activeMenu === 'aspect' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.15 }}
+            className="fixed left-3 z-50 bg-[#1C1C1E] border border-white/20 rounded-2xl shadow-2xl overflow-hidden"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
+          >
+            <div className="p-1">
+              {aspectRatioOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onAspectRatioChange(opt);
+                    setActiveMenu(null);
+                  }}
+                  className={`w-full min-w-[120px] px-4 py-3 text-left text-sm flex items-center gap-3 rounded-xl ${
+                    opt === aspectRatio 
+                      ? 'bg-[#CDFF00] text-black font-semibold' 
+                      : 'text-white active:bg-white/10'
+                  }`}
+                >
+                  <AspectIcon ratio={opt} className="w-4 h-4" />
+                  {getAspectLabel(opt)}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {activeMenu === 'quality' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.15 }}
+            className="fixed left-20 z-50 bg-[#1C1C1E] border border-white/20 rounded-2xl shadow-2xl overflow-hidden"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
+          >
+            <div className="p-1">
+              {qualityOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onQualityChange(opt);
+                    setActiveMenu(null);
+                  }}
+                  className={`w-full min-w-[120px] px-4 py-3 text-left text-sm rounded-xl ${
+                    opt === quality 
+                      ? 'bg-[#CDFF00] text-black font-semibold' 
+                      : 'text-white active:bg-white/10'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {activeMenu === 'quantity' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.15 }}
+            className="fixed left-36 z-50 bg-[#1C1C1E] border border-white/20 rounded-2xl shadow-2xl overflow-hidden"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
+          >
+            <div className="p-1 flex gap-1">
+              {Array.from({ length: quantityMax }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => {
+                    onQuantityChange?.(n);
+                    setActiveMenu(null);
+                  }}
+                  className={`w-12 h-12 text-base font-bold rounded-xl ${
+                    n === quantity 
+                      ? 'bg-[#CDFF00] text-black' 
+                      : 'text-white active:bg-white/10'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main panel */}
       <div
-        className="mx-auto w-full bg-[#0C0C0D]/98 border-t border-white/10 backdrop-blur-xl"
-        style={{ 
-          pointerEvents: "auto",
-          paddingBottom: 'max(8px, env(safe-area-inset-bottom))'
-        }}
+        className="w-full bg-[#0C0C0D]/98 border-t border-white/10 backdrop-blur-xl"
+        style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
       >
         {/* Reference images (if any) */}
         {referenceImages.length > 0 && (
@@ -275,7 +329,6 @@ export function GeneratorBottomSheet({
               className="overflow-hidden border-b border-white/10"
             >
               <div className="px-3 py-3 space-y-2.5">
-                {/* Negative prompt */}
                 <div>
                   <label className="text-[10px] font-medium text-white/40 uppercase tracking-wider mb-1 block">
                     Негативный промпт
@@ -290,7 +343,6 @@ export function GeneratorBottomSheet({
                   />
                 </div>
 
-                {/* Seed row */}
                 <div className="flex items-end gap-2">
                   <div className="flex-1">
                     <label className="text-[10px] font-medium text-white/40 uppercase tracking-wider mb-1 block">
@@ -309,13 +361,12 @@ export function GeneratorBottomSheet({
                     type="button"
                     onClick={() => onSeedChange(Math.floor(Math.random() * 999999999))}
                     disabled={isGenerating}
-                    className="h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm hover:bg-white/10"
+                    className="h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm active:bg-white/10"
                   >
                     🎲
                   </button>
                 </div>
 
-                {/* Model info */}
                 <div className="flex items-center justify-between h-8 px-3 bg-white/5 rounded-lg">
                   <span className="text-[10px] text-white/40">Модель</span>
                   <span className="text-[11px] font-medium text-white/80">{modelName}</span>
@@ -326,141 +377,61 @@ export function GeneratorBottomSheet({
         </AnimatePresence>
 
         {/* Quick chips row */}
-        <div className="px-3 py-2 flex items-center gap-1.5 overflow-x-auto">
+        <div className="px-3 py-2 flex items-center gap-1.5">
           {/* Aspect ratio chip */}
-          <div className="relative">
-            <Chip 
-              active={showAspectMenu}
-              onClick={() => {
-                closeAllMenus();
-                setShowAspectMenu(!showAspectMenu);
-              }}
-              disabled={isGenerating}
-            >
-              <AspectIcon ratio={aspectRatio} className="w-3 h-3" />
-              <span>{getAspectLabel(aspectRatio)}</span>
-            </Chip>
-            
-            <AnimatePresence>
-              {showAspectMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                  transition={{ duration: 0.12 }}
-                  className="absolute bottom-full left-0 mb-2 bg-[#1C1C1E] border border-white/15 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[100px]"
-                >
-                  {aspectRatioOptions.map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        onAspectRatioChange(opt);
-                        setShowAspectMenu(false);
-                      }}
-                      className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
-                        opt === aspectRatio ? 'bg-[#CDFF00] text-black font-semibold' : 'text-white hover:bg-white/10'
-                      }`}
-                    >
-                      <AspectIcon ratio={opt} className="w-3.5 h-3.5" />
-                      {getAspectLabel(opt)}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveMenu(activeMenu === 'aspect' ? null : 'aspect')}
+            disabled={isGenerating}
+            className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
+              ${isGenerating ? 'opacity-50' : 'active:scale-95'}
+              ${activeMenu === 'aspect' 
+                ? 'bg-[#CDFF00] text-black' 
+                : 'bg-white/10 text-white/80 border border-white/10'
+              }`}
+          >
+            <AspectIcon ratio={aspectRatio} className="w-3.5 h-3.5" />
+            <span>{getAspectLabel(aspectRatio)}</span>
+          </button>
 
           {/* Quality chip */}
-          <div className="relative">
-            <Chip 
-              active={showQualityMenu}
-              onClick={() => {
-                closeAllMenus();
-                setShowQualityMenu(!showQualityMenu);
-              }}
-              disabled={isGenerating}
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>{getQualityLabel(quality)}</span>
-            </Chip>
-            
-            <AnimatePresence>
-              {showQualityMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                  transition={{ duration: 0.12 }}
-                  className="absolute bottom-full left-0 mb-2 bg-[#1C1C1E] border border-white/15 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[100px]"
-                >
-                  {qualityOptions.map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        onQualityChange(opt);
-                        setShowQualityMenu(false);
-                      }}
-                      className={`w-full px-3 py-2 text-left text-sm ${
-                        opt === quality ? 'bg-[#CDFF00] text-black font-semibold' : 'text-white hover:bg-white/10'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveMenu(activeMenu === 'quality' ? null : 'quality')}
+            disabled={isGenerating}
+            className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
+              ${isGenerating ? 'opacity-50' : 'active:scale-95'}
+              ${activeMenu === 'quality' 
+                ? 'bg-[#CDFF00] text-black' 
+                : 'bg-white/10 text-white/80 border border-white/10'
+              }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{getQualityLabel(quality)}</span>
+          </button>
 
           {/* Quantity chip */}
           {onQuantityChange && (
-            <div className="relative">
-              <Chip 
-                active={showQuantityMenu}
-                onClick={() => {
-                  closeAllMenus();
-                  setShowQuantityMenu(!showQuantityMenu);
-                }}
-                disabled={isGenerating}
-              >
-                <span>×{quantity}</span>
-              </Chip>
-              
-              <AnimatePresence>
-                {showQuantityMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute bottom-full left-0 mb-2 bg-[#1C1C1E] border border-white/15 rounded-xl shadow-2xl overflow-hidden z-50"
-                  >
-                    <div className="flex">
-                      {Array.from({ length: quantityMax }, (_, i) => i + 1).map((n) => (
-                        <button
-                          key={n}
-                          onClick={() => {
-                            onQuantityChange(n);
-                            setShowQuantityMenu(false);
-                          }}
-                          className={`w-10 h-10 text-sm font-bold ${
-                            n === quantity ? 'bg-[#CDFF00] text-black' : 'text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {n}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <button
+              type="button"
+              onClick={() => setActiveMenu(activeMenu === 'quantity' ? null : 'quantity')}
+              disabled={isGenerating}
+              className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1 transition-all
+                ${isGenerating ? 'opacity-50' : 'active:scale-95'}
+                ${activeMenu === 'quantity' 
+                  ? 'bg-[#CDFF00] text-black' 
+                  : 'bg-white/10 text-white/80 border border-white/10'
+                }`}
+            >
+              <span>×{quantity}</span>
+            </button>
           )}
 
           {/* Image upload chip */}
           {supportsI2i && (
-            <label className="cursor-pointer">
+            <>
               <input
+                ref={fileInputRef}
                 type="file"
                 accept={allowedMimeTypes}
                 multiple={maxInputImages > 1}
@@ -468,43 +439,51 @@ export function GeneratorBottomSheet({
                 disabled={isGenerating}
                 onChange={(e) => handleAddRefs(e.target.files)}
               />
-              <Chip active={referenceImages.length > 0} onClick={() => {}} disabled={isGenerating}>
-                <ImagePlus className="w-3 h-3" />
+              <button
+                type="button"
+                onClick={handleFileClick}
+                disabled={isGenerating}
+                className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
+                  ${isGenerating ? 'opacity-50' : 'active:scale-95'}
+                  ${referenceImages.length > 0 
+                    ? 'bg-[#CDFF00] text-black' 
+                    : 'bg-white/10 text-white/80 border border-white/10'
+                  }`}
+              >
+                <ImagePlus className="w-3.5 h-3.5" />
                 {referenceImages.length > 0 && <span>{referenceImages.length}</span>}
-              </Chip>
-            </label>
+              </button>
+            </>
           )}
 
           {/* Spacer */}
           <div className="flex-1" />
 
           {/* Cost badge */}
-          <span className="text-[11px] font-semibold text-[#CDFF00] flex items-center gap-0.5 pr-1">
+          <span className="text-xs font-bold text-[#CDFF00] pr-1">
             {totalCost}⭐
           </span>
         </div>
 
-        {/* Input row - messenger style */}
+        {/* Input row */}
         <div className="px-3 pb-2 flex items-end gap-2">
           {/* Settings button */}
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
             disabled={isGenerating}
-            className={`
-              w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 active:scale-95
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 active:scale-95
               ${showAdvanced 
                 ? 'bg-[#CDFF00] text-black' 
-                : 'bg-white/8 text-white/60 hover:bg-white/12 border border-white/10'
+                : 'bg-white/10 text-white/60 border border-white/10'
               }
-              ${isGenerating ? 'opacity-50' : ''}
-            `}
+              ${isGenerating ? 'opacity-50' : ''}`}
           >
             {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
           </button>
 
           {/* Prompt input */}
-          <div className="flex-1 relative">
+          <div className="flex-1">
             <textarea
               ref={textareaRef}
               value={prompt}
@@ -512,7 +491,7 @@ export function GeneratorBottomSheet({
               disabled={isGenerating}
               placeholder="Опишите изображение..."
               rows={1}
-              className="w-full px-4 py-2.5 bg-white/8 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#CDFF00]/40 transition-all disabled:opacity-50 leading-tight"
+              className="w-full px-4 py-2.5 bg-white/10 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#CDFF00]/40 transition-all disabled:opacity-50 leading-tight"
               style={{ minHeight: '40px', maxHeight: '80px' }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -528,15 +507,13 @@ export function GeneratorBottomSheet({
             type="button"
             onClick={handleSubmit}
             disabled={isGenerating || !canGenerate}
-            className={`
-              w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 active:scale-95
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 active:scale-95
               ${isGenerating
                 ? 'bg-white/10 text-white/50'
                 : canGenerate
-                  ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/30 hover:bg-[#B8E600]'
-                  : 'bg-white/8 text-white/30 cursor-not-allowed border border-white/10'
-              }
-            `}
+                  ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/30'
+                  : 'bg-white/10 text-white/30 border border-white/10'
+              }`}
           >
             {isGenerating ? (
               <Loader2 className="w-4 h-4 animate-spin" />

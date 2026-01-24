@@ -7,9 +7,19 @@ interface SettingsTabsProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
   children: React.ReactNode;
+  motionContent?: React.ReactNode;
+  editContent?: React.ReactNode;
+  musicContent?: React.ReactNode;
 }
 
-export function SettingsTabs({ activeTab, onTabChange, children }: SettingsTabsProps) {
+export function SettingsTabs({ 
+  activeTab, 
+  onTabChange, 
+  children,
+  motionContent,
+  editContent,
+  musicContent,
+}: SettingsTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as TabType)}>
       <TabsList className="grid w-full grid-cols-4 mb-6">
@@ -24,21 +34,27 @@ export function SettingsTabs({ activeTab, onTabChange, children }: SettingsTabsP
       </TabsContent>
 
       <TabsContent value="motion" className="space-y-6">
-        <div className="text-center py-12">
-          <p className="text-[var(--muted)] text-sm">Motion Control скоро появится</p>
-        </div>
+        {motionContent || (
+          <div className="text-center py-12">
+            <p className="text-[var(--muted)] text-sm">Motion Control скоро появится</p>
+          </div>
+        )}
       </TabsContent>
 
       <TabsContent value="edit" className="space-y-6">
-        <div className="text-center py-12">
-          <p className="text-[var(--muted)] text-sm">Редактирование скоро появится</p>
-        </div>
+        {editContent || (
+          <div className="text-center py-12">
+            <p className="text-[var(--muted)] text-sm">Редактирование скоро появится</p>
+          </div>
+        )}
       </TabsContent>
 
       <TabsContent value="music" className="space-y-6">
-        <div className="text-center py-12">
-          <p className="text-[var(--muted)] text-sm">Музыка скоро появится</p>
-        </div>
+        {musicContent || (
+          <div className="text-center py-12">
+            <p className="text-[var(--muted)] text-sm">Музыка скоро появится</p>
+          </div>
+        )}
       </TabsContent>
     </Tabs>
   );
