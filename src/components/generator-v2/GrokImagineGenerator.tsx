@@ -16,7 +16,8 @@ import { Sparkles, Loader2, ChevronUp } from 'lucide-react';
 import type { GenerationResult } from './GeneratorV2';
 import './theme.css';
 
-const COST_PER_IMAGE = 15; // Fixed pricing for Grok Imagine
+const COST_PER_RUN = 15; // Fixed pricing per generation run (model returns multiple images)
+const GROK_RESULTS_PER_RUN = 6; // KIE Grok Imagine returns 6 images per task
 
 export function GrokImagineGenerator() {
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
@@ -25,7 +26,7 @@ export function GrokImagineGenerator() {
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [mode, setMode] = useState('Обычный'); // Обычный, Креатив, Смелый 🌶️
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(GROK_RESULTS_PER_RUN);
   const [negativePrompt, setNegativePrompt] = useState('');
   const [seed, setSeed] = useState<number | null>(null);
   const [steps, setSteps] = useState(25);
@@ -40,7 +41,7 @@ export function GrokImagineGenerator() {
   const historyModelId = filterModel === 'all' ? undefined : filterModel;
   const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
   const credits = authCredits;
-  const estimatedCost = COST_PER_IMAGE * quantity;
+  const estimatedCost = COST_PER_RUN;
 
   const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
     {
@@ -75,7 +76,7 @@ export function GrokImagineGenerator() {
     setIsGenerating(true);
 
     try {
-      const pendingImages: GenerationResult[] = Array.from({ length: quantity }, (_, i) => ({
+      const pendingImages: GenerationResult[] = Array.from({ length: GROK_RESULTS_PER_RUN }, (_, i) => ({
         id: `pending-${Date.now()}-${i}`,
         url: '',
         prompt,
@@ -96,8 +97,10 @@ export function GrokImagineGenerator() {
           prompt,
           negativePrompt: negativePrompt || undefined,
           aspectRatio,
-          mode: mode === 'Обычный' ? 'normal' : mode === 'Креатив' ? 'fun' : 'spicy', // Pass mode as quality parameter
-          variants: quantity,
+          // Grok Imagine: pass mode via `quality` (normal/fun/spicy). Do NOT use `mode` field (reserved for t2i/i2i).
+          quality: mode === 'Обычный' ? 'normal' : mode === 'Креатив' ? 'fun' : 'spicy',
+          // KIE Grok Imagine returns 6 images per run; keep variants=1 to avoid multiplying pricing.
+          variants: 1,
           seed: seed || undefined,
           steps,
         }),
@@ -113,28 +116,51 @@ export function GrokImagineGenerator() {
         throw new Error(error.error || 'Generation failed');
       }
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({} as any));
 
-      const newImage: GenerationResult = {
-        id: data.generationId || `gen-${Date.now()}`,
-        url: data.imageUrl,
+      const generationId = String(data?.generationId || '');
+      const jobId = String(data?.jobId || data?.id || '');
+      const provider = String(data?.provider || 'kie_market');
+
+      const pollJob = async () => {
+        for (let attempts = 0; attempts < 180; attempts++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          const res = await fetch(
+            `/api/jobs/${encodeURIComponent(jobId)}?kind=image&provider=${encodeURIComponent(provider)}`,
+            { credentials: 'include' }
+          );
+          const job = await res.json().catch(() => ({} as any));
+          const st = String(job?.status || '').toLowerCase();
+          if (st === 'completed' || st === 'success') return job;
+          if (st === 'failed') throw new Error(job?.error || 'Генерация не удалась');
+        }
+        throw new Error('Таймаут генерации');
+      };
+
+      const job = data?.status === 'completed' ? data : await pollJob();
+      const urls: string[] = Array.isArray(job?.results)
+        ? job.results.map((r: any) => String(r?.url || '')).filter((u: string) => !!u)
+        : [];
+
+      const finalImages: GenerationResult[] = urls.slice(0, GROK_RESULTS_PER_RUN).map((url, i) => ({
+        id: `${generationId || jobId}-${i}`,
+        url,
         prompt,
-        mode: 'image',
+        mode: 'image' as const,
         settings: { model: 'grok-imagine', size: aspectRatio, quality: mode },
         timestamp: Date.now(),
         status: 'completed',
-      };
+      }));
 
-      // Replace pending placeholders (if any) and append to bottom
       setImages(prev => {
         const filtered = prev.filter(img => !img.id.startsWith('pending-'));
-        return [...filtered, newImage];
+        return [...filtered, ...finalImages];
       });
       await refreshCredits();
       await invalidateCache();
       refreshHistory();
       celebrateGeneration();
-      toast.success('Изображение создано!');
+      toast.success(`Создано ${finalImages.length} изображений!`);
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
@@ -144,7 +170,7 @@ export function GrokImagineGenerator() {
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, credits, estimatedCost, mode, aspectRatio, quantity, negativePrompt, seed, steps, showPopup, refreshCredits, refreshHistory]);
+  }, [isAuthenticated, prompt, credits, estimatedCost, mode, aspectRatio, negativePrompt, seed, steps, showPopup, refreshCredits, refreshHistory]);
 
   const hasEnoughCredits = credits >= estimatedCost;
   const canGenerate = prompt.trim().length > 0 && !isGenerating && hasEnoughCredits && isAuthenticated;
@@ -214,7 +240,7 @@ export function GrokImagineGenerator() {
                   value={aspectRatio}
                   onChange={setAspectRatio}
                   disabled={isGenerating}
-                  options={['1:1', '3:2', '2:3']}
+                  options={['1:1', '3:2', '2:3', '9:16', '16:9']}
                 />
                 
                 <ModeSelector
@@ -225,8 +251,8 @@ export function GrokImagineGenerator() {
                 
                 <QuantityCounter
                   value={quantity}
-                  onChange={setQuantity}
-                  disabled={isGenerating}
+                  onChange={() => setQuantity(GROK_RESULTS_PER_RUN)}
+                  disabled={true}
                 />
               </div>
 

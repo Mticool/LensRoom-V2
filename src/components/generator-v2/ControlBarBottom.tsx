@@ -96,7 +96,10 @@ export function ControlBarBottom({
     : modelName;
 
   const isToolModel = modelId === 'topaz-image-upscale' || modelId === 'recraft-remove-background';
-  const quantityMax = isToolModel ? 1 : 4;
+  const isGrokImagine = modelId === "grok-imagine";
+  // Most photo models in our UI allow up to 4 parallel generations per click.
+  // Grok Imagine returns 6 images per run on KIE (fixed output count).
+  const quantityMax = isToolModel ? 1 : isGrokImagine ? 6 : 4;
   const uploadTitle = isToolModel ? 'Загрузить фото' : 'Загрузить референс';
   const uploadedTitle = isToolModel ? 'Фото загружено (клик для замены)' : 'Референс загружен (клик для замены)';
   const removeTitle = isToolModel ? 'Удалить фото' : 'Удалить референс';
@@ -458,7 +461,7 @@ export function ControlBarBottom({
               onChange={onQuantityChange}
               min={1}
               max={quantityMax}
-              disabled={isGenerating || isToolModel}
+              disabled={isGenerating || isToolModel || isGrokImagine}
             />
 
             {/* Spacer - push desktop Generate to the right */}
@@ -657,7 +660,7 @@ export function ControlBarBottom({
                   <button
                     type="button"
                     onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
-                    disabled={isGenerating || quantity <= 1}
+                    disabled={isGenerating || isGrokImagine || quantity <= 1}
                     className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
                   >
                     -
@@ -666,7 +669,7 @@ export function ControlBarBottom({
                   <button
                     type="button"
                     onClick={() => onQuantityChange(Math.min(quantityMax, quantity + 1))}
-                    disabled={isGenerating || quantity >= quantityMax}
+                    disabled={isGenerating || isGrokImagine || quantity >= quantityMax}
                     className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
                   >
                     +

@@ -31,6 +31,16 @@ function buildSearchParams(
   return qs ? `?${qs}` : "";
 }
 
+function extractGenerationUuid(rawId: string | undefined | null): string | null {
+  const id = String(rawId || "").trim();
+  if (!id) return null;
+  // Accept `uuid` or `uuid-0` (we suffix multi-output results for uniqueness).
+  const m = id.match(
+    /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[-_]\d+)?$/i
+  );
+  return m ? m[1] : null;
+}
+
 function qualityLabelFromApi(modelId: string, apiQuality?: string | null): string {
   const q = String(apiQuality || "").toLowerCase();
   if (modelId === "nano-banana-pro") {
@@ -318,7 +328,10 @@ export function StudioWorkspaces() {
     if (!image?.url) return;
     try {
       const isDemo = String(image.id || "").startsWith("demo-");
-      const downloadUrl = !isDemo && image.id ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original` : image.url;
+      const genId = extractGenerationUuid(image.id);
+      const downloadUrl = !isDemo && genId
+        ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original`
+        : image.url;
       const response = await fetch(downloadUrl, { credentials: "include" });
       if (!response.ok) throw new Error("download_failed");
       const blob = await response.blob();
@@ -412,8 +425,9 @@ export function StudioWorkspaces() {
   const fetchGenerationAsDataUrl = useCallback(
     async (image: GenerationResult): Promise<string> => {
       const isDemo = String(image.id || "").startsWith("demo-");
-      const url = !isDemo && image.id
-        ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original&proxy=1`
+      const genId = extractGenerationUuid(image.id);
+      const url = !isDemo && genId
+        ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original&proxy=1`
         : image.url;
       const resp = await fetch(url, { credentials: "include" });
       if (!resp.ok) throw new Error("download_failed");
@@ -455,7 +469,9 @@ export function StudioWorkspaces() {
       return price.stars;
     }
     const q = apiQualityFromLabel(selectedModelId, qualityLabel);
-    const price = computePrice(selectedModelId, { variants: quantity, quality: q as any });
+    // Grok Imagine returns 6 images per single run; price is per run, not per image.
+    const priceVariants = selectedModelId === "grok-imagine" ? 1 : quantity;
+    const price = computePrice(selectedModelId, { variants: priceVariants, quality: q as any });
     return price.stars;
   }, [photoModel, selectedModelId, qualityLabel, quantity, isToolModel]);
 
@@ -566,7 +582,7 @@ export function StudioWorkspaces() {
     setNegativePrompt("");
     setSeed(null);
     setSteps(25);
-    setQuantity(1);
+    setQuantity(selectedModelId === "grok-imagine" ? 6 : 1);
     setReferenceImages([]);
     setLocalItems([]);
     setThreadsLoaded(false);
@@ -975,7 +991,8 @@ export function StudioWorkspaces() {
     const ref = supportsI2i ? referenceImages : [];
 
     const generationPrompt = tool ? (normalizedPrompt || defaultPromptForModel(selectedModelId)) : normalizedPrompt;
-    const n = tool ? 1 : Math.max(1, Math.min(4, Number(quantity) || 1));
+    const grokOutputs = selectedModelId === "grok-imagine" ? 6 : null;
+    const n = tool ? 1 : grokOutputs ? grokOutputs : Math.max(1, Math.min(4, Number(quantity) || 1));
     const extraParams: Record<string, unknown> | null =
       selectedModelId === "topaz-image-upscale"
         ? { scale: apiQualityFromLabel(selectedModelId, qualityLabel) }
@@ -997,6 +1014,67 @@ export function StudioWorkspaces() {
 
     setIsGeneratingBatch(true);
     try {
+      // Grok Imagine: single run returns 6 images, so do ONE request and fan-out results.
+      if (selectedModelId === "grok-imagine" && !tool) {
+        const pendingIds = pendingBatch.map((p) => p.id);
+        const endpoint = "/api/generate/photo";
+        const body: Record<string, unknown> = {
+          prompt: generationPrompt,
+          model: settings.model,
+          aspectRatio: settings.size,
+          negativePrompt: settings.negativePrompt,
+          mode: "t2i",
+          variants: 1, // price is per run; Grok returns multiple outputs by default
+          threadId: selectedThreadId,
+        };
+        if (settings.quality) body.quality = settings.quality;
+        if (settings.outputFormat) body.outputFormat = settings.outputFormat;
+        if (typeof settings.seed === "number") body.seed = settings.seed;
+        if (typeof settings.steps === "number") body.steps = settings.steps;
+        if (extraParams && Object.keys(extraParams).length > 0) body.params = extraParams;
+
+        const resp = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data?.error || data?.message || "Ошибка генерации");
+
+        const provider = String(data?.provider || "kie_market");
+        const generationId = String(data?.generationId || "");
+        const jobId = String(data?.jobId || data?.id || "");
+        if (!jobId) throw new Error("Нет jobId для отслеживания");
+
+        const jobData = await pollJob(jobId, provider);
+        const urls: string[] = Array.isArray(jobData?.results)
+          ? jobData.results.map((r: any) => String(r?.url || "")).filter((u: string) => !!u)
+          : [];
+        if (!urls.length) throw new Error("Не удалось получить результат");
+
+        const limited = urls.slice(0, n);
+        for (let i = 0; i < pendingIds.length; i++) {
+          const url = limited[i];
+          if (!url) {
+            updateLocalItem(pendingIds[i]!, null);
+            continue;
+          }
+          updateLocalItem(pendingIds[i]!, {
+            id: `${generationId || jobId}-${i}`,
+            url,
+            status: "success",
+            pendingId: pendingIds[i],
+            timestamp: Date.now(),
+          });
+        }
+
+        invalidateCache();
+        refreshHistory();
+        await refreshCredits();
+        return;
+      }
+
       // Run in parallel (up to 4) while preserving placeholder order in UI
       await Promise.allSettled(
         pendingBatch.map(async (p) => {

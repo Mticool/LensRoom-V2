@@ -182,7 +182,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'high',
     supportsI2i: false,
     pricing: 15, // Примерная цена
-    aspectRatios: ['1:1', '3:2', '2:3'],
+    // KIE docs: https://kie.ai/grok-imagine?model=grok-imagine%2Ftext-to-image
+    // Allowed: 2:3, 3:2, 1:1, 9:16, 16:9
+    aspectRatios: ['1:1', '3:2', '2:3', '9:16', '16:9'],
     shortLabel: 'xAI 🌶️',
   },
   // === MIDJOURNEY - KIE Market API === (ВРЕМЕННО СКРЫТО - требует активации в KIE)

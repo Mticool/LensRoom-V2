@@ -367,7 +367,9 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         options: [
           { value: "1:1", label: "1:1" },
           { value: "3:2", label: "3:2 (альбом)" },
-          { value: "2:3", label: "2:3 (портрет)" }
+          { value: "2:3", label: "2:3 (портрет)" },
+          { value: "9:16", label: "9:16 (сторис)" },
+          { value: "16:9", label: "16:9 (широкий)" }
         ],
         default: "1:1",
         description: "Пропорции изображения",
