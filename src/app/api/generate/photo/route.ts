@@ -376,7 +376,8 @@ export async function POST(request: NextRequest) {
     // Resolve aspect ratio (used for API call, but NOT saved to DB - column doesn't exist yet)
     const finalAspectRatioForDb = resolveAspectRatio(aspectRatio, effectiveModelId);
     
-    const insertOnce = async () => {
+    const insertOnce = async (opts?: { includeParams?: boolean }) => {
+      const includeParams = opts?.includeParams !== false;
       // Persist minimal generation params for UI (avoid storing large blobs like base64 images).
       const safeClientParams = (() => {
         if (!clientParams || typeof clientParams !== "object") return null;
@@ -418,37 +419,41 @@ export async function POST(request: NextRequest) {
         ...(safeClientParams ? { clientParams: safeClientParams } : {}),
       };
 
-      const r = await supabase
-        .from("generations")
-        .insert({
-          user_id: userId,
-          type: "photo",
-          model_id: effectiveModelId,
-          model_name: baseTitle || modelInfo.name,
-          prompt: prompt,
-          negative_prompt: negativePrompt,
-          credits_used: creditCost,
-          status: "queued",
-          aspect_ratio: finalAspectRatioForDb, // Now saving aspect_ratio (migration applied)
-          thread_id: threadId || null,
-          params: paramsForDb,
-        })
-        .select()
-        .single();
+      const payload: Record<string, unknown> = {
+        user_id: userId,
+        type: "photo",
+        model_id: effectiveModelId,
+        model_name: baseTitle || modelInfo.name,
+        prompt: prompt,
+        negative_prompt: negativePrompt,
+        credits_used: creditCost,
+        status: "queued",
+        aspect_ratio: finalAspectRatioForDb, // Now saving aspect_ratio (migration applied)
+        thread_id: threadId || null,
+      };
+      if (includeParams) payload.params = paramsForDb;
+
+      const r = await supabase.from("generations").insert(payload).select().single();
       generation = r.data;
       genError = r.error;
     };
 
-    await insertOnce();
+    await insertOnce({ includeParams: true });
     if (genError) {
       const code = genError?.code ? String(genError.code) : "";
       const msg = genError?.message ? String(genError.message) : String(genError);
+
+      // Backward compatibility: production DB may not have `generations.params` yet.
+      // PostgREST: PGRST204 "Could not find the 'params' column ..."
+      if (code === "PGRST204" && /params/i.test(msg)) {
+        await insertOnce({ includeParams: false });
+      }
 
       // Common root cause: FK violation to profiles.id (23503). Retry after ensuring profile.
       if (code === "23503" || /foreign key/i.test(msg)) {
         try {
           await ensureProfileExists(supabase, userId);
-          await insertOnce();
+          await insertOnce({ includeParams: true });
         } catch (e) {
           // keep original error below if still failing
           console.error("[API] Retry after ensureProfileExists failed:", e);
@@ -639,9 +644,24 @@ export async function POST(request: NextRequest) {
     const fixed = (modelInfo as any)?.fixedResolution as string | undefined;
     const q = String(quality || '').toLowerCase();
     const r = String(resolution || '').toLowerCase();
-    const apiModelId = String(modelInfo.apiId || "");
+
+    // Some LensRoom model ids map to different KIE model ids depending on mode.
+    // Keep a single LensRoom id, but choose the correct provider model per request.
+    let apiModelId = String(modelInfo.apiId || "");
+    if (effectiveModelId === "flux-2-pro" && mode === "i2i" && (kieImageInputs?.length ?? 0) > 0) {
+      apiModelId = "flux-2/pro-image-to-image";
+    }
+
     const isFlux2 = apiModelId.includes("flux-2");
     const isSeedream45 = apiModelId.startsWith("seedream/4.5");
+
+    // Safety: in this app Seedream 4.5 is T2I-only (edit model not wired).
+    if (effectiveModelId === "seedream-4.5" && mode === "i2i") {
+      return NextResponse.json(
+        { error: "Seedream 4.5 currently supports Text-to-Image only (no reference edit)." },
+        { status: 400 }
+      );
+    }
     // Map to KIE `resolution` ONLY when the model actually uses it.
     // (Some models like Seedream/Z-image do NOT accept `resolution` and will error if we pass e.g. "BALANCED".)
     let resolutionForKie: string | undefined;

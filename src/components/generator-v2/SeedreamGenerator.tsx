@@ -12,9 +12,8 @@ import type { GenerationResult } from './GeneratorV2';
 import './theme.css';
 
 const QUALITY_MAPPING: Record<string, string> = {
-  'Быстро': 'turbo',
-  'Баланс': 'balanced',
-  'Качество': 'quality',
+  Basic: 'basic',
+  High: 'high',
 };
 
 const COST_PER_IMAGE = 11;
@@ -25,7 +24,7 @@ export function SeedreamGenerator() {
   
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
-  const [quality, setQuality] = useState('Баланс');
+  const [quality, setQuality] = useState('Basic');
   const [quantity, setQuantity] = useState(1);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
@@ -50,7 +49,7 @@ export function SeedreamGenerator() {
       url: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&q=80',
       prompt: 'Modern creative visual with vibrant colors',
       mode: 'image',
-      settings: { model: 'seedream-4.5', size: '21:9', quality: 'balanced' },
+      settings: { model: 'seedream-4.5', size: '21:9', quality: 'basic' },
       timestamp: Date.now(),
     },
   ] : [];
@@ -205,8 +204,8 @@ export function SeedreamGenerator() {
         credits={credits}
         estimatedCost={estimatedCost}
         modelId="seedream-4.5"
-        qualityOptions={['Быстро', 'Баланс', 'Качество']}
-        aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '21:9']}
+        qualityOptions={['Basic', 'High']}
+        aspectRatioOptions={['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '21:9']}
         referenceImage={referenceImage}
         onReferenceImageChange={setReferenceImage}
         onReferenceFileChange={setReferenceFile}

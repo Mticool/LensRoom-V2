@@ -51,20 +51,21 @@ export interface KieModelSettings {
 // ===== ФОТО МОДЕЛИ =====
 
 export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
-  // Z-image - простой и дешевый
+  // Z-image Turbo (Text-to-Image)
   "z-image": {
-    name: "Z-image",
-    apiModel: "z-image",
+    name: "Z-Image Turbo",
+    apiModel: "z-image-turbo",
     settings: {
       aspect_ratio: {
         label: "Соотношение сторон",
         type: "buttons",
         options: [
           { value: "1:1", label: "1:1" },
+          { value: "4:3", label: "4:3" },
+          { value: "3:4", label: "3:4" },
           { value: "16:9", label: "16:9" },
           { value: "9:16", label: "9:16" },
-          { value: "4:3", label: "4:3" },
-          { value: "3:4", label: "3:4" }
+          { value: "auto", label: "Auto (по референсу)" }
         ],
         default: "1:1",
         description: "Пропорции изображения",
@@ -182,7 +183,8 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         type: "fixed",
         values: {
           "1K": 9,   // 1K = 9⭐
-          "2K": 12   // 2K = 12⭐
+          "2K": 12,  // 2K = 12⭐
+          "4K": 12   // 4K = 12⭐ (temporarily same as 2K)
         }
       }
     ],
@@ -204,7 +206,8 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         type: "buttons",
         options: [
           { value: "1K", label: "1K (9⭐)" },
-          { value: "2K", label: "2K (12⭐)" }
+          { value: "2K", label: "2K (12⭐)" },
+          { value: "4K", label: "4K (12⭐)" }
         ],
         default: "2K",
         description: "1K = 9⭐, 2K = 12⭐",
@@ -218,10 +221,11 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
           { value: "1:1", label: "1:1" },
           { value: "16:9", label: "16:9" },
           { value: "9:16", label: "9:16" },
-          { value: "4:3", label: "4:3" },
           { value: "3:4", label: "3:4" },
           { value: "3:2", label: "3:2" },
-          { value: "2:3", label: "2:3" }
+          { value: "2:3", label: "2:3" },
+          { value: "4:5", label: "4:5" },
+          { value: "auto", label: "Auto (по референсу)" }
         ],
         default: "16:9",
         description: "Пропорции изображения",
@@ -240,11 +244,10 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
         label: "Режим генерации",
         type: "buttons",
         options: [
-          { value: "t2i", label: "📝 Текст → Фото" },
-          { value: "i2i", label: "🖼️ Фото → Фото" }
+          { value: "t2i", label: "📝 Текст → Фото" }
         ],
         default: "t2i",
-        description: "t2i = создать с нуля, i2i = редактировать фото",
+        description: "t2i = создать с нуля",
         required: true,
         order: 1
       },
@@ -1434,6 +1437,54 @@ export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
         apiKey: "separationType"
       }
     }
+  },
+
+  // ===== ELEVENLABS V3 - Text to Dialogue =====
+  // Документация: https://kie.ai/elevenlabs/text-to-dialogue-v3
+  // Expressive multilingual Text to Dialogue with audio tags, multi-speaker support
+  "elevenlabs-v3": {
+    name: "ElevenLabs V3",
+    apiModel: "elevenlabs/text-to-dialogue-v3",
+    settings: {
+      dialogue: {
+        label: "Текст для озвучки",
+        type: "textarea",
+        placeholder: "Введите текст для озвучки...\n\nПоддерживает теги: [whispers], [laughs], [sighs], [excited], [sarcastic]",
+        required: true,
+        description: "Текст диалога. Используйте эллипсы (...) для пауз, тире (—) для прерываний",
+        order: 1
+      },
+      stability: {
+        label: "Стабильность голоса",
+        type: "slider",
+        min: 0,
+        max: 100,
+        step: 5,
+        default: 50,
+        optional: true,
+        description: "Меньше = более вариативно и эмоционально, больше = стабильнее",
+        order: 2
+      },
+      language_code: {
+        label: "Язык",
+        type: "buttons",
+        options: [
+          { value: "auto", label: "🌐 Авто" },
+          { value: "ru", label: "🇷🇺 Русский" },
+          { value: "en", label: "🇬🇧 English" },
+          { value: "de", label: "🇩🇪 Deutsch" },
+          { value: "fr", label: "🇫🇷 Français" },
+          { value: "es", label: "🇪🇸 Español" },
+          { value: "ja", label: "🇯🇵 日本語" },
+          { value: "zh", label: "🇨🇳 中文" }
+        ],
+        default: "auto",
+        optional: true,
+        description: "70+ языков поддерживается",
+        order: 3,
+        apiKey: "language_code"
+      }
+    }
   }
 };
 
@@ -1471,6 +1522,7 @@ export function calculateAudioPrice(modelId: string, settings: Record<string, an
     'suno-cover': 12,     // Cover
     'suno-vocals': 12,    // Add Vocals
     'suno-separate': 1,   // Separate (дёшево)
+    'elevenlabs-v3': 8,   // ElevenLabs V3 Text-to-Dialogue
   };
   
   const kieCredits = basePrices[modelId] || 12;

@@ -538,7 +538,7 @@ export default function HomePage() {
               </p>
               
               {/* CTA */}
-              <Link href="/create?section=video&model=kling-motion-control">
+              <Link href="/generators?model=kling-motion-control">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}

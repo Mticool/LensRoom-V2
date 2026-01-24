@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star, User } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star, User, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
@@ -504,24 +504,33 @@ export function Header() {
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-5 pb-24">
                 {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-3 gap-2 mb-6">
                   <Link
                     href="/create?section=image"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-primary)]/50 transition-colors"
+                    className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-primary)]/50 transition-colors"
                   >
-                    <ImageIcon className="w-6 h-6 text-[var(--accent-primary)] mb-2" />
+                    <ImageIcon className="w-5 h-5 text-[var(--accent-primary)] mb-1.5" />
                     <p className="text-sm font-semibold text-[var(--text)]">Фото</p>
-                    <p className="text-xs text-[var(--muted)] mt-0.5">Создать изображение</p>
+                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Изображения</p>
                   </Link>
                   <Link
-                    href="/create?section=video"
+                    href="/generators"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-secondary)]/50 transition-colors"
+                    className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-secondary)]/50 transition-colors"
                   >
-                    <Sparkles className="w-6 h-6 text-[var(--accent-secondary)] mb-2" />
+                    <Sparkles className="w-5 h-5 text-[var(--accent-secondary)] mb-1.5" />
                     <p className="text-sm font-semibold text-[var(--text)]">Видео</p>
-                    <p className="text-xs text-[var(--muted)] mt-0.5">Создать видео</p>
+                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Ролики</p>
+                  </Link>
+                  <Link
+                    href="/create?section=audio"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-pink-500/50 transition-colors"
+                  >
+                    <Music className="w-5 h-5 text-pink-500 mb-1.5" />
+                    <p className="text-sm font-semibold text-[var(--text)]">Аудио</p>
+                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Музыка</p>
                   </Link>
                 </div>
 

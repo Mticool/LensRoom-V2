@@ -258,12 +258,29 @@ export function LibraryClient() {
   };
 
   const handleRegenerateSimilar = (item: LibraryItem) => {
-    const params = new URLSearchParams();
-    if (item.prompt) params.set("prompt", item.prompt);
-    if (item.model_name) params.set("model", item.model_name);
-    const path = item.type?.toLowerCase() === "video" ? "/create/video" : "/create";
-    router.push(`${path}?${params.toString()}`);
-    toast.success("Настройки применены!");
+    // Use generationId for full parameter restoration
+    if (item.type?.toLowerCase() === "video") {
+      router.push(`/generators?generationId=${item.id}`);
+    } else {
+      // For photos - keep old behavior
+      const params = new URLSearchParams();
+      if (item.prompt) params.set("prompt", item.prompt);
+      if (item.model_name) params.set("model", item.model_name);
+      router.push(`/create?${params.toString()}`);
+    }
+    toast.success("Открываю в генераторе...");
+  };
+
+  const handleOpenInGenerator = (item: LibraryItem) => {
+    if (item.type?.toLowerCase() === "video") {
+      router.push(`/generators?generationId=${item.id}`);
+    } else {
+      const params = new URLSearchParams();
+      if (item.prompt) params.set("prompt", item.prompt);
+      if (item.model_name) params.set("model", item.model_name);
+      router.push(`/create?${params.toString()}`);
+    }
+    toast.success("Открываю в генераторе...");
   };
 
   const calculateProgress = (createdAt: string, type: string): number => {
@@ -527,6 +544,13 @@ export function LibraryClient() {
                           >
                             <Repeat className="w-4 h-4" />
                           </button>
+                          <button
+                            onClick={() => handleOpenInGenerator(item)}
+                            className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
+                            title="Открыть в генераторе"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
                           {isAdminOrManager && (
                             <button
                               onClick={() => handleOpenPublish(item)}
@@ -598,6 +622,9 @@ export function LibraryClient() {
                   </button>
                   <button onClick={() => handleDownload(selected.id)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
                     <Download className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => handleOpenInGenerator(selected)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5" title="Открыть в генераторе">
+                    <Edit3 className="w-5 h-5" />
                   </button>
                   <button onClick={() => setOpen(false)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
                     <X className="w-5 h-5" />

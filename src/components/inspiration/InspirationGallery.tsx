@@ -336,19 +336,26 @@ export function InspirationGallery() {
   const handleRepeat = useCallback((card: ContentCard) => {
     // Map content_type to section
     const section = card.content_type === 'video' ? 'video' : 'image';
-    
-    // Build URL with model and prompt
-    const params = new URLSearchParams();
-    params.set('section', section);
-    params.set('model', card.model_key);
-    
+
     // Store prompt in localStorage to be picked up by generator
     if (card.template_prompt) {
       localStorage.setItem('lensroom_prefill_prompt', card.template_prompt);
       localStorage.setItem('lensroom_prefill_model', card.model_key);
     }
-    
-    router.push(`/create/studio?${params.toString()}`);
+
+    // Use new video generator for video content
+    if (section === 'video') {
+      const params = new URLSearchParams();
+      params.set('model', card.model_key);
+      router.push(`/generators?${params.toString()}`);
+    } else {
+      // Use old studio for images
+      const params = new URLSearchParams();
+      params.set('section', section);
+      params.set('model', card.model_key);
+      router.push(`/create/studio?${params.toString()}`);
+    }
+
     toast.success('Открываем генератор', {
       description: `${card.model_key} • Промпт применён`,
     });

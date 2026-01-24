@@ -107,7 +107,7 @@ export async function notifyGenerationStatus(params: {
     if (params.status === "success" && params.kind === "video") {
       return [
         [{ text: "📚 Открыть Library", url: `${site}/library` }],
-        [{ text: "🎬 Открыть Studio", url: `${site}/create/studio` }],
+        [{ text: "🎬 Открыть Studio", url: `${site}/generators` }],
       ];
     }
     // failed

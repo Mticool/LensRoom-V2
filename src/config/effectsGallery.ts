@@ -345,15 +345,16 @@ export function getEffectById(id: string): EffectPreset | undefined {
 // Build URL for preset navigation
 export function buildPresetUrl(preset: EffectPreset): string {
   const isVideo = preset.contentType === 'video';
-  const basePath = '/create/studio';
-  
+  // Use new video generator for video content
+  const basePath = isVideo ? '/generators' : '/create/studio';
+
   const params = new URLSearchParams({
     preset: preset.presetId,
     kind: preset.contentType,
     model: preset.modelKey,
     mode: preset.mode,
   });
-  
+
   // Add aspect ratio from tile
   if (preset.tileRatio) {
     params.set('aspect', preset.tileRatio);
@@ -363,7 +364,7 @@ export function buildPresetUrl(preset: EffectPreset): string {
   if (preset.templatePrompt && preset.templatePrompt.trim()) {
     params.set('prompt', preset.templatePrompt);
   }
-  
+
   return `${basePath}?${params.toString()}`;
 }
 

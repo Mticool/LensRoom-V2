@@ -19,6 +19,7 @@ export type PhotoQuality =
   | 'quality'
   | 'fast'
   | 'ultra'
+  | 'basic' // Seedream 4.5
   | 'medium' // OpenAI GPT Image 1.5
   | 'high' // OpenAI GPT Image 1.5
   // Ideogram Character packs
@@ -295,16 +296,18 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     featured: true,
     speed: 'medium',
     quality: 'ultra',
-    supportsI2i: true,
+    // Seedream 4.5 in this app is T2I only. Edits/references require a separate KIE "edit" model.
+    supportsI2i: false,
     pricing: {
-      // NEW PRICING: 6.5 credits = 11⭐
-      turbo: 11,
-      balanced: 11,
-      quality: 11,
+      // Keep current ⭐ pricing unchanged (even if KIE credit cost differs).
+      // KIE Seedream 4.5 T2I uses quality: basic (2K) / high (4K)
+      basic: 11,
+      high: 11,
     },
-    qualityOptions: ['turbo', 'balanced', 'quality'],
-    // Keep in sync with KIE supported aspect ratios (see src/config/kie-api-settings.ts)
-    aspectRatios: ['1:1', '16:9', '9:16', '3:2', '2:3'],
+    qualityOptions: ['basic', 'high'],
+    // KIE Seedream 4.5 supports multiple aspect ratios; default is 1:1.
+    // Keep in sync with src/config/kie-api-settings.ts
+    aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '21:9'],
     shortLabel: 'Turbo/Quality',
   },
   {
@@ -320,30 +323,41 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     speed: 'medium',
     quality: 'ultra',
     supportsI2i: true,
+    // KIE multi-reference (1–8), JPEG/PNG/WEBP, max 10MB each
+    maxInputImages: 8,
+    maxInputImageSizeMb: 10,
+    inputImageFormats: ['jpeg', 'png', 'webp'],
     pricing: {
-      // NEW PRICING: 1k (5 credits) = 9⭐, 2k (7 credits) = 12⭐
+      // Keep current ⭐ pricing unchanged.
+      // KIE supports 1K/2K/4K; 4K is enabled at the same ⭐ price as 2K for now.
       '1k': 9,
       '2k': 12,
+      '4k': 12,
     },
-    qualityOptions: ['1k', '2k'],
-    // Keep in sync with KIE supported aspect ratios (see src/config/kie-api-settings.ts)
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
-    shortLabel: '1K/2K',
+    qualityOptions: ['1k', '2k', '4k'],
+    // KIE allowed: 1:1, 16:9, 9:16, 4:5, 3:4, 2:3, 3:2, auto
+    aspectRatios: ['1:1', '16:9', '9:16', '4:5', '3:4', '2:3', '3:2', 'auto'],
+    shortLabel: '1K/2K/4K',
   },
-  // Z-image: model id is "z-image" (per docs)
+  // Z-image Turbo: fast photorealism + strong typography
   {
     id: 'z-image',
-    name: 'Z-image',
-    apiId: 'z-image',
+    name: 'Z-Image Turbo',
+    // KIE model identifier for Turbo variant.
+    // If KIE expects plain "z-image", we handle it in the API client fallback.
+    apiId: 'z-image-turbo',
     type: 'photo',
     provider: 'kie_market',
-    shortDescription: 'Универсальный генератор изображений.',
-    description: 'Универсальный генератор изображений.',
+    shortDescription: 'Фотореализм и чистые текстуры • сильная типографика.',
+    description: 'Z-Image Turbo — быстрый фотореализм с чистым светом и текстурами. Хорошо рисует мелкий текст (EN/中文), постеры и баннеры. Поддерживает 1 референс (до 10 МБ).',
     rank: 14,
     featured: true,
     speed: 'fast',
     quality: 'high',
     supportsI2i: true,
+    maxInputImages: 1,
+    maxInputImageSizeMb: 10,
+    inputImageFormats: ['jpeg', 'png', 'webp'],
     pricing: {
       // NEW PRICING: 0.8 credit = 2⭐
       turbo: 2,
@@ -351,7 +365,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
       quality: 2,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
+    // Allowed: 1:1, 4:3, 3:4, 16:9, 9:16 (+ auto when a reference image is provided)
+    aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', 'auto'],
     shortLabel: '2⭐',
   },
   // NOTE: Ideogram V3 is currently unavailable on KIE API (422 error)

@@ -8,6 +8,8 @@ import { ChevronLeft, ChevronRight, Copy, Download, Heart, RotateCcw, Share2, Im
 
 import { ImageGalleryMasonry } from "@/components/generator-v2/ImageGalleryMasonry";
 import { ControlBarBottom } from "@/components/generator-v2/ControlBarBottom";
+import { MobilePhotoViewer } from "@/components/generator-v2/MobilePhotoViewer";
+import { GeneratorBottomSheet } from "@/components/generator-v2/GeneratorBottomSheet";
 import { ThreadSidebar, type StudioThread } from "@/components/generator-v2/ThreadSidebar";
 import { useAuth } from "@/components/generator-v2/hooks/useAuth";
 import { useHistory } from "@/components/generator-v2/hooks/useHistory";
@@ -48,6 +50,14 @@ function qualityLabelFromApi(modelId: string, apiQuality?: string | null): strin
     // 1k_2k is the real pricing tier; we show user-friendly split (1K/2K)
     return "1K";
   }
+  if (modelId === "seedream-4.5") {
+    if (q === "basic") return "Basic";
+    if (q === "high") return "High";
+    // Backward compatibility (older stored values)
+    if (q === "turbo" || q === "balanced") return "Basic";
+    if (q === "quality" || q === "ultra") return "High";
+    return "Basic";
+  }
   if (modelId === "grok-imagine") {
     if (q === "normal") return "Normal";
     if (q === "fun") return "Fun";
@@ -76,6 +86,16 @@ function apiQualityFromLabel(modelId: string, label: string): string | undefined
     if (l === "4K") return "4k";
     // 1K and 2K are the same tier in pricing (1k_2k)
     if (l === "1K" || l === "2K") return "1k_2k";
+  }
+  if (modelId === "seedream-4.5") {
+    if (l === "High") return "high";
+    if (l === "Basic") return "basic";
+    const raw = l.toLowerCase();
+    if (raw === "high" || raw === "basic") return raw;
+    // Legacy labels
+    if (l === "Turbo" || l === "Balanced") return "basic";
+    if (l === "Quality" || l === "Ultra") return "high";
+    return "basic";
   }
   if (modelId === "grok-imagine") {
     if (l === "Normal") return "normal";
@@ -142,6 +162,10 @@ function normalizeAspect(value: string): string {
   const h = Number(m[2]);
   if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return raw;
   return `${w}:${h}`;
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
 }
 
 function parseAspect(value: string | undefined | null): { w: number; h: number } {
@@ -219,6 +243,10 @@ export function StudioWorkspaces() {
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const [isThreadsOpen, setIsThreadsOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<GenerationResult | null>(null);
+  const [activeRunKey, setActiveRunKey] = useState<string | null>(null);
+  const [activeRunIndex, setActiveRunIndex] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const { toggleFavorite, isFavorite: isFavoriteId, fetchFavorites, _hasHydrated } = useFavoritesStore();
 
   const activeThread = useMemo(
@@ -256,6 +284,41 @@ export function StudioWorkspaces() {
       (i) => String(i?.status || "").toLowerCase() !== "pending" && String(i?.url || "").trim().length > 0
     );
   }, [effectiveImages]);
+
+  const getRunKey = useCallback((img: GenerationResult | null | undefined): string | null => {
+    if (!img) return null;
+    if (typeof (img as any).runId === "string" && String((img as any).runId).trim()) return String((img as any).runId).trim();
+    // Fallback: treat single-image generations as their own “run”
+    return extractGenerationUuid(img.id) || img.id;
+  }, []);
+
+  const activeRunImages = useMemo(() => {
+    const key = activeRunKey;
+    if (!key) return [];
+    return viewerList.filter((img) => getRunKey(img) === key);
+  }, [viewerList, activeRunKey, getRunKey]);
+
+  const activeMobileImage = useMemo(() => {
+    if (activeRunImages.length) {
+      const idx = clamp(activeRunIndex, 0, activeRunImages.length - 1);
+      return activeRunImages[idx] || null;
+    }
+    // fallback: last available
+    return viewerList.length ? viewerList[viewerList.length - 1]! : null;
+  }, [activeRunImages, activeRunIndex, viewerList]);
+
+  // Keep active run key in sync when new results arrive.
+  useEffect(() => {
+    if (!viewerList.length) return;
+    // If current key exists and still has images, keep it.
+    if (activeRunKey && viewerList.some((img) => getRunKey(img) === activeRunKey)) return;
+    const last = viewerList[viewerList.length - 1]!;
+    const nextKey = getRunKey(last);
+    if (nextKey) {
+      setActiveRunKey(nextKey);
+      setActiveRunIndex(0);
+    }
+  }, [viewerList, activeRunKey, getRunKey]);
 
   const viewerIndex = useMemo(() => {
     if (!viewerImage) return -1;
@@ -360,6 +423,53 @@ export function StudioWorkspaces() {
       toast.error("Ошибка при скачивании");
     }
   }, [viewerImage]);
+
+  const downloadImage = useCallback(async (image: GenerationResult | null) => {
+    if (!image?.url) return;
+    try {
+      const isDemo = String(image.id || "").startsWith("demo-");
+      const genId = extractGenerationUuid(image.id);
+      const downloadUrl = !isDemo && genId
+        ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original`
+        : image.url;
+      const response = await fetch(downloadUrl, { credentials: "include" });
+      if (!response.ok) throw new Error("download_failed");
+      const blob = await response.blob();
+      const mime = String(blob.type || "").toLowerCase();
+      const preferred = String((image as any)?.settings?.outputFormat || "").toLowerCase();
+      const ext =
+        mime.includes("png") ? "png" :
+        mime.includes("webp") ? "webp" :
+        mime.includes("jpeg") || mime.includes("jpg") ? "jpg" :
+        preferred === "webp" ? "webp" :
+        preferred === "jpg" ? "jpg" :
+        "png";
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lensroom-${image.id}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success("Изображение скачано");
+    } catch {
+      try {
+        window.open(image.url, "_blank");
+      } catch {}
+      toast.error("Ошибка при скачивании");
+    }
+  }, []);
+
+  const toggleFavoriteForImage = useCallback(async (image: GenerationResult | null) => {
+    if (!image?.id) return;
+    if (String(image.id).startsWith("demo-") || String(image.id).startsWith("pending_")) return;
+    try {
+      await toggleFavorite(image.id);
+    } catch {
+      toast.error("Не удалось сохранить");
+    }
+  }, [toggleFavorite]);
 
   const handleViewerCopyLink = useCallback(async () => {
     const url = String(viewerImage?.url || "").trim();
@@ -782,6 +892,7 @@ export function StudioWorkspaces() {
       }
 
       const batchId = Date.now();
+      const runKey = `run_${batchId}`;
       const pending: GenerationResult = {
         id: `pending_${batchId}_0`,
         url: "",
@@ -790,8 +901,11 @@ export function StudioWorkspaces() {
         settings,
         timestamp: batchId,
         status: "pending",
+        runId: runKey,
       };
       setLocalItems((prev) => [...prev, pending]);
+      setActiveRunKey(runKey);
+      setActiveRunIndex(0);
 
       try {
         await generateOne(pending.id, generationPrompt, settings, refDataUrl ? [refDataUrl] : [], null);
@@ -1000,6 +1114,7 @@ export function StudioWorkspaces() {
 
     // Create N pending placeholders in order (left-to-right for grid)
     const batchId = Date.now();
+    const runKey = `run_${batchId}`;
     const pendingBatch: GenerationResult[] = Array.from({ length: n }).map((_, i) => ({
       id: `pending_${batchId}_${i}`,
       url: "",
@@ -1008,9 +1123,12 @@ export function StudioWorkspaces() {
       settings,
       timestamp: batchId + i,
       status: "pending",
+      runId: runKey,
     }));
     // Add pending items at the end (bottom of gallery)
     setLocalItems((prev) => [...prev, ...pendingBatch]);
+    setActiveRunKey(runKey);
+    setActiveRunIndex(0);
 
     setIsGeneratingBatch(true);
     try {
@@ -1116,6 +1234,79 @@ export function StudioWorkspaces() {
     updateLocalItem,
   ]);
 
+  const mobilePrev = useCallback(() => {
+    const list = activeRunImages;
+    if (!list.length) return;
+    setActiveRunIndex((i) => (i - 1 + list.length) % list.length);
+  }, [activeRunImages]);
+
+  const mobileNext = useCallback(() => {
+    const list = activeRunImages;
+    if (!list.length) return;
+    setActiveRunIndex((i) => (i + 1) % list.length);
+  }, [activeRunImages]);
+
+  const mobileCopyLink = useCallback(async () => {
+    const url = String(activeMobileImage?.url || "").trim();
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Ссылка скопирована");
+    } catch {
+      toast.error("Не удалось скопировать");
+    }
+  }, [activeMobileImage]);
+
+  const mobileShare = useCallback(async () => {
+    const image = activeMobileImage;
+    if (!image?.url) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "LensRoom",
+          text: image.prompt || "",
+          url: image.url,
+        });
+      } else {
+        await navigator.clipboard.writeText(image.url);
+        toast.success("Ссылка скопирована");
+      }
+    } catch {
+      // ignore cancel
+    }
+  }, [activeMobileImage]);
+
+  const mobileRegenerate = useCallback(() => {
+    const image = activeMobileImage;
+    if (!image) return;
+    const p = String(image.prompt || "").trim();
+    if (p) setPrompt(p);
+    if (typeof image.settings?.negativePrompt === "string") setNegativePrompt(image.settings.negativePrompt);
+    if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
+    if (typeof image.settings?.quality === "string") {
+      setQualityLabel(qualityLabelFromApi(String(image.settings?.model || selectedModelId), image.settings.quality));
+    }
+    toast("Промпт подставлен. Нажмите «Сгенерировать».", { duration: 3000 });
+  }, [activeMobileImage, selectedModelId]);
+
+  const mobileUseAsReference = useCallback(async () => {
+    const image = activeMobileImage;
+    if (!image?.url) return;
+    if (!supportsI2i) {
+      toast.error("Эта модель не поддерживает референс");
+      return;
+    }
+    try {
+      const dataUrl = await fetchGenerationAsDataUrl(image);
+      setReferenceImages([dataUrl]);
+      setPrompt(String(image.prompt || ""));
+      if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
+      toast.success("Добавлено как референс");
+    } catch {
+      toast.error("Не удалось загрузить референс");
+    }
+  }, [activeMobileImage, supportsI2i, fetchGenerationAsDataUrl]);
+
   const handleImageClick = useCallback((image: GenerationResult) => {
     if (!image) return;
     if (String(image.status || "").toLowerCase() === "pending") return;
@@ -1148,190 +1339,319 @@ export function StudioWorkspaces() {
         onRenameThread={renameThread}
       />
 
-      <div className="flex-1 flex flex-col pb-44 sm:pb-40">
-        {/* Gallery */}
-        <ImageGalleryMasonry
-          images={effectiveImages}
-          isGenerating={false}
-          layout="grid"
-          autoScrollToBottom
-          onImageClick={handleImageClick}
-          onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
-          emptyTitle={isToolModel ? "Загрузите фото" : undefined}
-          emptyDescription={
-            isToolModel ? 'Нажмите «+» внизу и загрузите изображение для обработки' : undefined
-          }
-          hasMore={hasMore}
-          onLoadMore={loadMore}
-          isLoadingMore={isLoadingMore}
-        />
+      <div className="flex-1 flex flex-col">
+        {/* Mobile: single fullscreen result + bottom sheet */}
+        <div className="md:hidden flex-1 flex flex-col">
+          <MobilePhotoViewer
+            image={activeMobileImage}
+            index={activeRunImages.length ? clamp(activeRunIndex, 0, activeRunImages.length - 1) : 0}
+            total={activeRunImages.length || 1}
+            onPrev={mobilePrev}
+            onNext={mobileNext}
+            onDownload={() => downloadImage(activeMobileImage)}
+            onToggleFavorite={() => toggleFavoriteForImage(activeMobileImage)}
+            isFavorite={!!(activeMobileImage?.id && isFavoriteId(activeMobileImage.id))}
+          />
 
-        {/* Bottom control bar */}
-        <ControlBarBottom
-          prompt={prompt}
-          onPromptChange={setPrompt}
-          aspectRatio={aspectRatio}
-          onAspectRatioChange={(v) => setAspectRatio(normalizeAspect(v) || "1:1")}
-          quality={qualityLabel}
-          onQualityChange={setQualityLabel}
-          quantity={isToolModel ? 1 : quantity}
-          onQuantityChange={isToolModel ? () => setQuantity(1) : setQuantity}
-          onGenerate={handleGenerate}
-          isGenerating={isGeneratingBatch}
-          disabled={false}
-          isAuthenticated={isAuthenticated}
-          onRequireAuth={startTelegramLogin}
-          credits={authCredits}
-          estimatedCost={estimatedCost}
-          modelId={selectedModelId}
-          qualityOptions={isToolModel ? qualityOptions : qualityOptions}
-          aspectRatioOptions={isToolModel ? ["1:1"] : photoModel.aspectRatios}
-          referenceImages={supportsI2i ? referenceImages : []}
-          onReferenceImagesChange={supportsI2i ? setReferenceImages : undefined}
-          negativePrompt={negativePrompt}
-          onNegativePromptChange={setNegativePrompt}
-          seed={seed}
-          onSeedChange={setSeed}
-          steps={steps}
-          onStepsChange={setSteps}
-          supportsI2i={supportsI2i}
-        />
+          <GeneratorBottomSheet
+            modelId={selectedModelId}
+            modelName={photoModel.name}
+            estimatedCost={estimatedCost}
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            aspectRatio={aspectRatio}
+            onAspectRatioChange={(v) => setAspectRatio(normalizeAspect(v) || "1:1")}
+            aspectRatioOptions={isToolModel ? ["1:1"] : photoModel.aspectRatios}
+            quality={qualityLabel}
+            onQualityChange={setQualityLabel}
+            qualityOptions={qualityOptions}
+            supportsI2i={supportsI2i}
+            referenceImages={supportsI2i ? referenceImages : []}
+            onReferenceImagesChange={supportsI2i ? setReferenceImages : () => {}}
+            negativePrompt={negativePrompt}
+            onNegativePromptChange={setNegativePrompt}
+            seed={seed}
+            onSeedChange={setSeed}
+            steps={steps}
+            onStepsChange={setSteps}
+            isGenerating={isGeneratingBatch}
+            canGenerate={!!(isAuthenticated && (!isToolModel ? prompt.trim().length > 0 : referenceImages.length > 0) && authCredits >= estimatedCost && !isGeneratingBatch)}
+            onGenerate={handleGenerate}
+            onOpenMenu={() => setMobileMenuOpen(true)}
+          />
 
-        {/* Lightbox viewer */}
-        <Dialog
-          open={!!viewerImage}
-          onOpenChange={(open) => {
-            if (!open) setViewerImage(null);
-          }}
-        >
-          <DialogContent className="max-w-none w-[min(96vw,1200px)] max-h-[calc(100vh-2rem)] p-0 gap-0 border border-white/10 bg-[#0B0B0C] shadow-2xl overflow-hidden">
-            <div className="flex flex-col md:flex-row items-stretch">
-              {/* Left: image */}
-              <div
-                className="relative flex items-center justify-center md:flex-1 bg-black"
-                onTouchStart={onViewerTouchStart}
-                onTouchEnd={onViewerTouchEnd}
-                style={{
-                  width: "100%",
-                  height: `min(calc(100vh - 2rem), ${getViewerBox(viewerImage?.settings?.size).height}px)`,
-                }}
-              >
-                {viewerImage?.url ? (
-                  <img
-                    src={viewerImage.url}
-                    alt={viewerImage.prompt || "Generated image"}
-                    className="max-w-full max-h-full object-contain select-none"
-                    draggable={false}
-                  />
-                ) : null}
-
-                {/* Quick actions */}
-                <div className="absolute top-3 left-3 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleViewerCopyLink}
-                    className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
-                    title="Копировать ссылку"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleViewerDownload}
-                    className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
-                    title="Скачать"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Prev/Next */}
-                {viewerList.length > 1 ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={goPrev}
-                      className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
-                      title="Предыдущее"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={goNext}
-                      className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
-                      title="Следующее"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </>
-                ) : null}
+          {/* Mobile menu */}
+          <Dialog open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <DialogContent className="w-[min(96vw,420px)] p-4 border border-white/10 bg-[#0B0B0C] text-white">
+              <div className="text-sm font-semibold">Меню</div>
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setMobileHistoryOpen(true);
+                  }}
+                  className="h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm"
+                >
+                  История
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await mobileShare();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm"
+                  disabled={!activeMobileImage?.url}
+                >
+                  Поделиться
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await mobileCopyLink();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm"
+                  disabled={!activeMobileImage?.url}
+                >
+                  Копировать ссылку
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    mobileRegenerate();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm"
+                  disabled={!activeMobileImage?.prompt}
+                >
+                  Использовать промпт
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await mobileUseAsReference();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm disabled:opacity-50"
+                  disabled={!supportsI2i || !activeMobileImage?.url}
+                >
+                  Использовать как референс
+                </button>
               </div>
+            </DialogContent>
+          </Dialog>
 
-              {/* Right: details */}
-              <aside className="md:w-[420px] border-t md:border-t-0 md:border-l border-white/10 bg-[#0F0F10] p-4 md:p-5 overflow-y-auto">
-                <div className="text-xs text-white/50">Характеристики</div>
-                <div className="mt-1 text-sm font-semibold text-white break-words">
-                  {viewerImage?.prompt || "—"}
+          {/* Mobile history modal */}
+          <Dialog open={mobileHistoryOpen} onOpenChange={setMobileHistoryOpen}>
+            <DialogContent className="max-w-none w-[min(96vw,900px)] max-h-[calc(100vh-2rem)] p-0 gap-0 border border-white/10 bg-[#0B0B0C] shadow-2xl overflow-hidden">
+              <div className="p-4 border-b border-white/10 text-white font-semibold">История</div>
+              <div className="h-[calc(100vh-8rem)]">
+                <ImageGalleryMasonry
+                  images={effectiveImages}
+                  isGenerating={false}
+                  layout="grid"
+                  onImageClick={(img) => {
+                    const key = getRunKey(img);
+                    if (key) {
+                      setActiveRunKey(key);
+                      setActiveRunIndex(0);
+                    }
+                    setMobileHistoryOpen(false);
+                  }}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Desktop: keep existing layout */}
+        <div className="hidden md:flex flex-col pb-44 sm:pb-40">
+          {/* Gallery */}
+          <ImageGalleryMasonry
+            images={effectiveImages}
+            isGenerating={false}
+            layout="grid"
+            autoScrollToBottom
+            onImageClick={handleImageClick}
+            onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
+            emptyTitle={isToolModel ? "Загрузите фото" : undefined}
+            emptyDescription={
+              isToolModel ? 'Нажмите «+» внизу и загрузите изображение для обработки' : undefined
+            }
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
+          />
+
+          {/* Bottom control bar */}
+          <ControlBarBottom
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            aspectRatio={aspectRatio}
+            onAspectRatioChange={(v) => setAspectRatio(normalizeAspect(v) || "1:1")}
+            quality={qualityLabel}
+            onQualityChange={setQualityLabel}
+            quantity={isToolModel ? 1 : quantity}
+            onQuantityChange={isToolModel ? () => setQuantity(1) : setQuantity}
+            onGenerate={handleGenerate}
+            isGenerating={isGeneratingBatch}
+            disabled={false}
+            isAuthenticated={isAuthenticated}
+            onRequireAuth={startTelegramLogin}
+            credits={authCredits}
+            estimatedCost={estimatedCost}
+            modelId={selectedModelId}
+            qualityOptions={qualityOptions}
+            aspectRatioOptions={isToolModel ? ["1:1"] : photoModel.aspectRatios}
+            referenceImages={supportsI2i ? referenceImages : []}
+            onReferenceImagesChange={supportsI2i ? setReferenceImages : undefined}
+            negativePrompt={negativePrompt}
+            onNegativePromptChange={setNegativePrompt}
+            seed={seed}
+            onSeedChange={setSeed}
+            steps={steps}
+            onStepsChange={setSteps}
+            supportsI2i={supportsI2i}
+          />
+
+          {/* Lightbox viewer */}
+          <Dialog
+            open={!!viewerImage}
+            onOpenChange={(open) => {
+              if (!open) setViewerImage(null);
+            }}
+          >
+            <DialogContent className="max-w-none w-[min(96vw,1200px)] max-h-[calc(100vh-2rem)] p-0 gap-0 border border-white/10 bg-[#0B0B0C] shadow-2xl overflow-hidden">
+              <div className="flex flex-col md:flex-row items-stretch">
+                {/* Left: image */}
+                <div
+                  className="relative flex items-center justify-center md:flex-1 bg-black"
+                  onTouchStart={onViewerTouchStart}
+                  onTouchEnd={onViewerTouchEnd}
+                  style={{
+                    width: "100%",
+                    height: `min(calc(100vh - 2rem), ${getViewerBox(viewerImage?.settings?.size).height}px)`,
+                  }}
+                >
+                  {viewerImage?.url ? (
+                    <img
+                      src={viewerImage.url}
+                      alt={viewerImage.prompt || "Generated image"}
+                      className="max-w-full max-h-full object-contain select-none"
+                      draggable={false}
+                    />
+                  ) : null}
+
+                  {/* Quick actions */}
+                  <div className="absolute top-3 left-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleViewerCopyLink}
+                      className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
+                      title="Копировать ссылку"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleViewerDownload}
+                      className="pointer-events-auto inline-flex items-center justify-center w-10 h-10 rounded-xl bg-black/60 text-white hover:bg-black/75 border border-white/10"
+                      title="Скачать"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Prev/Next */}
+                  {viewerList.length > 1 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={goPrev}
+                        className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
+                        title="Предыдущее"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={goNext}
+                        className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-black/50 text-white hover:bg-black/70 border border-white/10"
+                        title="Следующее"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  ) : null}
                 </div>
 
-                <div className="mt-4 grid grid-cols-[110px_1fr] gap-x-3 gap-y-2 text-sm">
-                  <div className="text-white/50">Модель</div>
-                  <div className="text-white/90 text-right break-words whitespace-normal">
-                      {getModelById(String(viewerImage?.settings?.model || selectedModelId))?.name || String(viewerImage?.settings?.model || selectedModelId)}
+                {/* Right: details */}
+                <aside className="md:w-[420px] border-t md:border-t-0 md:border-l border-white/10 bg-[#0F0F10] p-4 md:p-5 overflow-y-auto">
+                  <div className="text-xs text-white/50">Характеристики</div>
+                  <div className="mt-1 text-sm font-semibold text-white break-words">
+                    {viewerImage?.prompt || "—"}
                   </div>
-                  <div className="text-white/50">Формат</div>
-                  <div className="text-white/90 text-right break-words whitespace-normal">
-                    {String(viewerImage?.settings?.size || "—")}
+
+                  <div className="mt-4 grid grid-cols-[110px_1fr] gap-x-3 gap-y-2 text-sm">
+                    <div className="text-white/50">Модель</div>
+                    <div className="text-white/90 text-right break-words whitespace-normal">
+                        {getModelById(String(viewerImage?.settings?.model || selectedModelId))?.name || String(viewerImage?.settings?.model || selectedModelId)}
+                    </div>
+                    <div className="text-white/50">Формат</div>
+                    <div className="text-white/90 text-right break-words whitespace-normal">
+                      {String(viewerImage?.settings?.size || "—")}
+                    </div>
+                    <div className="text-white/50">Качество</div>
+                    <div className="text-white/90 text-right break-words whitespace-normal">
+                        {viewerImage?.settings?.quality ? qualityLabelFromApi(String(viewerImage?.settings?.model || selectedModelId), String(viewerImage.settings.quality)) : "—"}
+                    </div>
                   </div>
-                  <div className="text-white/50">Качество</div>
-                  <div className="text-white/90 text-right break-words whitespace-normal">
-                      {viewerImage?.settings?.quality ? qualityLabelFromApi(String(viewerImage?.settings?.model || selectedModelId), String(viewerImage.settings.quality)) : "—"}
+
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleViewerShare}
+                      className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      Поделиться
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleViewerToggleFavorite}
+                      className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm"
+                    >
+                      <Heart className={`w-4 h-4 ${viewerImage?.id && isFavoriteId(viewerImage.id) ? "text-rose-400" : "text-white"}`} />
+                      В избранное
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleViewerRecreate}
+                      className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-[#CDFF00] text-black font-semibold text-sm hover:bg-[#B8E600] col-span-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Пересоздать заново
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleViewerUseAsReference}
+                      disabled={!supportsI2i}
+                      className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm col-span-2 disabled:opacity-50"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      Использовать как референс
+                    </button>
                   </div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={handleViewerShare}
-                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Поделиться
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleViewerToggleFavorite}
-                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm"
-                  >
-                    <Heart className={`w-4 h-4 ${viewerImage?.id && isFavoriteId(viewerImage.id) ? "text-rose-400" : "text-white"}`} />
-                    В избранное
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleViewerRecreate}
-                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-[#CDFF00] text-black font-semibold text-sm hover:bg-[#B8E600] col-span-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Пересоздать заново
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleViewerUseAsReference}
-                    disabled={!supportsI2i}
-                    className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm col-span-2 disabled:opacity-50"
-                  >
-                    <ImagePlus className="w-4 h-4" />
-                    Использовать как референс
-                  </button>
-                </div>
-              </aside>
-            </div>
-          </DialogContent>
-        </Dialog>
+                </aside>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </div>
   );

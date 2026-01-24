@@ -342,7 +342,8 @@ export const PLAN_ENTITLEMENTS: PlanEntitlements[] = [
     entitlements: [
       // Business: Pro 1-2K UNLIMITED (fair use)
       { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 30 },
-      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
+      // Business: Pro 4K UNLIMITED (fair use) — бесплатно
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: -1, priceWhenNotIncluded: 40 },
     ],
   },
 ];
@@ -394,12 +395,7 @@ export function getVariantPrice(
     }
     return { stars: 0, isIncluded: false };
   }
-  
-  // 4K is always paid
-  if (variantKey === '4k') {
-    return { stars: ent.priceWhenNotIncluded, isIncluded: false };
-  }
-  
+
   // Check if within included quota (-1 = unlimited)
   if (ent.includedMonthlyLimit === -1 || (ent.includedMonthlyLimit > 0 && usedThisMonth < ent.includedMonthlyLimit)) {
     return { stars: 0, isIncluded: true };

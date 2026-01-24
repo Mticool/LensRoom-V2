@@ -1,0 +1,94 @@
+// Types for Video Generator
+
+// Video generation modes
+export type VideoMode = 'text' | 'image' | 'reference' | 'v2v' | 'motion' | 'edit';
+export type VideoQuality = '720p' | '1080p' | '4K';
+export type VideoStatus = 'idle' | 'queued' | 'processing' | 'success' | 'error';
+export type TabType = 'video' | 'motion' | 'edit' | 'music';
+
+export interface VideoGenerationParams {
+  prompt: string;
+  mode: VideoMode;
+  selectedModel: string;
+  duration: number;
+  quality: VideoQuality;
+  aspectRatio: string;
+  withSound: boolean;
+
+  // Basic modes (text, image, reference)
+  referenceImage?: string | null;
+  referenceVideo?: string | null;
+
+  // Start/End Frame mode (extends reference)
+  startFrame?: string | null;
+  endFrame?: string | null;
+
+  // V2V mode
+  v2vInputVideo?: string | null;
+
+  // Motion Control mode (Kling Motion)
+  motionVideo?: string | null;
+  characterImage?: string | null;
+
+  // Video Edit mode (Kling O1 Edit)
+  editVideo?: string | null;
+  editRefImage?: string | null;
+  keepAudio?: boolean;
+
+  // Advanced settings (Phase 2)
+  negativePrompt?: string;
+  modelVariant?: string;
+  resolution?: string; // e.g., "1080p_multi" for WAN
+  soundPreset?: string; // WAN sound presets
+}
+
+export interface VideoGenerationState {
+  isGenerating: boolean;
+  jobId: string | null;
+  progress: number;
+  status: VideoStatus;
+  resultUrl: string | null;
+  error: string | null;
+}
+
+export interface VideoGenerationResult {
+  success: boolean;
+  jobId: string;
+  status: 'queued' | 'processing';
+  estimatedTime?: number;
+  creditCost: number;
+  generationId?: string;
+  provider?: string;
+  kind?: 'video';
+}
+
+export interface VideoJobStatus {
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  resultUrl?: string;
+  error?: string;
+  estimatedTime?: number;
+}
+
+// Phase 3: Job Queue
+export type JobViewMode = 'grid' | 'list';
+
+export interface VideoJob {
+  jobId: string;
+  generationId?: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  prompt: string;
+  modelId: string;
+  modelName?: string;
+  mode: VideoMode;
+  duration: number;
+  quality: VideoQuality;
+  aspectRatio: string;
+  resultUrl?: string;
+  thumbnailUrl?: string;
+  error?: string;
+  createdAt: string;
+  updatedAt?: string;
+  estimatedTime?: number;
+}

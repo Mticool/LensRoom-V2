@@ -53,6 +53,8 @@ export interface GenerationResult {
   previewUrl?: string;
   status?: string;
   pendingId?: string; // ID of pending placeholder to update on success
+  /** Client-side grouping for multi-variant runs (mobile viewer). */
+  runId?: string;
 }
 
 /**

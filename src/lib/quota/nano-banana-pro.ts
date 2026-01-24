@@ -4,7 +4,7 @@
  * Handles included generations for Creator+/Business plans:
  * - Creator+: 200 Pro 1-2K generations/month included
  * - Business: 300 Pro 1-2K generations/month included
- * - Pro 4K: Always paid for all plans
+ * - Pro 4K: pricing depends on plan entitlements
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
@@ -176,25 +176,14 @@ export async function calculateNBPCost(
   usedThisMonth: number;
 }> {
   const variantKey = determineVariantKey(quality);
-  
-  // 4K is always paid
-  if (variantKey === NBP_VARIANT_4K) {
-    return {
-      stars: NBP_PRICE_4K,
-      isIncluded: false,
-      variantKey,
-      planId: null,
-      usedThisMonth: 0,
-    };
-  }
-  
+
   // Get user's plan
   const planId = await getUserPlan(supabase, userId);
   
   // No plan = always charge
   if (!planId) {
     return {
-      stars: NBP_PRICE_1K_2K,
+      stars: variantKey === NBP_VARIANT_4K ? NBP_PRICE_4K : NBP_PRICE_1K_2K,
       isIncluded: false,
       variantKey,
       planId: null,

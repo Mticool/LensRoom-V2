@@ -14,6 +14,8 @@ const GENERATION_ENDPOINTS: Record<string, string> = {
   'cover': 'ai-music-api/upload-and-cover-audio',
   'add-vocals': 'ai-music-api/add-vocals',
   'separate': 'ai-music-api/separate-vocals',
+  // ElevenLabs V3 Text-to-Dialogue
+  'elevenlabs': 'elevenlabs/text-to-dialogue-v3',
 };
 
 export async function POST(request: NextRequest) {
@@ -58,10 +60,25 @@ export async function POST(request: NextRequest) {
       
       // Uploaded audio file (base64)
       audioFile,
+      
+      // ElevenLabs V3 settings
+      dialogue,           // Text or array of dialogue lines
+      stability = 0.5,    // Voice stability 0-1
+      language_code = 'auto', // Language code (auto, ru, en, etc.)
     } = body;
 
     // Validate required fields
-    if (generation_type === 'generate' && !prompt && !lyrics) {
+    const isElevenLabs = model === 'elevenlabs-v3' || generation_type === 'elevenlabs';
+    
+    if (isElevenLabs) {
+      // ElevenLabs requires dialogue text
+      if (!dialogue && !prompt) {
+        return NextResponse.json(
+          { error: 'Dialogue text is required for ElevenLabs generation' }, 
+          { status: 400 }
+        );
+      }
+    } else if (generation_type === 'generate' && !prompt && !lyrics) {
       return NextResponse.json(
         { error: 'Prompt or lyrics is required for music generation' }, 
         { status: 400 }
@@ -168,17 +185,22 @@ export async function POST(request: NextRequest) {
 
     // Save generation to history
     let generation: any = null;
+    const modelName = isElevenLabs ? 'ElevenLabs V3' : `Suno ${suno_model}`;
     const { data: genData, error: genError } = await supabase
       .from("generations")
       .insert({
         user_id: userId,
         type: "audio",
         model_id: model,
-        model_name: `Suno ${suno_model}`,
-        prompt: prompt || lyrics || title || 'Audio generation',
+        model_name: modelName,
+        prompt: isElevenLabs ? (dialogue || prompt) : (prompt || lyrics || title || 'Audio generation'),
         credits_used: creditCost,
         status: "queued",
-        metadata: {
+        metadata: isElevenLabs ? {
+          generation_type: 'elevenlabs',
+          language_code,
+          stability,
+        } : {
           generation_type,
           style,
           instrumental,
@@ -196,11 +218,14 @@ export async function POST(request: NextRequest) {
     // Record transaction
     if (!skipCredits && generation?.id) {
       try {
+        const transactionDesc = isElevenLabs 
+          ? 'Озвучка: ElevenLabs V3'
+          : `Генерация музыки: Suno ${generation_type}`;
         await supabase.from('credit_transactions').insert({
           user_id: userId,
           amount: -creditCost,
           type: 'deduction',
-          description: `Генерация музыки: Suno ${generation_type}`,
+          description: transactionDesc,
           generation_id: generation.id,
         });
       } catch (e) {
@@ -212,74 +237,94 @@ export async function POST(request: NextRequest) {
     const kieClient = getKieClient();
 
     // Build API request based on generation type
-    let apiEndpoint = GENERATION_ENDPOINTS[generation_type] || GENERATION_ENDPOINTS['generate'];
+    let apiEndpoint: string;
     let apiPayload: Record<string, any> = {};
 
-    switch (generation_type) {
-      case 'generate':
-        apiPayload = {
-          model: suno_model,
-          customMode: custom_mode,
-          title: title || undefined,
-          style: style || undefined,
-          instrumental: instrumental,
-          prompt: custom_mode ? (lyrics || prompt) : prompt,
-          negativeTags: negative_tags || undefined,
-          vocalGender: vocal_gender !== 'not_specified' ? vocal_gender : undefined,
-          styleWeight: style_weight ? style_weight / 100 : undefined,
-          weirdnessConstraint: weirdness ? weirdness / 100 : undefined,
-        };
-        break;
+    // Handle ElevenLabs separately
+    if (isElevenLabs) {
+      apiEndpoint = GENERATION_ENDPOINTS['elevenlabs'];
+      
+      // Format dialogue - ElevenLabs expects array of dialogue objects
+      const dialogueText = dialogue || prompt;
+      const dialogueArray = Array.isArray(dialogueText) 
+        ? dialogueText 
+        : [{ text: dialogueText }];
+      
+      apiPayload = {
+        dialogue: dialogueArray,
+        stability: typeof stability === 'number' ? stability : parseFloat(stability) || 0.5,
+        language_code: language_code || 'auto',
+      };
+    } else {
+      apiEndpoint = GENERATION_ENDPOINTS[generation_type] || GENERATION_ENDPOINTS['generate'];
 
-      case 'extend':
-        apiPayload = {
-          model: suno_model,
-          audioId: audio_id,
-          prompt: continue_prompt || prompt,
-          defaultParamFlag: default_param_flag,
-        };
-        break;
+      switch (generation_type) {
+        case 'generate':
+          apiPayload = {
+            model: suno_model,
+            customMode: custom_mode,
+            title: title || undefined,
+            style: style || undefined,
+            instrumental: instrumental,
+            prompt: custom_mode ? (lyrics || prompt) : prompt,
+            negativeTags: negative_tags || undefined,
+            vocalGender: vocal_gender !== 'not_specified' ? vocal_gender : undefined,
+            styleWeight: style_weight ? style_weight / 100 : undefined,
+            weirdnessConstraint: weirdness ? weirdness / 100 : undefined,
+          };
+          break;
 
-      case 'cover':
-        apiPayload = {
-          model: suno_model,
-          customMode: custom_mode,
-          uploadUrl: audioFile, // Base64 or URL
-          prompt: cover_prompt || prompt,
-          instrumental: instrumental,
-          vocalGender: vocal_gender !== 'not_specified' ? vocal_gender : undefined,
-          styleWeight: style_weight ? style_weight / 100 : undefined,
-          audioWeight: audio_weight ? audio_weight / 100 : undefined,
-          negativeTags: negative_tags || undefined,
-        };
-        break;
+        case 'extend':
+          apiPayload = {
+            model: suno_model,
+            audioId: audio_id,
+            prompt: continue_prompt || prompt,
+            defaultParamFlag: default_param_flag,
+          };
+          break;
 
-      case 'add-vocals':
-        apiPayload = {
-          uploadUrl: audioFile,
-          title: title,
-          style: style,
-          prompt: lyrics || prompt,
-          vocalGender: vocal_gender,
-          negativeTags: negative_tags || undefined,
-          styleWeight: style_weight ? style_weight / 100 : undefined,
-          audioWeight: audio_weight ? audio_weight / 100 : undefined,
-        };
-        break;
+        case 'cover':
+          apiPayload = {
+            model: suno_model,
+            customMode: custom_mode,
+            uploadUrl: audioFile, // Base64 or URL
+            prompt: cover_prompt || prompt,
+            instrumental: instrumental,
+            vocalGender: vocal_gender !== 'not_specified' ? vocal_gender : undefined,
+            styleWeight: style_weight ? style_weight / 100 : undefined,
+            audioWeight: audio_weight ? audio_weight / 100 : undefined,
+            negativeTags: negative_tags || undefined,
+          };
+          break;
 
-      case 'separate':
-        apiPayload = {
-          taskId: task_id,
-          audioId: audio_id,
-          separationType: separation_type,
-        };
-        break;
+        case 'add-vocals':
+          apiPayload = {
+            uploadUrl: audioFile,
+            title: title,
+            style: style,
+            prompt: lyrics || prompt,
+            vocalGender: vocal_gender,
+            negativeTags: negative_tags || undefined,
+            styleWeight: style_weight ? style_weight / 100 : undefined,
+            audioWeight: audio_weight ? audio_weight / 100 : undefined,
+          };
+          break;
+
+        case 'separate':
+          apiPayload = {
+            taskId: task_id,
+            audioId: audio_id,
+            separationType: separation_type,
+          };
+          break;
+      }
     }
 
     console.log('[API] Audio generation request:', {
       endpoint: apiEndpoint,
-      generation_type,
-      model: suno_model,
+      generation_type: isElevenLabs ? 'elevenlabs' : generation_type,
+      model: isElevenLabs ? 'elevenlabs-v3' : suno_model,
+      isElevenLabs,
     });
 
     // Call KIE API - build proper request structure
@@ -301,10 +346,10 @@ export async function POST(request: NextRequest) {
       success: true,
       jobId: taskId,
       status: 'queued',
-      estimatedTime: 60, // Suno обычно ~30-60 секунд
+      estimatedTime: isElevenLabs ? 15 : 60, // ElevenLabs быстрее (~10-15 сек), Suno ~30-60 секунд
       creditCost: creditCost,
       generationId: generation?.id,
-      provider: 'kie_suno',
+      provider: isElevenLabs ? 'kie_elevenlabs' : 'kie_suno',
       kind: "audio",
     });
 

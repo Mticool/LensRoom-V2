@@ -543,12 +543,13 @@ export class KieAIClient {
       } else if (params.model.startsWith('seedream/4.5')) {
         // Seedream requires `quality`: basic (2K) / high (4K)
         input.aspect_ratio = params.aspectRatio || '1:1';
-        // In our UI we use Turbo/Balanced/Quality tiers. Map them to Seedream basic/high.
-        // - quality -> high (best)
-        // - turbo/balanced/other -> basic
-        input.quality = params.quality === 'quality' || params.quality === 'ultra' ? 'high' : 'basic';
-      } else if (params.model === 'z-image') {
-        // Z-image: per docs only prompt + aspect_ratio are required
+        // Accept direct values (basic/high) and keep backward compatibility with Turbo/Balanced/Quality labels.
+        const q = String(params.quality || '').toLowerCase();
+        if (q === 'high') input.quality = 'high';
+        else if (q === 'basic') input.quality = 'basic';
+        else input.quality = q === 'quality' || q === 'ultra' ? 'high' : 'basic';
+      } else if (params.model === 'z-image' || params.model === 'z-image-turbo') {
+        // Z-image Turbo: per docs only prompt + aspect_ratio are required
         input.aspect_ratio = params.aspectRatio || '1:1';
       } else if (params.model === 'qwen/image-edit') {
         // Qwen image-edit: requires image_url
@@ -587,17 +588,22 @@ export class KieAIClient {
       if (params.imageInputs && params.imageInputs.length > 0 && params.model !== 'qwen/image-edit') {
         const imgUrl = params.imageInputs[0];
         
-        // All KIE models use image_url for i2i reference
-        // Some also accept strength/denoise parameters
-        input.image_url = imgUrl;
+        // Default: single reference via image_url.
+        // Some models (e.g. FLUX.2) use multi-reference via input_urls instead.
+        const isFlux = params.model.includes('flux');
+        if (!isFlux) {
+          input.image_url = imgUrl;
+        }
         // Some tools (e.g. Recraft Remove Background / Topaz Upscale) expect `image` instead of `image_url`.
-        if (params.model.includes('recraft/') || params.model.includes('topaz/')) {
+        if (!isFlux && (params.model.includes('recraft/') || params.model.includes('topaz/'))) {
           input.image = imgUrl;
         }
         
         // Add model-specific parameters
-        if (params.model.includes('flux')) {
-          input.strength = 0.75; // FLUX uses strength 0-1
+        if (isFlux) {
+          // FLUX.2 Pro supports multi-reference via input_urls (1–8)
+          input.input_urls = params.imageInputs.slice(0, 8);
+          input.strength = 0.75; // 0..1
         } else if (params.model.includes('nano-banana') || params.model.includes('imagen')) {
           // Google models may use different naming
           input.init_image = imgUrl;

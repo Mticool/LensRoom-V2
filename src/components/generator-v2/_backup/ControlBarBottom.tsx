@@ -10,19 +10,6 @@ import { PromptInput } from './PromptInput';
 import { AdvancedSettingsCollapse } from './AdvancedSettingsCollapse';
 import { getModelById } from '@/config/models';
 
-type PromptJsonPayload = {
-  modelId?: string;
-  prompt?: string;
-  negativePrompt?: string;
-  aspectRatio?: string;
-  quality?: string;
-  outputFormat?: "png" | "jpg" | "webp" | string;
-  seed?: number | null;
-  steps?: number;
-  // Optional: allow single prompt field nested
-  prompts?: Array<string | { prompt?: string }>;
-};
-
 interface ControlBarBottomProps {
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -49,10 +36,7 @@ interface ControlBarBottomProps {
   aspectRatioOptions?: string[]; // e.g., ['1:1', '16:9', '9:16', '4:3']
   // Reference image
   referenceImage?: string | null;
-  /** Multiple reference images (preferred for models like Nano Banana Pro). */
-  referenceImages?: string[];
   onReferenceImageChange?: (value: string | null) => void;
-  onReferenceImagesChange?: (value: string[]) => void;
   onReferenceFileChange?: (file: File | null) => void;
   supportsI2i?: boolean;
   // Advanced settings
@@ -88,9 +72,7 @@ export function ControlBarBottom({
   qualityOptions,
   aspectRatioOptions,
   referenceImage,
-  referenceImages,
   onReferenceImageChange,
-  onReferenceImagesChange,
   onReferenceFileChange,
   supportsI2i = true,
   negativePrompt,
@@ -102,7 +84,6 @@ export function ControlBarBottom({
 }: ControlBarBottomProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
-  const [promptJsonBusy, setPromptJsonBusy] = useState(false);
   
   // Get model name from config if modelId provided, otherwise use modelName prop
   const displayName = modelId 
@@ -110,239 +91,68 @@ export function ControlBarBottom({
     : modelName;
 
   const isToolModel = modelId === 'topaz-image-upscale' || modelId === 'recraft-remove-background';
-  const isGrokImagine = modelId === "grok-imagine";
-  // Most photo models in our UI allow up to 4 parallel generations per click.
-  // Grok Imagine returns 6 images per run on KIE (fixed output count).
-  const quantityMax = isToolModel ? 1 : isGrokImagine ? 6 : 4;
+  const quantityMax = isToolModel ? 1 : 4;
   const uploadTitle = isToolModel ? 'Загрузить фото' : 'Загрузить референс';
   const uploadedTitle = isToolModel ? 'Фото загружено (клик для замены)' : 'Референс загружен (клик для замены)';
   const removeTitle = isToolModel ? 'Удалить фото' : 'Удалить референс';
-  const model = modelId ? getModelById(modelId) : undefined;
-  const photoModel = model && model.type === "photo" ? (model as any) : null;
-  const maxReferenceImages = isToolModel ? 1 : Math.max(1, Number(photoModel?.maxInputImages ?? 1));
-  const referenceList: string[] = Array.isArray(referenceImages)
-    ? referenceImages.filter((x) => typeof x === "string" && x.trim().length > 0)
-    : (referenceImage ? [referenceImage] : []);
-  const hasAnyReference = referenceList.length > 0;
-
   const promptPlaceholder = isToolModel
-    ? (hasAnyReference
+    ? (referenceImage
         ? `${displayName}: (опционально) комментарий...`
         : `${displayName}: сначала загрузите фото слева`)
-    : (hasAnyReference
+    : (referenceImage
         ? `${displayName}: Опишите что изменить...`
         : `${displayName}: Опишите сцену...`);
   
-  const allowedInputFormats: Array<'jpeg' | 'png' | 'webp'> | null =
-    photoModel?.inputImageFormats && Array.isArray(photoModel.inputImageFormats)
-      ? photoModel.inputImageFormats
-      : null;
-  const allowedMimeTypes: string[] | null = allowedInputFormats
-    ? allowedInputFormats
-        .map((f) => (f === "jpeg" ? "image/jpeg" : f === "png" ? "image/png" : f === "webp" ? "image/webp" : undefined))
-        .filter((x): x is Exclude<typeof x, undefined> => x !== undefined)
-    : null;
-  const maxImageSizeMb = Number(photoModel?.maxInputImageSizeMb ?? 10);
-  const MAX_IMAGE_SIZE_BYTES = Math.max(1, maxImageSizeMb) * 1024 * 1024;
-  const acceptAttr = allowedMimeTypes?.length ? allowedMimeTypes.join(",") : "image/*";
-
-  const updateReferences = (next: string[], files?: File[]) => {
-    if (onReferenceImagesChange) {
-      onReferenceImagesChange(next);
-      return;
-    }
-    // Backward-compatible single-ref mode
-    const first = next[0] || null;
-    onReferenceImageChange?.(first);
-    if (files && files[0]) onReferenceFileChange?.(files[0]);
-    else if (!first) onReferenceFileChange?.(null);
-  };
-
-  const readFileAsDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error("read_failed"));
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.readAsDataURL(file);
-    });
+  // Constants for validation
+  const MAX_IMAGE_SIZE_MB = 10;
+  const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
   
   // Handle file upload with validation
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    // allow selecting the same file again
-    e.target.value = "";
-    if (!files.length) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
     
-    const current = referenceList;
-    const remaining = Math.max(0, maxReferenceImages - current.length);
-    if (remaining <= 0) {
-      toast.error(`Можно добавить максимум ${maxReferenceImages} изображений`);
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Выберите изображение (PNG, JPG, WEBP)');
       return;
     }
-
-    const picked = (isToolModel ? files.slice(0, 1) : files.slice(0, remaining));
-    if (!isToolModel && files.length > remaining) {
-      toast(`Добавлены первые ${remaining} из ${files.length} (лимит ${maxReferenceImages})`, { duration: 3500 });
+    
+    // Check file size
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      toast.error(`Максимальный размер: ${MAX_IMAGE_SIZE_MB}МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)}МБ`);
+      return;
     }
-
-    // Validate files
-    for (const file of picked) {
-      if (!file.type.startsWith("image/")) {
-        toast.error("Выберите изображение");
+    
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      
+      // Additional check for base64 size
+      if (base64.length > MAX_IMAGE_SIZE_BYTES * 1.4) {
+        toast.error('Изображение слишком большое. Попробуйте уменьшить размер.');
         return;
       }
-      if (allowedMimeTypes && !allowedMimeTypes.includes(String(file.type || "").toLowerCase())) {
-        const formatsLabel = allowedInputFormats ? allowedInputFormats.map((f) => f.toUpperCase()).join(", ") : "JPEG, PNG, WEBP";
-        toast.error(`Неподдерживаемый формат. Разрешено: ${formatsLabel}`);
-        return;
-      }
-      if (file.size > MAX_IMAGE_SIZE_BYTES) {
-        toast.error(`Максимальный размер: ${maxImageSizeMb}МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)}МБ`);
-        return;
-      }
-    }
-
-    try {
-      const encoded = await Promise.all(picked.map((f) => readFileAsDataUrl(f)));
-      for (const b64 of encoded) {
-        if (b64.length > MAX_IMAGE_SIZE_BYTES * 1.4) {
-          toast.error("Изображение слишком большое. Попробуйте уменьшить размер.");
-          return;
-        }
-      }
-      const next = isToolModel ? [encoded[0]!] : [...current, ...encoded];
-      updateReferences(next, picked);
-      toast.success(isToolModel ? "Изображение загружено" : `Добавлено: ${encoded.length}`);
-    } catch {
-      toast.error("Не удалось прочитать файл");
-    }
+      
+      onReferenceImageChange?.(base64);
+      onReferenceFileChange?.(file);
+      toast.success('Изображение загружено');
+    };
+    reader.onerror = () => {
+      toast.error('Не удалось прочитать файл');
+    };
+    reader.readAsDataURL(file);
   };
   
   const handleRemoveReference = () => {
-    updateReferences([]);
-  };
-
-  const handleRemoveReferenceAt = (idx: number) => {
-    const next = referenceList.filter((_, i) => i !== idx);
-    updateReferences(next);
-  };
-
-  const normalizeToOption = (value: string, options: string[]): string | null => {
-    const raw = String(value || "").trim();
-    if (!raw) return null;
-    if (options.includes(raw)) return raw;
-    const lowered = raw.toLowerCase();
-    // Common mappings between API values and UI labels
-    const guess = (() => {
-      if (lowered === "basic") return "Basic";
-      if (lowered === "high") return "High";
-      if (lowered === "turbo") return "Turbo";
-      if (lowered === "balanced") return "Balanced";
-      if (lowered === "quality") return "Quality";
-      if (lowered === "fast") return "Fast";
-      if (lowered === "ultra") return "Ultra";
-      if (lowered === "1k") return "1K";
-      if (lowered === "2k") return "2K";
-      if (lowered === "4k") return "4K";
-      if (lowered === "8k") return "8K";
-      return raw;
-    })();
-    return options.includes(guess) ? guess : null;
-  };
-
-  const handlePromptJsonUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // allow selecting the same file again
-    e.target.value = "";
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith(".json")) {
-      toast.error("Выберите JSON файл (prompt.json)");
-      return;
-    }
-    if (file.size > 1024 * 1024) {
-      toast.error("Файл слишком большой (макс 1MB)");
-      return;
-    }
-
-    setPromptJsonBusy(true);
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as PromptJsonPayload;
-      if (!parsed || typeof parsed !== "object") {
-        toast.error("Некорректный JSON");
-        return;
-      }
-
-      const nextPrompt =
-        (typeof parsed.prompt === "string" && parsed.prompt.trim())
-          ? parsed.prompt
-          : (Array.isArray(parsed.prompts) && parsed.prompts.length
-              ? (typeof parsed.prompts[0] === "string"
-                  ? parsed.prompts[0]
-                  : (parsed.prompts[0] && typeof parsed.prompts[0] === "object" && typeof (parsed.prompts[0] as any).prompt === "string"
-                      ? String((parsed.prompts[0] as any).prompt)
-                      : ""))
-              : "");
-
-      if (nextPrompt && typeof nextPrompt === "string") {
-        onPromptChange(nextPrompt);
-      }
-
-      if (typeof parsed.negativePrompt === "string" && onNegativePromptChange) {
-        onNegativePromptChange(parsed.negativePrompt);
-      }
-      if (typeof parsed.seed === "number" || parsed.seed === null) {
-        onSeedChange?.(parsed.seed ?? null);
-      }
-      if (typeof parsed.steps === "number") {
-        onStepsChange?.(parsed.steps);
-      }
-
-      if (typeof parsed.aspectRatio === "string") {
-        const opts = aspectRatioOptions || [];
-        const v = opts.includes(parsed.aspectRatio) ? parsed.aspectRatio : null;
-        if (v) onAspectRatioChange(v);
-        else if (parsed.aspectRatio.trim()) {
-          toast(`aspectRatio "${parsed.aspectRatio}" не поддерживается для этой модели`, { duration: 4000 });
-        }
-      }
-
-      if (typeof parsed.quality === "string") {
-        const opts = qualityOptions || [];
-        const v = normalizeToOption(parsed.quality, opts);
-        if (v) onQualityChange(v);
-        else if (parsed.quality.trim()) {
-          toast(`quality "${parsed.quality}" не поддерживается для этой модели`, { duration: 4000 });
-        }
-      }
-
-      if (parsed.outputFormat && onOutputFormatChange) {
-        const raw = String(parsed.outputFormat).toLowerCase().trim();
-        const fmt = raw === "jpg" || raw === "jpeg" ? "jpg" : raw === "png" ? "png" : raw === "webp" ? "webp" : null;
-        const allowed = new Set(outputFormatOptions);
-        if (fmt && allowed.has(fmt as any)) {
-          onOutputFormatChange(fmt as any);
-        } else if (fmt) {
-          toast(`outputFormat "${fmt}" не поддерживается для этой модели`, { duration: 4000 });
-        }
-      }
-
-      if (parsed.modelId && modelId && parsed.modelId !== modelId) {
-        toast(`Файл для модели "${parsed.modelId}", у вас выбрана "${modelId}"`, { duration: 4500 });
-      }
-
-      toast.success("prompt.json импортирован");
-    } catch (err: any) {
-      toast.error(err?.message ? `Не удалось импортировать JSON: ${err.message}` : "Не удалось импортировать JSON");
-    } finally {
-      setPromptJsonBusy(false);
-    }
+    onReferenceImageChange?.(null);
+    onReferenceFileChange?.(null);
   };
 
   const hasEnoughCredits = credits >= estimatedCost;
   const isDisabled = disabled || isGenerating;
-  const hasRequiredInput = isToolModel ? hasAnyReference : prompt.trim().length > 0;
+  const hasRequiredInput = isToolModel ? !!referenceImage : prompt.trim().length > 0;
   const canGenerate = isAuthenticated && hasRequiredInput && !isDisabled && hasEnoughCredits;
   const canSubmit = !isDisabled && (isAuthenticated ? canGenerate : true);
 
@@ -353,7 +163,7 @@ export function ControlBarBottom({
     }
     if (canGenerate) onGenerate();
     else {
-      if (isToolModel && !hasAnyReference) toast.error("Загрузите изображение");
+      if (isToolModel && !referenceImage) toast.error("Загрузите изображение");
       else if (!isToolModel && prompt.trim().length === 0) toast.error("Введите промпт");
       else if (!hasEnoughCredits) toast.error("Недостаточно звёзд");
     }
@@ -441,37 +251,13 @@ export function ControlBarBottom({
         <div className="hidden sm:flex flex-col gap-3">
           {/* Line 1: Upload + Prompt */}
           <div className="flex items-end gap-3">
-            {/* prompt.json import */}
-            <div className="relative flex-shrink-0">
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={handlePromptJsonUpload}
-                className="hidden"
-                id="prompt-json-upload-desktop"
-                disabled={isGenerating || promptJsonBusy}
-              />
-              <label
-                htmlFor="prompt-json-upload-desktop"
-                className={`
-                  flex items-center justify-center w-10 h-10 rounded-lg border transition-colors cursor-pointer
-                  border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]
-                  ${(isGenerating || promptJsonBusy) ? 'opacity-50 cursor-not-allowed' : ''}
-                `}
-                title="Импорт prompt.json"
-              >
-                <span className="text-[10px] font-bold text-[#A1A1AA]">JSON</span>
-              </label>
-            </div>
-
             {supportsI2i && (
               <>
                 {/* Upload button */}
                 <div className="relative flex-shrink-0">
                   <input
                     type="file"
-                    accept={acceptAttr}
-                    multiple={!isToolModel && maxReferenceImages > 1}
+                    accept="image/*"
                     onChange={handleFileUpload}
                     className="hidden"
                     id="reference-upload-desktop"
@@ -481,15 +267,15 @@ export function ControlBarBottom({
                     htmlFor="reference-upload-desktop"
                     className={`
                       flex items-center justify-center w-10 h-10 rounded-lg border transition-colors cursor-pointer
-                      ${hasAnyReference 
+                      ${referenceImage 
                         ? 'border-[#CDFF00] bg-[#CDFF00]/10 hover:bg-[#CDFF00]/20' 
                         : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
                       }
                       ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
                     `}
-                    title={hasAnyReference ? uploadedTitle : uploadTitle}
+                    title={referenceImage ? uploadedTitle : uploadTitle}
                   >
-                    {hasAnyReference ? (
+                    {referenceImage ? (
                       <svg className="w-5 h-5 text-[#CDFF00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
@@ -500,7 +286,7 @@ export function ControlBarBottom({
                     )}
                   </label>
                   
-                  {hasAnyReference && !isGenerating && (
+                  {referenceImage && !isGenerating && (
                     <button
                       onClick={handleRemoveReference}
                       className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
@@ -513,34 +299,13 @@ export function ControlBarBottom({
                   )}
                 </div>
      
-                {hasAnyReference && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {referenceList.slice(0, maxReferenceImages).map((src, idx) => (
-                      <div
-                        key={`${idx}`}
-                        className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#CDFF00] flex-shrink-0"
-                        title={`Референс ${idx + 1}/${referenceList.length}`}
-                      >
-                        <img src={src} alt={`Reference ${idx + 1}`} className="w-full h-full object-cover" />
-                        {!isGenerating && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveReferenceAt(idx)}
-                            className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center"
-                            title="Удалить"
-                          >
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {!isToolModel && maxReferenceImages > 1 && (
-                      <div className="text-[10px] text-white/40 whitespace-nowrap">
-                        {referenceList.length}/{maxReferenceImages}
-                      </div>
-                    )}
+                {referenceImage && (
+                  <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#CDFF00] flex-shrink-0">
+                    <img 
+                      src={referenceImage} 
+                      alt="Reference" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 )}
               </>
@@ -556,7 +321,7 @@ export function ControlBarBottom({
           </div>
 
           {/* Line 2: Model + Controls + Generate */}
-          <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible no-scrollbar pb-1">
+          <div className="flex items-center gap-2 overflow-visible pb-1">
             {/* Model Badge (слева) */}
             <div className="flex items-center gap-2 px-3 py-2 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg">
               <Sparkles className="w-4 h-4 text-[#CDFF00]" />
@@ -611,7 +376,7 @@ export function ControlBarBottom({
               onChange={onQuantityChange}
               min={1}
               max={quantityMax}
-              disabled={isGenerating || isToolModel || isGrokImagine}
+              disabled={isGenerating || isToolModel}
             />
 
             {/* Spacer - push desktop Generate to the right */}
@@ -638,7 +403,7 @@ export function ControlBarBottom({
                   ? "Войти через Telegram"
                   : !hasEnoughCredits
                     ? `Недостаточно звёзд (нужно ${estimatedCost}⭐, есть ${credits}⭐)`
-                    : isToolModel && !hasAnyReference
+                    : isToolModel && !referenceImage
                       ? "Загрузите изображение"
                       : !isToolModel && prompt.trim().length === 0
                         ? "Введите промпт"
@@ -810,7 +575,7 @@ export function ControlBarBottom({
                   <button
                     type="button"
                     onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
-                    disabled={isGenerating || isGrokImagine || quantity <= 1}
+                    disabled={isGenerating || quantity <= 1}
                     className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
                   >
                     -
@@ -819,7 +584,7 @@ export function ControlBarBottom({
                   <button
                     type="button"
                     onClick={() => onQuantityChange(Math.min(quantityMax, quantity + 1))}
-                    disabled={isGenerating || isGrokImagine || quantity >= quantityMax}
+                    disabled={isGenerating || quantity >= quantityMax}
                     className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
                   >
                     +
@@ -834,32 +599,10 @@ export function ControlBarBottom({
                 <div className="text-xs text-[#A1A1AA] uppercase tracking-wider">
                   {isToolModel ? 'Изображение' : 'Референс'}
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  {/* prompt.json import (mobile) */}
+                <div className="flex items-center gap-3">
                   <input
                     type="file"
-                    accept="application/json,.json"
-                    onChange={handlePromptJsonUpload}
-                    className="hidden"
-                    id="prompt-json-upload-mobile"
-                    disabled={isGenerating || promptJsonBusy}
-                  />
-                  <label
-                    htmlFor="prompt-json-upload-mobile"
-                    className={`
-                      flex items-center justify-center w-20 h-20 rounded-2xl border-2 border-dashed transition-colors cursor-pointer
-                      border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]
-                      ${(isGenerating || promptJsonBusy) ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                    title="Импорт prompt.json"
-                  >
-                    <span className="text-xs font-bold text-[#A1A1AA]">JSON</span>
-                  </label>
-
-                  <input
-                    type="file"
-                    accept={acceptAttr}
-                    multiple={!isToolModel && maxReferenceImages > 1}
+                    accept="image/*"
                     onChange={handleFileUpload}
                     className="hidden"
                     id="reference-upload-mobile"
@@ -869,16 +612,16 @@ export function ControlBarBottom({
                     htmlFor="reference-upload-mobile"
                     className={`
                       flex items-center justify-center w-20 h-20 rounded-2xl border-2 border-dashed transition-colors cursor-pointer
-                      ${hasAnyReference 
+                      ${referenceImage 
                         ? 'border-[#CDFF00] bg-[#CDFF00]/10' 
                         : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
                       }
                       ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
                     `}
                   >
-                    {hasAnyReference ? (
+                    {referenceImage ? (
                       <img 
-                        src={referenceList[0]} 
+                        src={referenceImage} 
                         alt="Reference" 
                         className="w-full h-full object-cover rounded-xl"
                       />
@@ -888,7 +631,7 @@ export function ControlBarBottom({
                       </svg>
                     )}
                   </label>
-                  {hasAnyReference && (
+                  {referenceImage && (
                     <button
                       type="button"
                       onClick={handleRemoveReference}
@@ -899,31 +642,6 @@ export function ControlBarBottom({
                     </button>
                   )}
                 </div>
-                {/* Thumbnails for multi-ref */}
-                {!isToolModel && maxReferenceImages > 1 && hasAnyReference && (
-                  <div className="flex gap-2 flex-wrap">
-                    {referenceList.map((src, idx) => (
-                      <div key={`${idx}`} className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10">
-                        <img src={src} alt={`Ref ${idx + 1}`} className="w-full h-full object-cover" />
-                        {!isGenerating && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveReferenceAt(idx)}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center"
-                            title="Удалить"
-                          >
-                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <div className="self-center text-xs text-white/40">
-                      {referenceList.length}/{maxReferenceImages}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 

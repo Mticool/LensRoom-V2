@@ -1,0 +1,619 @@
+/* Generator V2 - Freepik-Style Theme */
+
+/* Import Inter font (Freepik uses Inter) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ========================================
+   FREEPIK-STYLE GENERATOR TOKENS
+   Aligned with globals.css palette
+   ======================================== */
+
+/* DARK THEME (default) */
+[data-generator-v2="true"] {
+  /* Backgrounds - GitHub-dark inspired, NOT pure black */
+  --gen-bg: #0D1117;
+  --gen-surface: #161B22;
+  --gen-surface2: #21262D;
+  --gen-surface3: #30363D;
+  
+  /* Borders - subtle but visible for depth */
+  --gen-border: rgba(240, 246, 252, 0.10);
+  --gen-border-hover: rgba(240, 246, 252, 0.18);
+  
+  /* Text - high contrast, excellent readability */
+  --gen-text: #F0F6FC;
+  --gen-text2: #E6EDF3;
+  --gen-muted: #8B949E;
+  --gen-muted2: #6E7681;
+  
+  /* Primary accent - Higgsfield lime */
+  --gen-primary: #CDFF00;
+  --gen-primary-hover: #D8FF33;
+  --gen-primary-muted: #A3CC00;
+  
+  /* Secondary - Cyan */
+  --gen-secondary: #00D9FF;
+  
+  /* Font - Inter (same as Freepik) */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  
+  /* Smooth rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* LIGHT THEME */
+html[data-theme="light"] [data-generator-v2="true"] {
+  /* Background - Clean whites, soft grays */
+  --gen-bg: #FFFFFF;
+  --gen-surface: #F6F8FA;
+  --gen-surface2: #F0F2F4;
+  --gen-surface3: #E6E8EB;
+  
+  /* Borders - soft gray */
+  --gen-border: rgba(31, 35, 40, 0.08);
+  --gen-border-hover: rgba(31, 35, 40, 0.15);
+  
+  /* Text - high contrast for light background */
+  --gen-text: #1F2328;
+  --gen-text2: #424A53;
+  --gen-muted: #656D76;
+  --gen-muted2: #848D97;
+  
+  /* Primary accent - Higgsfield lime (darker for light bg) */
+  --gen-primary: #B8E600;
+  --gen-primary-hover: #A3CC00;
+  --gen-primary-muted: #8FB800;
+  
+  /* Secondary - Cyan */
+  --gen-secondary: #00B4D8;
+}
+
+/* ========================================
+   HIGGSFIELD-STYLE GLOBAL PALETTE (LIME)
+   ======================================== */
+:root {
+  /* Primary Colors - Lime dominant */
+  --higgsfield-primary: #CDFF00;
+  --higgsfield-secondary: #00D9FF;
+  --higgsfield-accent: #D8FF33;
+  
+  /* Light theme backgrounds */
+  --bg-light: #FFFFFF;
+  --bg-light-secondary: #F6F8FA;
+  --bg-light-tertiary: #F0F2F4;
+  
+  /* Dark theme backgrounds */
+  --bg-dark: #0D1117;
+  --bg-dark-secondary: #161B22;
+  --bg-dark-tertiary: #21262D;
+  
+  /* Text colors */
+  --text-dark: #1F2328;
+  --text-light: #F0F6FC;
+  --text-muted: #8B949E;
+  
+  /* Gradients - Higgsfield lime style */
+  --gradient-primary: linear-gradient(135deg, #CDFF00 0%, #A3CC00 100%);
+  --gradient-vibrant: linear-gradient(135deg, #CDFF00 0%, #D8FF33 50%, #A3CC00 100%);
+  --gradient-cool: linear-gradient(135deg, #A3CC00 0%, #8FB800 100%);
+  
+  /* Shadows - soft, layered */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.16);
+  
+  /* Border radius - modern rounded */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+}
+
+/* Apple-style smooth animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Apple-style blur backdrop */
+.backdrop-blur-apple {
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Smooth transitions - Apple style */
+.transition-apple {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-apple-slow {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Glass morphism - Modern Freepik style */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text - Freepik style */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shimmer loading effect */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.5) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Shimmer animation for pending state */
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background-size: 200% 100%;
+}
+
+/* Fade in on scroll */
+.fade-in-on-scroll {
+  opacity: 0;
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fade-in-on-scroll.delay-1 {
+  animation-delay: 0.1s;
+}
+
+.fade-in-on-scroll.delay-2 {
+  animation-delay: 0.2s;
+}
+
+.fade-in-on-scroll.delay-3 {
+  animation-delay: 0.3s;
+}
+
+/* Button styles - Apple inspired */
+.btn-apple {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-apple::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.btn-apple:hover::before {
+  transform: translateX(100%);
+}
+
+/* Card hover effect - Freepik style */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar - macOS style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 155, 155, 0.5);
+}
+
+/* ========================================
+   ANIMATIONS FOR PANELS AND TRANSITIONS
+   ======================================== */
+
+/* Tailwind-style animate-in classes */
+.animate-in {
+  animation-duration: 0.3s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-in {
+  animation-name: fadeIn;
+}
+
+.slide-in-from-left {
+  animation-name: slideInFromLeft;
+}
+
+.slide-in-from-right {
+  animation-name: slideInFromRight;
+}
+
+.duration-200 {
+  animation-duration: 200ms;
+}
+
+.duration-300 {
+  animation-duration: 300ms;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes zoomIn95 {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.zoom-in-95 {
+  animation-name: zoomIn95;
+}
+
+/* Mode switch animation */
+@keyframes modePulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.mode-switch-active {
+  animation: modePulse 0.3s ease-out;
+}
+
+/* Canvas fade transition */
+.canvas-transition {
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE BREAKPOINTS
+   ======================================== */
+
+/* Extra small devices (phones, less than 640px) */
+@media (max-width: 639px) {
+  [data-generator-v2="true"] {
+    font-size: 14px;
+  }
+  
+  /* Compact header on mobile */
+  [data-generator-v2="true"] .header-compact {
+    padding: 0.5rem;
+  }
+  
+  /* Full-width prompt bar */
+  [data-generator-v2="true"] .prompt-bar-mobile {
+    max-width: 100%;
+    margin: 0 0.5rem;
+  }
+}
+
+/* Small devices (landscape phones, 640px and up) */
+@media (min-width: 640px) and (max-width: 767px) {
+  [data-generator-v2="true"] {
+    font-size: 14px;
+  }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+  [data-generator-v2="true"] {
+    font-size: 13px;
+  }
+}
+
+/* Large devices (desktops, 1024px and up) */
+@media (min-width: 1024px) {
+  [data-generator-v2="true"] {
+    font-size: 13px;
+  }
+}
+
+/* Extra small breakpoint for hiding text */
+@media (max-width: 400px) {
+  .xs\:inline {
+    display: none;
+  }
+}
+
+@media (min-width: 401px) {
+  .xs\:inline {
+    display: inline;
+  }
+}
+
+/* Safe area for mobile devices with notches */
+@supports (padding: env(safe-area-inset-bottom)) {
+  [data-generator-v2="true"] {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ========================================
+   HIGGSFIELD-STYLE ADDITIONS
+   ======================================== */
+
+/* Masonry Grid Layout */
+.masonry-grid {
+  column-gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .masonry-grid {
+    column-count: 2 !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .masonry-grid {
+    column-count: 3 !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .masonry-grid {
+    column-count: 4 !important;
+  }
+}
+
+.break-inside-avoid {
+  break-inside: avoid;
+}
+
+/* Sticky Control Bar */
+.sticky-control-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: rgba(24, 24, 27, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid #27272A;
+}
+
+/* Generate Button Glow */
+.generate-button-glow {
+  box-shadow: 0 4px 20px rgba(205, 255, 0, 0.2);
+}
+
+.generate-button-glow:hover {
+  box-shadow: 0 6px 30px rgba(205, 255, 0, 0.3);
+}
+
+/* Dropdown Animations */
+.dropdown-enter {
+  animation: dropdownEnter 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes dropdownEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Image Gallery Hover Effects */
+.gallery-item-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gallery-item-hover:hover {
+  transform: scale(1.02);
+}
+
+/* Loading Pulse */
+@keyframes loadingPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading-pulse {
+  animation: loadingPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Skeleton Shimmer */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #27272A 0%,
+    #3A3A3C 20%,
+    #27272A 40%,
+    #27272A 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Focus Ring - Higgsfield Accent */
+.focus-ring-higgsfield:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: rgba(205, 255, 0, 0.2);
+  border-color: #CDFF00;
+}
+
+/* Text Gradient - Higgsfield Style */
+.text-gradient-higgsfield {
+  background: linear-gradient(135deg, #CDFF00 0%, #B8E600 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Backdrop Blur - iOS Style */
+.backdrop-blur-ios {
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
