@@ -36,7 +36,10 @@ interface ControlBarBottomProps {
   aspectRatioOptions?: string[]; // e.g., ['1:1', '16:9', '9:16', '4:3']
   // Reference image
   referenceImage?: string | null;
+  /** Multiple reference images (preferred for models like Nano Banana Pro). */
+  referenceImages?: string[];
   onReferenceImageChange?: (value: string | null) => void;
+  onReferenceImagesChange?: (value: string[]) => void;
   onReferenceFileChange?: (file: File | null) => void;
   supportsI2i?: boolean;
   // Advanced settings
@@ -72,7 +75,9 @@ export function ControlBarBottom({
   qualityOptions,
   aspectRatioOptions,
   referenceImage,
+  referenceImages,
   onReferenceImageChange,
+  onReferenceImagesChange,
   onReferenceFileChange,
   supportsI2i = true,
   negativePrompt,
@@ -95,64 +100,119 @@ export function ControlBarBottom({
   const uploadTitle = isToolModel ? 'Загрузить фото' : 'Загрузить референс';
   const uploadedTitle = isToolModel ? 'Фото загружено (клик для замены)' : 'Референс загружен (клик для замены)';
   const removeTitle = isToolModel ? 'Удалить фото' : 'Удалить референс';
+  const model = modelId ? getModelById(modelId) : undefined;
+  const photoModel = model && model.type === "photo" ? (model as any) : null;
+  const maxReferenceImages = isToolModel ? 1 : Math.max(1, Number(photoModel?.maxInputImages ?? 1));
+  const referenceList: string[] = Array.isArray(referenceImages)
+    ? referenceImages.filter((x) => typeof x === "string" && x.trim().length > 0)
+    : (referenceImage ? [referenceImage] : []);
+  const hasAnyReference = referenceList.length > 0;
+
   const promptPlaceholder = isToolModel
-    ? (referenceImage
+    ? (hasAnyReference
         ? `${displayName}: (опционально) комментарий...`
         : `${displayName}: сначала загрузите фото слева`)
-    : (referenceImage
+    : (hasAnyReference
         ? `${displayName}: Опишите что изменить...`
         : `${displayName}: Опишите сцену...`);
   
-  // Constants for validation
-  const MAX_IMAGE_SIZE_MB = 10;
-  const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+  const allowedInputFormats: Array<'jpeg' | 'png' | 'webp'> | null =
+    photoModel?.inputImageFormats && Array.isArray(photoModel.inputImageFormats)
+      ? photoModel.inputImageFormats
+      : null;
+  const allowedMimeTypes: string[] | null = allowedInputFormats
+    ? allowedInputFormats
+        .map((f) => (f === "jpeg" ? "image/jpeg" : f === "png" ? "image/png" : f === "webp" ? "image/webp" : undefined))
+        .filter((x): x is Exclude<typeof x, undefined> => x !== undefined)
+    : null;
+  const maxImageSizeMb = Number(photoModel?.maxInputImageSizeMb ?? 10);
+  const MAX_IMAGE_SIZE_BYTES = Math.max(1, maxImageSizeMb) * 1024 * 1024;
+  const acceptAttr = allowedMimeTypes?.length ? allowedMimeTypes.join(",") : "image/*";
+
+  const updateReferences = (next: string[], files?: File[]) => {
+    if (onReferenceImagesChange) {
+      onReferenceImagesChange(next);
+      return;
+    }
+    // Backward-compatible single-ref mode
+    const first = next[0] || null;
+    onReferenceImageChange?.(first);
+    if (files && files[0]) onReferenceFileChange?.(files[0]);
+    else if (!first) onReferenceFileChange?.(null);
+  };
+
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read_failed"));
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.readAsDataURL(file);
+    });
   
   // Handle file upload with validation
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    // allow selecting the same file again
+    e.target.value = "";
+    if (!files.length) return;
     
-    // Check file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Выберите изображение (PNG, JPG, WEBP)');
+    const current = referenceList;
+    const remaining = Math.max(0, maxReferenceImages - current.length);
+    if (remaining <= 0) {
+      toast.error(`Можно добавить максимум ${maxReferenceImages} изображений`);
       return;
     }
-    
-    // Check file size
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      toast.error(`Максимальный размер: ${MAX_IMAGE_SIZE_MB}МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)}МБ`);
-      return;
+
+    const picked = (isToolModel ? files.slice(0, 1) : files.slice(0, remaining));
+    if (!isToolModel && files.length > remaining) {
+      toast(`Добавлены первые ${remaining} из ${files.length} (лимит ${maxReferenceImages})`, { duration: 3500 });
     }
-    
-    // Convert to base64
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      
-      // Additional check for base64 size
-      if (base64.length > MAX_IMAGE_SIZE_BYTES * 1.4) {
-        toast.error('Изображение слишком большое. Попробуйте уменьшить размер.');
+
+    // Validate files
+    for (const file of picked) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Выберите изображение");
         return;
       }
-      
-      onReferenceImageChange?.(base64);
-      onReferenceFileChange?.(file);
-      toast.success('Изображение загружено');
-    };
-    reader.onerror = () => {
-      toast.error('Не удалось прочитать файл');
-    };
-    reader.readAsDataURL(file);
+      if (allowedMimeTypes && !allowedMimeTypes.includes(String(file.type || "").toLowerCase())) {
+        const formatsLabel = allowedInputFormats ? allowedInputFormats.map((f) => f.toUpperCase()).join(", ") : "JPEG, PNG, WEBP";
+        toast.error(`Неподдерживаемый формат. Разрешено: ${formatsLabel}`);
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        toast.error(`Максимальный размер: ${maxImageSizeMb}МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)}МБ`);
+        return;
+      }
+    }
+
+    try {
+      const encoded = await Promise.all(picked.map((f) => readFileAsDataUrl(f)));
+      for (const b64 of encoded) {
+        if (b64.length > MAX_IMAGE_SIZE_BYTES * 1.4) {
+          toast.error("Изображение слишком большое. Попробуйте уменьшить размер.");
+          return;
+        }
+      }
+      const next = isToolModel ? [encoded[0]!] : [...current, ...encoded];
+      updateReferences(next, picked);
+      toast.success(isToolModel ? "Изображение загружено" : `Добавлено: ${encoded.length}`);
+    } catch {
+      toast.error("Не удалось прочитать файл");
+    }
   };
   
   const handleRemoveReference = () => {
-    onReferenceImageChange?.(null);
-    onReferenceFileChange?.(null);
+    updateReferences([]);
+  };
+
+  const handleRemoveReferenceAt = (idx: number) => {
+    const next = referenceList.filter((_, i) => i !== idx);
+    updateReferences(next);
   };
 
   const hasEnoughCredits = credits >= estimatedCost;
   const isDisabled = disabled || isGenerating;
-  const hasRequiredInput = isToolModel ? !!referenceImage : prompt.trim().length > 0;
+  const hasRequiredInput = isToolModel ? hasAnyReference : prompt.trim().length > 0;
   const canGenerate = isAuthenticated && hasRequiredInput && !isDisabled && hasEnoughCredits;
   const canSubmit = !isDisabled && (isAuthenticated ? canGenerate : true);
 
@@ -163,7 +223,7 @@ export function ControlBarBottom({
     }
     if (canGenerate) onGenerate();
     else {
-      if (isToolModel && !referenceImage) toast.error("Загрузите изображение");
+      if (isToolModel && !hasAnyReference) toast.error("Загрузите изображение");
       else if (!isToolModel && prompt.trim().length === 0) toast.error("Введите промпт");
       else if (!hasEnoughCredits) toast.error("Недостаточно звёзд");
     }
@@ -257,7 +317,8 @@ export function ControlBarBottom({
                 <div className="relative flex-shrink-0">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={acceptAttr}
+                    multiple={!isToolModel && maxReferenceImages > 1}
                     onChange={handleFileUpload}
                     className="hidden"
                     id="reference-upload-desktop"
@@ -267,15 +328,15 @@ export function ControlBarBottom({
                     htmlFor="reference-upload-desktop"
                     className={`
                       flex items-center justify-center w-10 h-10 rounded-lg border transition-colors cursor-pointer
-                      ${referenceImage 
+                      ${hasAnyReference 
                         ? 'border-[#CDFF00] bg-[#CDFF00]/10 hover:bg-[#CDFF00]/20' 
                         : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
                       }
                       ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
                     `}
-                    title={referenceImage ? uploadedTitle : uploadTitle}
+                    title={hasAnyReference ? uploadedTitle : uploadTitle}
                   >
-                    {referenceImage ? (
+                    {hasAnyReference ? (
                       <svg className="w-5 h-5 text-[#CDFF00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
@@ -286,7 +347,7 @@ export function ControlBarBottom({
                     )}
                   </label>
                   
-                  {referenceImage && !isGenerating && (
+                  {hasAnyReference && !isGenerating && (
                     <button
                       onClick={handleRemoveReference}
                       className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
@@ -299,13 +360,34 @@ export function ControlBarBottom({
                   )}
                 </div>
      
-                {referenceImage && (
-                  <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#CDFF00] flex-shrink-0">
-                    <img 
-                      src={referenceImage} 
-                      alt="Reference" 
-                      className="w-full h-full object-cover"
-                    />
+                {hasAnyReference && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {referenceList.slice(0, maxReferenceImages).map((src, idx) => (
+                      <div
+                        key={`${idx}`}
+                        className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#CDFF00] flex-shrink-0"
+                        title={`Референс ${idx + 1}/${referenceList.length}`}
+                      >
+                        <img src={src} alt={`Reference ${idx + 1}`} className="w-full h-full object-cover" />
+                        {!isGenerating && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveReferenceAt(idx)}
+                            className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center"
+                            title="Удалить"
+                          >
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!isToolModel && maxReferenceImages > 1 && (
+                      <div className="text-[10px] text-white/40 whitespace-nowrap">
+                        {referenceList.length}/{maxReferenceImages}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -403,7 +485,7 @@ export function ControlBarBottom({
                   ? "Войти через Telegram"
                   : !hasEnoughCredits
                     ? `Недостаточно звёзд (нужно ${estimatedCost}⭐, есть ${credits}⭐)`
-                    : isToolModel && !referenceImage
+                    : isToolModel && !hasAnyReference
                       ? "Загрузите изображение"
                       : !isToolModel && prompt.trim().length === 0
                         ? "Введите промпт"
@@ -599,10 +681,11 @@ export function ControlBarBottom({
                 <div className="text-xs text-[#A1A1AA] uppercase tracking-wider">
                   {isToolModel ? 'Изображение' : 'Референс'}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={acceptAttr}
+                    multiple={!isToolModel && maxReferenceImages > 1}
                     onChange={handleFileUpload}
                     className="hidden"
                     id="reference-upload-mobile"
@@ -612,16 +695,16 @@ export function ControlBarBottom({
                     htmlFor="reference-upload-mobile"
                     className={`
                       flex items-center justify-center w-20 h-20 rounded-2xl border-2 border-dashed transition-colors cursor-pointer
-                      ${referenceImage 
+                      ${hasAnyReference 
                         ? 'border-[#CDFF00] bg-[#CDFF00]/10' 
                         : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
                       }
                       ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
                     `}
                   >
-                    {referenceImage ? (
+                    {hasAnyReference ? (
                       <img 
-                        src={referenceImage} 
+                        src={referenceList[0]} 
                         alt="Reference" 
                         className="w-full h-full object-cover rounded-xl"
                       />
@@ -631,7 +714,7 @@ export function ControlBarBottom({
                       </svg>
                     )}
                   </label>
-                  {referenceImage && (
+                  {hasAnyReference && (
                     <button
                       type="button"
                       onClick={handleRemoveReference}
@@ -642,6 +725,31 @@ export function ControlBarBottom({
                     </button>
                   )}
                 </div>
+                {/* Thumbnails for multi-ref */}
+                {!isToolModel && maxReferenceImages > 1 && hasAnyReference && (
+                  <div className="flex gap-2 flex-wrap">
+                    {referenceList.map((src, idx) => (
+                      <div key={`${idx}`} className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10">
+                        <img src={src} alt={`Ref ${idx + 1}`} className="w-full h-full object-cover" />
+                        {!isGenerating && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveReferenceAt(idx)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center"
+                            title="Удалить"
+                          >
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <div className="self-center text-xs text-white/40">
+                      {referenceList.length}/{maxReferenceImages}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

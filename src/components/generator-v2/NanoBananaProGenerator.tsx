@@ -14,9 +14,11 @@ import './theme.css';
 
 // Quality mapping: UI labels → API values
 const QUALITY_MAPPING: Record<string, string> = {
-  '1K': 'balanced',
-  '2K': 'balanced', // uses apiId2k
-  '4K': 'quality', // uses apiId4k
+  // Server-side expects resolution tiers for Nano Banana Pro
+  // (used for model selection + size mapping)
+  '1K': '1k_2k',
+  '2K': '1k_2k',
+  '4K': '4k',
 };
 
 // Cost calculation for Nano Banana Pro
@@ -40,11 +42,10 @@ export function NanoBananaProGenerator() {
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [quality, setQuality] = useState('1K');
   const [quantity, setQuantity] = useState(1);
-  const [outputFormat, setOutputFormat] = useState<'png' | 'jpg' | 'webp'>('png');
+  const [outputFormat, setOutputFormat] = useState<'png' | 'jpg'>('png');
   
   // Reference image for i2i
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
   
   // Advanced settings
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -79,7 +80,7 @@ export function NanoBananaProGenerator() {
       url: 'https://images.unsplash.com/photo-1680382750218-ea0e0cdcc741?w=800&q=80',
       prompt: 'A futuristic cityscape at sunset with flying cars',
       mode: 'image',
-      settings: { model: 'nano-banana-pro', size: '16:9', quality: 'balanced' },
+      settings: { model: 'nano-banana-pro', size: '16:9', quality: '1k_2k' },
       timestamp: Date.now(),
     },
     {
@@ -87,7 +88,7 @@ export function NanoBananaProGenerator() {
       url: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800&q=80',
       prompt: 'Magical forest with glowing mushrooms and fireflies',
       mode: 'image',
-      settings: { model: 'nano-banana-pro', size: '1:1', quality: 'balanced' },
+      settings: { model: 'nano-banana-pro', size: '1:1', quality: '1k_2k' },
       timestamp: Date.now(),
     },
     {
@@ -95,7 +96,7 @@ export function NanoBananaProGenerator() {
       url: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&q=80',
       prompt: 'Abstract geometric patterns in vibrant colors',
       mode: 'image',
-      settings: { model: 'nano-banana-pro', size: '9:16', quality: 'balanced' },
+      settings: { model: 'nano-banana-pro', size: '9:16', quality: '1k_2k' },
       timestamp: Date.now(),
     },
     {
@@ -103,7 +104,7 @@ export function NanoBananaProGenerator() {
       url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
       prompt: 'Cyberpunk street scene with neon lights',
       mode: 'image',
-      settings: { model: 'nano-banana-pro', size: '4:3', quality: 'balanced' },
+      settings: { model: 'nano-banana-pro', size: '4:3', quality: '1k_2k' },
       timestamp: Date.now(),
     },
   ] : [];
@@ -158,7 +159,7 @@ export function NanoBananaProGenerator() {
     async (img: GenerationResult) => {
       try {
         const dataUrl = await fetchAsReferenceDataUrl(img);
-        setReferenceImage(dataUrl);
+        setReferenceImages([dataUrl]);
         setPrompt(String(img.prompt || ""));
         if (img.settings?.size) setAspectRatio(String(img.settings.size));
         toast.success("Фото добавлено как референс");
@@ -220,8 +221,8 @@ export function NanoBananaProGenerator() {
           variants: quantity,
           seed: seed || undefined,
           steps,
-          mode: referenceImage ? 'i2i' : 't2i',
-          referenceImage: referenceImage || undefined,
+          mode: referenceImages.length ? 'i2i' : 't2i',
+          referenceImages: referenceImages.length ? referenceImages : undefined,
         }),
       });
 
@@ -425,7 +426,7 @@ export function NanoBananaProGenerator() {
           quality={quality}
           onQualityChange={setQuality}
           outputFormat={outputFormat}
-          onOutputFormatChange={setOutputFormat}
+          onOutputFormatChange={(v) => setOutputFormat(v === "jpg" ? "jpg" : "png")}
           outputFormatOptions={['png', 'jpg']}
           quantity={quantity}
           onQuantityChange={setQuantity}
@@ -436,10 +437,9 @@ export function NanoBananaProGenerator() {
           estimatedCost={estimatedCost}
           modelId="nano-banana-pro"
           qualityOptions={['1K', '2K', '4K']}
-          aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '4:5', '5:4', '21:9']}
-          referenceImage={referenceImage}
-          onReferenceImageChange={setReferenceImage}
-          onReferenceFileChange={setReferenceFile}
+          aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '4:5', '5:4', '21:9', '2:1', '1:2', '6:5', '5:6', '9:21']}
+          referenceImages={referenceImages}
+          onReferenceImagesChange={setReferenceImages}
           negativePrompt={negativePrompt}
           onNegativePromptChange={setNegativePrompt}
           seed={seed}

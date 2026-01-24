@@ -105,9 +105,31 @@ export function aspectRatioToLaoZhangSize(aspectRatio: string): string {
       return "1280x960";
     case "3:4":
       return "960x1280";
+    case "4:5":
+    case "5:6":
+      // Portrait-ish mid ratios
+      return "1024x1280";
+    case "5:4":
+    case "6:5":
+      // Landscape-ish mid ratios
+      return "1280x1024";
+    case "21:9":
+    case "2:1":
+      // Super-wide
+      return "1536x768";
+    case "1:2":
+      // Super-tall
+      return "768x1536";
+    case "9:21":
+      // Extra-tall
+      return "768x1792";
     case "1:1":
     default:
-      return "1024x1024"; // Square
+      // If it's a numeric ratio (e.g. "21:9"), compute a sane size.
+      if (/^\d+\s*:\s*\d+$/.test(String(aspectRatio || "").trim())) {
+        return resolutionToLaoZhangSize("1k", aspectRatio);
+      }
+      return "1024x1024"; // Square / fallback
   }
 }
 
@@ -118,20 +140,15 @@ export function resolutionToLaoZhangSize(
 ): string {
   const aspect = aspectRatio || "1:1";
 
-  // Calculate base dimensions for aspect ratio
-  const aspectMap: Record<string, { base: number; ratio: [number, number] }> = {
-    "1:1": { base: 1024, ratio: [1, 1] },
-    "16:9": { base: 1024, ratio: [16, 9] },
-    "9:16": { base: 1024, ratio: [9, 16] },
-    "4:3": { base: 1024, ratio: [4, 3] },
-    "3:4": { base: 1024, ratio: [3, 4] },
-    "3:2": { base: 1024, ratio: [3, 2] },
-    "2:3": { base: 1024, ratio: [2, 3] },
-  };
-
-  const config = aspectMap[aspect] || aspectMap["1:1"];
-  const [w, h] = config.ratio;
-  const isPortrait = h > w;
+  // Calculate base dimensions for aspect ratio.
+  // Prefer explicit numeric ratio parsing (supports 4:5, 21:9, etc).
+  const parsed = String(aspect || "").trim().match(/^(\d+)\s*:\s*(\d+)$/);
+  const w = parsed ? Number(parsed[1]) : 1;
+  const h = parsed ? Number(parsed[2]) : 1;
+  const safeW = Number.isFinite(w) && w > 0 ? w : 1;
+  const safeH = Number.isFinite(h) && h > 0 ? h : 1;
+  const base = 1024;
+  const isPortrait = safeH > safeW;
 
   // Resolution multipliers
   const multipliers: Record<string, number> = {
@@ -142,16 +159,16 @@ export function resolutionToLaoZhangSize(
   };
 
   const mult = multipliers[resolution.toLowerCase()] || 1;
-  const base = config.base * mult;
+  const scaledBase = base * mult;
 
   // Calculate dimensions maintaining aspect ratio
   let width: number, height: number;
   if (isPortrait) {
-    height = Math.round(base);
-    width = Math.round((base * w) / h);
+    height = Math.round(scaledBase);
+    width = Math.round((scaledBase * safeW) / safeH);
   } else {
-    width = Math.round(base);
-    height = Math.round((base * h) / w);
+    width = Math.round(scaledBase);
+    height = Math.round((scaledBase * safeH) / safeW);
   }
 
   // Round to nearest 64 (required by some models)

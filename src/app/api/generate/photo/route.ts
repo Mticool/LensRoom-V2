@@ -22,6 +22,82 @@ import {
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 import { resolveAspectRatio, logAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
 
+function mimeTypesFromFormats(formats?: Array<'jpeg' | 'png' | 'webp'>): string[] | null {
+  if (!formats || formats.length === 0) return null;
+  const m: string[] = [];
+  for (const f of formats) {
+    if (f === 'jpeg') m.push('image/jpeg');
+    if (f === 'png') m.push('image/png');
+    if (f === 'webp') m.push('image/webp');
+  }
+  return m.length ? m : null;
+}
+
+function parseDataUrl(dataUrl: string): { mime: string; base64: string } | null {
+  const match = String(dataUrl || "").match(/^data:(.+);base64,(.+)$/);
+  if (!match) return null;
+  return { mime: match[1], base64: match[2] };
+}
+
+function estimateBytesFromBase64(base64: string): number {
+  // Roughly: 4 chars -> 3 bytes (minus padding).
+  const s = String(base64 || "");
+  const padding = s.endsWith("==") ? 2 : s.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((s.length * 3) / 4) - padding);
+}
+
+async function buildReferenceCollageDataUrl(
+  refs: string[],
+  opts?: { tile?: number; maxTiles?: number }
+): Promise<string> {
+  const tile = opts?.tile ?? 512;
+  const maxTiles = opts?.maxTiles ?? 8;
+  const input = refs.slice(0, maxTiles);
+
+  const cols = input.length <= 1 ? 1 : input.length <= 4 ? 2 : 4;
+  const rows = Math.max(1, Math.ceil(input.length / cols));
+
+  const width = cols * tile;
+  const height = rows * tile;
+
+  const tiles = await Promise.all(
+    input.map(async (src, idx) => {
+      let buffer: Buffer;
+      const parsed = parseDataUrl(src);
+      if (parsed) {
+        buffer = Buffer.from(parsed.base64, "base64");
+      } else {
+        const res = await fetch(src);
+        if (!res.ok) throw new Error(`Failed to fetch reference image (${res.status})`);
+        buffer = Buffer.from(await res.arrayBuffer());
+      }
+
+      const resized = await sharp(buffer)
+        .resize(tile, tile, { fit: "cover" })
+        .png()
+        .toBuffer();
+
+      const x = (idx % cols) * tile;
+      const y = Math.floor(idx / cols) * tile;
+      return { input: resized, left: x, top: y };
+    })
+  );
+
+  const out = await sharp({
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 },
+    },
+  })
+    .composite(tiles)
+    .png()
+    .toBuffer();
+
+  return `data:image/png;base64,${out.toString("base64")}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
@@ -32,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, outputFormat } = body;
+    const { prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, referenceImages, outputFormat } = body;
     const threadIdRaw = body?.threadId;
     const legacyModel = body?.model;
     const baseModelId = body?.modelId;
@@ -95,6 +171,14 @@ export async function POST(request: NextRequest) {
     // Some tools require PNG (alpha), force server-side.
     if (effectiveModelId === "recraft-remove-background") {
       requestedOutputFormat = "png";
+    }
+    // Enforce model-specific output formats (Nano Banana Pro supports only PNG/JPG).
+    const allowedOutputs = (modelInfo as any)?.outputFormats as Array<"png" | "jpg"> | undefined;
+    if (allowedOutputs && allowedOutputs.length) {
+      const normalized = requestedOutputFormat === "webp" ? "webp" : requestedOutputFormat;
+      if (normalized === "webp" || !allowedOutputs.includes(normalized as any)) {
+        requestedOutputFormat = allowedOutputs[0] as OutputFormat;
+      }
     }
 
     // Calculate credit cost using new pricing system
@@ -484,13 +568,72 @@ export async function POST(request: NextRequest) {
       return { publicUrl: publicUrlData.publicUrl, storagePath };
     };
 
-    let imageInputs: string[] | undefined = undefined;
-    if (mode === 'i2i') {
-      if (!referenceImage) {
-        return NextResponse.json({ error: "referenceImage is required for i2i" }, { status: 400 });
+    // Normalize reference inputs:
+    // - legacy: referenceImage (single)
+    // - new: referenceImages (array, up to maxInputImages)
+    const rawRefs: string[] = Array.isArray(referenceImages)
+      ? referenceImages.filter((x: unknown): x is string => typeof x === "string" && x.trim().length > 0)
+      : [];
+    if (!rawRefs.length && typeof referenceImage === "string" && referenceImage.trim().length > 0) {
+      rawRefs.push(referenceImage);
+    }
+
+    const maxRefs = Number((modelInfo as any)?.maxInputImages ?? 1);
+    const maxMb = Number((modelInfo as any)?.maxInputImageSizeMb ?? 10);
+    const maxBytes = Math.max(1, maxMb) * 1024 * 1024;
+    const allowedMimes = mimeTypesFromFormats((modelInfo as any)?.inputImageFormats);
+
+    // For i2i, validate references and prepare:
+    // - `referenceForProvider`: data URL (may be a collage if multiple refs)
+    // - `kieImageInputs`: array of public URLs (uploaded to storage) for KIE-style providers
+    let referenceForProvider: string | null = null;
+    let kieImageInputs: string[] | undefined = undefined;
+
+    if (mode === "i2i") {
+      if (rawRefs.length === 0) {
+        return NextResponse.json({ error: "referenceImage/referenceImages is required for i2i" }, { status: 400 });
       }
-      const url = await uploadDataUrlToStorage(referenceImage, 'i2i');
-      imageInputs = [url];
+      if (rawRefs.length > maxRefs) {
+        return NextResponse.json({ error: `Too many reference images. Max is ${maxRefs}` }, { status: 400 });
+      }
+
+      // Validate each ref (best-effort). For data URLs we can validate MIME + decoded size.
+      for (let i = 0; i < rawRefs.length; i++) {
+        const src = String(rawRefs[i] || "");
+        const parsed = parseDataUrl(src);
+        if (!parsed) continue; // URL refs are allowed (we can't infer size reliably here)
+
+        if (allowedMimes && !allowedMimes.includes(String(parsed.mime || "").toLowerCase())) {
+          return NextResponse.json(
+            { error: `Unsupported reference image format: ${parsed.mime}. Allowed: ${allowedMimes.join(", ")}` },
+            { status: 400 }
+          );
+        }
+
+        const approxBytes = estimateBytesFromBase64(parsed.base64);
+        if (approxBytes > maxBytes) {
+          return NextResponse.json(
+            { error: `Reference image is too large (${(approxBytes / 1024 / 1024).toFixed(1)}MB). Max: ${maxMb}MB` },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Provider ref:
+      // - single ref: use it directly
+      // - multiple refs: build a collage so that single-image edit APIs can still "see" all refs
+      referenceForProvider = rawRefs.length === 1
+        ? rawRefs[0]!
+        : await buildReferenceCollageDataUrl(rawRefs, { maxTiles: maxRefs });
+
+      // For KIE-like providers, upload all refs to storage and pass URLs array.
+      // (Even if the underlying model uses only first, keeping an array is forward-compatible.)
+      const uploadedUrls = await Promise.all(
+        rawRefs.map(async (src, idx) => {
+          return await uploadDataUrlToStorage(src, `i2i_${idx}`);
+        })
+      );
+      kieImageInputs = uploadedUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
     }
 
     const fixed = (modelInfo as any)?.fixedResolution as string | undefined;
@@ -553,7 +696,7 @@ export async function POST(request: NextRequest) {
           aspectRatio: finalAspectRatio,
           quality,
           mode,
-          hasReference: !!referenceImage,
+          hasReference: !!referenceForProvider,
           variants: numVariants,
         });
         
@@ -564,11 +707,11 @@ export async function POST(request: NextRequest) {
             try {
               let laozhangResponse;
               
-              if (mode === 'i2i' && referenceImage) {
+              if (mode === 'i2i' && referenceForProvider) {
                 laozhangResponse = await laozhangClient.editImage({
                   model: laozhangModelId,
                   prompt: prompt,
-                  image: referenceImage,
+                  image: referenceForProvider,
                   n: 1,
                   size: imageSize,
                   response_format: "b64_json",
@@ -943,8 +1086,8 @@ export async function POST(request: NextRequest) {
       generateParams.quality = quality;
     }
     
-    if (imageInputs && imageInputs.length > 0) {
-      generateParams.imageInputs = imageInputs;
+    if (kieImageInputs && kieImageInputs.length > 0) {
+      generateParams.imageInputs = kieImageInputs;
     }
 
     // Tool params: Topaz Upscale requires `scale` ("2x" | "4x")

@@ -67,6 +67,24 @@ export interface PhotoModelConfig {
   
   // Capabilities
   supportsI2i: boolean;
+  /**
+   * Max number of input images for image-to-image / references (per API).
+   * If omitted, the app assumes a conservative default (usually 1).
+   */
+  maxInputImages?: number;
+  /**
+   * Max size of ONE input image file in MB (per API).
+   */
+  maxInputImageSizeMb?: number;
+  /**
+   * Allowed input image formats (normalized lower-case extensions, e.g. "jpeg", "png", "webp").
+   * Used for client/server validation.
+   */
+  inputImageFormats?: Array<'jpeg' | 'png' | 'webp'>;
+  /**
+   * Allowed output formats (per API).
+   */
+  outputFormats?: Array<'png' | 'jpg'>;
   
   // Pricing in Kie credits
   pricing: PhotoPricing;
@@ -230,6 +248,11 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     speed: 'fast',
     quality: 'ultra',
     supportsI2i: true,
+    // KIE Nano Banana Pro capabilities snapshot (https://kie.ai/nano-banana-pro)
+    maxInputImages: 8,
+    maxInputImageSizeMb: 30,
+    inputImageFormats: ['jpeg', 'png', 'webp'],
+    outputFormats: ['png', 'jpg'],
     pricing: {
       // NEW PRICING: 1k_2k (18 credits) = 30⭐, 4k (24 credits) = 40⭐
       '1k_2k': 30,
@@ -237,7 +260,24 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     },
     qualityOptions: ['1k_2k', '4k'],
     // All aspect ratios supported by KIE API: https://kie.ai/nano-banana-pro
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '4:5', '5:4', '21:9'],
+    aspectRatios: [
+      '1:1',
+      '16:9',
+      '9:16',
+      '4:3',
+      '3:4',
+      '3:2',
+      '2:3',
+      '4:5',
+      '5:4',
+      '21:9',
+      // Common extra ratios ("и др.")
+      '2:1',
+      '1:2',
+      '6:5',
+      '5:6',
+      '9:21',
+    ],
     shortLabel: 'Pro • 1K-4K',
   },
   // Seedream 4.5: requires `quality` (basic/high), NOT `resolution`

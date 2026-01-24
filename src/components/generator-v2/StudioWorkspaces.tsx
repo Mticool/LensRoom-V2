@@ -197,7 +197,7 @@ export function StudioWorkspaces() {
   const [seed, setSeed] = useState<number | null>(null);
   const [steps, setSteps] = useState<number>(25);
   const [quantity, setQuantity] = useState<number>(1);
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [aspectRatio, setAspectRatio] = useState<string>(photoModel?.aspectRatios?.[0] || "1:1");
   const [qualityLabel, setQualityLabel] = useState<string>(() => {
     const opts = getQualityOptionsForModel(selectedModelId);
@@ -432,7 +432,7 @@ export function StudioWorkspaces() {
       }
       try {
         const dataUrl = await fetchGenerationAsDataUrl(image);
-        setReferenceImage(dataUrl);
+        setReferenceImages([dataUrl]);
         setPrompt(String(image.prompt || ""));
         if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
         toast.success("Фото добавлено как референс");
@@ -488,13 +488,13 @@ export function StudioWorkspaces() {
       pendingId: string,
       generationPrompt: string,
       settings: GenerationSettings,
-      refImage: string | null,
+      refImages: string[],
       extraParams?: Record<string, unknown> | null
     ) => {
       const endpoint = "/api/generate/photo";
       const isTool = isToolModelId(String(settings.model || ""));
       // Determine mode based on inputs (tools require i2i)
-      const generationMode = isTool ? "i2i" : refImage ? "i2i" : "t2i";
+      const generationMode = isTool ? "i2i" : (refImages && refImages.length > 0) ? "i2i" : "t2i";
 
       const body: Record<string, unknown> = {
         prompt: generationPrompt || defaultPromptForModel(String(settings.model || "")),
@@ -510,7 +510,7 @@ export function StudioWorkspaces() {
       if (settings.outputFormat) body.outputFormat = settings.outputFormat;
       if (typeof settings.seed === "number") body.seed = settings.seed;
       if (typeof settings.steps === "number") body.steps = settings.steps;
-      if (refImage) body.referenceImage = refImage;
+      if (refImages && refImages.length > 0) body.referenceImages = refImages;
       if (extraParams && Object.keys(extraParams).length > 0) body.params = extraParams;
 
       const resp = await fetch(endpoint, {
@@ -567,7 +567,7 @@ export function StudioWorkspaces() {
     setSeed(null);
     setSteps(25);
     setQuantity(1);
-    setReferenceImage(null);
+    setReferenceImages([]);
     setLocalItems([]);
     setThreadsLoaded(false);
 
@@ -778,7 +778,7 @@ export function StudioWorkspaces() {
       setLocalItems((prev) => [...prev, pending]);
 
       try {
-        await generateOne(pending.id, generationPrompt, settings, refDataUrl, null);
+        await generateOne(pending.id, generationPrompt, settings, refDataUrl ? [refDataUrl] : [], null);
         invalidateCache();
         refreshHistory();
         await refreshCredits();
@@ -843,7 +843,7 @@ export function StudioWorkspaces() {
     }
     try {
       const dataUrl = await fetchGenerationAsDataUrl(image);
-      setReferenceImage(dataUrl);
+      setReferenceImages([dataUrl]);
       setPrompt(String(image.prompt || ""));
       if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
       toast.success("Фото добавлено как референс");
@@ -954,7 +954,7 @@ export function StudioWorkspaces() {
       toast.error("Эта модель требует загрузки изображения");
       return;
     }
-    if (tool && !referenceImage) {
+    if (tool && referenceImages.length === 0) {
       toast.error("Загрузите изображение");
       return;
     }
@@ -972,7 +972,7 @@ export function StudioWorkspaces() {
     };
 
     // Ensure i2i is only used when supported
-    const ref = supportsI2i ? referenceImage : null;
+    const ref = supportsI2i ? referenceImages : [];
 
     const generationPrompt = tool ? (normalizedPrompt || defaultPromptForModel(selectedModelId)) : normalizedPrompt;
     const n = tool ? 1 : Math.max(1, Math.min(4, Number(quantity) || 1));
@@ -1029,7 +1029,7 @@ export function StudioWorkspaces() {
     seed,
     steps,
     supportsI2i,
-    referenceImage,
+    referenceImages,
     generateOne,
     startTelegramLogin,
     invalidateCache,
@@ -1108,8 +1108,8 @@ export function StudioWorkspaces() {
           modelId={selectedModelId}
           qualityOptions={isToolModel ? qualityOptions : qualityOptions}
           aspectRatioOptions={isToolModel ? ["1:1"] : photoModel.aspectRatios}
-          referenceImage={supportsI2i ? referenceImage : null}
-          onReferenceImageChange={supportsI2i ? setReferenceImage : undefined}
+          referenceImages={supportsI2i ? referenceImages : []}
+          onReferenceImagesChange={supportsI2i ? setReferenceImages : undefined}
           negativePrompt={negativePrompt}
           onNegativePromptChange={setNegativePrompt}
           seed={seed}
