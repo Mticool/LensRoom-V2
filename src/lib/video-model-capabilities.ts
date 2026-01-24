@@ -91,12 +91,12 @@ function getAvailableModes(modelInfo: VideoModelConfig): VideoMode[] {
   }
 
   // motion maps to 'motion' (Kling Motion)
-  if (modelInfo.modes.includes('motion') || modelInfo.id === 'kling-motion-control') {
+  if (modelInfo.id === 'kling-motion-control') {
     modes.add('motion');
   }
 
   // edit maps to 'edit' (Kling O1 Edit)
-  if (modelInfo.modes.includes('edit') || modelInfo.id === 'kling-o1-edit') {
+  if (modelInfo.id === 'kling-o1-edit') {
     modes.add('edit');
   }
 
@@ -200,8 +200,8 @@ export function getModelCapabilities(modelId: string): ModelCapabilities | null 
     supportsI2v: videoModel.supportsI2v ?? false,
     supportsV2v: videoModel.modes.includes('v2v'),
     supportsStartEnd: videoModel.supportsStartEnd ?? false,
-    supportsMotion: videoModel.modes.includes('motion') || videoModel.id === 'kling-motion-control',
-    supportsEdit: videoModel.modes.includes('edit') || videoModel.id === 'kling-o1-edit',
+    supportsMotion: videoModel.id === 'kling-motion-control',
+    supportsEdit: videoModel.id === 'kling-o1-edit',
     supportsStoryboard: videoModel.supportsStoryboard ?? false,
 
     // Phase 2: Advanced Settings
