@@ -6,6 +6,17 @@ import { GenerationResult, GeneratorMode, GenerationSettings } from '../Generato
 
 const PAGE_SIZE = 20;
 
+function normalizeAspectRatio(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "1:1";
+  const m = raw.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);
+  if (!m) return raw;
+  const w = Number(m[1]);
+  const h = Number(m[2]);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return raw;
+  return `${w}:${h}`;
+}
+
 export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: string) {
   const [history, setHistory] = useState<GenerationResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +34,7 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       mode: (gen.type === 'video' ? 'video' : 'image') as GeneratorMode,
       settings: {
         model: gen.model_id || '',
-        size: gen.aspect_ratio || '1:1',
+        size: normalizeAspectRatio(gen.aspect_ratio),
       } as GenerationSettings,
       timestamp: new Date(gen.created_at).getTime(),
       previewUrl: gen.preview_url || gen.result_urls?.[0] || '',
@@ -42,6 +53,15 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       
       setIsLoading(true);
       setOffset(0);
+      
+      // If no threadId, don't load history (new chat = empty gallery)
+      if (!threadId) {
+        setHistory([]);
+        setHasMore(false);
+        setIsLoading(false);
+        return;
+      }
+      
       const type = mode === 'video' ? 'video' : 'photo';
       const cacheKey = `history-${type}${modelId ? `-${modelId}` : ''}${threadId ? `-${threadId}` : ''}`;
       
@@ -164,8 +184,14 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
   // Invalidate cache when new generation is added
   const invalidateHistoryCache = useCallback(() => {
     const type = mode === 'video' ? 'video' : 'photo';
+    // Invalidate all caches for this type (including different models and threads)
     invalidateCached(`history-${type}`);
-  }, [mode]);
+    // Also invalidate specific cache for current model/thread if exists
+    if (modelId || threadId) {
+      const specificKey = `history-${type}${modelId ? `-${modelId}` : ''}${threadId ? `-${threadId}` : ''}`;
+      invalidateCached(specificKey);
+    }
+  }, [mode, modelId, threadId]);
 
   return {
     history,
@@ -181,6 +207,3 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
     invalidateCache: invalidateHistoryCache,
   };
 }
-
-
-

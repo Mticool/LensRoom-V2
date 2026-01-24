@@ -55,7 +55,8 @@ export function SeedreamGenerator() {
     },
   ] : [];
   
-  const allImages = [...images, ...history, ...demoImages];
+  // Oldest → newest. New generations should appear at the bottom.
+  const allImages = [...history, ...images, ...demoImages];
 
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -86,7 +87,8 @@ export function SeedreamGenerator() {
         status: 'pending',
       }));
 
-      setImages(prev => [...pendingImages, ...prev]);
+      // Add pending placeholders at the end (bottom of gallery)
+      setImages(prev => [...prev, ...pendingImages]);
 
       const response = await fetch('/api/generate/photo', {
         method: 'POST',
@@ -127,7 +129,11 @@ export function SeedreamGenerator() {
         status: 'completed',
       };
 
-      setImages(prev => [newImage, ...prev]);
+      // Replace pending placeholders (if any) and append to bottom
+      setImages(prev => {
+        const filtered = prev.filter(img => !img.id.startsWith('pending-'));
+        return [...filtered, newImage];
+      });
       await refreshCredits();
       await invalidateCache();
       refreshHistory();
@@ -164,25 +170,24 @@ export function SeedreamGenerator() {
         </div>
       )}
 
-      <div className="container mx-auto px-4 pt-8">
-        <div className="max-w-7xl mx-auto">
-          {allImages.length > 0 ? (
-            <ImageGalleryMasonry 
-              images={allImages} 
-              isGenerating={isGenerating}
-              hasMore={hasMore}
-              onLoadMore={loadMore}
-              isLoadingMore={isLoadingMore}
-            />
-          ) : (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center max-w-md">
-                <p className="text-[#A1A1AA] text-lg mb-2">Ваши изображения появятся здесь</p>
-                <p className="text-[#6B6B6E] text-sm">Seedream 4.5 — больше качества и стабильности в стиле</p>
-              </div>
+      <div className="pt-8">
+        {allImages.length > 0 ? (
+          <ImageGalleryMasonry 
+            images={allImages} 
+            isGenerating={isGenerating}
+            autoScrollToBottom
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
+          />
+        ) : (
+          <div className="flex items-center justify-center min-h-[60vh] px-8">
+            <div className="text-center max-w-md">
+              <p className="text-[#A1A1AA] text-lg mb-2">Ваши изображения появятся здесь</p>
+              <p className="text-[#6B6B6E] text-sm">Seedream 4.5 — больше качества и стабильности в стиле</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ControlBarBottom

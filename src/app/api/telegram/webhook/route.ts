@@ -127,8 +127,10 @@ async function handleMessage(message: TelegramMessage) {
           const prompt = text.replace(/^\/(generate|g)\s+/, '');
           if (prompt) {
             await handleGeneration(chatId, telegramId, prompt, 'nano-banana', 'photo');
+          } else {
+            await sendMessage(chatId, '❓ Укажите промпт после команды.');
           }
-  } else {
+        } else {
           await sendMessage(chatId, '❓ Неизвестная команда. Нажмите /start для главного меню.');
         }
     }

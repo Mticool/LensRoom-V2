@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams } from "next/navigation";
-import { NanoBananaProGenerator } from "@/components/generator-v2/NanoBananaProGenerator";
+import { HiggsGenerator } from "@/components/generator-v2/higgsfield";
 import { NanoBananaGenerator } from "@/components/generator-v2/NanoBananaGenerator";
 import { ZImageGenerator } from "@/components/generator-v2/ZImageGenerator";
 import { FluxProGenerator } from "@/components/generator-v2/FluxProGenerator";
@@ -33,7 +33,8 @@ export default function CreatePage() {
   const renderGenerator = () => {
     switch (selectedModel) {
       case 'nano-banana-pro':
-        return <NanoBananaProGenerator />;
+        // New Higgsfield-style generator
+        return <HiggsGenerator />;
       case 'nano-banana':
         return <NanoBananaGenerator />;
       case 'z-image':
@@ -51,19 +52,19 @@ export default function CreatePage() {
       case 'recraft-remove-background':
         return <RecraftRemoveBGGenerator />;
       default:
-        return <NanoBananaProGenerator />;
+        return <HiggsGenerator />;
     }
   };
 
   return (
-    <div className="relative min-h-screen">
-      {/* Model Selector - Fixed at top */}
-      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40">
+    <div className="relative">
+      {/* Model Selector - Fixed below header */}
+      <div className="fixed top-[72px] left-1/2 -translate-x-1/2 z-40">
         <ModelSelector value={selectedModel} onChange={setSelectedModel} />
       </div>
       
-      {/* Generator */}
-      <div className="pt-16">
+      {/* Generator - pt accounts for ModelSelector */}
+      <div className="pt-14">
         {renderGenerator()}
       </div>
     </div>

@@ -124,7 +124,8 @@ function settingsStorageKey(modelId: string) {
 
 function normalizeAspect(value: string): string {
   const raw = String(value || "").trim();
-  const m = raw.match(/^(\d+)\s*[:/]\s*(\d+)$/);
+  // Accept common shorthands: "9:16", "9/16", "9.16", "9x16", "9×16"
+  const m = raw.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);
   if (!m) return raw;
   const w = Number(m[1]);
   const h = Number(m[2]);
@@ -228,10 +229,13 @@ export function StudioWorkspaces() {
   );
 
   const effectiveImages = useMemo(() => {
-    // De-dup by id (local first)
+    // De-dup by id (keep history order first, then append new local items).
+    // This ensures:
+    // - history stays at top
+    // - newly generated/pending items appear at the bottom
     const map = new Map<string, GenerationResult>();
-    for (const i of localItems) map.set(i.id, i);
-    for (const h of history) if (!map.has(h.id)) map.set(h.id, h);
+    for (const h of history) map.set(h.id, h);
+    for (const i of localItems) map.set(i.id, i); // override if same id, append if new
     return Array.from(map.values());
   }, [localItems, history]);
 
@@ -878,6 +882,7 @@ export function StudioWorkspaces() {
           images={effectiveImages}
           isGenerating={false}
           layout="grid"
+          autoScrollToBottom
           onImageClick={handleImageClick}
           emptyTitle={isToolModel ? "Загрузите фото" : undefined}
           emptyDescription={

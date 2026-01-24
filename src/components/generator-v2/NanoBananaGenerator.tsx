@@ -96,8 +96,8 @@ export function NanoBananaGenerator() {
     },
   ] : [];
   
-  // Combine current images with history and demo
-  const allImages = [...images, ...history, ...demoImages];
+  // Oldest → newest. New generations should appear at the bottom.
+  const allImages = [...history, ...images, ...demoImages];
 
   // Generate handler
   const handleGenerate = useCallback(async () => {
@@ -134,7 +134,8 @@ export function NanoBananaGenerator() {
         status: 'pending',
       }));
 
-      setImages(prev => [...pendingImages, ...prev]);
+      // Add pending placeholders at the end (bottom of gallery)
+      setImages(prev => [...prev, ...pendingImages]);
 
       const response = await fetch('/api/generate/photo', {
         method: 'POST',
@@ -184,7 +185,7 @@ export function NanoBananaGenerator() {
           status: 'completed',
         }));
 
-        setImages(prev => [...newImages, ...prev]);
+        setImages(prev => [...prev, ...newImages]);
         celebrateGeneration();
         toast.success(`Создано ${newImages.length} ${newImages.length === 1 ? 'изображение' : 'изображений'}!`);
       } else if (data.imageUrl) {
@@ -203,7 +204,7 @@ export function NanoBananaGenerator() {
           status: 'completed',
         };
 
-        setImages(prev => [newImage, ...prev]);
+        setImages(prev => [...prev, newImage]);
         celebrateGeneration();
         toast.success('Изображение создано!');
       }
@@ -247,29 +248,28 @@ export function NanoBananaGenerator() {
       )}
 
       {/* Gallery */}
-      <div className="container mx-auto px-4 pt-8">
-        <div className="max-w-7xl mx-auto">
-          {allImages.length > 0 ? (
-            <ImageGalleryMasonry 
-              images={allImages} 
-              isGenerating={isGenerating}
-              hasMore={hasMore}
-              onLoadMore={loadMore}
-              isLoadingMore={isLoadingMore}
-            />
-          ) : (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center max-w-md">
-                <p className="text-[#A1A1AA] text-lg mb-2">
-                  Ваши изображения появятся здесь
-                </p>
-                <p className="text-[#6B6B6E] text-sm">
-                  Nano Banana — быстрый фотореализм для каждого дня
-                </p>
-              </div>
+      <div className="pt-8">
+        {allImages.length > 0 ? (
+          <ImageGalleryMasonry 
+            images={allImages} 
+            isGenerating={isGenerating}
+            autoScrollToBottom
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
+          />
+        ) : (
+          <div className="flex items-center justify-center min-h-[60vh] px-8">
+            <div className="text-center max-w-md">
+              <p className="text-[#A1A1AA] text-lg mb-2">
+                Ваши изображения появятся здесь
+              </p>
+              <p className="text-[#6B6B6E] text-sm">
+                Nano Banana — быстрый фотореализм для каждого дня
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Control Bar (Sticky Bottom) */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
 import { ControlBarBottom } from './ControlBarBottom';
@@ -24,8 +24,12 @@ const COST_PER_IMAGE = 2;
 
 export function RecraftRemoveBGGenerator() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
   const { isOpen: popupIsOpen, showPopup, hidePopup } = useBotConnectPopup();
+  
+  // Get current thread ID from URL
+  const currentThreadId = searchParams?.get('thread') || null;
   
   // Core state
   const [prompt, setPrompt] = useState('');
@@ -49,8 +53,13 @@ export function RecraftRemoveBGGenerator() {
   // Polling cleanup ref
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Load history (show all models)
-  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
+  // Load history (filter by current thread)
+  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
+  
+  // Clear local images when thread changes (new chat = clean slate)
+  useEffect(() => {
+    setImages([]);
+  }, [currentThreadId]);
   
   // Use credits from auth hook
   const credits = authCredits;
@@ -94,8 +103,8 @@ export function RecraftRemoveBGGenerator() {
     },
   ] : [];
   
-  // Combine current images with history and demo
-  const allImages = [...images, ...history, ...demoImages];
+  // Oldest → newest. New generations should appear at the bottom.
+  const allImages = [...history, ...images, ...demoImages];
 
   // Generate handler
   const handleGenerate = useCallback(async () => {
@@ -132,7 +141,8 @@ export function RecraftRemoveBGGenerator() {
         status: 'pending',
       }));
 
-      setImages(prev => [...pendingImages, ...prev]);
+      // Add pending placeholders at the end (bottom of gallery)
+      setImages(prev => [...prev, ...pendingImages]);
 
       const response = await fetch('/api/generate/photo', {
         method: 'POST',
@@ -182,7 +192,7 @@ export function RecraftRemoveBGGenerator() {
 
         setImages(prev => {
           const filtered = prev.filter(img => !img.id.startsWith('pending-'));
-          return [...newImages, ...filtered];
+          return [...filtered, ...newImages];
         });
 
         celebrateGeneration();
@@ -236,7 +246,7 @@ export function RecraftRemoveBGGenerator() {
           // Replace pending with real images
           setImages(prev => {
             const filtered = prev.filter(img => !pendingIds.includes(img.id));
-            return [...newImages, ...filtered];
+            return [...filtered, ...newImages];
           });
 
           celebrateGeneration();
@@ -313,6 +323,7 @@ export function RecraftRemoveBGGenerator() {
         <ImageGalleryMasonry
           images={allImages}
           isGenerating={isGenerating}
+          autoScrollToBottom
           onRegenerate={handleRegenerate}
           hasMore={hasMore}
           onLoadMore={loadMore}

@@ -214,7 +214,8 @@ export function usePhotoGeneration(config: PhotoGenerationConfig): UsePhotoGener
     return baseCost * quantity;
   }, [costPerImage, quality, quantity]);
   
-  const allImages = useMemo(() => [...images, ...history], [images, history]);
+  // Oldest → newest. New generations should appear at the bottom.
+  const allImages = useMemo(() => [...history, ...images], [history, images]);
   
   const canGenerate = useMemo(() => {
     if (!isAuthenticated) return false;
@@ -259,7 +260,7 @@ export function usePhotoGeneration(config: PhotoGenerationConfig): UsePhotoGener
           
           setImages(prev => {
             const filtered = prev.filter(img => !img.id.startsWith('pending-'));
-            return [...newImages, ...filtered];
+            return [...filtered, ...newImages];
           });
           
           celebrateGeneration();
@@ -320,7 +321,8 @@ export function usePhotoGeneration(config: PhotoGenerationConfig): UsePhotoGener
       status: 'pending',
     }));
     
-    setImages(prev => [...pendingImages, ...prev]);
+    // Add pending placeholders at the end (bottom of gallery)
+    setImages(prev => [...prev, ...pendingImages]);
     
     try {
       const response = await withRetry(
@@ -381,7 +383,7 @@ export function usePhotoGeneration(config: PhotoGenerationConfig): UsePhotoGener
         
         setImages(prev => {
           const filtered = prev.filter(img => !img.id.startsWith('pending-'));
-          return [...newImages, ...filtered];
+          return [...filtered, ...newImages];
         });
         
         celebrateGeneration();
@@ -407,7 +409,7 @@ export function usePhotoGeneration(config: PhotoGenerationConfig): UsePhotoGener
         
         setImages(prev => {
           const filtered = prev.filter(img => !img.id.startsWith('pending-'));
-          return [newImage, ...filtered];
+          return [...filtered, newImage];
         });
         
         celebrateGeneration();

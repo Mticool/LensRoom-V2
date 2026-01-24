@@ -6,6 +6,35 @@
 import { getImageModelSettings, getVideoModelSettings } from '@/config/kie-api-settings';
 
 /**
+ * Normalize common aspect ratio formats into canonical "W:H".
+ *
+ * Accepts:
+ * - "9:16", "9 / 16"
+ * - "9.16" (UI/locale shorthand)
+ * - "9x16", "9×16"
+ *
+ * Non-numeric values (e.g. "portrait", "landscape", "auto") are returned trimmed as-is.
+ */
+export function normalizeAspectRatio(input: string | undefined | null): string | undefined {
+  const raw = String(input ?? "").trim();
+  if (!raw) return undefined;
+
+  // Keep non-numeric presets as-is (common for video models).
+  const lower = raw.toLowerCase();
+  if (lower === "auto" || lower === "portrait" || lower === "landscape") return lower;
+
+  // Normalize separators (:, /, ., x, ×)
+  const m = raw.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);
+  if (!m) return raw;
+
+  const w = Number(m[1]);
+  const h = Number(m[2]);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return raw;
+
+  return `${w}:${h}`;
+}
+
+/**
  * Получить дефолтное значение aspect_ratio для модели из конфига
  * Если в конфиге не указано, возвращает '1:1'
  */
@@ -28,9 +57,8 @@ export function getDefaultAspectRatio(modelId: string): string {
  * @returns финальное значение aspect_ratio
  */
 export function resolveAspectRatio(aspectRatio: string | undefined, modelId: string): string {
-  if (aspectRatio) {
-    return aspectRatio;
-  }
+  const normalized = normalizeAspectRatio(aspectRatio);
+  if (normalized) return normalized;
   
   return getDefaultAspectRatio(modelId);
 }
@@ -81,9 +109,8 @@ export function getDefaultVideoAspectRatio(modelId: string): string {
  * @returns финальное значение aspect_ratio
  */
 export function resolveVideoAspectRatio(aspectRatio: string | undefined, modelId: string): string {
-  if (aspectRatio) {
-    return aspectRatio;
-  }
+  const normalized = normalizeAspectRatio(aspectRatio);
+  if (normalized) return normalized;
   
   return getDefaultVideoAspectRatio(modelId);
 }

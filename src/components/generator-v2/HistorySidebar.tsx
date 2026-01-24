@@ -6,10 +6,17 @@ import { GenerationResult } from './GeneratorV2';
 
 // Helper to get thumbnail dimensions based on aspect ratio
 const getThumbnailDimensions = (aspectRatio: string | undefined): { width: number; height: number; className: string } => {
+  const normalize = (value: string | undefined) => {
+    const raw = String(value || "").trim();
+    const m = raw.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);
+    if (!m) return raw;
+    return `${Number(m[1])}:${Number(m[2])}`;
+  };
+  const ar = normalize(aspectRatio);
   // Default: 56x56 (1:1)
   const base = 56; // w-14 = 56px
   
-  switch (aspectRatio) {
+  switch (ar) {
     case '16:9':
       return { width: base, height: Math.round(base * 9 / 16), className: 'w-14 h-8' }; // 56x32
     case '9:16':

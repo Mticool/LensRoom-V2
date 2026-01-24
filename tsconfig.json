@@ -30,5 +30,12 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "_archive", "**/__tests__/**", "vitest.config.ts", "src/test/**"]
+  "exclude": [
+    "node_modules",
+    "_archive",
+    "src/components/generator-v2/_backup/**",
+    "**/__tests__/**",
+    "vitest.config.ts",
+    "src/test/**"
+  ]
 }

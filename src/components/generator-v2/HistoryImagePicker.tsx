@@ -6,6 +6,17 @@ import { cn } from '@/lib/utils';
 import { GenerationResult } from './GeneratorV2';
 import { toast } from 'sonner';
 
+function normalizeAspectRatio(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "1:1";
+  const m = raw.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);
+  if (!m) return raw;
+  const w = Number(m[1]);
+  const h = Number(m[2]);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return raw;
+  return `${w}:${h}`;
+}
+
 interface HistoryImagePickerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -54,7 +65,7 @@ export function HistoryImagePicker({
           mode: gen.type === 'video' ? 'video' : 'image',
           settings: {
             model: gen.model_id || '',
-            size: gen.aspect_ratio || '1:1',
+            size: normalizeAspectRatio(gen.aspect_ratio),
           },
           timestamp: new Date(gen.created_at).getTime(),
           previewUrl: gen.preview_url || gen.result_urls?.[0] || gen.asset_url || '',

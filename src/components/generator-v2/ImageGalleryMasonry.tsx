@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, Share2, RotateCcw, Loader2, ZoomIn, Link2, Maximize2, Copy, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
@@ -14,6 +14,10 @@ interface ImageGalleryMasonryProps {
   onImageClick?: (image: GenerationResult) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Auto-scroll to the bottom when new items appear (only if user is near bottom). */
+  autoScrollToBottom?: boolean;
+  /** Consider user "near bottom" within this many pixels. Default: 240. */
+  autoScrollThresholdPx?: number;
   // Pagination props
   hasMore?: boolean;
   onLoadMore?: () => void;
@@ -32,24 +36,29 @@ const isImageReady = (image: GenerationResult): boolean => {
 export function ImageGalleryMasonry({ 
   images, 
   isGenerating,
-  layout = 'masonry',
+  layout = 'grid',
   onRegenerate,
   onImageClick,
   emptyTitle,
   emptyDescription,
+  autoScrollToBottom = false,
+  autoScrollThresholdPx = 240,
   hasMore = false,
   onLoadMore,
   isLoadingMore = false,
 }: ImageGalleryMasonryProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastLenRef = useRef<number>(images.length);
   const cardClassName =
     layout === "grid"
-      ? "relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-colors"
-      : "relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl";
+      ? "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-colors"
+      : "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl";
 
   const getAspect = (size?: string): { w: number; h: number } => {
     const s = String(size || "").trim();
-    const m = s.match(/^(\d+)\s*[:/]\s*(\d+)$/);
+    // Accept common shorthands: "9:16", "9/16", "9.16", "9x16", "9×16"
+    const m = s.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);
     if (!m) return { w: 1, h: 1 };
     const w = Number(m[1]);
     const h = Number(m[2]);
@@ -64,14 +73,8 @@ export function ImageGalleryMasonry({
     if (ratio < 9/16) { w = 9; h = 16; } // Clamp very tall images
     if (ratio > 16/9) { w = 16; h = 9; } // Clamp very wide images
     
-    // Cap overall visual size similar to Higgsfield reference:
-    // - Max width ~350px
-    // - Max height ~500px on mobile (so 9:16 stays around ~281x500)
-    const maxWidthByHeight = 500 * (w / h);
-    const maxWidth = Math.max(180, Math.min(350, maxWidthByHeight));
     return {
       aspectRatio: `${w} / ${h}`,
-      maxWidth: `${Math.round(maxWidth)}px`,
       width: "100%",
     } as const;
   };
@@ -80,6 +83,35 @@ export function ImageGalleryMasonry({
     const { w, h } = getAspect(size);
     return { aspectRatio: `${w} / ${h}` } as const;
   };
+
+  // Auto-scroll to bottom when new images are appended (only if user is already near bottom).
+  useEffect(() => {
+    if (!autoScrollToBottom) {
+      lastLenRef.current = images.length;
+      return;
+    }
+
+    const el = scrollRef.current;
+    if (!el) {
+      lastLenRef.current = images.length;
+      return;
+    }
+
+    const prevLen = lastLenRef.current;
+    const nextLen = images.length;
+    lastLenRef.current = nextLen;
+    if (nextLen <= prevLen) return;
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom <= autoScrollThresholdPx;
+    if (!nearBottom) return;
+
+    // Wait for layout to commit then scroll.
+    requestAnimationFrame(() => {
+      if (!scrollRef.current) return;
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    });
+  }, [autoScrollToBottom, autoScrollThresholdPx, images.length]);
 
   const handleDownload = async (image: GenerationResult) => {
     try {
@@ -156,7 +188,7 @@ export function ImageGalleryMasonry({
     return Array.from({ length: 4 }).map((_, i) => (
       <div
         key={`skeleton-${i}`}
-        className="relative aspect-square rounded-xl overflow-hidden bg-[#27272A] animate-pulse"
+        className="relative aspect-square rounded-none overflow-hidden bg-[#27272A] animate-pulse"
       >
         <div className="absolute inset-0 flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
@@ -185,7 +217,7 @@ export function ImageGalleryMasonry({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-0 md:px-0 py-0">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto bg-black px-8 py-8">
       {/* Load More Button - at top since new items appear at bottom */}
       {hasMore && onLoadMore && (
         <div className="flex justify-center py-2">
@@ -207,21 +239,14 @@ export function ImageGalleryMasonry({
       )}
 
       {layout === 'grid' ? (
-        <div
-          className="grid gap-px"
-          style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 320px))",
-            justifyContent: "center",
-          }}
-        >
+        <div className="higgs-grid">
           {isGenerating && renderSkeletons()}
           {images.map((image) => {
             const isDemo = image.id.startsWith('demo-');
             return (
               <div
                 key={image.id}
-                className="justify-self-center w-full"
-                style={{ maxWidth: getTileStyle(image.settings?.size).maxWidth }}
+                className="w-full"
                 onMouseEnter={() => setHoveredId(image.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
@@ -346,7 +371,7 @@ export function ImageGalleryMasonry({
           style={{
             columnCount: 'auto',
             columnFill: 'balance',
-            columnGap: '1px',
+            columnGap: '16px',
             // Responsive columns
             ...(typeof window !== 'undefined' && {
               columnCount: window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4
@@ -361,7 +386,7 @@ export function ImageGalleryMasonry({
             return (
               <div
                 key={image.id}
-                className="break-inside-avoid mb-px"
+                className="break-inside-avoid mb-4"
                 onMouseEnter={() => setHoveredId(image.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
@@ -487,7 +512,31 @@ export function ImageGalleryMasonry({
 
       <style jsx>{`
         .masonry-grid {
-          column-gap: 1px;
+          column-gap: 16px;
+        }
+
+        .higgs-grid {
+          display: grid;
+          gap: 1px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        @media (max-width: 1024px) {
+          .higgs-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .higgs-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 480px) {
+          .higgs-grid {
+            grid-template-columns: 1fr;
+          }
         }
         
         @media (max-width: 768px) {

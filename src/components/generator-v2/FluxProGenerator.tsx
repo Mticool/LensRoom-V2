@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
 import { ControlBarBottom } from './ControlBarBottom';
@@ -22,8 +23,12 @@ const COST_PER_IMAGE: Record<string, number> = {
 };
 
 export function FluxProGenerator() {
+  const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
   const { isOpen: popupIsOpen, showPopup, hidePopup } = useBotConnectPopup();
+  
+  // Get current thread ID from URL
+  const currentThreadId = searchParams?.get('thread') || null;
   
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
@@ -40,8 +45,14 @@ export function FluxProGenerator() {
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [images, setImages] = useState<GenerationResult[]>([]);
   
-  // Load history (show all models)
-  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
+  // Load history (filter by current thread)
+  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
+  
+  // Clear local images when thread changes (new chat = clean slate)
+  useEffect(() => {
+    setImages([]);
+  }, [currentThreadId]);
+  
   const credits = authCredits;
   const estimatedCost = COST_PER_IMAGE[quality] * quantity;
 
@@ -56,7 +67,8 @@ export function FluxProGenerator() {
     },
   ] : [];
   
-  const allImages = [...images, ...history, ...demoImages];
+  // Oldest → newest. New generations should appear at the bottom.
+  const allImages = [...history, ...images, ...demoImages];
 
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -87,7 +99,8 @@ export function FluxProGenerator() {
         status: 'pending',
       }));
 
-      setImages(prev => [...pendingImages, ...prev]);
+      // Add pending placeholders at the end (bottom of gallery)
+      setImages(prev => [...prev, ...pendingImages]);
 
       const response = await fetch('/api/generate/photo', {
         method: 'POST',
@@ -128,7 +141,11 @@ export function FluxProGenerator() {
         status: 'completed',
       };
 
-      setImages(prev => [newImage, ...prev]);
+      // Replace pending placeholders (if any) and append to bottom
+      setImages(prev => {
+        const filtered = prev.filter(img => !img.id.startsWith('pending-'));
+        return [...filtered, newImage];
+      });
       await refreshCredits();
       await invalidateCache();
       refreshHistory();
@@ -165,25 +182,24 @@ export function FluxProGenerator() {
         </div>
       )}
 
-      <div className="container mx-auto px-4 pt-8">
-        <div className="max-w-7xl mx-auto">
-          {allImages.length > 0 ? (
-            <ImageGalleryMasonry 
-              images={allImages} 
-              isGenerating={isGenerating}
-              hasMore={hasMore}
-              onLoadMore={loadMore}
-              isLoadingMore={isLoadingMore}
-            />
-          ) : (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center max-w-md">
-                <p className="text-[#A1A1AA] text-lg mb-2">Ваши изображения появятся здесь</p>
-                <p className="text-[#6B6B6E] text-sm">FLUX.2 Pro — резко, детально, премиум-визуал</p>
-              </div>
+      <div className="pt-8">
+        {allImages.length > 0 ? (
+          <ImageGalleryMasonry 
+            images={allImages} 
+            isGenerating={isGenerating}
+            autoScrollToBottom
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
+          />
+        ) : (
+          <div className="flex items-center justify-center min-h-[60vh] px-8">
+            <div className="text-center max-w-md">
+              <p className="text-[#A1A1AA] text-lg mb-2">Ваши изображения появятся здесь</p>
+              <p className="text-[#6B6B6E] text-sm">FLUX.2 Pro — резко, детально, премиум-визуал</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ControlBarBottom
