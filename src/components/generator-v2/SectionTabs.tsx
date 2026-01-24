@@ -1,15 +1,17 @@
 'use client';
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Image as ImageIcon, Video, Music } from 'lucide-react';
+import { Image as ImageIcon, Video, Music, Clapperboard, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 interface Section {
   id: string;
   label: string;
   icon: React.ReactNode;
   color: string;
+  externalHref?: string; // For tabs that navigate to a different page
 }
 
 const SECTIONS: Section[] = [
@@ -23,7 +25,15 @@ const SECTIONS: Section[] = [
     id: 'video', 
     label: 'Видео', 
     icon: <Video className="w-4 h-4" />,
-    color: '#a855f7' // purple
+    color: '#a855f7', // purple
+    externalHref: '/generators' // Redirect to video generator
+  },
+  { 
+    id: 'motion', 
+    label: 'Motion', 
+    icon: <Clapperboard className="w-4 h-4" />,
+    color: '#f97316', // orange
+    externalHref: '/generators?mode=motion' // Redirect to motion mode
   },
   { 
     id: 'audio', 
@@ -44,7 +54,13 @@ export function SectionTabs({ className }: SectionTabsProps) {
   
   const currentSection = searchParams.get('section') || 'image';
 
-  const handleSectionChange = (sectionId: string) => {
+  const handleSectionChange = (sectionId: string, externalHref?: string) => {
+    // If section has external href, navigate directly
+    if (externalHref) {
+      router.push(externalHref);
+      return;
+    }
+    
     const params = new URLSearchParams(searchParams.toString());
     params.set('section', sectionId);
     
@@ -62,11 +78,13 @@ export function SectionTabs({ className }: SectionTabsProps) {
       <div className="hidden md:flex justify-center">
         <div className="inline-flex p-1.5 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
           {SECTIONS.map((section) => {
-            const isActive = currentSection === section.id;
+            const isActive = currentSection === section.id && !section.externalHref;
+            const isExternal = !!section.externalHref;
+            
             return (
               <button
                 key={section.id}
-                onClick={() => handleSectionChange(section.id)}
+                onClick={() => handleSectionChange(section.id, section.externalHref)}
                 className={cn(
                   "relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all",
                   isActive
@@ -84,6 +102,9 @@ export function SectionTabs({ className }: SectionTabsProps) {
                 <span className="relative z-10 flex items-center gap-2">
                   {section.icon}
                   {section.label}
+                  {isExternal && (
+                    <ExternalLink className="w-3 h-3 opacity-50" />
+                  )}
                 </span>
               </button>
             );
@@ -95,13 +116,15 @@ export function SectionTabs({ className }: SectionTabsProps) {
       <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
         <div className="inline-flex gap-2 p-1 min-w-full">
           {SECTIONS.map((section) => {
-            const isActive = currentSection === section.id;
+            const isActive = currentSection === section.id && !section.externalHref;
+            const isExternal = !!section.externalHref;
+            
             return (
               <button
                 key={section.id}
-                onClick={() => handleSectionChange(section.id)}
+                onClick={() => handleSectionChange(section.id, section.externalHref)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all",
+                  "flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all active:scale-95",
                   isActive
                     ? "bg-[var(--gold)] text-black"
                     : "bg-[var(--surface)] text-[var(--muted)] border border-[var(--border)]"
@@ -109,6 +132,9 @@ export function SectionTabs({ className }: SectionTabsProps) {
               >
                 {section.icon}
                 {section.label}
+                {isExternal && (
+                  <ExternalLink className="w-3 h-3 opacity-50" />
+                )}
               </button>
             );
           })}

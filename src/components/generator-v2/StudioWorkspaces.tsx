@@ -1365,6 +1365,9 @@ export function StudioWorkspaces() {
             quality={qualityLabel}
             onQualityChange={setQualityLabel}
             qualityOptions={qualityOptions}
+            quantity={isToolModel ? 1 : quantity}
+            onQuantityChange={isToolModel ? undefined : setQuantity}
+            quantityMax={isToolModel ? 1 : 4}
             supportsI2i={supportsI2i}
             referenceImages={supportsI2i ? referenceImages : []}
             onReferenceImagesChange={supportsI2i ? setReferenceImages : () => {}}
@@ -1375,7 +1378,7 @@ export function StudioWorkspaces() {
             steps={steps}
             onStepsChange={setSteps}
             isGenerating={isGeneratingBatch}
-            canGenerate={!!(isAuthenticated && (!isToolModel ? prompt.trim().length > 0 : referenceImages.length > 0) && authCredits >= estimatedCost && !isGeneratingBatch)}
+            canGenerate={!!(isAuthenticated && (!isToolModel ? prompt.trim().length > 0 : referenceImages.length > 0) && authCredits >= estimatedCost * (isToolModel ? 1 : quantity) && !isGeneratingBatch)}
             onGenerate={handleGenerate}
             onOpenMenu={() => setMobileMenuOpen(true)}
           />

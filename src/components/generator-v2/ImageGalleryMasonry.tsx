@@ -247,7 +247,7 @@ export function ImageGalleryMasonry({
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] border border-[#3F3F46] text-white text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-transparent hover:bg-white/5 border border-[#3F3F46]/50 text-[#A1A1AA] hover:text-white text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoadingMore ? (
               <>

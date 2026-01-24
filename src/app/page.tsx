@@ -412,7 +412,10 @@ export default function HomePage() {
                 transition={{ delay: index * 0.08 }}
               >
                 <Link
-                  href={`/create?section=${work.type === 'video' ? 'video' : 'image'}&model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`}
+                  href={work.type === 'video' 
+                    ? `/generators?model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`
+                    : `/create/studio?section=image&model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`
+                  }
                 >
                   <motion.div
                     whileHover={{ scale: 1.03, y: -8 }}

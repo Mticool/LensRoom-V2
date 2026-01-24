@@ -102,7 +102,7 @@ export function VoiceCloneCard({
       : null;
 
   return (
-    <div className="p-5 md:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+    <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
       {/* Header */}
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-1">
@@ -121,7 +121,7 @@ export function VoiceCloneCard({
         <button
           onClick={isRecording ? stopRecording : startRecording}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all",
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all active:scale-95",
             isRecording
               ? "bg-red-500 text-white"
               : "bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--surface2)]/80 border border-[var(--border)]"
@@ -134,7 +134,7 @@ export function VoiceCloneCard({
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isRecording}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--surface2)]/80 border border-[var(--border)] font-medium transition-all disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--surface2)]/80 border border-[var(--border)] font-medium transition-all active:scale-95 disabled:opacity-50"
         >
           <Upload className="w-5 h-5" />
           Загрузить файл
@@ -191,7 +191,7 @@ export function VoiceCloneCard({
         onClick={onCloneVoice}
         disabled={!hasVoice || cloneStatus === 'cloning' || cloneStatus === 'cloned'}
         className={cn(
-          "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all",
+          "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all active:scale-[0.98]",
           hasVoice && cloneStatus === 'idle'
             ? "bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
             : "bg-[var(--surface2)] text-[var(--muted)] cursor-not-allowed"

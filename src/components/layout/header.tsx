@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star, User, Music } from 'lucide-react';
+import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star, User, Music, Video, FolderOpen, Clapperboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegramAuth } from '@/providers/telegram-auth-provider';
@@ -42,7 +42,11 @@ const MODELS = {
   ],
 };
 
-export function Header() {
+interface HeaderProps {
+  pageTitle?: string;
+}
+
+export function Header({ pageTitle }: HeaderProps = {}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -104,9 +108,9 @@ export function Header() {
   );
 
   const navigation = useMemo(() => [
-    { name: 'Дизайн', dropdown: 'design' as const },
+    { name: 'Фото', dropdown: 'design' as const },
     { name: 'Видео', dropdown: 'video' as const },
-    { name: 'Аудио', dropdown: 'audio' as const },
+    { name: 'Музыка', dropdown: 'audio' as const },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },
   ], []);
@@ -163,7 +167,7 @@ export function Header() {
                             {/* Header */}
                             <div className="px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[#a78bfa]/5 to-[#22d3ee]/5">
                               <span className="text-[13px] font-semibold text-[var(--muted)] uppercase tracking-wider">
-                                {item.name === 'Дизайн' ? 'Фото модели' : item.name === 'Видео' ? 'Видео модели' : 'Аудио модели'}
+                                {item.dropdown === 'design' ? 'Фото модели' : item.dropdown === 'video' ? 'Видео модели' : 'Музыка модели'}
                               </span>
                             </div>
                             
@@ -407,15 +411,22 @@ export function Header() {
             </div>
 
             {/* Mobile */}
-            <div className="flex lg:hidden items-center gap-2">
+            <div className="flex lg:hidden items-center gap-2 relative">
+              {/* Page Title - Center (mobile only) */}
+              {pageTitle && (
+                <span className="absolute left-1/2 -translate-x-1/2 text-sm font-medium text-[var(--text)] truncate max-w-[40vw] pointer-events-none">
+                  {pageTitle}
+                </span>
+              )}
+              
               {/* Balance on mobile */}
               {(telegramUser || supabaseUser) && (
                 <Link 
                   href="/pricing"
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)]"
+                  className="flex items-center gap-1 px-3 py-2 min-h-[44px] rounded-full bg-[var(--surface)] border border-[var(--border)]"
                 >
-                  <Star className="w-3.5 h-3.5 text-[var(--gold)] fill-[var(--gold)]" />
-                  <span className="text-xs font-bold text-[var(--text)]">{balance}</span>
+                  <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
+                  <span className="text-sm font-bold text-[var(--text)]">{balance}</span>
                 </Link>
               )}
               
@@ -423,7 +434,7 @@ export function Header() {
               
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+                className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 {mobileMenuOpen ? (
                   <X className="w-5 h-5" />
@@ -504,51 +515,92 @@ export function Header() {
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-5 pb-24">
                 {/* Quick Actions */}
-                <div className="grid grid-cols-3 gap-2 mb-6">
+                <div className="grid grid-cols-4 gap-2 mb-6">
                   <Link
-                    href="/create?section=image"
+                    href="/create/studio?section=image"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-primary)]/50 transition-colors"
+                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-blue-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
                   >
-                    <ImageIcon className="w-5 h-5 text-[var(--accent-primary)] mb-1.5" />
-                    <p className="text-sm font-semibold text-[var(--text)]">Фото</p>
-                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Изображения</p>
+                    <ImageIcon className="w-6 h-6 text-blue-500 mb-1" />
+                    <p className="text-xs font-semibold text-[var(--text)]">Фото</p>
                   </Link>
                   <Link
-                    href="/generators"
+                    href="/create/studio?section=video"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent-secondary)]/50 transition-colors"
+                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-violet-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
                   >
-                    <Sparkles className="w-5 h-5 text-[var(--accent-secondary)] mb-1.5" />
-                    <p className="text-sm font-semibold text-[var(--text)]">Видео</p>
-                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Ролики</p>
+                    <Video className="w-6 h-6 text-violet-500 mb-1" />
+                    <p className="text-xs font-semibold text-[var(--text)]">Видео</p>
                   </Link>
                   <Link
-                    href="/create?section=audio"
+                    href="/create/studio?section=motion"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-pink-500/50 transition-colors"
+                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-orange-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
                   >
-                    <Music className="w-5 h-5 text-pink-500 mb-1.5" />
-                    <p className="text-sm font-semibold text-[var(--text)]">Аудио</p>
-                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Музыка</p>
+                    <Clapperboard className="w-6 h-6 text-orange-500 mb-1" />
+                    <p className="text-xs font-semibold text-[var(--text)]">Motion</p>
+                  </Link>
+                  <Link
+                    href="/create/studio?section=audio"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-pink-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
+                  >
+                    <Music className="w-6 h-6 text-pink-500 mb-1" />
+                    <p className="text-xs font-semibold text-[var(--text)]">Музыка</p>
                   </Link>
                 </div>
 
-                {/* Models Sections */}
-                {(['design', 'video', 'audio'] as const).map((section) => (
-                  <div key={section} className="mb-6">
-                    <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-3 px-1">
-                      {section === 'design' ? '🎨 Фото модели' : section === 'video' ? '🎬 Видео модели' : '🎵 Аудио'}
+                {/* Main Navigation */}
+                <div className="space-y-2 mb-6">
+                  <Link
+                    href="/create/studio"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-gradient-to-r from-[var(--gold)]/10 to-violet-500/10 border border-[var(--gold)]/20 hover:border-[var(--gold)]/40 active:scale-[0.98] transition-all"
+                  >
+                    <Sparkles className="w-5 h-5 text-[var(--gold)]" />
+                    <span className="text-[15px] font-semibold text-[var(--text)]">Создать</span>
+                  </Link>
+                  <Link
+                    href="/library"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                  >
+                    <FolderOpen className="w-5 h-5 text-violet-500" />
+                    <span className="text-[15px] font-medium text-[var(--text)]">Мои работы</span>
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                  >
+                    <CreditCard className="w-5 h-5 text-emerald-500" />
+                    <span className="text-[15px] font-medium text-[var(--text)]">Тарифы</span>
+                  </Link>
+                  <Link
+                    href="/inspiration"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                  >
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                    <span className="text-[15px] font-medium text-[var(--text)]">Вдохновение</span>
+                  </Link>
+                </div>
+
+                {/* Top Models - Compact */}
+                {(['design', 'video'] as const).map((section) => (
+                  <div key={section} className="mb-5">
+                    <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-2 px-1">
+                      {section === 'design' ? 'Топ фото-модели' : 'Топ видео-модели'}
                     </h3>
                     <div className="space-y-1">
-                      {MODELS[section].slice(0, 4).map((model: any) => (
+                      {MODELS[section].slice(0, 3).map((model: any) => (
                         <Link
                           key={model.id}
                           href={`/create/studio?section=${section === 'design' ? 'image' : section}&model=${model.id}`}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] transition-colors"
+                          className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
                         >
-                          <span className="text-[15px] font-medium text-[var(--text)]">{model.name}</span>
+                          <span className="text-[14px] font-medium text-[var(--text)]">{model.name}</span>
                           {(model.hot || model.new) && (
                             <span className={cn(
                               "px-2 py-0.5 text-[10px] font-bold rounded-full",
@@ -559,79 +611,59 @@ export function Header() {
                           )}
                         </Link>
                       ))}
-                      <Link
-                        href={`/create/studio?section=${section === 'design' ? 'image' : section}`}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-center px-4 py-2.5 text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors"
-                      >
-                        Все модели →
-                      </Link>
                     </div>
                   </div>
                 ))}
 
-                {/* Navigation Links */}
-                <div className="space-y-1 mb-6">
-                  <Link
-                    href="/inspiration"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] transition-colors"
-                  >
-                    <span className="text-lg">✨</span>
-                    <span className="text-[15px] font-medium text-[var(--text)]">Вдохновение</span>
-                  </Link>
-                  <Link
-                    href="/pricing"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] transition-colors"
-                  >
-                    <span className="text-lg">💎</span>
-                    <span className="text-[15px] font-medium text-[var(--text)]">Тарифы</span>
-                  </Link>
-                </div>
-
-                {/* User Actions */}
+                {/* Account Section */}
                 {(telegramUser || supabaseUser) ? (
-                  <div className="space-y-1">
-                    <Link
-                      href="/library"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[var(--surface)] transition-colors"
-                    >
-                      <ImageIcon className="w-5 h-5 text-[var(--muted)]" />
-                      <span className="text-[15px] text-[var(--muted)]">Мои результаты</span>
-                    </Link>
-                    <Link
-                      href="/profile"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[var(--surface)] transition-colors"
-                    >
-                      <User className="w-5 h-5 text-[var(--muted)]" />
-                      <span className="text-[15px] text-[var(--muted)]">Профиль</span>
-                    </Link>
-                    <Link
-                      href="/referrals"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[var(--surface)] transition-colors"
-                    >
-                      <User className="w-5 h-5 text-[var(--muted)]" />
-                      <span className="text-[15px] text-[var(--muted)]">Рефералы</span>
-                    </Link>
-                    <button
-                      onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 transition-colors w-full"
-                    >
-                      <LogOut className="w-5 h-5 text-red-500" />
-                      <span className="text-[15px] text-red-500">Выйти</span>
-                    </button>
+                  <div className="pt-4 border-t border-[var(--border)]">
+                    <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-2 px-1">
+                      Аккаунт
+                    </h3>
+                    <div className="space-y-1">
+                      <Link
+                        href="/profile"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
+                      >
+                        <User className="w-5 h-5 text-[var(--muted)]" />
+                        <span className="text-[14px] text-[var(--muted)]">Профиль</span>
+                      </Link>
+                      <Link
+                        href="/account/subscription"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
+                      >
+                        <Crown className="w-5 h-5 text-[var(--muted)]" />
+                        <span className="text-[14px] text-[var(--muted)]">Подписка</span>
+                      </Link>
+                      <Link
+                        href="/referrals"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
+                      >
+                        <User className="w-5 h-5 text-[var(--muted)]" />
+                        <span className="text-[14px] text-[var(--muted)]">Рефералы</span>
+                      </Link>
+                      <button
+                        onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-red-500/10 active:scale-[0.98] transition-all w-full"
+                      >
+                        <LogOut className="w-5 h-5 text-red-500" />
+                        <span className="text-[14px] text-red-500">Выйти</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <Button 
-                    className="w-full h-12 text-base font-semibold bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
-                    onClick={() => { setMobileMenuOpen(false); setLoginOpen(true); }}
-                  >
-                    Войти через Telegram
-                  </Button>
+                  <div className="pt-4 border-t border-[var(--border)]">
+                    <Button 
+                      className="w-full h-14 text-base font-semibold bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90 active:scale-[0.98] transition-all"
+                      onClick={() => { setMobileMenuOpen(false); setLoginOpen(true); }}
+                    >
+                      Войти через Telegram
+                    </Button>
+                  </div>
                 )}
               </div>
             </motion.div>

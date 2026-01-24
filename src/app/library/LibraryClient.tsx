@@ -258,27 +258,42 @@ export function LibraryClient() {
   };
 
   const handleRegenerateSimilar = (item: LibraryItem) => {
-    // Use generationId for full parameter restoration
-    if (item.type?.toLowerCase() === "video") {
+    const type = item.type?.toLowerCase();
+    
+    if (type === "video") {
+      // Use generationId for full parameter restoration
       router.push(`/generators?generationId=${item.id}`);
+    } else if (type === "audio") {
+      // Audio doesn't support parameter restoration yet
+      router.push(`/create/studio?section=audio`);
+      toast.info("Откройте аудио-генератор");
+      return;
     } else {
       // For photos - keep old behavior
       const params = new URLSearchParams();
       if (item.prompt) params.set("prompt", item.prompt);
       if (item.model_name) params.set("model", item.model_name);
-      router.push(`/create?${params.toString()}`);
+      router.push(`/create/studio?${params.toString()}`);
     }
     toast.success("Открываю в генераторе...");
   };
 
   const handleOpenInGenerator = (item: LibraryItem) => {
-    if (item.type?.toLowerCase() === "video") {
+    const type = item.type?.toLowerCase();
+    
+    if (type === "video") {
       router.push(`/generators?generationId=${item.id}`);
+    } else if (type === "audio") {
+      // Audio doesn't support parameter restoration yet
+      router.push(`/create/studio?section=audio`);
+      toast.info("Откройте аудио-генератор");
+      return;
     } else {
+      // Photos
       const params = new URLSearchParams();
       if (item.prompt) params.set("prompt", item.prompt);
       if (item.model_name) params.set("model", item.model_name);
-      router.push(`/create?${params.toString()}`);
+      router.push(`/create/studio?${params.toString()}`);
     }
     toast.success("Открываю в генераторе...");
   };

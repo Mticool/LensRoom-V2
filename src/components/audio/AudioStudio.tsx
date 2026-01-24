@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Volume2, Play, Pause, Download } from 'lucide-react';
+import { Loader2, Sparkles, Volume2, Play, Pause, Download, Music } from 'lucide-react';
 import { VoiceCloneCard } from './VoiceCloneCard';
 import { AudioGenerateCard } from './AudioGenerateCard';
 import { cn } from '@/lib/utils';
@@ -19,9 +19,10 @@ interface AudioResult {
   url: string;
   name: string;
   duration: number;
+  generationId?: string;
 }
 
-// Cost estimates (mock for now)
+// Cost estimates based on API settings
 const COST_ESTIMATE = {
   clone: 15,
   speech: { 10: 5, 30: 10, 60: 18 },
@@ -105,22 +106,108 @@ export function AudioStudio() {
     setGenerationStatus('generating');
     setResult(null);
 
-    // Mock generation process
-    const generateTime = mode === 'speech' ? 3000 : 5000;
-    await new Promise(resolve => setTimeout(resolve, generateTime));
+    try {
+      // Build request body based on mode
+      const requestBody = mode === 'speech' 
+        ? {
+            // ElevenLabs for speech
+            model: 'elevenlabs-v3',
+            generation_type: 'elevenlabs',
+            dialogue: prompt,
+            language_code: language === 'mix' ? 'auto' : language,
+            stability: 0.5,
+          }
+        : {
+            // Suno for music
+            model: 'suno',
+            generation_type: 'generate',
+            prompt: prompt,
+            suno_model: 'V4_5PLUS',
+            custom_mode: false,
+            instrumental: false,
+          };
 
-    // Mock result
-    const mockResult: AudioResult = {
-      id: `audio-${Date.now()}`,
-      url: '/audio/demo.mp3', // Placeholder
-      name: mode === 'speech' ? 'Озвучка' : 'Трек',
-      duration: duration,
+      const response = await fetch('/api/generate/audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Ошибка генерации');
+      }
+
+      // Start polling for result
+      if (data.jobId) {
+        pollForResult(data.jobId, data.generationId);
+      } else {
+        throw new Error('No job ID returned');
+      }
+    } catch (error) {
+      console.error('Audio generation error:', error);
+      setGenerationStatus('idle');
+      toast.error(error instanceof Error ? error.message : 'Ошибка генерации');
+    }
+  }, [isAuthenticated, prompt, mode, credits, estimatedCost, language]);
+
+  // Poll for generation result
+  const pollForResult = useCallback(async (jobId: string, generationId?: string) => {
+    const maxAttempts = 60; // 5 minutes max
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts++;
+      
+      if (attempts > maxAttempts) {
+        setGenerationStatus('idle');
+        toast.error('Превышено время ожидания');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/generations/${generationId || jobId}`);
+        if (!response.ok) {
+          throw new Error('Failed to check status');
+        }
+
+        const data = await response.json();
+        
+        if (data.status === 'completed' && data.result_url) {
+          const audioResult: AudioResult = {
+            id: data.id || jobId,
+            url: data.result_url,
+            name: mode === 'speech' ? 'Озвучка' : 'Трек',
+            duration: duration,
+            generationId: generationId,
+          };
+
+          setResult(audioResult);
+          setGenerationStatus('done');
+          toast.success('Аудио готово!');
+          
+          // Refresh library
+          window.dispatchEvent(new CustomEvent('generations:refresh'));
+          return;
+        }
+
+        if (data.status === 'failed') {
+          setGenerationStatus('idle');
+          toast.error(data.error || 'Генерация не удалась');
+          return;
+        }
+
+        // Continue polling
+        setTimeout(poll, 5000);
+      } catch (error) {
+        console.error('Polling error:', error);
+        setTimeout(poll, 5000);
+      }
     };
 
-    setResult(mockResult);
-    setGenerationStatus('done');
-    toast.success('Аудио готово!');
-  }, [isAuthenticated, prompt, mode, credits, estimatedCost, duration]);
+    poll();
+  }, [mode, duration]);
 
   // Reset file/recording when clone status changes
   const handleFileSelect = (file: File | null) => {
@@ -136,12 +223,17 @@ export function AudioStudio() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header Section */}
-      <div className="max-w-4xl mx-auto px-4 pt-8 pb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-6">
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] mb-2">
-            Музыка и голос
-          </h1>
-          <p className="text-[var(--muted)] text-lg">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="p-2.5 rounded-xl bg-pink-500/10">
+              <Music className="w-6 h-6 text-pink-500" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)]">
+              Музыка и голос
+            </h1>
+          </div>
+          <p className="text-[var(--muted)] text-base sm:text-lg">
             Клонируй голос и создавай треки с помощью AI
           </p>
         </div>
@@ -175,14 +267,14 @@ export function AudioStudio() {
 
           {/* Result Preview */}
           {result && (
-            <div className="p-5 md:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+            <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
               <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Результат</h3>
               
               <div className="flex items-center gap-4 p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
                 {/* Play/Pause Button */}
                 <button
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className="w-12 h-12 rounded-full bg-[var(--gold)] text-black flex items-center justify-center shrink-0 hover:bg-[var(--gold)]/90 transition-colors"
+                  className="w-12 h-12 rounded-full bg-[var(--gold)] text-black flex items-center justify-center shrink-0 hover:bg-[var(--gold)]/90 transition-all active:scale-95"
                 >
                   {isPlaying ? (
                     <Pause className="w-5 h-5" />
@@ -216,7 +308,7 @@ export function AudioStudio() {
                 </div>
 
                 {/* Download */}
-                <button className="p-2.5 rounded-lg bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--surface2)]/80 transition-colors">
+                <button className="p-2.5 rounded-lg bg-[var(--surface2)] text-[var(--text)] hover:bg-[var(--surface2)]/80 transition-all active:scale-95">
                   <Download className="w-5 h-5" />
                 </button>
               </div>
@@ -226,12 +318,12 @@ export function AudioStudio() {
       </div>
 
       {/* Desktop Generate Button */}
-      <div className="hidden md:block max-w-4xl mx-auto px-4 pb-8">
+      <div className="hidden md:block max-w-4xl mx-auto px-4 sm:px-6 pb-8">
         <button
           onClick={handleGenerate}
           disabled={generationStatus === 'generating' || !prompt.trim()}
           className={cn(
-            "w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-semibold text-lg transition-all",
+            "w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-semibold text-lg transition-all active:scale-[0.98]",
             generationStatus === 'generating' || !prompt.trim()
               ? "bg-[var(--surface2)] text-[var(--muted)] cursor-not-allowed"
               : "bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90 shadow-lg shadow-[var(--gold)]/20"
@@ -260,7 +352,7 @@ export function AudioStudio() {
           onClick={handleGenerate}
           disabled={generationStatus === 'generating' || !prompt.trim()}
           className={cn(
-            "w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-semibold text-lg transition-all",
+            "w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-semibold text-lg transition-all active:scale-[0.98]",
             generationStatus === 'generating' || !prompt.trim()
               ? "bg-[var(--surface2)] text-[var(--muted)] cursor-not-allowed"
               : "bg-[var(--gold)] text-black shadow-lg shadow-[var(--gold)]/20"

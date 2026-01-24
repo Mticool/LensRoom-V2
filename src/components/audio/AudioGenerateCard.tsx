@@ -54,7 +54,7 @@ export function AudioGenerateCard({
   const allVoices = [...DEFAULT_VOICES, ...clonedVoices];
 
   return (
-    <div className="p-5 md:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+    <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-1">
@@ -98,7 +98,7 @@ export function AudioGenerateCard({
           <button
             onClick={() => onModeChange('speech')}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all",
+              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all active:scale-95",
               mode === 'speech'
                 ? "bg-[var(--gold)] text-black"
                 : "bg-[var(--bg)] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--text)]"
@@ -110,7 +110,7 @@ export function AudioGenerateCard({
           <button
             onClick={() => onModeChange('track')}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all",
+              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all active:scale-95",
               mode === 'track'
                 ? "bg-[var(--gold)] text-black"
                 : "bg-[var(--bg)] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--text)]"
@@ -156,7 +156,7 @@ export function AudioGenerateCard({
                   key={opt.value}
                   onClick={() => onDurationChange(opt.value as 10 | 30 | 60)}
                   className={cn(
-                    "flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all",
+                    "flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all active:scale-95",
                     duration === opt.value
                       ? "bg-[var(--gold)] text-black"
                       : "bg-[var(--bg)] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--text)]"
@@ -179,7 +179,7 @@ export function AudioGenerateCard({
                   key={opt.value}
                   onClick={() => onLanguageChange(opt.value as 'ru' | 'en' | 'mix')}
                   className={cn(
-                    "flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all",
+                    "flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all active:scale-95",
                     language === opt.value
                       ? "bg-[var(--gold)] text-black"
                       : "bg-[var(--bg)] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--text)]"

@@ -44,17 +44,17 @@ export function SimpleGallery({
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] border border-[#3F3F46] text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-transparent hover:bg-white/5 border border-[#3F3F46]/50 text-[#A1A1AA] hover:text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoadingMore ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Loading...</span>
+                <span>Загрузка...</span>
               </>
             ) : (
               <>
                 <ArrowUp className="w-4 h-4" />
-                <span>Load Previous</span>
+                <span>Загрузить предыдущие</span>
               </>
             )}
           </button>

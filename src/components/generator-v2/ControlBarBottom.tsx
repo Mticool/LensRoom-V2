@@ -10,19 +10,6 @@ import { PromptInput } from './PromptInput';
 import { AdvancedSettingsCollapse } from './AdvancedSettingsCollapse';
 import { getModelById } from '@/config/models';
 
-type PromptJsonPayload = {
-  modelId?: string;
-  prompt?: string;
-  negativePrompt?: string;
-  aspectRatio?: string;
-  quality?: string;
-  outputFormat?: "png" | "jpg" | "webp" | string;
-  seed?: number | null;
-  steps?: number;
-  // Optional: allow single prompt field nested
-  prompts?: Array<string | { prompt?: string }>;
-};
-
 interface ControlBarBottomProps {
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -102,7 +89,6 @@ export function ControlBarBottom({
 }: ControlBarBottomProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
-  const [promptJsonBusy, setPromptJsonBusy] = useState(false);
   
   // Get model name from config if modelId provided, otherwise use modelName prop
   const displayName = modelId 
@@ -250,96 +236,6 @@ export function ControlBarBottom({
     return options.includes(guess) ? guess : null;
   };
 
-  const handlePromptJsonUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // allow selecting the same file again
-    e.target.value = "";
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith(".json")) {
-      toast.error("Выберите JSON файл (prompt.json)");
-      return;
-    }
-    if (file.size > 1024 * 1024) {
-      toast.error("Файл слишком большой (макс 1MB)");
-      return;
-    }
-
-    setPromptJsonBusy(true);
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as PromptJsonPayload;
-      if (!parsed || typeof parsed !== "object") {
-        toast.error("Некорректный JSON");
-        return;
-      }
-
-      const nextPrompt =
-        (typeof parsed.prompt === "string" && parsed.prompt.trim())
-          ? parsed.prompt
-          : (Array.isArray(parsed.prompts) && parsed.prompts.length
-              ? (typeof parsed.prompts[0] === "string"
-                  ? parsed.prompts[0]
-                  : (parsed.prompts[0] && typeof parsed.prompts[0] === "object" && typeof (parsed.prompts[0] as any).prompt === "string"
-                      ? String((parsed.prompts[0] as any).prompt)
-                      : ""))
-              : "");
-
-      if (nextPrompt && typeof nextPrompt === "string") {
-        onPromptChange(nextPrompt);
-      }
-
-      if (typeof parsed.negativePrompt === "string" && onNegativePromptChange) {
-        onNegativePromptChange(parsed.negativePrompt);
-      }
-      if (typeof parsed.seed === "number" || parsed.seed === null) {
-        onSeedChange?.(parsed.seed ?? null);
-      }
-      if (typeof parsed.steps === "number") {
-        onStepsChange?.(parsed.steps);
-      }
-
-      if (typeof parsed.aspectRatio === "string") {
-        const opts = aspectRatioOptions || [];
-        const v = opts.includes(parsed.aspectRatio) ? parsed.aspectRatio : null;
-        if (v) onAspectRatioChange(v);
-        else if (parsed.aspectRatio.trim()) {
-          toast(`aspectRatio "${parsed.aspectRatio}" не поддерживается для этой модели`, { duration: 4000 });
-        }
-      }
-
-      if (typeof parsed.quality === "string") {
-        const opts = qualityOptions || [];
-        const v = normalizeToOption(parsed.quality, opts);
-        if (v) onQualityChange(v);
-        else if (parsed.quality.trim()) {
-          toast(`quality "${parsed.quality}" не поддерживается для этой модели`, { duration: 4000 });
-        }
-      }
-
-      if (parsed.outputFormat && onOutputFormatChange) {
-        const raw = String(parsed.outputFormat).toLowerCase().trim();
-        const fmt = raw === "jpg" || raw === "jpeg" ? "jpg" : raw === "png" ? "png" : raw === "webp" ? "webp" : null;
-        const allowed = new Set(outputFormatOptions);
-        if (fmt && allowed.has(fmt as any)) {
-          onOutputFormatChange(fmt as any);
-        } else if (fmt) {
-          toast(`outputFormat "${fmt}" не поддерживается для этой модели`, { duration: 4000 });
-        }
-      }
-
-      if (parsed.modelId && modelId && parsed.modelId !== modelId) {
-        toast(`Файл для модели "${parsed.modelId}", у вас выбрана "${modelId}"`, { duration: 4500 });
-      }
-
-      toast.success("prompt.json импортирован");
-    } catch (err: any) {
-      toast.error(err?.message ? `Не удалось импортировать JSON: ${err.message}` : "Не удалось импортировать JSON");
-    } finally {
-      setPromptJsonBusy(false);
-    }
-  };
-
   const hasEnoughCredits = credits >= estimatedCost;
   const isDisabled = disabled || isGenerating;
   const hasRequiredInput = isToolModel ? hasAnyReference : prompt.trim().length > 0;
@@ -441,29 +337,6 @@ export function ControlBarBottom({
         <div className="hidden sm:flex flex-col gap-3">
           {/* Line 1: Upload + Prompt */}
           <div className="flex items-end gap-3">
-            {/* prompt.json import */}
-            <div className="relative flex-shrink-0">
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={handlePromptJsonUpload}
-                className="hidden"
-                id="prompt-json-upload-desktop"
-                disabled={isGenerating || promptJsonBusy}
-              />
-              <label
-                htmlFor="prompt-json-upload-desktop"
-                className={`
-                  flex items-center justify-center w-10 h-10 rounded-lg border transition-colors cursor-pointer
-                  border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]
-                  ${(isGenerating || promptJsonBusy) ? 'opacity-50 cursor-not-allowed' : ''}
-                `}
-                title="Импорт prompt.json"
-              >
-                <span className="text-[10px] font-bold text-[#A1A1AA]">JSON</span>
-              </label>
-            </div>
-
             {supportsI2i && (
               <>
                 {/* Upload button */}
@@ -835,27 +708,6 @@ export function ControlBarBottom({
                   {isToolModel ? 'Изображение' : 'Референс'}
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
-                  {/* prompt.json import (mobile) */}
-                  <input
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={handlePromptJsonUpload}
-                    className="hidden"
-                    id="prompt-json-upload-mobile"
-                    disabled={isGenerating || promptJsonBusy}
-                  />
-                  <label
-                    htmlFor="prompt-json-upload-mobile"
-                    className={`
-                      flex items-center justify-center w-20 h-20 rounded-2xl border-2 border-dashed transition-colors cursor-pointer
-                      border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]
-                      ${(isGenerating || promptJsonBusy) ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                    title="Импорт prompt.json"
-                  >
-                    <span className="text-xs font-bold text-[#A1A1AA]">JSON</span>
-                  </label>
-
                   <input
                     type="file"
                     accept={acceptAttr}
