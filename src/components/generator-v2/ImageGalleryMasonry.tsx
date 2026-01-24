@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Share2, RotateCcw, Loader2, ZoomIn, Link2, Maximize2, Copy } from 'lucide-react';
+import { Download, Share2, RotateCcw, Loader2, ZoomIn, Link2, Maximize2, Copy, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
 import type { GenerationResult } from './GeneratorV2';
@@ -14,7 +14,20 @@ interface ImageGalleryMasonryProps {
   onImageClick?: (image: GenerationResult) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  // Pagination props
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
 }
+
+// Helper to check if image is ready to display
+const isImageReady = (image: GenerationResult): boolean => {
+  const status = image.status?.toLowerCase();
+  // Skip failed, error, or no-url images
+  if (status === 'failed' || status === 'error') return false;
+  if (!image.url && status !== 'pending') return false;
+  return true;
+};
 
 export function ImageGalleryMasonry({ 
   images, 
@@ -24,12 +37,15 @@ export function ImageGalleryMasonry({
   onImageClick,
   emptyTitle,
   emptyDescription,
+  hasMore = false,
+  onLoadMore,
+  isLoadingMore = false,
 }: ImageGalleryMasonryProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const cardClassName =
     layout === "grid"
       ? "relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-colors"
-      : "relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02]";
+      : "relative group rounded-xl overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl";
 
   const getAspect = (size?: string): { w: number; h: number } => {
     const s = String(size || "").trim();
@@ -42,12 +58,17 @@ export function ImageGalleryMasonry({
   };
 
   const getTileStyle = (size?: string) => {
-    const { w, h } = getAspect(size);
+    let { w, h } = getAspect(size);
+    // Limit extreme aspect ratios (max 9:16 or 16:9)
+    const ratio = w / h;
+    if (ratio < 9/16) { w = 9; h = 16; } // Clamp very tall images
+    if (ratio > 16/9) { w = 16; h = 9; } // Clamp very wide images
+    
     // Cap overall visual size similar to Higgsfield reference:
     // - Max width ~350px
-    // - Max height ~600px (so 9:16 stays around ~337x600)
-    const maxWidthByHeight = 600 * (w / h);
-    const maxWidth = Math.max(220, Math.min(350, maxWidthByHeight));
+    // - Max height ~500px on mobile (so 9:16 stays around ~281x500)
+    const maxWidthByHeight = 500 * (w / h);
+    const maxWidth = Math.max(180, Math.min(350, maxWidthByHeight));
     return {
       aspectRatio: `${w} / ${h}`,
       maxWidth: `${Math.round(maxWidth)}px`,
@@ -164,12 +185,32 @@ export function ImageGalleryMasonry({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-2 md:px-3 py-2">
+    <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3">
+      {/* Load More Button - at top since new items appear at bottom */}
+      {hasMore && onLoadMore && (
+        <div className="flex justify-center py-1.5">
+          <button
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] border border-[#3F3F46] text-white text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Загрузка...</span>
+              </>
+            ) : (
+              <span>Загрузить предыдущие</span>
+            )}
+          </button>
+        </div>
+      )}
+
       {layout === 'grid' ? (
         <div
-          className="grid gap-1 md:gap-2"
+          className="grid gap-3"
           style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 350px))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 320px))",
             justifyContent: "center",
           }}
         >
@@ -197,9 +238,17 @@ export function ImageGalleryMasonry({
                           <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
                         </div>
                       </>
+                    ) : image.status === 'failed' || image.status === 'error' || !image.url ? (
+                      <>
+                        <div className="absolute inset-0 bg-[#27272A]" />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+                          <AlertCircle className="w-8 h-8 text-red-400/60" />
+                          <span className="text-xs text-[#A1A1AA] text-center">Ошибка генерации</span>
+                        </div>
+                      </>
                     ) : (
                       <OptimizedImage
-                        src={image.url}
+                        src={image.previewUrl || image.url}
                         alt={image.prompt}
                         className="absolute inset-0"
                         priority={false}
@@ -226,7 +275,7 @@ export function ImageGalleryMasonry({
                           e.stopPropagation();
                           handleDownload(image);
                         }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                         title="Скачать"
                       >
                         <Download className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -238,7 +287,7 @@ export function ImageGalleryMasonry({
                           e.stopPropagation();
                           handleCopyLink(image);
                         }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                         title="Копировать ссылку"
                       >
                         <Link2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -250,7 +299,7 @@ export function ImageGalleryMasonry({
                           e.stopPropagation();
                           handleShare(image);
                         }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                         title="Поделиться"
                       >
                         <Share2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -262,7 +311,7 @@ export function ImageGalleryMasonry({
                           e.stopPropagation();
                           handleZoom(image);
                         }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                         title="Открыть в полном размере"
                       >
                         <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -275,7 +324,7 @@ export function ImageGalleryMasonry({
                             e.stopPropagation();
                             handleRegenerate(image);
                           }}
-                          className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                          className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                           title="Перегенерировать"
                         >
                           <RotateCcw className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -297,7 +346,7 @@ export function ImageGalleryMasonry({
           style={{
             columnCount: 'auto',
             columnFill: 'balance',
-            columnGap: '16px',
+            columnGap: '12px',
             // Responsive columns
             ...(typeof window !== 'undefined' && {
               columnCount: window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4
@@ -312,7 +361,7 @@ export function ImageGalleryMasonry({
             return (
               <div
                 key={image.id}
-                className="break-inside-avoid mb-4"
+                className="break-inside-avoid mb-3"
                 onMouseEnter={() => setHoveredId(image.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
@@ -333,9 +382,17 @@ export function ImageGalleryMasonry({
                           <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
                         </div>
                       </div>
+                    ) : image.status === 'failed' || image.status === 'error' || !image.url ? (
+                      <div
+                        className="w-full bg-[#27272A] flex flex-col items-center justify-center gap-2 p-4"
+                        style={{ ...getAspectRatioStyle(image.settings?.size), minHeight: '120px' }}
+                      >
+                        <AlertCircle className="w-8 h-8 text-red-400/60" />
+                        <span className="text-xs text-[#A1A1AA] text-center">Ошибка генерации</span>
+                      </div>
                     ) : (
                       <OptimizedImage
-                        src={image.url}
+                        src={image.previewUrl || image.url}
                         alt={image.prompt}
                         className="w-full h-auto"
                         priority={false}
@@ -362,7 +419,7 @@ export function ImageGalleryMasonry({
                               e.stopPropagation();
                               handleDownload(image);
                             }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                             title="Скачать"
                           >
                             <Download className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -374,7 +431,7 @@ export function ImageGalleryMasonry({
                               e.stopPropagation();
                               handleCopyLink(image);
                             }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                             title="Копировать ссылку"
                           >
                             <Link2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -386,7 +443,7 @@ export function ImageGalleryMasonry({
                               e.stopPropagation();
                               handleShare(image);
                             }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                             title="Поделиться"
                           >
                             <Share2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -398,7 +455,7 @@ export function ImageGalleryMasonry({
                               e.stopPropagation();
                               handleZoom(image);
                             }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                             title="Открыть в полном размере"
                           >
                             <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -411,7 +468,7 @@ export function ImageGalleryMasonry({
                                 e.stopPropagation();
                                 handleRegenerate(image);
                               }}
-                              className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 group"
+                              className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                               title="Перегенерировать"
                             >
                               <RotateCcw className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
@@ -430,7 +487,7 @@ export function ImageGalleryMasonry({
 
       <style jsx>{`
         .masonry-grid {
-          column-gap: 16px;
+          column-gap: 1px;
         }
         
         @media (max-width: 768px) {
