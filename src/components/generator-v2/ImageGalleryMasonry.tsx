@@ -208,7 +208,7 @@ export function ImageGalleryMasonry({
 
       {layout === 'grid' ? (
         <div
-          className="grid gap-0.5"
+          className="grid gap-px"
           style={{
             gridTemplateColumns: "repeat(auto-fill, minmax(200px, 320px))",
             justifyContent: "center",
