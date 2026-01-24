@@ -172,7 +172,7 @@ export function Header() {
                               {MODELS[item.dropdown].map((model: any) => (
                                 <Link
                                   key={model.id}
-                                  href={`/generator?section=${item.dropdown === 'design' ? 'image' : item.dropdown}&model=${model.id}`}
+                                  href={`/create/studio?section=${item.dropdown === 'design' ? 'image' : item.dropdown}&model=${model.id}`}
                                   onClick={() => setActiveDropdown(null)}
                                   className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-[var(--surface2)] transition-all duration-150"
                                 >
@@ -185,7 +185,7 @@ export function Header() {
                             {/* Footer */}
                             <div className="px-4 py-2.5 border-t border-[var(--border)] bg-[var(--surface2)]/30">
                               <Link
-                                href={`/generator?section=${item.dropdown === 'design' ? 'image' : item.dropdown}`}
+                                href={`/create/studio?section=${item.dropdown === 'design' ? 'image' : item.dropdown}`}
                                 onClick={() => setActiveDropdown(null)}
                                 className="text-[12px] font-medium text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors"
                               >
@@ -535,7 +535,7 @@ export function Header() {
                       {MODELS[section].slice(0, 4).map((model: any) => (
                         <Link
                           key={model.id}
-                          href={`/generator?section=${section === 'design' ? 'image' : section}&model=${model.id}`}
+                          href={`/create/studio?section=${section === 'design' ? 'image' : section}&model=${model.id}`}
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] transition-colors"
                         >
@@ -551,7 +551,7 @@ export function Header() {
                         </Link>
                       ))}
                       <Link
-                        href={`/generator?section=${section === 'design' ? 'image' : section}`}
+                        href={`/create/studio?section=${section === 'design' ? 'image' : section}`}
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center justify-center px-4 py-2.5 text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors"
                       >

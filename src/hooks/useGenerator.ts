@@ -46,18 +46,44 @@ export function useGenerator() {
     isAuthenticated: false,
   });
 
-  // Fetch user info
+  // Fetch user info and balance in one call using /api/auth/session
   const fetchUser = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setState(prev => ({
-          ...prev,
-          user: data.user,
-          isAuthenticated: true,
-        }));
-        return data.user;
+        if (data.user) {
+          const balance = data.balance || 0;
+          setState(prev => ({
+            ...prev,
+            user: {
+              id: data.user.id,
+              telegramId: data.user.telegramId,
+              username: data.user.username,
+              firstName: data.user.firstName,
+              photoUrl: data.user.photoUrl,
+              isAdmin: data.user.isAdmin,
+              role: data.user.role,
+            },
+            balance,
+            isAuthenticated: true,
+          }));
+          
+          // Sync to global store
+          try {
+            useCreditsStore.getState().setBalance(
+              balance,
+              typeof data.subscriptionStars === 'number' ? data.subscriptionStars : undefined,
+              typeof data.packageStars === 'number' ? data.packageStars : undefined
+            );
+          } catch {
+            // ignore cross-store sync errors
+          }
+          
+          return data.user;
+        }
+        setState(prev => ({ ...prev, isAuthenticated: false, user: null }));
+        return null;
       } else {
         setState(prev => ({ ...prev, isAuthenticated: false, user: null }));
         return null;
@@ -342,20 +368,19 @@ export function useGenerator() {
     const init = async () => {
       setState(prev => ({ ...prev, isLoading: true }));
       
+      // fetchUser now also fetches balance via /api/auth/session
       const user = await fetchUser();
       
       if (user) {
-        await Promise.all([
-          fetchBalance(),
-          fetchGenerations({ limit: 50 }),
-        ]);
+        // Only fetch generations, balance is already loaded
+        await fetchGenerations({ limit: 50 });
       }
       
       setState(prev => ({ ...prev, isLoading: false }));
     };
 
     init();
-  }, [fetchUser, fetchBalance, fetchGenerations]);
+  }, [fetchUser, fetchGenerations]);
 
   return {
     ...state,

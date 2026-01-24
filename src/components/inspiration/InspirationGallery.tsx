@@ -348,7 +348,7 @@ export function InspirationGallery() {
       localStorage.setItem('lensroom_prefill_model', card.model_key);
     }
     
-    router.push(`/generator?${params.toString()}`);
+    router.push(`/create/studio?${params.toString()}`);
     toast.success('Открываем генератор', {
       description: `${card.model_key} • Промпт применён`,
     });

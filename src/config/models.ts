@@ -139,6 +139,8 @@ export interface VideoModelConfig {
   
   // Short label for sidebar (e.g., "8s • Ultra", "5/10s • Audio")
   shortLabel?: string;
+  // Model tag for UI badges (e.g., "PRO", "FAST", "NEW", "ULTRA")
+  modelTag?: 'PRO' | 'FAST' | 'NEW' | 'ULTRA' | 'TOP' | 'CORE';
 }
 
 export type ModelConfig = PhotoModelConfig | VideoModelConfig;
@@ -234,7 +236,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
       '4k': 40,
     },
     qualityOptions: ['1k_2k', '4k'],
-    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
+    // All aspect ratios supported by KIE API: https://kie.ai/nano-banana-pro
+    aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '4:5', '5:4', '21:9'],
     shortLabel: 'Pro • 1K-4K',
   },
   // Seedream 4.5: requires `quality` (basic/high), NOT `resolution`
@@ -438,7 +441,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modes: ['t2v', 'i2v'],
     durationOptions: [5],
     aspectRatios: ['1:1', '3:2', '2:3'],
-    shortLabel: 'xAI 🌶️',
+    shortLabel: '5s • Audio',
+    modelTag: 'NEW',
   },
   // === VEO 3.1 - LaoZhang API (much cheaper cost, same user price!) ===
   // LaoZhang cost: $0.015/video, user price unchanged
@@ -470,7 +474,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     durationOptions: [8],
     qualityOptions: ['fast', 'quality'],
     aspectRatios: ['16:9', '9:16'],
-    shortLabel: '8s • от 99⭐',
+    shortLabel: '8s • Audio',
+    modelTag: 'ULTRA',
   },
   
   // === KLING - Unified model with variants (2.5 Turbo, 2.6, 2.1) ===
@@ -530,7 +535,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
     aspectRatios: ['1:1', '16:9', '9:16'],
-    shortLabel: 'от 105⭐',
+    shortLabel: '5-10s • I2V',
+    modelTag: 'CORE',
   },
 
   // === SORA 2 - LaoZhang API (much cheaper cost, same user price!) ===
@@ -558,7 +564,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modes: ['t2v'],
     durationOptions: [10, 15],
     aspectRatios: ['portrait', 'landscape'],
-    shortLabel: '10/15s',
+    shortLabel: '10-15s • T2V',
+    modelTag: 'FAST',
   },
 
   // === SORA 2 PRO - Market API (i2v only) ===
@@ -583,7 +590,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     durationOptions: [10, 15],
     qualityOptions: ['standard', 'high'],
     aspectRatios: ['portrait', 'landscape'],
-    shortLabel: '10-15s • 1080p',
+    shortLabel: '10-15s • I2V',
+    modelTag: 'PRO',
   },
 
   // === SORA STORYBOARD - Market API ===
@@ -675,7 +683,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     durationOptions: [5, 10, 15], // All durations (filtered by variant)
     resolutionOptions: ['720p', '1080p', '1080p_multi'], // All resolutions (filtered by variant)
     aspectRatios: ['16:9', '9:16', '1:1'],
-    shortLabel: 'от 100⭐',
+    shortLabel: '5-15s • V2V',
+    modelTag: 'TOP',
   },
 
   // === BYTEDANCE (Seedance 1.0 Pro) - Market API (i2v only) ===

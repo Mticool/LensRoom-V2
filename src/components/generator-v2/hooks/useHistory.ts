@@ -4,10 +4,32 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { cachedJson, invalidateCached } from '@/lib/client/generations-cache';
 import { GenerationResult, GeneratorMode, GenerationSettings } from '../GeneratorV2';
 
+const PAGE_SIZE = 20;
+
 export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: string) {
   const [history, setHistory] = useState<GenerationResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Transform API response to GenerationResult format
+  const transformResults = useCallback((generations: any[]): GenerationResult[] => {
+    return (generations || []).map((gen: any): GenerationResult => ({
+      id: gen.id,
+      url: gen.result_urls?.[0] || '',
+      prompt: gen.prompt || '',
+      mode: (gen.type === 'video' ? 'video' : 'image') as GeneratorMode,
+      settings: {
+        model: gen.model_id || '',
+        size: gen.aspect_ratio || '1:1',
+      } as GenerationSettings,
+      timestamp: new Date(gen.created_at).getTime(),
+      previewUrl: gen.preview_url || gen.result_urls?.[0] || '',
+      status: gen.status,
+    })).filter((r) => r.status === 'success' && r.url);
+  }, []);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -19,6 +41,7 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       abortControllerRef.current = new AbortController();
       
       setIsLoading(true);
+      setOffset(0);
       const type = mode === 'video' ? 'video' : 'photo';
       const cacheKey = `history-${type}${modelId ? `-${modelId}` : ''}${threadId ? `-${threadId}` : ''}`;
       
@@ -27,7 +50,8 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
         const url = (() => {
           const qs = new URLSearchParams();
           qs.set("type", type);
-          qs.set("limit", "50");
+          qs.set("limit", String(PAGE_SIZE));
+          qs.set("offset", "0");
           if (modelId) qs.set("model_id", modelId);
           if (threadId) qs.set("thread_id", threadId);
           return `/api/generations?${qs.toString()}`;
@@ -44,22 +68,12 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
         return response.json();
       });
       
-      // Transform API response to GenerationResult format
-      const results: GenerationResult[] = (data.generations || []).map((gen: any) => ({
-        id: gen.id,
-        url: gen.result_urls?.[0] || '',
-        prompt: gen.prompt || '',
-        mode: gen.type === 'video' ? 'video' : 'image',
-        settings: {
-          model: gen.model_id || '',
-          size: gen.aspect_ratio || '1:1',
-        } as GenerationSettings,
-        timestamp: new Date(gen.created_at).getTime(),
-        previewUrl: gen.preview_url || gen.result_urls?.[0] || '',
-        status: gen.status,
-      }));
-
-      setHistory(results.filter(r => r.status === 'success' && r.url));
+      const results = transformResults(data.generations);
+      // Reverse so oldest items are at top (beginning of array)
+      // and newest at bottom (end of array, near prompt input)
+      setHistory(results.reverse());
+      // If we got exactly PAGE_SIZE results, there might be more
+      setHasMore((data.generations || []).length >= PAGE_SIZE);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
         console.error('Failed to fetch history:', error);
@@ -67,7 +81,45 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
     } finally {
       setIsLoading(false);
     }
-  }, [mode, modelId, threadId]);
+  }, [mode, modelId, threadId, transformResults]);
+
+  // Load more items (pagination)
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    try {
+      setIsLoadingMore(true);
+      const newOffset = offset + PAGE_SIZE;
+      const type = mode === 'video' ? 'video' : 'photo';
+      
+      const qs = new URLSearchParams();
+      qs.set("type", type);
+      qs.set("limit", String(PAGE_SIZE));
+      qs.set("offset", String(newOffset));
+      if (modelId) qs.set("model_id", modelId);
+      if (threadId) qs.set("thread_id", threadId);
+      
+      const response = await fetch(`/api/generations?${qs.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load more history');
+      }
+      
+      const data = await response.json();
+      const results = transformResults(data.generations);
+      
+      // Reverse to maintain consistent order (oldest first)
+      // then prepend to the beginning (top of gallery)
+      setHistory(prev => [...results.reverse(), ...prev]);
+      setOffset(newOffset);
+      // If we got less than PAGE_SIZE, no more items
+      setHasMore((data.generations || []).length >= PAGE_SIZE);
+    } catch (error) {
+      console.error('Failed to load more history:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, offset, mode, modelId, threadId, transformResults]);
 
   useEffect(() => {
     fetchHistory();
@@ -89,13 +141,14 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
           : item
       ));
     } else {
-      setHistory(prev => [result, ...prev]);
+      // Add new results at the end (bottom of gallery)
+      setHistory(prev => [...prev, result]);
     }
   }, []);
   
-  // Add a pending placeholder to history
+  // Add a pending placeholder to history (at the end/bottom)
   const addPendingToHistory = useCallback((result: GenerationResult) => {
-    setHistory(prev => [result, ...prev]);
+    setHistory(prev => [...prev, result]);
   }, []);
   
   // Remove a pending item from history (e.g., on error)
@@ -117,6 +170,9 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
   return {
     history,
     isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMore,
     addToHistory,
     addPendingToHistory,
     removePendingFromHistory,

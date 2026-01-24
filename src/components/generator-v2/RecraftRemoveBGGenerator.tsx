@@ -13,18 +13,14 @@ import type { GenerationResult, GenerationSettings } from './GeneratorV2';
 import './theme.css';
 
 // Quality mapping: UI labels → API values
+// Recraft Remove BG is a simple tool - quality doesn't affect output
 const QUALITY_MAPPING: Record<string, string> = {
-  '1K': 'balanced',
-  '2K': 'balanced', // uses apiId2k
-  '4K': 'quality', // uses apiId4k
+  'Авто': 'balanced',
 };
 
-// Cost calculation for Nano Banana Pro
-const COST_PER_IMAGE: Record<string, number> = {
-  '1K': 30,    // 1k_2k pricing
-  '2K': 30,    // 1k_2k pricing (uses apiId2k)
-  '4K': 40,    // 4k pricing
-};
+// Cost calculation for Recraft Remove BG (from config/models.ts)
+// Flat pricing - 2⭐ per image
+const COST_PER_IMAGE = 2;
 
 export function RecraftRemoveBGGenerator() {
   const router = useRouter();
@@ -34,7 +30,7 @@ export function RecraftRemoveBGGenerator() {
   // Core state
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
-  const [quality, setQuality] = useState('1K');
+  const [quality, setQuality] = useState('Авто');
   const [quantity, setQuantity] = useState(1);
   
   // Reference image for i2i
@@ -54,13 +50,13 @@ export function RecraftRemoveBGGenerator() {
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Load history (show all models)
-  const { history, isLoading: historyLoading, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
+  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   
   // Use credits from auth hook
   const credits = authCredits;
 
-  // Calculate cost
-  const estimatedCost = COST_PER_IMAGE[quality] * quantity;
+  // Calculate cost - flat pricing for Recraft Remove BG
+  const estimatedCost = COST_PER_IMAGE * quantity;
 
   // Demo images for non-authenticated users
   const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
@@ -318,6 +314,9 @@ export function RecraftRemoveBGGenerator() {
           images={allImages}
           isGenerating={isGenerating}
           onRegenerate={handleRegenerate}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          isLoadingMore={isLoadingMore}
         />
 
         {/* Control Bar (Sticky Bottom) */}
@@ -336,7 +335,7 @@ export function RecraftRemoveBGGenerator() {
           credits={credits}
           estimatedCost={estimatedCost}
           modelId="recraft-remove-background"
-          qualityOptions={['1K', '2K', '4K']}
+          qualityOptions={['Авто']}
           aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4']}
           referenceImage={referenceImage}
           onReferenceImageChange={setReferenceImage}

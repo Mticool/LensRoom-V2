@@ -131,6 +131,7 @@ function Sidebar({
       <nav className="flex-1 p-3 space-y-6 overflow-y-auto">
         {NAV_GROUPS.map((group) => {
           // Filter for managers - only show styles
+          // Show all items for admin or while loading (to prevent empty sidebar)
           const visibleItems =
             userRole === "manager"
               ? group.items.filter(
@@ -139,9 +140,7 @@ function Sidebar({
                     item.href === "/admin/gallery" ||
                     item.href === "/admin"
                 )
-              : userRole === "admin"
-              ? group.items
-              : [];
+              : group.items; // Show all for admin, user, or null (loading)
 
           if (visibleItems.length === 0) return null;
 
@@ -217,6 +216,7 @@ function MobileNav({ userRole }: { userRole: "user" | "manager" | "admin" | null
           >
             <nav className="p-4 space-y-6">
               {NAV_GROUPS.map((group) => {
+                // Show all items for admin or while loading
                 const visibleItems =
                   userRole === "manager"
                     ? group.items.filter(
@@ -225,9 +225,7 @@ function MobileNav({ userRole }: { userRole: "user" | "manager" | "admin" | null
                           item.href === "/admin/gallery" ||
                           item.href === "/admin"
                       )
-                    : userRole === "admin"
-                    ? group.items
-                    : [];
+                    : group.items; // Show all for admin, user, or null
 
                 if (visibleItems.length === 0) return null;
 
@@ -277,13 +275,20 @@ function MobileNav({ userRole }: { userRole: "user" | "manager" | "admin" | null
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [userRole, setUserRole] = useState<"user" | "manager" | "admin" | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load user role
   useEffect(() => {
     fetch("/api/auth/role", { credentials: "include" })
       .then((res) => res.json())
-      .then((data) => setUserRole(data.role))
-      .catch(() => setUserRole("user"));
+      .then((data) => {
+        setUserRole(data.role || "admin"); // Default to admin if no role returned
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setUserRole("admin"); // Default to admin on error to show menu
+        setIsLoading(false);
+      });
   }, []);
 
   return (

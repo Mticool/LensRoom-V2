@@ -213,7 +213,15 @@ export function StudioWorkspaces() {
     [threads, selectedThreadId]
   );
 
-  const { history, isLoading: historyLoading, refresh: refreshHistory, invalidateCache } = useHistory(
+  const { 
+    history, 
+    isLoading: historyLoading, 
+    isLoadingMore,
+    hasMore,
+    loadMore,
+    refresh: refreshHistory, 
+    invalidateCache 
+  } = useHistory(
     "image",
     selectedModelId,
     selectedThreadId || undefined
@@ -786,7 +794,8 @@ export function StudioWorkspaces() {
       timestamp: batchId + i,
       status: "pending",
     }));
-    setLocalItems((prev) => [...pendingBatch, ...prev]);
+    // Add pending items at the end (bottom of gallery)
+    setLocalItems((prev) => [...prev, ...pendingBatch]);
 
     setIsGeneratingBatch(true);
     try {
@@ -874,6 +883,9 @@ export function StudioWorkspaces() {
           emptyDescription={
             isToolModel ? 'Нажмите «+» внизу и загрузите изображение для обработки' : undefined
           }
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          isLoadingMore={isLoadingMore}
         />
 
         {/* Bottom control bar */}

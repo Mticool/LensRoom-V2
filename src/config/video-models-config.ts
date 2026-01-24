@@ -90,10 +90,10 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Версия",
         type: "select",
         options: [
-          { value: "2.5-turbo", label: "2.5 Turbo (105⭐) - Быстро" },
-          { value: "2.6", label: "2.6 (230⭐) - С аудио" },
-          { value: "2.1-pro", label: "2.1 Pro (402⭐) - Премиум" },
-          { value: "o1", label: "O1 (28⭐) - Video-to-Video" }
+          { value: "2.5-turbo", label: "2.5 Turbo — Быстрая генерация" },
+          { value: "2.6", label: "2.6 — С поддержкой аудио" },
+          { value: "2.1-pro", label: "2.1 Pro — Премиум качество" },
+          { value: "o1", label: "O1 — Video-to-Video" }
         ],
         default: "2.5-turbo",
         description: "Выберите версию Kling для генерации",
@@ -295,8 +295,8 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Версия",
         type: "select",
         options: [
-          { value: "2.5", label: "WAN 2.5 (от 100⭐) - Кинематографика" },
-          { value: "2.6", label: "WAN 2.6 (от 118⭐) - V2V, 15s" }
+          { value: "2.5", label: "WAN 2.5 — Кинематографика" },
+          { value: "2.6", label: "WAN 2.6 — V2V, до 15с" }
         ],
         default: "2.5",
         description: "Выберите версию WAN для генерации",

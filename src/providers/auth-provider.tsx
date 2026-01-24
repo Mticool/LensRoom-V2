@@ -44,8 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (telegramCookie) {
           // Fetch user info from API (which validates Telegram session)
+          // Use /api/auth/session which returns both user info and balance in one call
           try {
-            const response = await fetch('/api/auth/me', {
+            const response = await fetch('/api/auth/session', {
               credentials: 'include',
               signal: AbortSignal.timeout(10000), // 10 second timeout
             });
@@ -57,16 +58,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (userData.user) {
                 setUser({
                   id: userData.user.id,
-                  email: userData.user.email || `telegram_${userData.telegramId}@lensroom.local`,
+                  email: userData.user.email || `telegram_${userData.user.telegramId}@lensroom.local`,
                   created_at: userData.user.created_at || new Date().toISOString(),
                   updated_at: new Date().toISOString(),
                   aud: 'authenticated',
                   role: 'authenticated',
                   app_metadata: {},
                   user_metadata: {
-                    telegram_id: userData.telegramId,
-                    username: userData.username,
-                    first_name: userData.firstName,
+                    telegram_id: userData.user.telegramId,
+                    username: userData.user.username,
+                    first_name: userData.user.firstName,
                   },
                 } as User);
               }

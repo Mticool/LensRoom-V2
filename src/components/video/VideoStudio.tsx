@@ -2,57 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronDown, ChevronLeft, ChevronRight, Clock, Film, HelpCircle, ImagePlus, Info, LayoutGrid, List, Loader2, Maximize2, MoreHorizontal, Pencil, Play, RefreshCw, Settings, Star, Upload, Video, X } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Clock, Film, HelpCircle, ImagePlus, Info, LayoutGrid, List, Loader2, Maximize2, MoreHorizontal, Pencil, Play, RefreshCw, Settings, Star, Upload, Video, X } from "lucide-react";
 
 import { computePrice } from "@/lib/pricing/compute-price";
 import { cn } from "@/lib/utils";
 import { getModelById, getModelsByType, type VideoModelConfig, type VideoMode, type VideoQuality } from "@/config/models";
-import { IconCheck, IconClose, IconImageAdd, IconPlus, IconVideoCam } from "@/components/video/ui/TileIcons";
+import { useCreditsStore } from "@/stores/credits-store";
 
-type StudioMode = Extract<VideoMode, "t2v" | "i2v" | "start_end" | "v2v">;
-type StudioAspect = string;
+// Extracted UI components
+import { ChipGroup, FrameTile, PromptTextarea, UploadTile, VideoPreview, IconCheck, IconClose, IconImageAdd, IconPlus, IconVideoCam } from "./ui";
 
-type JobStatus = "queued" | "processing" | "success" | "failed" | "cancelled";
-
-type VideoJobParams = {
-  model: string; // id from VIDEO_MODELS
-  modelVariant?: string;
-  mode: StudioMode;
-  prompt: string;
-  negativePrompt?: string;
-  duration?: number | string;
-  quality?: VideoQuality | string;
-  resolution?: string;
-  aspectRatio?: StudioAspect;
-  audio?: boolean;
-  soundPreset?: string; // WAN sound presets
-  // Motion Control (Kling 2.6)
-  referenceVideo?: string;
-  referenceImage?: string;
-  videoDuration?: number;
-  autoTrim?: boolean;
-  // Edit Video (Kling O1 Edit)
-  videoUrl?: string;
-  keepAudio?: boolean;
-  startImage?: string;
-  endImage?: string;
-};
-
-type VideoJobCard = {
-  localId: string;
-  createdAt: number;
-  status: JobStatus;
-  progress: number;
-  error?: string | null;
-  // Remote tracking
-  jobId?: string | null;
-  provider?: string | null;
-  // Result
-  resultUrl?: string | null;
-  // For display/retry
-  params: VideoJobParams;
-};
+// Types
+import type { JobStatus, StudioMode, StudioAspect, VideoJobParams, VideoJobCard, UploadTileKind } from "./video-types";
+import { MODEL_IDS, EXCLUDED_MODEL_IDS } from "./video-types";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -120,6 +84,73 @@ function progressBarClass(st: JobStatus): string {
   return "bg-[var(--gold)]/70";
 }
 
+function getProgressStage(progress: number, status: JobStatus): string {
+  if (status === "queued") return "В очереди...";
+  if (status === "success") return "Готово!";
+  if (status === "failed") return "Ошибка";
+  if (status === "cancelled") return "Отменено";
+  if (progress < 10) return "Загрузка файлов...";
+  if (progress < 30) return "Обработка промпта...";
+  if (progress < 70) return "Рендеринг видео...";
+  if (progress < 95) return "Финализация...";
+  return "Почти готово!";
+}
+
+function getErrorMessage(error: string | null | undefined): string {
+  if (!error) return "Произошла ошибка генерации";
+  const e = error.toLowerCase();
+  if (e.includes("content policy") || e.includes("moderation")) return "Промпт нарушает правила контента";
+  if (e.includes("timeout") || e.includes("timed out")) return "Превышено время ожидания";
+  if (e.includes("insufficient") || e.includes("credits") || e.includes("balance")) return "Недостаточно звезд";
+  if (e.includes("rate limit")) return "Слишком много запросов, подождите";
+  if (e.includes("invalid") || e.includes("format")) return "Неверный формат данных";
+  if (e.includes("network") || e.includes("connection")) return "Ошибка сети, попробуйте снова";
+  return "Ошибка генерации";
+}
+
+function VideoSkeleton({ className, aspectRatio = "16:9" }: { className?: string; aspectRatio?: string }) {
+  return (
+    <div className={cn("animate-pulse rounded-xl overflow-hidden", className)}>
+      <div 
+        className="w-full bg-white/5 flex items-center justify-center"
+        style={{ aspectRatio: aspectToCss(aspectRatio) }}
+      >
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-white/10 mx-auto mb-3 flex items-center justify-center">
+            <Film className="w-6 h-6 text-white/20" />
+          </div>
+          <div className="h-3 w-32 bg-white/10 rounded mx-auto mb-2" />
+          <div className="h-2 w-24 bg-white/5 rounded mx-auto" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AspectRatioIcon({ ratio, active }: { ratio: string; active?: boolean }) {
+  const dimensions: Record<string, { w: number; h: number }> = {
+    "16:9": { w: 16, h: 9 },
+    "9:16": { w: 9, h: 16 },
+    "1:1": { w: 12, h: 12 },
+    "3:2": { w: 15, h: 10 },
+    "2:3": { w: 10, h: 15 },
+    "landscape": { w: 16, h: 9 },
+    "portrait": { w: 9, h: 16 },
+  };
+  const d = dimensions[ratio] || { w: 12, h: 12 };
+  const scale = 12 / Math.max(d.w, d.h);
+  
+  return (
+    <div 
+      className={cn(
+        "border-2 rounded-sm transition-colors",
+        active ? "border-[#CDFF00]" : "border-white/30"
+      )}
+      style={{ width: d.w * scale, height: d.h * scale }}
+    />
+  );
+}
+
 function qualityLabel(quality: string | undefined): string {
   const q = String(quality || "").toLowerCase();
   if (!q) return "";
@@ -175,28 +206,30 @@ function normalizeProviderStatusToUi(raw: string): JobStatus {
 export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { balance, fetchBalance } = useCreditsStore();
 
-  const EXCLUDED_VIDEO_MODEL_IDS = useMemo(
-    () => new Set<string>(["sora-storyboard", "kling-ai-avatar"]),
-    []
-  );
+  // Fetch balance on mount
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
+
   const availableModels = useMemo(() => {
     const all = getModelsByType("video") as VideoModelConfig[];
     return all
-      .filter((m) => !EXCLUDED_VIDEO_MODEL_IDS.has(m.id))
+      .filter((m) => !EXCLUDED_MODEL_IDS.has(m.id))
       .sort((a, b) => (a.rank || 0) - (b.rank || 0));
-  }, [EXCLUDED_VIDEO_MODEL_IDS]);
+  }, []);
   const modelIdFromUrl = useMemo(() => {
     const raw = String(searchParams.get("model") || "").trim();
-    return raw || "veo-3.1";
+    return raw || MODEL_IDS.VEO_3_1;
   }, [searchParams]);
   const selectedModel = useMemo((): VideoModelConfig => {
     const m = getModelById(modelIdFromUrl);
-    if (m && (m as any).type === "video" && !EXCLUDED_VIDEO_MODEL_IDS.has((m as any).id)) {
+    if (m && (m as any).type === "video" && !EXCLUDED_MODEL_IDS.has((m as any).id)) {
       return m as VideoModelConfig;
     }
-    return availableModels.find((x) => x.id === "veo-3.1") || availableModels[0]!;
-  }, [EXCLUDED_VIDEO_MODEL_IDS, availableModels, modelIdFromUrl]);
+    return availableModels.find((x) => x.id === MODEL_IDS.VEO_3_1) || availableModels[0]!;
+  }, [availableModels, modelIdFromUrl]);
   const modelId = selectedModel.id;
 
   const tool = useMemo<"create" | "edit" | "motion">(() => {
@@ -1075,7 +1108,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
           <div className="flex items-center justify-between gap-3 mb-5">
               <div className="flex items-center gap-2" style={{ fontFamily: "var(--font-space-grotesk), var(--font-body)" }}>
               <Film className="w-5 h-5 text-[#CDFF00]" />
-              <div className="text-lg font-semibold">{tool === "motion" ? "Motion Control" : "Video"}</div>
+              <div className="text-lg font-semibold">{tool === "motion" ? "Управление движением" : "Видео"}</div>
             </div>
 
             <div
@@ -1092,19 +1125,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                     : "text-white/60 hover:text-white hover:bg-white/5"
                 )}
               >
-                Create Video
-              </button>
-              <button
-                type="button"
-                onClick={() => setTool("edit")}
-                className={cn(
-                  "px-2 py-1 rounded-lg text-[12px] font-semibold transition-colors",
-                  tool === "edit"
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white hover:bg-white/5"
-                )}
-              >
-                Edit Video
+                Создать видео
               </button>
               <button
                 type="button"
@@ -1144,19 +1165,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                     : "text-white/60 hover:text-white hover:bg-white/5"
                 )}
               >
-                Create
-              </button>
-              <button
-                type="button"
-                onClick={() => setTool("edit")}
-                className={cn(
-                  "flex-1 h-10 rounded-xl text-sm font-semibold transition-colors",
-                  tool === "edit"
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white hover:bg-white/5"
-                )}
-              >
-                Edit
+                Создать
               </button>
               <button
                 type="button"
@@ -1168,7 +1177,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                     : "text-white/60 hover:text-white hover:bg-white/5"
                 )}
               >
-                Motion
+                Motion Control
               </button>
             </div>
 
@@ -1183,7 +1192,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-white/60 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <Clock className="w-4 h-4" />
-                History
+                История
               </button>
               <a
                 href="https://higgsfield.ai/blog"
@@ -1192,7 +1201,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-white/60 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <HelpCircle className="w-4 h-4" />
-                How it works
+                Как это работает
               </a>
             </div>
           </div>
@@ -1231,7 +1240,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                           title="Сменить модель"
                         >
                           <Pencil className="w-4 h-4 text-white/70" />
-                          Change
+                          Изменить
                         </button>
 
                         <div className="absolute left-3 bottom-3">
@@ -1260,8 +1269,8 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                               ? "bg-white/10 text-white"
                               : "text-white/60 hover:text-white hover:bg-white/5"
                           )}
-                        >
-                          Frames
+                          >
+                          Кадры
                         </button>
                         <button
                           type="button"
@@ -1273,26 +1282,35 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                               : "text-white/60 hover:text-white hover:bg-white/5"
                           )}
                         >
-                          Ingredients
+                          Настройки
                         </button>
                       </div>
 
                       {showModelMenu && (
-                        <div className="absolute top-[calc(120px+0.75rem)] left-0 mt-2 w-full bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
-                          <div className="p-2">
+                        <div className="absolute top-[calc(120px+0.75rem)] left-0 mt-2 w-full bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden max-h-[400px] overflow-y-auto">
+                          <div className="p-2 space-y-1">
                             {availableModels
                               .filter((m) => m.id !== "kling-motion-control" && m.id !== "kling-o1-edit")
                               .map((m) => {
                                 const active = m.id === modelId;
+                                const tag = (m as any).modelTag as string | undefined;
+                                const tagColors: Record<string, string> = {
+                                  PRO: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                                  FAST: "bg-green-500/20 text-green-300 border-green-500/30",
+                                  NEW: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                                  ULTRA: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                                  TOP: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+                                  CORE: "bg-white/10 text-white/70 border-white/20",
+                                };
                                 return (
                                   <button
                                     key={m.id}
                                     type="button"
                                     className={cn(
-                                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors",
+                                      "w-full flex items-center gap-3 px-3 py-3 rounded-xl border transition-all",
                                       active
-                                        ? "bg-[#CDFF00]/10 border-[#CDFF00]/30"
-                                        : "bg-white/0 border-white/10 hover:bg-white/5"
+                                        ? "bg-[#CDFF00]/10 border-[#CDFF00]/30 shadow-[0_0_12px_rgba(205,255,0,0.1)]"
+                                        : "bg-white/[0.02] border-transparent hover:bg-white/5 hover:border-white/10"
                                     )}
                                     onClick={() => {
                                       const qs = new URLSearchParams(Array.from(searchParams.entries()));
@@ -1301,12 +1319,29 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                       setShowModelMenu(false);
                                     }}
                                   >
-                                    <Film className={cn("w-4 h-4", active ? "text-[#CDFF00]" : "text-white/50")} />
-                                    <div className="flex-1 text-left">
-                                      <div className="text-sm font-medium text-white">{m.name}</div>
-                                      <div className="text-xs text-white/50">{m.shortLabel || m.description}</div>
+                                    <div className={cn(
+                                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                                      active ? "bg-[#CDFF00]/20" : "bg-white/5"
+                                    )}>
+                                      <Film className={cn("w-4 h-4", active ? "text-[#CDFF00]" : "text-white/50")} />
                                     </div>
-                                    {active ? <div className="text-xs text-[#CDFF00] font-medium">Активна</div> : null}
+                                    <div className="flex-1 text-left min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-white truncate">{m.name}</span>
+                                        {tag && (
+                                          <span className={cn(
+                                            "px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border",
+                                            tagColors[tag] || tagColors.CORE
+                                          )}>
+                                            {tag}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px] text-white/45 truncate">{m.shortLabel || ""}</div>
+                                    </div>
+                                    {active && (
+                                      <div className="w-2 h-2 rounded-full bg-[#CDFF00]" />
+                                    )}
                                   </button>
                                 );
                               })}
@@ -1323,16 +1358,16 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         <>
                           <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
                             <div className="p-3">
-                              <div className="text-[11px] text-white/45">MOTION CONTROL</div>
-                              <div className="mt-1 text-sm font-semibold text-white/90">Add motion to copy</div>
+                              <div className="text-[11px] text-white/45">УПРАВЛЕНИЕ ДВИЖЕНИЕМ</div>
+                              <div className="mt-1 text-sm font-semibold text-white/90">Скопировать движение</div>
                             </div>
                             <div className="px-3 pb-3">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <UploadTile
                                   kind="motion"
                                   variant="motion-control"
-                                  title="Add motion to copy"
-                                  subtitle={motionVideoDuration ? `Video duration: ${Math.round(motionVideoDuration)} seconds` : "Video duration: 3–30 seconds"}
+                                  title="Видео с движением"
+                                  subtitle={motionVideoDuration ? `Длительность: ${Math.round(motionVideoDuration)} сек` : "Длительность: 3–30 секунд"}
                                   value={motionVideo}
                                   required
                                   accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/mov"
@@ -1346,8 +1381,8 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                 <UploadTile
                                   kind="character"
                                   variant="motion-control"
-                                  title="Add your character"
-                                  subtitle="Image with visible face and body"
+                                  title="Ваш персонаж"
+                                  subtitle="Изображение с видимым лицом и телом"
                                   value={characterImage}
                                   required
                                   accept="image/png,image/jpeg,image/webp"
@@ -1359,16 +1394,16 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <div className="text-xs text-white/60">Quality</div>
+                          <div className="space-y-1.5" style={{ fontFamily: "var(--font-space-grotesk), var(--font-body)" }}>
+                            <div className="text-xs text-white/60">Качество</div>
                             <div className="relative">
                               <select
                                 value={resolution || resolutionOptions[0] || "720p"}
                                 onChange={(e) => setResolution(e.target.value)}
                                 disabled={isStarting}
                                 className={cn(
-                                  "w-full h-16 pl-5 pr-12 rounded-2xl bg-white/5 border border-white/10",
-                                  "text-[22px] font-semibold text-white",
+                                  "w-full h-11 pl-4 pr-10 rounded-xl bg-white/5 border border-white/10",
+                                  "text-sm font-semibold text-white",
                                   "focus:outline-none focus:border-[#CDFF00]",
                                   "appearance-none",
                                   isStarting && "opacity-60 cursor-not-allowed"
@@ -1380,18 +1415,9 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                   </option>
                                 ))}
                               </select>
-                              <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/35 pointer-events-none" />
+                              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35 pointer-events-none" />
                             </div>
                           </div>
-
-                          <a
-                            href="/pricing"
-                            className="inline-flex items-center gap-2 text-sm font-semibold text-[#CDFF00] hover:text-[#D8FF33] transition-colors"
-                          >
-                            <Star className="w-4 h-4" />
-                            Try unlimited Kling Motion Control
-                            <ChevronRight className="w-4 h-4 text-[#CDFF00]/80" />
-                          </a>
 
                           <button
                             type="button"
@@ -1402,7 +1428,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                               isStarting && "opacity-60 cursor-not-allowed"
                             )}
                           >
-                            <span className="text-white/80">Advanced settings</span>
+                            <span className="text-white/80">Дополнительно</span>
                             <ChevronDown className={cn("w-4 h-4 text-white/50 transition-transform", showAdvanced && "rotate-180")} />
                           </button>
                         </>
@@ -1541,11 +1567,11 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         (isCreateHiggs && showCreateFrames && mode !== "v2v")
                       ) ? (
                         <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-2 gap-2">
                             <FrameTile
                               kind="start"
-                              title={isCreateHiggs ? "Start frame" : "Старт‑кадр"}
-                              subtitle={isCreateHiggs ? "Optional" : (mode === "t2v" ? "Опционально" : "Обязательно")}
+                              title="Начальный кадр"
+                              subtitle={mode === "t2v" ? "Опционально" : "Обязательно"}
                               required={isCreateHiggs ? false : mode !== "t2v"}
                               value={startFrame}
                               disabled={isStarting}
@@ -1558,8 +1584,8 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                             {supportedModes.includes("start_end") ? (
                               <FrameTile
                                 kind="end"
-                                title={isCreateHiggs ? "End frame" : "Конец‑кадр"}
-                                subtitle={isCreateHiggs ? "Optional" : "Опционально"}
+                                title="Конечный кадр"
+                                subtitle="Опционально"
                                 required={false}
                                 value={endFrame}
                                 disabled={isStarting}
@@ -1568,9 +1594,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                 }}
                                 onClear={() => setEndFrame(null)}
                               />
-                            ) : (
-                              <div className="hidden sm:block" />
-                            )}
+                            ) : null}
                           </div>
                           {!isCreateHiggs && uiErrors.startFrame ? (
                             <div className="text-xs text-red-300">{uiErrors.startFrame}</div>
@@ -1598,7 +1622,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                       {isCreateHiggs && showCreateIngredients ? (
                         <div className="space-y-3">
                           <div className="space-y-1">
-                            <div className="text-xs text-white/60">Model</div>
+                            <div className="text-xs text-white/60">Модель</div>
                             <button
                               type="button"
                               onClick={() => {
@@ -1622,18 +1646,18 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-2 gap-2">
                             {resolutionOptions.length ? (
-                              <div className="space-y-1">
-                                <div className="text-xs text-white/60">Quality</div>
+                              <div className="space-y-1.5">
+                                <div className="text-xs text-white/60">Качество</div>
                                 <div className="relative">
                                   <select
                                     value={resolution || resolutionOptions[0] || ""}
                                     onChange={(e) => setResolution(e.target.value)}
                                     disabled={isStarting}
                                     className={cn(
-                                      "w-full h-14 pl-4 pr-10 rounded-2xl bg-white/5 border border-white/10",
-                                      "text-[18px] font-semibold text-white",
+                                      "w-full h-11 pl-4 pr-10 rounded-xl bg-white/5 border border-white/10",
+                                      "text-sm font-semibold text-white",
                                       "focus:outline-none focus:border-[#CDFF00]",
                                       "appearance-none",
                                       isStarting && "opacity-60 cursor-not-allowed"
@@ -1651,7 +1675,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                             ) : null}
 
                             {aspectOptions.length ? (
-                              <div className="space-y-1">
+                              <div className="space-y-1.5">
                                 <div className="text-xs text-white/60">Ratio</div>
                                 <div className="relative">
                                   <select
@@ -1659,8 +1683,8 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                     onChange={(e) => setAspectRatio(e.target.value as StudioAspect)}
                                     disabled={isStarting}
                                     className={cn(
-                                      "w-full h-14 pl-4 pr-10 rounded-2xl bg-white/5 border border-white/10",
-                                      "text-[18px] font-semibold text-white",
+                                      "w-full h-11 pl-4 pr-10 rounded-xl bg-white/5 border border-white/10",
+                                      "text-sm font-semibold text-white",
                                       "focus:outline-none focus:border-[#CDFF00]",
                                       "appearance-none",
                                       isStarting && "opacity-60 cursor-not-allowed"
@@ -1714,7 +1738,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
 
                       {(!isCreateHiggs || showCreateIngredients || showCreateFrames) ? (
                         <div className="space-y-1">
-                          <div className="text-xs text-white/60">{isCreateHiggs ? "Prompt" : "Промпт"}</div>
+                          <div className="text-xs text-white/60">Промпт</div>
                           <PromptTextarea
                             value={prompt}
                             onChange={(v) => {
@@ -1736,34 +1760,11 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                             onSubmit={handleGenerate}
                             autoFocus
                           />
-                          <div className="flex items-center justify-between gap-2 mt-2">
-                            <div className="inline-flex items-center gap-2 text-xs text-white/55">
-                              <Star className={cn("w-4 h-4", enhanceOn ? "text-[#CDFF00]" : "text-white/35")} />
-                              <span style={{ fontFamily: "var(--font-space-grotesk), var(--font-body)" }}>
-                                {isCreateHiggs ? "Enhance on" : `Улучшение: ${enhanceOn ? "Вкл" : "Выкл"}`}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setEnhanceOn((v) => !v)}
-                              disabled={isStarting}
-                              className={cn(
-                                "h-8 px-3 rounded-full border text-xs font-semibold transition-colors",
-                                enhanceOn
-                                  ? "bg-[#CDFF00]/15 text-[#CDFF00] border-[#CDFF00]/25 hover:bg-[#CDFF00]/20"
-                                  : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10",
-                                isStarting && "opacity-60 cursor-not-allowed"
-                              )}
-                            >
-                              {enhanceOn ? "On" : "Off"}
-                            </button>
-                          </div>
-
                           {isCreateHiggs ? (
                             <div className="flex items-center justify-between gap-3 pt-2">
                               <div className="min-w-0">
                                 <div className="inline-flex items-center gap-2 text-sm font-semibold text-white/85">
-                                  Multi-shot mode
+                                  Мультикадровый режим
                                   <Info className="w-4 h-4 text-white/35" />
                                 </div>
                               </div>
@@ -1797,7 +1798,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                     "opacity-60 cursor-not-allowed"
                                 )}
                               >
-                                {multiShot ? "On" : "Off"}
+                                {multiShot ? "Вкл" : "Выкл"}
                               </button>
                             </div>
                           ) : null}
@@ -1930,15 +1931,25 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                               : "bg-[#2C2C2E] text-[#6B6B6E] cursor-not-allowed"
                           )}
                         >
-                          {modelId === "kling-motion-control" || isCreateHiggs ? "Generate" : "Сгенерировать"}
+                          Генерировать
                           <span className="inline-flex items-center gap-1">
                             <Star className="w-4 h-4" />
                             {priceStars}
                           </span>
                         </button>
                       )}
-                      <div className="mt-2 text-[11px] text-white/45">
-                        {audio ? "Со звуком" : "Без звука"} • Стоимость зависит от качества
+                      <div className="mt-2 flex items-center justify-center gap-2 text-[11px] text-white/45">
+                        <span>
+                          Баланс: <span className={balance < priceStars ? "text-red-400 font-medium" : "text-white/70"}>{balance}</span> ⭐
+                        </span>
+                        <span className="text-white/20">•</span>
+                        <span>{audio ? "Со звуком" : "Без звука"}</span>
+                        {balance < priceStars && (
+                          <>
+                            <span className="text-white/20">•</span>
+                            <Link href="/pricing" className="text-[#CDFF00] hover:underline">Пополнить</Link>
+                          </>
+                        )}
                       </div>
                     </div>
                 </div>
@@ -1948,8 +1959,8 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
               <div className="p-4 h-full overflow-y-auto min-h-0">
                 {isCreateHiggs && tool === "create" && modelId !== "kling-motion-control" && modelId !== "kling-o1-edit" ? (
                   <div className="relative h-full">
-                    {/* Top controls: History | How it works | Fullscreen + menu */}
-                    <div className="flex items-center justify-between gap-3 pb-3">
+                    {/* Top controls: History | How it works | Fullscreen + menu - desktop only (mobile has its own buttons) */}
+                    <div className="hidden lg:flex items-center justify-between gap-3 pb-3">
                       <button
                         type="button"
                         onClick={() => {
@@ -1960,7 +1971,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         className="inline-flex items-center gap-2 text-sm font-semibold text-white/85 hover:text-white transition-colors"
                       >
                         <Clock className="w-4 h-4 text-white/60" />
-                        History
+                        История
                       </button>
 
                       <button
@@ -1969,7 +1980,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         className="inline-flex items-center gap-2 text-sm font-semibold text-white/70 hover:text-white transition-colors"
                       >
                         <HelpCircle className="w-4 h-4 text-white/55" />
-                        How it works
+                        Как это работает
                       </button>
 
                       <div className="flex items-center gap-2">
@@ -1981,15 +1992,15 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                             if (anyEl?.requestFullscreen) anyEl.requestFullscreen().catch(() => {});
                           }}
                           className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-                          title="Fullscreen"
+                          title="На весь экран"
                         >
                           <Maximize2 className="w-4 h-4 text-white/70" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => toast.message("Menu coming soon")}
+                          onClick={() => toast.message("Меню скоро будет")}
                           className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-                          title="Menu"
+                          title="Меню"
                         >
                           <MoreHorizontal className="w-4 h-4 text-white/70" />
                         </button>
@@ -1999,7 +2010,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                     {/* Two main previews */}
                     <div className="pt-4 pb-24">
                       <div id="video-higgsfield-primary-preview" className="max-w-[490px] mx-auto">
-                        <HiggsfieldVideoPreview
+                        <VideoPreview
                           job={focusedJob}
                           size="primary"
                           onFocus={() => {
@@ -2012,7 +2023,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                       <div className="h-24" />
 
                       <div className="max-w-[280px] mx-auto">
-                        <HiggsfieldVideoPreview
+                        <VideoPreview
                           job={secondaryJob}
                           size="secondary"
                           onFocus={() => {
@@ -2034,7 +2045,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         )}
                       >
                         <List className="w-4 h-4" />
-                        List
+                        Список
                       </button>
                       <button
                         type="button"
@@ -2045,7 +2056,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         )}
                       >
                         <LayoutGrid className="w-4 h-4" />
-                        Grid
+                        Сетка
                       </button>
                     </div>
 
@@ -2128,7 +2139,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                               <div className="text-center px-6">
                                 <Loader2 className="w-8 h-8 text-[#CDFF00] animate-spin mx-auto" />
                                 <div className="mt-3 text-sm text-white/80">
-                                  {focusedJob.status === "queued" ? "В очереди…" : "Генерация…"}
+                                  {getProgressStage(focusedJob.progress || 0, focusedJob.status)}
                                 </div>
                                 <div className="mt-2 h-2 w-64 max-w-[70vw] rounded-full bg-white/10 overflow-hidden mx-auto">
                                   <div
@@ -2142,11 +2153,23 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                           ) : focusedJob && (focusedJob.status === "failed" || focusedJob.status === "cancelled") ? (
                             <div className="w-full h-full flex items-center justify-center bg-black">
                               <div className="text-center px-6">
-                                <div className={cn("text-sm", focusedJob.status === "cancelled" ? "text-white/70" : "text-red-300")}>
-                                  {focusedJob.status === "cancelled" ? "Генерация отменена" : "Ошибка генерации"}
+                                <div className={cn(
+                                  "w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center",
+                                  focusedJob.status === "cancelled" ? "bg-white/10" : "bg-red-500/15"
+                                )}>
+                                  {focusedJob.status === "cancelled" ? (
+                                    <X className="w-6 h-6 text-white/60" />
+                                  ) : (
+                                    <AlertCircle className="w-6 h-6 text-red-400" />
+                                  )}
                                 </div>
-                                <div className="mt-2 text-xs text-white/45">
-                                  {focusedJob.error || (focusedJob.status === "cancelled" ? "Отменено пользователем" : "Неизвестная ошибка")}
+                                <div className={cn("text-sm font-semibold", focusedJob.status === "cancelled" ? "text-white/70" : "text-red-300")}>
+                                  {focusedJob.status === "cancelled" ? "Генерация отменена" : getErrorMessage(focusedJob.error)}
+                                </div>
+                                <div className="mt-2 text-xs text-white/45 max-w-[240px] mx-auto">
+                                  {focusedJob.status === "cancelled" 
+                                    ? "Отменено пользователем" 
+                                    : "Попробуйте изменить промпт или настройки"}
                                 </div>
                                 <button
                                   type="button"
@@ -2207,11 +2230,23 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                     {/* Feed below */}
                     <div className="mt-4">
                       {visibleJobs.length === 0 ? (
-                        <div className="text-xs text-white/45">
-                          Здесь появятся ваши видео. Полная история — в библиотеке.
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                            <Film className="w-8 h-8 text-white/30" />
+                          </div>
+                          <div className="text-sm font-semibold text-white/80">Создайте первое видео</div>
+                          <div className="mt-1 text-xs text-white/45 max-w-[200px]">
+                            Опишите сцену в промпте и нажмите Сгенерировать
+                          </div>
+                          <a 
+                            href="/blog/sozdanie-video-ii-prompty-veo-kling-sora" 
+                            className="mt-4 text-xs text-[#CDFF00] hover:underline"
+                          >
+                            Смотреть примеры промптов
+                          </a>
                         </div>
                       ) : (
-                        <div className={cn(historyView === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3")}>
+                        <div className={cn(historyView === "grid" ? "grid grid-cols-3 gap-2" : "space-y-2")}>
                           {visibleJobs.map((job) => {
                             const active = focusedJob?.localId === job.localId;
                             return (
@@ -2223,15 +2258,15 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                   setShowDetails(true);
                                 }}
                                 className={cn(
-                                  "w-full text-left rounded-2xl border bg-black/20 hover:bg-black/30 transition-colors overflow-hidden",
+                                  "w-full text-left rounded-xl border bg-black/20 hover:bg-black/30 transition-colors overflow-hidden",
                                   active ? "border-[#CDFF00]/40 ring-1 ring-[#CDFF00]/20" : "border-white/10"
                                 )}
                               >
-                                <div className={cn("p-3", historyView === "list" && "flex items-start gap-3")}>
+                                <div className={cn("p-2", historyView === "list" && "flex items-start gap-2")}>
                                   <div
                                     className={cn(
-                                      "rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center shrink-0",
-                                      historyView === "grid" ? "w-full aspect-video" : "w-32 aspect-video"
+                                      "rounded-lg overflow-hidden border border-white/10 bg-black flex items-center justify-center shrink-0",
+                                      historyView === "grid" ? "w-full aspect-video" : "w-24 aspect-video"
                                     )}
                                   >
                                     {job.status === "success" && job.resultUrl ? (
@@ -2248,26 +2283,26 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                         }}
                                       />
                                     ) : job.status === "failed" ? (
-                                      <X className="w-5 h-5 text-red-400" />
+                                      <X className="w-4 h-4 text-red-400" />
                                     ) : (
-                                      <Loader2 className="w-5 h-5 text-white/40 animate-spin" />
+                                      <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
                                     )}
                                   </div>
 
-                                  <div className={cn("min-w-0", historyView === "list" ? "flex-1" : "mt-3")}>
-                                    <div className="flex items-center justify-between gap-2">
+                                  <div className={cn("min-w-0", historyView === "list" ? "flex-1" : "mt-2")}>
+                                    <div className="flex items-center justify-between gap-1">
                                       <span
                                         className={cn(
-                                          "inline-flex items-center h-5 px-2 rounded-full border text-[11px] font-semibold",
+                                          "inline-flex items-center h-4 px-1.5 rounded-full border text-[9px] font-semibold",
                                           statusBadgeClass(job.status)
                                         )}
                                       >
                                         {statusLabel(job.status)}
                                       </span>
-                                      <span className="text-[11px] text-white/35">{formatTime(job.createdAt)}</span>
+                                      <span className="text-[9px] text-white/35">{formatTime(job.createdAt)}</span>
                                     </div>
-                                    <div className="mt-2 text-xs text-white/85 line-clamp-3">{job.params.prompt}</div>
-                                    <div className="mt-2 text-[11px] text-white/45">
+                                    <div className="mt-1 text-[11px] text-white/85 line-clamp-2">{job.params.prompt}</div>
+                                    <div className="mt-1 text-[9px] text-white/45 truncate">
                                       {job.params.mode.toUpperCase()}
                                       {job.params.duration ? ` • ${job.params.duration}с` : ""}
                                       {job.params.resolution ? ` • ${job.params.resolution}` : ""}
@@ -2275,7 +2310,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                       {job.params.aspectRatio ? ` • ${aspectLabel(String(job.params.aspectRatio))}` : ""}
                                       {job.params.model === "wan"
                                         ? job.params.soundPreset
-                                          ? ` • 🔊 ${job.params.soundPreset}`
+                                          ? ` • 🔊`
                                           : " • 🔇"
                                         : job.params.audio
                                           ? " • 🔊"
@@ -2283,8 +2318,8 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                     </div>
 
                                     {job.status === "queued" || job.status === "processing" ? (
-                                      <div className="mt-3 space-y-2">
-                                        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                      <div className="mt-2 space-y-1.5">
+                                        <div className="h-1 rounded-full bg-white/10 overflow-hidden">
                                           <div
                                             className={cn("h-full rounded-full", progressBarClass(job.status))}
                                             style={{ width: `${Math.max(5, Math.min(100, job.progress || 0))}%` }}
@@ -2296,9 +2331,9 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                                             e.stopPropagation();
                                             cancelGeneration(job.localId);
                                           }}
-                                          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-[11px]"
+                                          className="inline-flex items-center gap-1 h-5 px-2 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-[9px]"
                                         >
-                                          <X className="w-3 h-3" />
+                                          <X className="w-2.5 h-2.5" />
                                           Отменить
                                         </button>
                                       </div>
@@ -2487,7 +2522,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                 value={prompt}
                 onChange={setPrompt}
                 disabled={isStarting}
-                placeholder={mode === "t2v" ? "Describe the scene..." : "Describe the motion..."}
+                placeholder={mode === "t2v" ? "Опишите сцену..." : "Опишите движение..."}
                 onSubmit={handleGenerate}
               />
             </div>
@@ -2501,7 +2536,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                 "flex items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors shrink-0",
                 isStarting && "opacity-60 cursor-not-allowed"
               )}
-              title="Settings"
+              title="Настройки"
             >
               <Settings className="w-5 h-5 text-white/70" />
             </button>
@@ -2512,7 +2547,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                 type="button"
                 onClick={() => cancelGeneration(activeJobLocalId)}
                 className="flex items-center justify-center w-14 h-14 rounded-full bg-red-500/20 border-2 border-red-500/40 transition-all shrink-0"
-                title="Cancel"
+                title="Отмена"
               >
                 <X className="w-6 h-6 text-red-400" />
               </button>
@@ -2521,7 +2556,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                 type="button"
                 onClick={handleGenerate}
                 disabled={!canGenerate}
-                title={!canGenerate ? "Fill required fields" : `Generate for ${priceStars} stars`}
+                title={!canGenerate ? "Заполните обязательные поля" : `Генерация за ${priceStars} ⭐`}
                 className={cn(
                   "flex items-center justify-center w-14 h-14 rounded-full font-bold transition-all shrink-0",
                   canGenerate
@@ -2749,29 +2784,29 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
           />
 
           {/* Sheet */}
-          <div className="absolute bottom-0 left-0 right-0 bg-[#18181B] border-t border-[#27272A] rounded-t-3xl max-h-[85vh] overflow-y-auto">
+          <div className="absolute bottom-0 left-0 right-0 bg-[#18181B] border-t border-[#27272A] rounded-t-2xl max-h-[75vh] overflow-y-auto">
             {/* Handle */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-10 h-1 rounded-full bg-white/20" />
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-8 h-1 rounded-full bg-white/20" />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pb-4 border-b border-[#27272A]">
-              <h3 className="text-lg font-semibold text-white">Settings</h3>
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-[#27272A]">
+              <h3 className="text-base font-semibold text-white">Настройки</h3>
               <button
                 type="button"
                 onClick={() => setMobileSettingsOpen(false)}
-                className="p-2 rounded-xl hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
               >
-                <X className="w-5 h-5 text-white/70" />
+                <X className="w-4 h-4 text-white/70" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="p-4 space-y-5">
+            <div className="p-4 space-y-4">
               {/* Model */}
-              <div className="space-y-2">
-                <div className="text-xs text-white/60 uppercase tracking-wider">Model</div>
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-white/50 uppercase tracking-wider">Модель</div>
                 <select
                   value={modelId}
                   onChange={(e) => {
@@ -2780,7 +2815,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                     router.replace(`/create/studio?${qs.toString()}`);
                   }}
                   disabled={isStarting}
-                  className="w-full h-12 px-4 rounded-2xl bg-white/5 border border-white/10 text-base text-white focus:outline-none focus:border-[#CDFF00]"
+                  className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#CDFF00]"
                 >
                   {availableModels.map((m) => (
                     <option key={m.id} value={m.id} className="bg-[#1a1a1a]">
@@ -2791,9 +2826,9 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
               </div>
 
               {/* Mode */}
-              <div className="space-y-2">
-                <div className="text-xs text-white/60 uppercase tracking-wider">Mode</div>
-                <div className="flex gap-2">
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-white/50 uppercase tracking-wider">Режим</div>
+                <div className="flex gap-1.5">
                   {supportedModes.map((m) => (
                     <button
                       key={m}
@@ -2808,7 +2843,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                       }}
                       disabled={isStarting}
                       className={cn(
-                        "flex-1 h-11 rounded-xl border text-sm font-semibold transition-colors",
+                        "flex-1 h-9 rounded-lg border text-xs font-semibold transition-colors",
                         mode === m
                           ? "bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]"
                           : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
@@ -2821,9 +2856,9 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
               </div>
 
               {/* Aspect Ratio */}
-              <div className="space-y-2">
-                <div className="text-xs text-white/60 uppercase tracking-wider">Ratio</div>
-                <div className="flex gap-2 flex-wrap">
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-white/50 uppercase tracking-wider">Формат</div>
+                <div className="flex gap-1.5 flex-wrap">
                   {aspectOptions.map((a) => (
                     <button
                       key={a}
@@ -2831,12 +2866,13 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                       onClick={() => setAspectRatio(a as StudioAspect)}
                       disabled={isStarting}
                       className={cn(
-                        "h-10 px-4 rounded-xl border text-sm font-semibold transition-colors",
+                        "h-8 px-3 rounded-lg border text-xs font-semibold transition-colors flex items-center gap-2",
                         aspectRatio === a
                           ? "bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]"
                           : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
                       )}
                     >
+                      <AspectRatioIcon ratio={a} active={aspectRatio === a} />
                       {aspectLabel(a)}
                     </button>
                   ))}
@@ -2845,9 +2881,9 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
 
               {/* Quality / Resolution */}
               {resolutionOptions.length ? (
-                <div className="space-y-2">
-                  <div className="text-xs text-white/60 uppercase tracking-wider">Quality</div>
-                  <div className="flex gap-2 flex-wrap">
+                <div className="space-y-1.5">
+                  <div className="text-[10px] text-white/50 uppercase tracking-wider">Качество</div>
+                  <div className="flex gap-1.5 flex-wrap">
                     {resolutionOptions.map((r) => (
                       <button
                         key={r}
@@ -2855,7 +2891,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         onClick={() => setResolution(r)}
                         disabled={isStarting}
                         className={cn(
-                          "h-10 px-4 rounded-xl border text-sm font-semibold transition-colors",
+                          "h-8 px-3 rounded-lg border text-xs font-semibold transition-colors",
                           resolution === r
                             ? "bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]"
                             : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
@@ -2870,9 +2906,9 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
 
               {/* Duration */}
               {durationOptions.length ? (
-                <div className="space-y-2">
-                  <div className="text-xs text-white/60 uppercase tracking-wider">Duration</div>
-                  <div className="flex gap-2 flex-wrap">
+                <div className="space-y-1.5">
+                  <div className="text-[10px] text-white/50 uppercase tracking-wider">Длина</div>
+                  <div className="flex gap-1.5 flex-wrap">
                     {durationOptions.map((d) => (
                       <button
                         key={d}
@@ -2880,7 +2916,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         onClick={() => setDuration(d)}
                         disabled={isStarting || !!selectedModel.fixedDuration}
                         className={cn(
-                          "h-10 px-4 rounded-xl border text-sm font-semibold transition-colors",
+                          "h-8 px-3 rounded-lg border text-xs font-semibold transition-colors",
                           String(duration) === String(d)
                             ? "bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]"
                             : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
@@ -2895,13 +2931,13 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
 
               {/* Frame uploads - only when mode requires it */}
               {(mode === "i2v" || mode === "start_end") && modelId !== "kling-motion-control" && modelId !== "kling-o1-edit" ? (
-                <div className="space-y-3">
-                  <div className="text-xs text-white/60 uppercase tracking-wider">Frames</div>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <div className="text-[10px] text-white/50 uppercase tracking-wider">Кадры</div>
+                  <div className="grid grid-cols-2 gap-2">
                     <FrameTile
                       kind="start"
-                      title="Start frame"
-                      subtitle="Optional"
+                      title="Старт"
+                      subtitle="Опционально"
                       required={false}
                       value={startFrame}
                       disabled={isStarting}
@@ -2911,8 +2947,8 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                     {supportedModes.includes("start_end") ? (
                       <FrameTile
                         kind="end"
-                        title="End frame"
-                        subtitle="Optional"
+                        title="Конец"
+                        subtitle="Опционально"
                         required={false}
                         value={endFrame}
                         disabled={isStarting}
@@ -2958,7 +2994,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
                         : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10"
                     )}
                   >
-                    {audio ? "On" : "Off"}
+                    {audio ? "Вкл" : "Выкл"}
                   </button>
                 </div>
               ) : null}
@@ -2990,153 +3026,7 @@ export function VideoStudio({ initialPrompt = "" }: { initialPrompt?: string }) 
   );
 }
 
-function ChipGroup({
-  label,
-  value,
-  options,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-0.5 px-1 py-1 bg-white/5 border border-white/10 rounded-xl">
-      <span className="hidden sm:inline text-[10px] text-white/40 px-1.5">{label}</span>
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          disabled={disabled}
-          className={cn(
-            "px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200",
-            opt.value === value
-              ? "bg-[#CDFF00] text-black shadow-sm shadow-[#CDFF00]/20 ring-1 ring-[#CDFF00]/30"
-              : "bg-transparent text-white/60 hover:bg-white/10 hover:text-white",
-            disabled && "opacity-60 cursor-not-allowed"
-          )}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function FrameTile({
-  kind,
-  title,
-  subtitle,
-  value,
-  required,
-  disabled,
-  onFile,
-  onClear,
-  error,
-}: {
-  kind: "start" | "end";
-  title: string;
-  subtitle: string;
-  value: string | null;
-  required: boolean;
-  disabled?: boolean;
-  onFile: (file: File, kind: "start" | "end") => Promise<void> | void;
-  onClear: () => void;
-  error?: string;
-}) {
-  const id = `video-frame-tile-${kind}`;
-  const isSelected = !!value;
-
-  return (
-    <div className="relative min-w-[210px] flex-1">
-      <input
-        id={id}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        className="hidden"
-        disabled={disabled}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onFile(f, kind);
-          e.currentTarget.value = "";
-        }}
-      />
-
-      <label
-        htmlFor={id}
-        className={cn(
-          "group relative block rounded-3xl border border-dashed transition-colors cursor-pointer overflow-hidden",
-          "min-h-[170px]",
-          error && !isSelected
-            ? "border-red-500/35 bg-white/5 hover:bg-white/7"
-            : isSelected
-              ? "border-[#CDFF00]/30 bg-white/6 hover:bg-white/7"
-              : "border-white/10 bg-white/5 hover:bg-white/7",
-          disabled && "opacity-60 cursor-not-allowed",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-        )}
-        title={value ? `${title}: загружено` : `${title}: загрузить`}
-      >
-        {/* subtle preview tint when selected */}
-        {isSelected ? (
-          <div className="absolute inset-0 opacity-[0.18]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value!} alt={title} className="w-full h-full object-cover" />
-          </div>
-        ) : null}
-        {isSelected ? (
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/45" />
-        ) : null}
-
-        <div className="relative p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div
-              className={cn(
-                "inline-flex items-center justify-center w-11 h-11 rounded-full border",
-                isSelected ? "bg-[#CDFF00]/10 border-[#CDFF00]/22" : "bg-white/5 border-white/10"
-              )}
-            >
-              {isSelected ? (
-                <IconCheck className="w-[18px] h-[18px] text-[#CDFF00]" />
-              ) : (
-                <IconPlus className="w-[18px] h-[18px] text-white/55" />
-              )}
-            </div>
-
-            {isSelected && !disabled ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onClear();
-                }}
-                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/25 hover:bg-black/35 border border-white/10 transition-colors"
-                title="Убрать"
-              >
-                <IconClose className="w-4 h-4 text-white/70" />
-              </button>
-            ) : (
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/20 border border-white/10">
-                <IconImageAdd className="w-[16px] h-[16px] text-white/35" />
-              </div>
-            )}
-          </div>
-
-          <div className="mt-6">
-            <div className="text-[15px] font-semibold text-white/90 leading-snug line-clamp-2">{title}</div>
-            <div className="mt-2 text-sm text-white/45 leading-snug line-clamp-2">{subtitle}</div>
-          </div>
-        </div>
-      </label>
-    </div>
-  );
-}
-
+// RefVideoTile is kept inline for now (only used once)
 function RefVideoTile({
   title,
   subtitle,
@@ -3235,270 +3125,6 @@ function RefVideoTile({
           </div>
         </div>
       </label>
-    </div>
-  );
-}
-
-type UploadTileKind = "motion" | "character" | "editVideo" | "editImage";
-
-function HiggsfieldVideoPreview({
-  job,
-  size,
-  onFocus,
-}: {
-  job: VideoJobCard | null;
-  size: "primary" | "secondary";
-  onFocus: () => void;
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const canPlay = !!job?.resultUrl && job.status === "success";
-  const aspect = size === "primary" ? "490 / 280" : "280 / 310";
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        onFocus();
-        if (!canPlay) return;
-        const v = videoRef.current;
-        if (!v) return;
-        if (isPlaying) {
-          v.pause();
-          return;
-        }
-        v.play().catch(() => {});
-      }}
-      className={cn(
-        "group relative w-full rounded-2xl overflow-hidden border border-white/10 bg-black transition-colors",
-        "hover:border-white/20 hover:bg-black/80",
-        "cursor-pointer text-left"
-      )}
-      style={{ aspectRatio: aspect }}
-      aria-label={canPlay ? "Play video" : "Video preview"}
-    >
-      {canPlay ? (
-        <video
-          ref={videoRef}
-          src={job!.resultUrl!}
-          playsInline
-          muted
-          className="absolute inset-0 w-full h-full object-cover"
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-black to-[#111]" />
-      )}
-
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/35 via-black/10 to-black/20" />
-
-      {!isPlaying ? (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-black/40 border border-white/15 flex items-center justify-center group-hover:bg-black/55 group-hover:border-white/25 transition-colors">
-            <Play className="w-8 h-8 text-white fill-white translate-x-[1px]" />
-          </div>
-        </div>
-      ) : null}
-    </button>
-  );
-}
-
-function UploadTile({
-  kind,
-  variant = "default",
-  title,
-  subtitle,
-  value,
-  required,
-  accept,
-  disabled,
-  onFile,
-  onClear,
-}: {
-  kind: UploadTileKind;
-  variant?: "default" | "motion-control";
-  title: string;
-  subtitle: string;
-  value: string | null;
-  required: boolean;
-  accept: string;
-  disabled?: boolean;
-  onFile: (file: File, kind: UploadTileKind) => Promise<void> | void;
-  onClear: () => void;
-}) {
-  const id = `video-upload-tile-${kind}`;
-  const isVideo = kind === "motion" || kind === "editVideo";
-  const isSelected = !!value;
-  const isMotionControlSquare = variant === "motion-control" && (kind === "motion" || kind === "character");
-
-  return (
-    <div className="relative">
-      <input
-        id={id}
-        type="file"
-        accept={accept}
-        className="hidden"
-        disabled={disabled}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onFile(f, kind);
-          e.currentTarget.value = "";
-        }}
-      />
-
-      <label
-        htmlFor={id}
-        className={cn(
-          "group relative block transition-colors cursor-pointer overflow-hidden",
-          isMotionControlSquare ? "rounded-2xl border aspect-square" : "rounded-3xl border border-dashed min-h-[170px]",
-          isSelected ? "border-[#CDFF00]/35 bg-white/6 hover:bg-white/7" : "border-white/10 bg-white/5 hover:bg-white/7",
-          disabled && "opacity-60 cursor-not-allowed",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-        )}
-      >
-        {/* subtle preview tint when selected */}
-        {isSelected ? (
-          <div className="absolute inset-0 opacity-[0.14]">
-            {isVideo ? (
-              <video src={value!} muted playsInline className="w-full h-full object-cover" />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={value!} alt={title} className="w-full h-full object-cover" />
-            )}
-          </div>
-        ) : null}
-        {isSelected ? (
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/45" />
-        ) : null}
-
-        <div className={cn("relative", isMotionControlSquare ? "p-4" : "p-5")}>
-          <div className="flex items-start justify-between gap-3">
-            <div
-              className={cn(
-                "inline-flex items-center justify-center w-11 h-11 rounded-full border",
-                isSelected ? "bg-[#CDFF00]/10 border-[#CDFF00]/22" : "bg-white/5 border-white/10"
-              )}
-            >
-              {isSelected ? (
-                <IconCheck className="w-[18px] h-[18px] text-[#CDFF00]" />
-              ) : isVideo ? (
-                <IconVideoCam className="w-[18px] h-[18px] text-white/55" />
-              ) : (
-                <IconImageAdd className="w-[18px] h-[18px] text-white/55" />
-              )}
-            </div>
-
-            {isSelected && !disabled ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onClear();
-                }}
-                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/25 hover:bg-black/35 border border-white/10 transition-colors"
-                title="Убрать"
-              >
-                <IconClose className="w-4 h-4 text-white/70" />
-              </button>
-            ) : (
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/20 border border-white/10">
-                {isVideo ? (
-                  <IconVideoCam className="w-[16px] h-[16px] text-white/35" />
-                ) : (
-                  <IconImageAdd className="w-[16px] h-[16px] text-white/35" />
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className={cn(isMotionControlSquare ? "mt-5" : "mt-6")}>
-            <div className={cn(isMotionControlSquare ? "text-[13px]" : "text-[15px]", "font-semibold text-white/90 leading-snug line-clamp-2")}>
-              {title}
-            </div>
-            <div className={cn(isMotionControlSquare ? "mt-1 text-[12px]" : "mt-2 text-sm", "text-white/45 leading-snug line-clamp-2")}>
-              {subtitle}
-            </div>
-          </div>
-        </div>
-      </label>
-    </div>
-  );
-}
-
-function PromptTextarea({
-  value,
-  onChange,
-  disabled,
-  placeholder,
-  onSubmit,
-  autoFocus,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-  onSubmit?: () => void;
-  autoFocus?: boolean;
-}) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    ref.current.style.height = "auto";
-    ref.current.style.height = `${ref.current.scrollHeight}px`;
-  }, [value]);
-
-  useEffect(() => {
-    if (!autoFocus) return;
-    if (disabled) return;
-    const t = window.setTimeout(() => {
-      try {
-        ref.current?.focus();
-        const el = ref.current;
-        if (el) {
-          const len = el.value.length;
-          el.setSelectionRange(len, len);
-        }
-      } catch {}
-    }, 50);
-    return () => window.clearTimeout(t);
-  }, [autoFocus, disabled]);
-
-  return (
-    <div className="relative flex-1">
-      <textarea
-        ref={ref}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-            e.preventDefault();
-            onSubmit?.();
-          }
-        }}
-        placeholder={placeholder || "Опишите то, что хотите получить..."}
-        disabled={disabled}
-        rows={3}
-        className={cn(
-          "w-full px-4 py-3 pr-10 pb-8 rounded-xl resize-none overflow-hidden",
-          "bg-white/5 text-white placeholder:text-white/40",
-          "border border-white/10 focus:border-[#CDFF00] focus:outline-none",
-          "transition-all duration-200",
-          "min-h-[80px] max-h-[200px]",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
-        aria-label="Промпт для генерации видео"
-      />
-      <Film className="absolute right-3 top-3 w-5 h-5 text-white/25 pointer-events-none" />
-      {onSubmit ? (
-        <div className="absolute bottom-2.5 right-3 text-[10px] text-white/35 pointer-events-none">
-          Ctrl+Enter
-        </div>
-      ) : null}
     </div>
   );
 }

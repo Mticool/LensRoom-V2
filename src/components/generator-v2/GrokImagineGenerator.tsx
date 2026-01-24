@@ -38,7 +38,7 @@ export function GrokImagineGenerator() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   
   const historyModelId = filterModel === 'all' ? undefined : filterModel;
-  const { history, isLoading: historyLoading, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
+  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
   const credits = authCredits;
   const estimatedCost = COST_PER_IMAGE * quantity;
 
@@ -169,7 +169,13 @@ export function GrokImagineGenerator() {
       <div className="container mx-auto px-4 pt-8">
         <div className="max-w-7xl mx-auto">
           {allImages.length > 0 ? (
-            <ImageGalleryMasonry images={allImages} isGenerating={isGenerating} />
+            <ImageGalleryMasonry 
+              images={allImages} 
+              isGenerating={isGenerating}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
+              isLoadingMore={isLoadingMore}
+            />
           ) : (
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center max-w-md">

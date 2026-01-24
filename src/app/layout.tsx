@@ -294,11 +294,12 @@ export default function RootLayout({
         <meta name="revisit-after" content="3 days" />
         <meta name="rating" content="general" />
         
-        {/* PWA iOS Support */}
+        {/* PWA Support */}
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LensRoom" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         
         {/* Splash screens for iOS (optional - добавить позже) */}
         {/* <link rel="apple-touch-startup-image" href="/splash.png" /> */}

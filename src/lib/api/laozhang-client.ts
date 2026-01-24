@@ -1,14 +1,5 @@
-// ===== LAOZHANG API CLIENT =====
-// Documentation: https://docs.laozhang.ai/en/api-manual
-// OpenAI-compatible endpoint for Nano Banana / Nano Banana Pro
-//
-// Models:
-// - Nano Banana: gemini-2.5-flash-image-preview (text-to-image)
-// - Nano Banana Pro: gemini-3-pro-image-preview (text-to-image)
-// - Nano Banana Edit: nano-banana-image-edit (image editing)
-// - Nano Banana Pro Edit: gemini-3-pro-image-edit (image editing)
-//
-// Endpoint: https://api.laozhang.ai/v1/images/generations
+// ===== VIDEO API CLIENT =====
+// Internal API client for video generation services
 
 import { env } from "@/lib/env";
 
@@ -185,7 +176,7 @@ export class LaoZhangClient {
     const key = apiKey || env.optional("LAOZHANG_API_KEY");
     if (!key) {
       throw new Error(
-        "LAOZHANG_API_KEY is not configured. Please add it to .env.local"
+        "Сервис генерации видео временно недоступен. Попробуйте позже."
       );
     }
     this.apiKey = key;
@@ -215,7 +206,7 @@ export class LaoZhangClient {
       body.response_format = request.response_format;
     }
 
-    console.log("[LaoZhang] Request:", JSON.stringify(body));
+    console.log("[Video API] Request:", JSON.stringify(body));
 
     const response = await fetch(`${this.baseUrl}/images/generations`, {
       method: "POST",
@@ -227,9 +218,9 @@ export class LaoZhangClient {
     });
 
     const responseText = await response.text();
-    console.log("[LaoZhang] Response status:", response.status);
+    console.log("[Video API] Response status:", response.status);
     console.log(
-      "[LaoZhang] Response preview:",
+      "[Video API] Response preview:",
       responseText.substring(0, 500)
     );
 
@@ -241,12 +232,12 @@ export class LaoZhangClient {
       } catch {
         errorMessage = responseText || response.statusText;
       }
-      throw new Error(`LaoZhang API error: ${errorMessage}`);
+      throw new Error(`Video API error: ${errorMessage}`);
     }
 
     try {
       const result = JSON.parse(responseText);
-      console.log("[LaoZhang] Parsed response:", {
+      console.log("[Video API] Parsed response:", {
         created: result.created,
         dataLength: result.data?.length,
         hasUrl: !!result.data?.[0]?.url,
@@ -254,9 +245,9 @@ export class LaoZhangClient {
       });
       return result;
     } catch (parseErr) {
-      console.error("[LaoZhang] Failed to parse response:", parseErr);
+      console.error("[Video API] Failed to parse response:", parseErr);
       throw new Error(
-        `LaoZhang API returned invalid JSON: ${responseText.substring(0, 200)}`
+        `Video API returned invalid JSON: ${responseText.substring(0, 200)}`
       );
     }
   }
@@ -268,7 +259,7 @@ export class LaoZhangClient {
   async editImage(
     request: LaoZhangImageEditRequest
   ): Promise<LaoZhangImageResponse> {
-    console.log("[LaoZhang Edit] Request:", {
+    console.log("[Video API Edit] Request:", {
       model: request.model,
       prompt: request.prompt.substring(0, 50),
       hasImage: !!request.image,
@@ -304,7 +295,7 @@ export class LaoZhangClient {
           const imageBlob = await imageResponse.blob();
           formData.append("image", imageBlob, "image.png");
         } catch (fetchError) {
-          console.error("[LaoZhang Edit] Failed to fetch image URL:", fetchError);
+          console.error("[Video API Edit] Failed to fetch image URL:", fetchError);
           throw new Error("Failed to fetch reference image");
         }
       } else {
@@ -339,7 +330,7 @@ export class LaoZhangClient {
     });
 
     const responseText = await response.text();
-    console.log("[LaoZhang Edit] Response status:", response.status);
+    console.log("[Video API Edit] Response status:", response.status);
 
     if (!response.ok) {
       let errorMessage = response.statusText;
@@ -349,7 +340,7 @@ export class LaoZhangClient {
       } catch {
         errorMessage = responseText || response.statusText;
       }
-      throw new Error(`LaoZhang Edit API error: ${errorMessage}`);
+      throw new Error(`Video API Edit error: ${errorMessage}`);
     }
 
     return JSON.parse(responseText);
@@ -397,7 +388,7 @@ export class LaoZhangClient {
       }
       
       messageContent = contentParts;
-      console.log("[LaoZhang Video] Using i2v/start_end mode with images:", {
+      console.log("[Video API] Using i2v/start_end mode with images:", {
         hasStart: !!params.startImageUrl,
         hasEnd: !!params.endImageUrl
       });
@@ -413,7 +404,7 @@ export class LaoZhangClient {
       ],
     };
 
-    console.log("[LaoZhang Video] Request:", JSON.stringify({
+    console.log("[Video API] Request:", JSON.stringify({
       model: params.model,
       hasStartImage: !!params.startImageUrl,
       hasEndImage: !!params.endImageUrl,
@@ -430,7 +421,7 @@ export class LaoZhangClient {
     });
 
     const responseText = await response.text();
-    console.log("[LaoZhang Video] Response status:", response.status);
+    console.log("[Video API] Response status:", response.status);
 
     if (!response.ok) {
       let errorMessage = response.statusText;
@@ -440,7 +431,7 @@ export class LaoZhangClient {
       } catch {
         errorMessage = responseText || response.statusText;
       }
-      throw new Error(`LaoZhang Video API error: ${errorMessage}`);
+      throw new Error(`Video API error: ${errorMessage}`);
     }
 
     const result = JSON.parse(responseText);
@@ -451,11 +442,11 @@ export class LaoZhangClient {
     const videoUrl = urlMatch ? urlMatch[1] : null;
 
     if (!videoUrl) {
-      console.error("[LaoZhang Video] No video URL found in response:", content);
+      console.error("[Video API] No video URL found in response:", content);
       throw new Error("No video URL in response");
     }
 
-    console.log("[LaoZhang Video] Got video URL:", videoUrl);
+    console.log("[Video API] Got video URL:", videoUrl);
 
     return {
       id: result.id,
@@ -478,7 +469,7 @@ export class LaoZhangClient {
       prompt: params.prompt,
     };
 
-    console.log("[LaoZhang Video Async] Request:", JSON.stringify(body));
+    console.log("[Video API Async] Request:", JSON.stringify(body));
 
     const response = await fetch(`${this.baseUrl}/video/generations`, {
       method: "POST",
@@ -492,7 +483,7 @@ export class LaoZhangClient {
     const responseText = await response.text();
 
     if (!response.ok) {
-      throw new Error(`LaoZhang Video API error: ${responseText}`);
+      throw new Error(`Video API error: ${responseText}`);
     }
 
     return JSON.parse(responseText);

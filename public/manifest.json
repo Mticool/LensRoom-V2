@@ -12,6 +12,12 @@
   "categories": ["photo", "video", "productivity", "utilities"],
   "icons": [
     {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "src": "/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
@@ -60,20 +66,6 @@
       "purpose": "maskable any"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshot-wide.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshot-narrow.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "shortcuts": [
     {
       "name": "Создать фото",
@@ -86,7 +78,7 @@
       "name": "Создать видео",
       "short_name": "Видео",
       "description": "Генерация AI видео",
-      "url": "/create/video",
+      "url": "/video",
       "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
     },
     {

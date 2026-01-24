@@ -55,7 +55,7 @@ export function NanoBananaProGenerator() {
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Load history (show all models)
-  const { history, isLoading: historyLoading, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
+  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   
   // Use credits from auth hook
   const credits = authCredits;
@@ -168,11 +168,33 @@ export function NanoBananaProGenerator() {
 
       const data = await response.json();
 
-      // Poll for results
-      if (data.jobId) {
+      // Check if results are immediately available (parallel generation)
+      if (data.status === 'completed' && data.results && data.results.length > 0) {
+        const newImages: GenerationResult[] = data.results.map((result: { url: string }, i: number) => ({
+          id: `${Date.now()}-${i}`,
+          url: result.url,
+          prompt,
+          mode: 'image' as const,
+          settings: {
+            model: 'nano-banana-pro',
+            size: aspectRatio,
+            quality: QUALITY_MAPPING[quality],
+          },
+          timestamp: Date.now(),
+        }));
+
+        setImages(prev => {
+          const filtered = prev.filter(img => !img.id.startsWith('pending-'));
+          return [...newImages, ...filtered];
+        });
+
+        celebrateGeneration();
+        toast.success(`Сгенерировано ${newImages.length} ${newImages.length === 1 ? 'изображение' : 'изображений'}!`);
+      } else if (data.jobId) {
+        // Poll for results (async generation)
         await pollJobStatus(data.jobId, pendingImages.map(img => img.id));
       } else if (data.urls) {
-        // Direct URLs (less likely for Nano Banana Pro)
+        // Direct URLs (legacy format)
         const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
           id: `${Date.now()}-${i}`,
           url,
@@ -317,6 +339,9 @@ export function NanoBananaProGenerator() {
           images={allImages}
           isGenerating={isGenerating}
           onRegenerate={handleRegenerate}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          isLoadingMore={isLoadingMore}
         />
 
         {/* Control Bar (Sticky Bottom) */}
@@ -339,7 +364,7 @@ export function NanoBananaProGenerator() {
           estimatedCost={estimatedCost}
           modelId="nano-banana-pro"
           qualityOptions={['1K', '2K', '4K']}
-          aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4']}
+          aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '4:5', '5:4', '21:9']}
           referenceImage={referenceImage}
           onReferenceImageChange={setReferenceImage}
           onReferenceFileChange={setReferenceFile}

@@ -564,66 +564,66 @@ export async function POST(request: NextRequest) {
     let response: any;
     let usedFallback = false;
     
-    // === LAOZHANG PROVIDER (Veo 3.1, Sora 2) ===
+    // === VIDEO PROVIDER (Veo 3.1, Sora 2) ===
     if (modelInfo.provider === 'laozhang') {
-      console.log('[API] Using LaoZhang provider for video model:', model);
+      console.log('[API] Using video provider for model:', model);
       
       try {
         const { getLaoZhangClient, getLaoZhangVideoModelId } = await import("@/lib/api/laozhang-client");
-        const laozhangClient = getLaoZhangClient();
+        const videoClient = getLaoZhangClient();
         
-        // Select the right LaoZhang model based on aspect ratio and quality
-        const laozhangModelId = getLaoZhangVideoModelId(model, aspectRatio, quality, duration);
+        // Select the right model based on aspect ratio and quality
+        const videoModelId = getLaoZhangVideoModelId(model, aspectRatio, quality, duration);
         
         // Prepare image URLs for i2v / start_end modes
-        let startImageUrlForLaoZhang: string | undefined;
-        let endImageUrlForLaoZhang: string | undefined;
+        let startImageUrlForVideo: string | undefined;
+        let endImageUrlForVideo: string | undefined;
         
         // Handle i2v mode (single reference image)
         if (mode === 'i2v' && imageUrl) {
-          startImageUrlForLaoZhang = imageUrl;
-          console.log('[API] LaoZhang i2v mode with reference image');
+          startImageUrlForVideo = imageUrl;
+          console.log('[API] Video i2v mode with reference image');
         }
         // Handle start_end mode (first + last frame)
         else if (mode === 'start_end') {
-          if (imageUrl) startImageUrlForLaoZhang = imageUrl;
-          if (lastFrameUrl) endImageUrlForLaoZhang = lastFrameUrl;
-          console.log('[API] LaoZhang start_end mode:', {
-            hasStart: !!startImageUrlForLaoZhang,
-            hasEnd: !!endImageUrlForLaoZhang
+          if (imageUrl) startImageUrlForVideo = imageUrl;
+          if (lastFrameUrl) endImageUrlForVideo = lastFrameUrl;
+          console.log('[API] Video start_end mode:', {
+            hasStart: !!startImageUrlForVideo,
+            hasEnd: !!endImageUrlForVideo
           });
         }
         
-        console.log('[API] LaoZhang video request:', {
-          model: laozhangModelId,
+        console.log('[API] Video generation request:', {
+          model: videoModelId,
           originalModel: model,
           aspectRatio,
           quality,
           mode,
-          hasStartImage: !!startImageUrlForLaoZhang,
-          hasEndImage: !!endImageUrlForLaoZhang,
+          hasStartImage: !!startImageUrlForVideo,
+          hasEndImage: !!endImageUrlForVideo,
           prompt: fullPrompt.substring(0, 50),
         });
         
         // Generate video (sync - returns URL directly)
         // Supports t2v, i2v (with startImageUrl), start_end (with both images)
-        const laozhangResponse = await laozhangClient.generateVideo({
-          model: laozhangModelId,
+        const videoGenResponse = await videoClient.generateVideo({
+          model: videoModelId,
           prompt: fullPrompt,
-          startImageUrl: startImageUrlForLaoZhang,
-          endImageUrl: endImageUrlForLaoZhang,
+          startImageUrl: startImageUrlForVideo,
+          endImageUrl: endImageUrlForVideo,
         });
         
         // Upload video to Supabase Storage for permanent storage
-        console.log('[API] LaoZhang video URL:', laozhangResponse.videoUrl);
+        console.log('[API] Video generation URL:', videoGenResponse.videoUrl);
         
         // Download video and upload to our storage
-        const videoResponse = await fetch(laozhangResponse.videoUrl);
+        const videoResponse = await fetch(videoGenResponse.videoUrl);
         if (!videoResponse.ok) {
           throw new Error(`Failed to download video: ${videoResponse.status}`);
         }
         const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-        const fileName = `laozhang_${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
+        const fileName = `video_${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
         const storagePath = `${userId}/${fileName}`;
         
         const { error: uploadError } = await supabase.storage
@@ -642,7 +642,7 @@ export async function POST(request: NextRequest) {
           .from('generations')
           .getPublicUrl(storagePath);
         
-        const finalVideoUrl = uploadError ? laozhangResponse.videoUrl : publicUrlData.publicUrl;
+        const finalVideoUrl = uploadError ? videoGenResponse.videoUrl : publicUrlData.publicUrl;
         
         // Update generation record with success
         await supabase
@@ -659,8 +659,8 @@ export async function POST(request: NextRequest) {
           await supabase.from('generation_runs').insert({
             generation_id: generation?.id,
             user_id: userId,
-            provider: 'laozhang',
-            provider_model: laozhangModelId,
+            provider: 'video',
+            provider_model: videoModelId,
             variant_key: `${quality || 'default'}_${aspectRatio || '16:9'}`,
             stars_charged: creditCost,
             status: 'success',
@@ -669,19 +669,19 @@ export async function POST(request: NextRequest) {
           console.error('[API] Failed to log generation run:', logError);
         }
         
-        // Return completed status (no polling needed for LaoZhang)
+        // Return completed status (no polling needed)
         return NextResponse.json({
           success: true,
           jobId: generation?.id,
           status: 'completed',
           generationId: generation?.id,
-          provider: 'laozhang',
+          provider: 'video',
           kind: 'video',
           creditCost: creditCost,
           results: [{ url: finalVideoUrl }],
         });
-      } catch (laozhangError: any) {
-        console.error('[API] LaoZhang video generation failed:', laozhangError);
+      } catch (videoError: any) {
+        console.error('[API] Video generation failed:', videoError);
         
         // Refund credits on error
         await supabase.rpc('adjust_credits', {
@@ -694,12 +694,12 @@ export async function POST(request: NextRequest) {
           .from('generations')
           .update({
             status: 'failed',
-            error: laozhangError.message || 'LaoZhang API error',
+            error: videoError.message || 'Video generation error',
           })
           .eq('id', generation?.id);
         
         return NextResponse.json(
-          { error: laozhangError.message || 'Failed to generate video' },
+          { error: videoError.message || 'Failed to generate video' },
           { status: 500 }
         );
       }

@@ -220,7 +220,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                 {QUICK_TEMPLATES.map((template, index) => (
                   <Link
                     key={template.id}
-                    href={`/generator?section=image&model=nano-banana-pro&prompt=${encodeURIComponent(template.prompt)}`}
+                    href={`/create/studio?section=image&model=nano-banana-pro&prompt=${encodeURIComponent(template.prompt)}`}
                   >
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -258,7 +258,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                     className="w-full px-6 py-4 pr-32 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent-primary)]/50 transition-colors"
                   />
                   <Link 
-                    href={customPrompt ? `/generator?prompt=${encodeURIComponent(customPrompt)}` : '/create'}
+                    href={customPrompt ? `/create/studio?prompt=${encodeURIComponent(customPrompt)}` : '/create'}
                     className="absolute right-2 top-1/2 -translate-y-1/2"
                   >
                     <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white text-sm font-medium">

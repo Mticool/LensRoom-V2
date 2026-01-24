@@ -501,6 +501,9 @@ export async function POST(request: NextRequest) {
           imageSize = aspectRatioToLaoZhangSize(finalAspectRatio);
         }
         
+        // Number of images to generate (parallel generation)
+        const numVariants = Math.min(Math.max(Number(variants) || 1, 1), 4);
+        
         console.log('[API] LaoZhang request:', { 
           model: laozhangModelId,
           originalModel: modelInfo.apiId,
@@ -509,87 +512,95 @@ export async function POST(request: NextRequest) {
           quality,
           mode,
           hasReference: !!referenceImage,
+          variants: numVariants,
         });
         
-        let laozhangResponse;
+        // Helper function to generate a single image with retries
+        const generateSingleImage = async (index: number): Promise<{ url: string; storagePath: string } | null> => {
+          const maxAttempts = 3;
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              let laozhangResponse;
+              
+              if (mode === 'i2i' && referenceImage) {
+                laozhangResponse = await laozhangClient.editImage({
+                  model: laozhangModelId,
+                  prompt: prompt,
+                  image: referenceImage,
+                  n: 1,
+                  size: imageSize,
+                  response_format: "b64_json",
+                });
+              } else {
+                laozhangResponse = await laozhangClient.generateImage({
+                  model: laozhangModelId,
+                  prompt: prompt,
+                  n: 1,
+                  size: imageSize,
+                  response_format: "b64_json",
+                });
+              }
+
+              const imageUrlFromProvider = laozhangResponse?.data?.[0]?.url;
+              const b64Json = laozhangResponse?.data?.[0]?.b64_json;
+
+              if (!imageUrlFromProvider && !b64Json) {
+                if (attempt < maxAttempts) {
+                  console.warn(`[API] LaoZhang image ${index + 1} empty, retrying (${attempt}/${maxAttempts})...`);
+                  await new Promise((r) => setTimeout(r, 800));
+                  continue;
+                }
+                return null;
+              }
+
+              let sourceBuffer: Buffer;
+              if (b64Json) {
+                sourceBuffer = Buffer.from(b64Json, "base64");
+              } else {
+                const dl = await fetch(imageUrlFromProvider!);
+                if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
+                sourceBuffer = Buffer.from(await dl.arrayBuffer());
+              }
+
+              const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, `laozhang_${index}`, requestedOutputFormat);
+              return { url: uploaded.publicUrl, storagePath: uploaded.storagePath };
+            } catch (err) {
+              if (attempt < maxAttempts) {
+                console.warn(`[API] LaoZhang image ${index + 1} failed, retrying (${attempt}/${maxAttempts})...`, err);
+                await new Promise((r) => setTimeout(r, 800));
+              } else {
+                console.error(`[API] LaoZhang image ${index + 1} failed after ${maxAttempts} attempts:`, err);
+                return null;
+              }
+            }
+          }
+          return null;
+        };
+
+        // Generate all images in parallel
+        console.log(`[API] Starting parallel generation of ${numVariants} images...`);
+        const startTime = Date.now();
         
-        // Check if this is an image-to-image generation with reference
-        const maxAttempts = 3;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          if (mode === 'i2i' && referenceImage) {
-            console.log('[API] LaoZhang i2i mode with reference image');
-            laozhangResponse = await laozhangClient.editImage({
-              model: laozhangModelId,
-              prompt: prompt,
-              image: referenceImage, // URL or base64
-              n: 1,
-              size: imageSize,
-              response_format: "b64_json",
-            });
-          } else {
-            laozhangResponse = await laozhangClient.generateImage({
-              model: laozhangModelId,
-              prompt: prompt,
-              n: 1,
-              size: imageSize,
-              response_format: "b64_json",
-            });
-          }
-
-          const imageUrlFromProviderAttempt = laozhangResponse?.data?.[0]?.url;
-          const b64JsonAttempt = laozhangResponse?.data?.[0]?.b64_json;
-          if (imageUrlFromProviderAttempt || b64JsonAttempt) break;
-
-          console.warn('[API] LaoZhang returned empty data, retrying...', {
-            attempt,
-            maxAttempts,
-            model: laozhangModelId,
-            size: imageSize,
-          });
-          if (attempt < maxAttempts) {
-            await new Promise((r) => setTimeout(r, 800));
-          }
-        }
+        const generationPromises = Array.from({ length: numVariants }, (_, i) => generateSingleImage(i));
+        const results = await Promise.all(generationPromises);
         
-        // Prefer storing to our bucket to keep URLs stable and enforce requested format.
-        const imageUrlFromProvider = laozhangResponse?.data?.[0]?.url;
-        const b64Json = laozhangResponse?.data?.[0]?.b64_json;
+        const successfulResults = results.filter((r): r is { url: string; storagePath: string } => r !== null);
+        
+        console.log(`[API] Parallel generation completed in ${Date.now() - startTime}ms: ${successfulResults.length}/${numVariants} successful`);
 
-        let sourceBuffer: Buffer | null = null;
-        if (b64Json) {
-          sourceBuffer = Buffer.from(b64Json, "base64");
-        } else if (imageUrlFromProvider) {
-          const dl = await fetch(imageUrlFromProvider);
-          if (!dl.ok) {
-            throw new Error(`Failed to download LaoZhang image: ${dl.status}`);
-          }
-          sourceBuffer = Buffer.from(await dl.arrayBuffer());
+        if (successfulResults.length === 0) {
+          throw new Error("All image generations failed");
         }
 
-        if (!sourceBuffer) {
-          console.error("[API] LaoZhang response has no image:", JSON.stringify(laozhangResponse));
-          throw new Error("No image in LaoZhang response");
-        }
-
-        let finalUrl = imageUrlFromProvider;
-        let originalPath: string | null = null;
-        try {
-          const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, "laozhang", requestedOutputFormat);
-          finalUrl = uploaded.publicUrl;
-          originalPath = uploaded.storagePath;
-        } catch (uploadErr: any) {
-          console.error("[API] Failed to upload LaoZhang image to storage:", uploadErr);
-          if (!finalUrl) {
-            throw new Error(uploadErr?.message || "Failed to store generated image");
-          }
-        }
+        const finalUrls = successfulResults.map(r => r.url);
+        const originalPath = successfulResults[0]?.storagePath || null;
 
         // Update generation record with success
         await supabase
           .from("generations")
           .update({
             status: "success",
-            result_urls: finalUrl ? [finalUrl] : [],
+            result_urls: finalUrls,
             original_path: originalPath,
             updated_at: new Date().toISOString(),
           })
@@ -619,7 +630,7 @@ export async function POST(request: NextRequest) {
           provider: 'laozhang',
           kind: 'image',
           creditCost: creditCost,
-          results: finalUrl ? [{ url: finalUrl }] : [],
+          results: finalUrls.map(url => ({ url })),
         });
       } catch (laozhangError: any) {
         console.error('[API] LaoZhang generation failed:', laozhangError);
@@ -685,77 +696,87 @@ export async function POST(request: NextRequest) {
       try {
         const openaiClient = getOpenAIClient();
         
-        // Prepare request parameters
-        // Note: gpt-image-1 does NOT support response_format
-        const openaiRequest: any = {
-          model: modelInfo.apiId,
-          prompt: prompt,
-          n: 1,
-          quality: openaiQuality,
-          size: openaiSize,
-          output_format: openaiOutputFormat,
+        // Number of images to generate (parallel generation)
+        const numVariants = Math.min(Math.max(Number(variants) || 1, 1), 4);
+        
+        console.log('[API] OpenAI request:', { 
+          model: modelInfo.apiId, 
+          quality: openaiQuality, 
+          size: openaiSize, 
+          aspectRatio,
+          variants: numVariants,
+        });
+        
+        // Helper function to generate a single image
+        const generateSingleImage = async (index: number): Promise<{ url: string; storagePath: string } | null> => {
+          try {
+            const openaiRequest: any = {
+              model: modelInfo.apiId,
+              prompt: prompt,
+              n: 1,
+              quality: openaiQuality,
+              size: openaiSize,
+              output_format: openaiOutputFormat,
+            };
+            
+            const openaiResponse = await openaiClient.generateImage(openaiRequest);
+            
+            const imageUrlFromProvider = openaiResponse.data?.[0]?.url;
+            const b64Json = openaiResponse.data?.[0]?.b64_json;
+
+            if (!imageUrlFromProvider && !b64Json) {
+              console.error(`[API] OpenAI image ${index + 1} has no data`);
+              return null;
+            }
+
+            let sourceBuffer: Buffer;
+            if (b64Json) {
+              sourceBuffer = Buffer.from(b64Json, "base64");
+            } else {
+              const dl = await fetch(imageUrlFromProvider!);
+              if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
+              sourceBuffer = Buffer.from(await dl.arrayBuffer());
+            }
+
+            const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, `openai_${index}`, requestedOutputFormat);
+            return { url: uploaded.publicUrl, storagePath: uploaded.storagePath };
+          } catch (err) {
+            console.error(`[API] OpenAI image ${index + 1} failed:`, err);
+            return null;
+          }
         };
-        
-        console.log('[API] OpenAI request:', { model: openaiRequest.model, quality: openaiRequest.quality, size: openaiRequest.size, aspectRatio });
-        
-        const openaiResponse = await openaiClient.generateImage(openaiRequest);
-        
-        // Log full response structure for debugging
-        console.log('[API] OpenAI response structure:', JSON.stringify({
-          hasData: !!openaiResponse.data,
-          dataLength: openaiResponse.data?.length,
-          firstItem: openaiResponse.data?.[0] ? {
-            hasUrl: !!openaiResponse.data[0].url,
-            hasB64: !!openaiResponse.data[0].b64_json,
-            urlPreview: openaiResponse.data[0].url?.substring(0, 100),
-          } : null
-        }));
-        
-        const imageUrlFromProvider = openaiResponse.data[0]?.url;
-        const b64Json = openaiResponse.data[0]?.b64_json;
 
-        let sourceBuffer: Buffer | null = null;
-        if (b64Json) {
-          sourceBuffer = Buffer.from(b64Json, "base64");
-        } else if (imageUrlFromProvider) {
-          const dl = await fetch(imageUrlFromProvider);
-          if (!dl.ok) {
-            throw new Error(`Failed to download OpenAI image: ${dl.status}`);
-          }
-          sourceBuffer = Buffer.from(await dl.arrayBuffer());
+        // Generate all images in parallel
+        console.log(`[API] Starting parallel OpenAI generation of ${numVariants} images...`);
+        const startTime = Date.now();
+        
+        const generationPromises = Array.from({ length: numVariants }, (_, i) => generateSingleImage(i));
+        const results = await Promise.all(generationPromises);
+        
+        const successfulResults = results.filter((r): r is { url: string; storagePath: string } => r !== null);
+        
+        console.log(`[API] Parallel OpenAI generation completed in ${Date.now() - startTime}ms: ${successfulResults.length}/${numVariants} successful`);
+
+        if (successfulResults.length === 0) {
+          throw new Error("All OpenAI image generations failed");
         }
 
-        if (!sourceBuffer) {
-          console.error("[API] OpenAI response has no image:", JSON.stringify(openaiResponse));
-          throw new Error("No image in OpenAI response");
-        }
-
-        let finalUrl = imageUrlFromProvider;
-        let openaiOriginalPath: string | null = null;
-        try {
-          const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, "openai", requestedOutputFormat);
-          finalUrl = uploaded.publicUrl;
-          openaiOriginalPath = uploaded.storagePath;
-        } catch (uploadErr: any) {
-          console.error("[API] Failed to upload OpenAI image to storage:", uploadErr);
-          if (!finalUrl) {
-            throw new Error(uploadErr?.message || "Failed to store generated image");
-          }
-        }
+        const finalUrls = successfulResults.map(r => r.url);
+        const openaiOriginalPath = successfulResults[0]?.storagePath || null;
 
         // Update generation record with success
         await supabase
           .from("generations")
           .update({
             status: "success",
-            result_urls: finalUrl ? [finalUrl] : [],
+            result_urls: finalUrls,
             original_path: openaiOriginalPath,
             updated_at: new Date().toISOString(),
           })
           .eq("id", generation?.id);
         
-        // Log provider cost for analytics
-        const providerCostUsd = getOpenAIProviderCost(openaiQuality, openaiSize);
+        // Log provider cost for analytics (per image cost * successful images)
+        const providerCostUsd = getOpenAIProviderCost(openaiQuality, openaiSize) * successfulResults.length;
         const { getUsdRubRate } = await import('@/config/exchange-rates');
         const usdRubRate = getUsdRubRate();
         const providerCostRub = providerCostUsd * usdRubRate;
@@ -790,7 +811,7 @@ export async function POST(request: NextRequest) {
           kind: 'image',
           creditCost: creditCost,
           // Include results directly so polling can be skipped
-          results: finalUrl ? [{ url: finalUrl }] : [],
+          results: finalUrls.map(url => ({ url })),
         });
       } catch (openaiError: any) {
         console.error('[API] OpenAI generation failed:', openaiError);

@@ -90,11 +90,6 @@ export function PromptInput({
         aria-label="Промпт для генерации"
       />
       <Sparkles className="absolute right-3 top-3 w-5 h-5 text-gray-500 pointer-events-none" />
-      {onSubmit && (
-        <div className="absolute -bottom-5 right-0 text-xs text-gray-500">
-          Ctrl+Enter для генерации
-        </div>
-      )}
     </div>
   );
 }

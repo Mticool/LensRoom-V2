@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Star, Search, Plus, History, User, Hash } from "lucide-react";
+import { Star, Search, Plus, History, User, Hash, Crown, Infinity } from "lucide-react";
 
 type SearchResult = {
   auth_user_id: string;
@@ -28,6 +28,12 @@ export default function AdminCreditsClient() {
   const [isGranting, setIsGranting] = useState(false);
   const [quickUsername, setQuickUsername] = useState("");
   const [quickAmount, setQuickAmount] = useState("1000");
+  
+  // Subscription grant
+  const [subUsername, setSubUsername] = useState("");
+  const [subPlan, setSubPlan] = useState<"creator" | "creator_plus" | "business">("creator_plus");
+  const [subMonths, setSubMonths] = useState("1");
+  const [isGrantingSub, setIsGrantingSub] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -113,6 +119,39 @@ export default function AdminCreditsClient() {
       toast.error("Ошибка");
     } finally {
       setIsGranting(false);
+    }
+  };
+
+  const handleGrantSubscription = async () => {
+    if (!subUsername.trim()) {
+      toast.error("Введите username");
+      return;
+    }
+    const months = parseInt(subMonths);
+    if (isNaN(months) || months <= 0) {
+      toast.error("Укажите количество месяцев");
+      return;
+    }
+    setIsGrantingSub(true);
+    try {
+      const res = await fetch("/api/admin/subscription/grant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username: subUsername.trim(), planId: subPlan, durationMonths: months }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error || "Ошибка назначения подписки");
+        return;
+      }
+      toast.success(json.message);
+      setSubUsername("");
+      setSubMonths("1");
+    } catch {
+      toast.error("Ошибка");
+    } finally {
+      setIsGrantingSub(false);
     }
   };
 
@@ -203,6 +242,56 @@ export default function AdminCreditsClient() {
               </Button>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Subscription Grant */}
+      <Card className="border-[var(--gold)]/30 bg-gradient-to-br from-[var(--gold)]/5 to-transparent">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Crown className="w-5 h-5 text-[var(--gold)]" />Назначить подписку</CardTitle>
+          <CardDescription>Выдать подписку с безлимитом Pro 1-2K</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--muted)]">Username в Telegram</label>
+              <div className="flex gap-2">
+                <span className="flex items-center px-3 bg-[var(--surface2)] border border-[var(--border)] rounded-l-lg text-[var(--muted)]">@</span>
+                <Input placeholder="Mticool" value={subUsername} onChange={(e) => setSubUsername(e.target.value)} className="rounded-l-none" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--muted)]">Тариф</label>
+              <select 
+                className="w-full h-10 rounded-lg bg-[var(--surface)] border border-[var(--border)] px-3 text-sm text-[var(--text)]" 
+                value={subPlan} 
+                onChange={(e) => setSubPlan(e.target.value as any)}
+              >
+                <option value="creator">Creator (1000⭐/мес)</option>
+                <option value="creator_plus">Creator+ (3000⭐ + безлимит Pro)</option>
+                <option value="business">Business (10000⭐ + безлимит Pro)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-[var(--muted)]">Месяцев</label>
+              <Input type="number" value={subMonths} onChange={(e) => setSubMonths(e.target.value)} min={1} max={12} />
+            </div>
+          </div>
+          
+          {(subPlan === 'creator_plus' || subPlan === 'business') && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--gold)]/10 border border-[var(--gold)]/20">
+              <Infinity className="w-4 h-4 text-[var(--gold)]" />
+              <span className="text-sm text-[var(--gold)]">Безлимит на Nano Banana Pro 1K-2K</span>
+            </div>
+          )}
+          
+          <Button 
+            onClick={handleGrantSubscription} 
+            disabled={isGrantingSub || !subUsername.trim()} 
+            className="w-full bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+          >
+            {isGrantingSub ? "Назначение..." : <><Crown className="w-4 h-4 mr-2" />Назначить подписку</>}
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -27,8 +27,8 @@ export function useAuth() {
   const checkAuth = useCallback(async () => {
     try {
       console.log('[useAuth] Starting auth check...');
-      // Use optimized fetch with deduplication and retry
-      const response = await apiFetch('/api/auth/me', {
+      // Use /api/auth/session which returns both user info AND balance in one call
+      const response = await apiFetch('/api/auth/session', {
         dedupe: true,
         retry: {
           maxRetries: 2,
@@ -36,7 +36,7 @@ export function useAuth() {
         },
       });
 
-      console.log('[useAuth] /api/auth/me response:', response.status, response.ok);
+      console.log('[useAuth] /api/auth/session response:', response.status, response.ok);
 
       if (!response.ok) {
         console.log('[useAuth] Auth failed - setting isAuthenticated=false');
@@ -52,42 +52,22 @@ export function useAuth() {
       }
 
       const data = await response.json();
-      console.log('[useAuth] Auth data:', { hasUser: !!data.user, hasTelegramId: !!data.telegramId, username: data.username });
+      console.log('[useAuth] Auth data:', { hasUser: !!data.user, balance: data.balance });
 
-      // API returns { user: { id }, telegramId, username, firstName, role, ... }
-      if (data.user || data.telegramId) {
-        // Fetch credits separately with deduplication
-        let credits = 0;
-        let subscriptionStars: number | undefined;
-        let packageStars: number | undefined;
-        try {
-          const creditsRes = await apiFetch('/api/credits/balance', {
-            dedupe: true,
-            retry: {
-              maxRetries: 2,
-              initialDelay: 500,
-            },
-          });
-          if (creditsRes.ok) {
-            const creditsData = await creditsRes.json();
-            credits = creditsData.balance || creditsData.credits || 0;
-            if (typeof creditsData.subscriptionStars === 'number') subscriptionStars = creditsData.subscriptionStars;
-            if (typeof creditsData.packageStars === 'number') packageStars = creditsData.packageStars;
-            console.log('[useAuth] Credits fetched:', credits);
-          }
-        } catch {
-          // ignore credits fetch error
-          console.log('[useAuth] Credits fetch failed, using 0');
-        }
+      // /api/auth/session returns { user: {...}, balance, subscriptionStars, packageStars }
+      if (data.user) {
+        const credits = data.balance || 0;
+        const subscriptionStars = typeof data.subscriptionStars === 'number' ? data.subscriptionStars : undefined;
+        const packageStars = typeof data.packageStars === 'number' ? data.packageStars : undefined;
 
         console.log('[useAuth] Setting isAuthenticated=true, credits=', credits);
         setAuth({
           isAuthenticated: true,
           isLoading: false,
           credits,
-          userId: data.user?.id || data.telegramId,
-          username: data.username || data.firstName || null,
-          role: data.role || 'user',
+          userId: data.user.id || data.user.telegramId,
+          username: data.user.username || data.user.firstName || null,
+          role: data.user.role || 'user',
         });
 
         // Sync to global header/store
@@ -97,7 +77,7 @@ export function useAuth() {
           // ignore cross-store sync errors
         }
       } else {
-        console.log('[useAuth] No user/telegramId in response - setting isAuthenticated=false');
+        console.log('[useAuth] No user in response - setting isAuthenticated=false');
         setAuth({
           isAuthenticated: false,
           isLoading: false,

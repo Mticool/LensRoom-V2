@@ -42,7 +42,7 @@ export function GPTImageGenerator() {
   const [images, setImages] = useState<GenerationResult[]>([]);
   
   const historyModelId = filterModel === 'all' ? undefined : filterModel;
-  const { history, isLoading: historyLoading, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
+  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
   const credits = authCredits;
   const estimatedCost = COST_PER_IMAGE[quality] * quantity;
 
@@ -119,22 +119,44 @@ export function GPTImageGenerator() {
 
       const data = await response.json();
 
-      const newImage: GenerationResult = {
-        id: data.generationId || `gen-${Date.now()}`,
-        url: data.imageUrl,
-        prompt,
-        mode: 'image',
-        settings: { model: 'gpt-image', size: aspectRatio, quality: QUALITY_MAPPING[quality] },
-        timestamp: Date.now(),
-        status: 'completed',
-      };
+      // Remove pending placeholders
+      setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
 
-      setImages(prev => [newImage, ...prev]);
+      // Handle parallel generation results
+      if (data.status === 'completed' && data.results && data.results.length > 0) {
+        const newImages: GenerationResult[] = data.results.map((result: { url: string }, i: number) => ({
+          id: `${data.generationId || Date.now()}-${i}`,
+          url: result.url,
+          prompt,
+          mode: 'image' as const,
+          settings: { model: 'gpt-image', size: aspectRatio, quality: QUALITY_MAPPING[quality] },
+          timestamp: Date.now(),
+          status: 'completed',
+        }));
+
+        setImages(prev => [...newImages, ...prev]);
+        celebrateGeneration();
+        toast.success(`Создано ${newImages.length} ${newImages.length === 1 ? 'изображение' : 'изображений'}!`);
+      } else if (data.imageUrl) {
+        // Legacy single image response
+        const newImage: GenerationResult = {
+          id: data.generationId || `gen-${Date.now()}`,
+          url: data.imageUrl,
+          prompt,
+          mode: 'image',
+          settings: { model: 'gpt-image', size: aspectRatio, quality: QUALITY_MAPPING[quality] },
+          timestamp: Date.now(),
+          status: 'completed',
+        };
+
+        setImages(prev => [newImage, ...prev]);
+        celebrateGeneration();
+        toast.success('Изображение создано!');
+      }
+
       await refreshCredits();
       await invalidateCache();
       refreshHistory();
-      celebrateGeneration();
-      toast.success('Изображение создано!');
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
@@ -169,7 +191,13 @@ export function GPTImageGenerator() {
       <div className="container mx-auto px-4 pt-8">
         <div className="max-w-7xl mx-auto">
           {allImages.length > 0 ? (
-            <ImageGalleryMasonry images={allImages} isGenerating={isGenerating} />
+            <ImageGalleryMasonry 
+              images={allImages} 
+              isGenerating={isGenerating}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
+              isLoadingMore={isLoadingMore}
+            />
           ) : (
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center max-w-md">

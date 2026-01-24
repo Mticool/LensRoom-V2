@@ -41,7 +41,7 @@ export function FluxProGenerator() {
   const [images, setImages] = useState<GenerationResult[]>([]);
   
   // Load history (show all models)
-  const { history, isLoading: historyLoading, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
+  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   const credits = authCredits;
   const estimatedCost = COST_PER_IMAGE[quality] * quantity;
 
@@ -168,7 +168,13 @@ export function FluxProGenerator() {
       <div className="container mx-auto px-4 pt-8">
         <div className="max-w-7xl mx-auto">
           {allImages.length > 0 ? (
-            <ImageGalleryMasonry images={allImages} isGenerating={isGenerating} />
+            <ImageGalleryMasonry 
+              images={allImages} 
+              isGenerating={isGenerating}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
+              isLoadingMore={isLoadingMore}
+            />
           ) : (
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center max-w-md">
