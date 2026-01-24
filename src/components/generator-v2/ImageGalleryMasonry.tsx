@@ -185,10 +185,10 @@ export function ImageGalleryMasonry({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3">
+    <div className="flex-1 overflow-y-auto px-0 md:px-0 py-0">
       {/* Load More Button - at top since new items appear at bottom */}
       {hasMore && onLoadMore && (
-        <div className="flex justify-center py-1.5">
+        <div className="flex justify-center py-2">
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
@@ -208,7 +208,7 @@ export function ImageGalleryMasonry({
 
       {layout === 'grid' ? (
         <div
-          className="grid gap-3"
+          className="grid gap-0.5"
           style={{
             gridTemplateColumns: "repeat(auto-fill, minmax(200px, 320px))",
             justifyContent: "center",
@@ -346,7 +346,7 @@ export function ImageGalleryMasonry({
           style={{
             columnCount: 'auto',
             columnFill: 'balance',
-            columnGap: '12px',
+            columnGap: '1px',
             // Responsive columns
             ...(typeof window !== 'undefined' && {
               columnCount: window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4
@@ -361,7 +361,7 @@ export function ImageGalleryMasonry({
             return (
               <div
                 key={image.id}
-                className="break-inside-avoid mb-3"
+                className="break-inside-avoid mb-px"
                 onMouseEnter={() => setHoveredId(image.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
