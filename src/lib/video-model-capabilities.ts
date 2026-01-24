@@ -207,7 +207,7 @@ export function getModelCapabilities(modelId: string): ModelCapabilities | null 
     // Phase 2: Advanced Settings
     supportsNegativePrompt: videoModel.supportsNegativePrompt ?? false,
     availableVariants: videoModel.variants || [],
-    availableResolutions: videoModel.resolutions || [],
+    availableResolutions: videoModel.resolutionOptions || [],
     availableSoundPresets: videoModel.soundPresets || [],
 
     fixedDuration: videoModel.fixedDuration ?? null,

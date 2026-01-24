@@ -141,7 +141,8 @@ export interface VideoModelConfig {
   supportsAudio?: boolean;
   supportsStartEnd?: boolean;
   supportsStoryboard?: boolean;
-  
+  supportsNegativePrompt?: boolean; // Phase 2: Advanced settings
+
   // Pricing in Kie credits (used if no variants)
   pricing: VideoPricing;
   
@@ -155,7 +156,11 @@ export interface VideoModelConfig {
   resolutionOptions?: string[]; // For models with resolution selection
   aspectRatios: string[];
   fixedDuration?: number; // If duration is fixed (e.g., Veo = 8s)
-  
+
+  // Phase 2: Advanced settings options
+  variants?: string[]; // Model variant display names (e.g., ['Kling 2.6', 'Kling O1'])
+  soundPresets?: string[]; // Sound presets for models like WAN (e.g., ['ambient', 'cinematic'])
+
   // Short label for sidebar (e.g., "8s • Ultra", "5/10s • Audio")
   shortLabel?: string;
   // Model tag for UI badges (e.g., "PRO", "FAST", "NEW", "ULTRA")
