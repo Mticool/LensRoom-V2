@@ -179,6 +179,10 @@ export interface GenerateVideoRequest {
   mode?: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'storyboard' | 'motion_control';
   resolution?: string; // For bytedance: 480p/720p/1080p; For motion control: 720p/1080p
   quality?: string; // For sora-pro: standard/high
+  // For motion control: character orientation
+  // 'image' = use orientation from reference image (max 10s video)
+  // 'video' = use orientation from reference video (max 30s video)
+  characterOrientation?: 'image' | 'video';
   // For storyboard mode
   shots?: Array<{
     prompt: string;
@@ -806,10 +810,17 @@ export class KieAIClient {
       } else {
         input.mode = '720p'; // Default to standard
       }
+      // character_orientation: 'image' or 'video'
+      // 'image' = use orientation from reference image (max 10s video)
+      // 'video' = use orientation from reference video (max 30s video)
+      if (params.characterOrientation) {
+        input.character_orientation = params.characterOrientation;
+      }
       console.log('[KIE Motion Control] Request params:', {
         input_urls: !!params.imageUrl,
         video_urls: !!params.videoUrl,
         mode: input.mode,
+        character_orientation: params.characterOrientation || 'image',
         prompt: params.prompt?.substring(0, 50),
       });
     }

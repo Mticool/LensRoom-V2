@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       autoTrim = true, // Auto-trim videos > 30s
       keepAudio, // For Kling O1 Edit (FAL): keep original audio
       shots, // For storyboard mode
+      characterOrientation, // For motion control: 'image' (max 10s) or 'video' (max 30s)
     } = body;
     
     // Normalize aspect ratio: UI may send "auto" which should mean "use model default"
@@ -174,6 +175,24 @@ export async function POST(request: NextRequest) {
       const mcResolution = (resolution || '720p') as MotionControlResolution;
       const mcDuration = videoDuration || 0;
       
+      // Validate character_orientation (default: 'image')
+      // 'image' = use orientation from reference image (max 10s video)
+      // 'video' = use orientation from reference video (max 30s video)
+      const orientation = characterOrientation || 'image';
+      const maxDurationForOrientation = orientation === 'image' ? 10 : 30;
+      
+      if (mcDuration > maxDurationForOrientation) {
+        return NextResponse.json(
+          { 
+            error: `Для режима "${orientation}" максимальная длительность видео ${maxDurationForOrientation} секунд. Ваше видео: ${mcDuration.toFixed(1)} сек.`,
+            maxDuration: maxDurationForOrientation,
+            actualDuration: mcDuration,
+            orientation,
+          },
+          { status: 400 }
+        );
+      }
+      
       // Validate duration
       const validation = validateMotionControlDuration(mcDuration, autoTrim);
       if (!validation.valid) {
@@ -201,6 +220,8 @@ export async function POST(request: NextRequest) {
         autoTrim,
         effectiveDuration,
         resolution: mcResolution,
+        characterOrientation: orientation,
+        maxDurationForOrientation,
         priceStars: creditCost,
         rate: mcResolution === '720p' ? MOTION_CONTROL_CONFIG.RATE_720P : MOTION_CONTROL_CONFIG.RATE_1080P,
       });
@@ -350,6 +371,7 @@ export async function POST(request: NextRequest) {
             videoDuration: videoDuration ?? null,
             autoTrim: typeof autoTrim === "boolean" ? autoTrim : null,
             keepAudio: typeof keepAudio === "boolean" ? keepAudio : null,
+            characterOrientation: model === "kling-motion-control" ? (characterOrientation || 'image') : null,
           },
           credits_used: creditCost,
           status: "queued",
@@ -859,6 +881,7 @@ export async function POST(request: NextRequest) {
           resolution: resolution,
           quality: quality,
           shots: shots, // For storyboard mode
+          characterOrientation: model === 'kling-motion-control' ? (characterOrientation || 'image') : undefined,
         });
       } catch (error: any) {
       // Обработка ошибки политики контента Google Veo
