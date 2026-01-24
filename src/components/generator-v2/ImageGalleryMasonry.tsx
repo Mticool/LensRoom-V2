@@ -517,7 +517,7 @@ export function ImageGalleryMasonry({
 
         .higgs-grid {
           display: grid;
-          gap: 1px;
+          gap: 16px;
           grid-template-columns: repeat(4, minmax(0, 1fr));
         }
 
