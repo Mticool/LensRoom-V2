@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StudioWorkspaces } from "@/components/generator-v2/StudioWorkspaces";
 import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 import { AudioStudio } from "@/components/audio";
-import { StudioRuntime } from "@/components/studio/StudioRuntime";
+import { VideoGeneratorLight } from "@/components/video/VideoGeneratorLight";
 
 // Loading fallback matching the existing loading.tsx style
 function LoadingFallback() {
@@ -56,11 +56,7 @@ function StudioContent() {
       {section === "music" ? (
         <AudioStudio />
       ) : section === "video" || section === "motion" ? (
-        <StudioRuntime
-          defaultKind="video"
-          forceKind="video"
-          variant={section === "motion" ? "motion" : "video"}
-        />
+        <VideoGeneratorLight />
       ) : (
         <StudioWorkspaces />
       )}
