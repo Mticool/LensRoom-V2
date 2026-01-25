@@ -8,7 +8,6 @@ import { ChevronLeft, ChevronRight, Copy, Download, Heart, RotateCcw, Share2, Im
 
 import { ImageGalleryMasonry } from "@/components/generator-v2/ImageGalleryMasonry";
 import { ControlBarBottom } from "@/components/generator-v2/ControlBarBottom";
-import { MobilePhotoViewer } from "@/components/generator-v2/MobilePhotoViewer";
 import { GeneratorBottomSheet } from "@/components/generator-v2/GeneratorBottomSheet";
 import { ThreadSidebar, type StudioThread } from "@/components/generator-v2/ThreadSidebar";
 import { useAuth } from "@/components/generator-v2/hooks/useAuth";

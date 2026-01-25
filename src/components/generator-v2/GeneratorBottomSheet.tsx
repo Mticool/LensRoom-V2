@@ -5,6 +5,7 @@ import { Settings, Loader2, X, Send, ImagePlus, Square, RectangleVertical, Recta
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 import { getModelById } from "@/config/models";
 
 interface GeneratorBottomSheetProps {

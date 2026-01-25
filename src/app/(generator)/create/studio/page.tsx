@@ -38,7 +38,7 @@ function StudioContent() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {section === "photo" && (
-        <div className="px-4 pb-3">
+        <div className="hidden md:block px-4 pb-3">
           <ModelSelector
             value={selectedPhotoModel}
             onChange={(modelId) => {
