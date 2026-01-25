@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Видео-генератор | LensRoom',
   description: 'Создавай видео из текста, картинок и motion-референсов с помощью лучших AI моделей: Veo, Sora, Kling и других.',
@@ -20,9 +22,14 @@ export default function GeneratorsPage({
     return Array.isArray(v) ? v[0] : v;
   };
 
-  // Legacy: /generators?mode=motion
   const mode = String(get("mode") || "").trim().toLowerCase();
-  const section = mode === "motion" ? "motion" : "video";
+  const sectionFromQuery = String(get("section") || "").trim().toLowerCase();
+  const section =
+    sectionFromQuery === "motion" || sectionFromQuery === "video"
+      ? sectionFromQuery
+      : mode === "motion"
+        ? "motion"
+        : "video";
 
   const params = new URLSearchParams();
   params.set("section", section);

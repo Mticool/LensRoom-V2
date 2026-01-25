@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from 'react';
-import { useSearchParams } from "next/navigation";
+import { useMemo, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from "next/navigation";
 import { HiggsGenerator } from "@/components/generator-v2/higgsfield";
 import { NanoBananaGenerator } from "@/components/generator-v2/NanoBananaGenerator";
 import { ZImageGenerator } from "@/components/generator-v2/ZImageGenerator";
@@ -26,12 +26,31 @@ export default function CreatePage() {
 
   const [selectedModel, setSelectedModel] = useState('nano-banana-pro');
 
+  const router = useRouter();
+
+  // Video/Motion: redirect to unified studio (no legacy video UI on /create)
+  useEffect(() => {
+    if (section === "video" || section === "motion") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("section", section);
+      router.replace(`/create/studio?${params.toString()}`, { scroll: false });
+    }
+  }, [section, router]);
+
+  if (section === "video" || section === "motion") {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] pt-24 flex items-center justify-center">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
+          Загрузка…
+        </div>
+      </div>
+    );
+  }
+
   // Audio section - full page with its own layout
   if (section === "audio") {
     return <AudioStudio />;
   }
-
-  // Video section redirects to /generators (see next.config.ts)
 
   // Render the appropriate generator based on selected model
   const renderGenerator = () => {
