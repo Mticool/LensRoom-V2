@@ -167,7 +167,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                             {/* Header */}
                             <div className="px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[#a78bfa]/5 to-[#22d3ee]/5">
                               <span className="text-[13px] font-semibold text-[var(--muted)] uppercase tracking-wider">
-                                {item.dropdown === 'design' ? 'Фото модели' : item.dropdown === 'video' ? 'Видео модели' : 'Музыка модели'}
+                                {item.dropdown === 'design' ? 'Фото модели' : 'Видео модели'}
                               </span>
                             </div>
                             
@@ -176,9 +176,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                               {MODELS[item.dropdown].map((model: any) => (
                                 <Link
                                   key={model.id}
-                                  href={`/create/studio?section=${
-                                    item.dropdown === 'design' ? 'photo' : item.dropdown === 'audio' ? 'music' : item.dropdown
-                                  }&model=${model.id}`}
+                                  href={`/create/studio?section=${item.dropdown === 'design' ? 'photo' : item.dropdown}&model=${model.id}`}
                                   onClick={() => setActiveDropdown(null)}
                                   className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-[var(--surface2)] transition-all duration-150"
                                 >
@@ -191,9 +189,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                             {/* Footer */}
                             <div className="px-4 py-2.5 border-t border-[var(--border)] bg-[var(--surface2)]/30">
                               <Link
-                                href={`/create/studio?section=${
-                                  item.dropdown === 'design' ? 'photo' : item.dropdown === 'audio' ? 'music' : item.dropdown
-                                }`}
+                                href={`/create/studio?section=${item.dropdown === 'design' ? 'photo' : item.dropdown}`}
                                 onClick={() => setActiveDropdown(null)}
                                 className="text-[12px] font-medium text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors"
                               >
