@@ -139,84 +139,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
       {/* Main Content Grid */}
       <div className="max-w-[1600px] mx-auto px-6 pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Player & History */}
-          <div className="lg:col-span-8 space-y-6">
-            {/* Video Player - Adaptive Aspect Ratio */}
-            <div className="flex items-start justify-center">
-              <div className={`w-full max-w-4xl ${aspectRatio === '9:16' ? 'max-w-md' : aspectRatio === '1:1' ? 'max-w-2xl' : ''}`}>
-                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                  <div className={`relative ${getAspectClass()} bg-gray-100 max-h-[60vh]`}>
-                    {videoUrl ? (
-                      <video
-                        ref={videoRef}
-                        src={videoUrl}
-                        controls
-                        className="w-full h-full object-contain"
-                        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                        onLoadedMetadata={(e) => setTotalDuration(e.currentTarget.duration)}
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="w-20 h-20 mx-auto bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 shadow-lg">
-                            <Play className="w-10 h-10 text-gray-700" />
-                          </div>
-                          <p className="text-gray-500 text-sm">Результат появится здесь</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Timeline */}
-                  {videoUrl && (
-                    <div className="p-4 border-t border-gray-200">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600 font-mono">{formatTime(currentTime)}</span>
-                        <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-violet-600 transition-all"
-                            style={{ width: `${(currentTime / totalDuration) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-600 font-mono">{formatTime(totalDuration)}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Мои работы - Compact History Grid */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Мои работы</h3>
-              {generationHistory.length > 0 ? (
-                <div className="grid grid-cols-4 gap-3">
-                  {generationHistory.map((url, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setVideoUrl(url)}
-                      className="aspect-video bg-gray-100 rounded-lg border border-gray-200 overflow-hidden hover:border-violet-400 transition-colors group"
-                    >
-                      <video
-                        src={url}
-                        className="w-full h-full object-cover"
-                        muted
-                        playsInline
-                        preload="metadata"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-400">Здесь появятся ваши работы</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Settings Panel - Dark Theme */}
+          {/* Left Column: Settings Panel - Dark Theme */}
           <div className="lg:col-span-4">
             <div className="bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden sticky top-24 shadow-xl">
               {/* Tabs */}
@@ -225,8 +148,6 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                   {[
                     { id: 'video', label: 'Видео' },
                     { id: 'motion', label: 'Motion' },
-                    { id: 'edit', label: 'Редактор' },
-                    { id: 'music', label: 'Музыка' },
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -433,6 +354,84 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
               </div>
             </div>
           </div>
+
+          {/* Right Column: Player & History */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Video Player - Adaptive Aspect Ratio */}
+            <div className="flex items-start justify-center">
+              <div className={`w-full max-w-4xl ${aspectRatio === '9:16' ? 'max-w-md' : aspectRatio === '1:1' ? 'max-w-2xl' : ''}`}>
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                  <div className={`relative ${getAspectClass()} bg-gray-100 max-h-[60vh]`}>
+                    {videoUrl ? (
+                      <video
+                        ref={videoRef}
+                        src={videoUrl}
+                        controls
+                        className="w-full h-full object-contain"
+                        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                        onLoadedMetadata={(e) => setTotalDuration(e.currentTarget.duration)}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="w-20 h-20 mx-auto bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 shadow-lg">
+                            <Play className="w-10 h-10 text-gray-700" />
+                          </div>
+                          <p className="text-gray-500 text-sm">Результат появится здесь</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Timeline */}
+                  {videoUrl && (
+                    <div className="p-4 border-t border-gray-200">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-600 font-mono">{formatTime(currentTime)}</span>
+                        <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-violet-600 transition-all"
+                            style={{ width: `${(currentTime / totalDuration) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-sm text-gray-600 font-mono">{formatTime(totalDuration)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Мои работы - Compact History Grid */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Мои работы</h3>
+              {generationHistory.length > 0 ? (
+                <div className="grid grid-cols-4 gap-3">
+                  {generationHistory.map((url, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setVideoUrl(url)}
+                      className="aspect-video bg-gray-100 rounded-lg border border-gray-200 overflow-hidden hover:border-violet-400 transition-colors group"
+                    >
+                      <video
+                        src={url}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-400">Здесь появятся ваши работы</p>
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

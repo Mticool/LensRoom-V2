@@ -10,7 +10,7 @@ import { useFavoritesStore } from '@/stores/favorites-store';
 interface ImageGalleryMasonryProps {
   images: GenerationResult[];
   isGenerating: boolean;
-  layout?: 'masonry' | 'grid';
+  layout?: 'masonry' | 'grid' | 'feed';
   onRegenerate?: (prompt: string, settings: any) => void;
   onImageClick?: (image: GenerationResult) => void;
   /** Use an existing image as a reference for i2i flows. */
@@ -56,7 +56,7 @@ export function ImageGalleryMasonry({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastLenRef = useRef<number>(images.length);
   const cardClassName =
-    layout === "grid"
+    layout === "grid" || layout === "feed"
       ? "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-colors"
       : "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl";
 
@@ -261,8 +261,8 @@ export function ImageGalleryMasonry({
         </div>
       )}
 
-      {layout === 'grid' ? (
-        <div className="higgs-grid">
+      {(layout === 'grid' || layout === 'feed') ? (
+        <div className={layout === 'feed' ? 'feed-grid' : 'higgs-grid'}>
           {isGenerating && renderSkeletons()}
           {images.map((image) => {
             const isDemo = image.id.startsWith('demo-');
@@ -594,6 +594,15 @@ export function ImageGalleryMasonry({
           grid-template-columns: repeat(4, minmax(0, 1fr));
         }
 
+        .feed-grid {
+          display: grid;
+          gap: 16px;
+          grid-template-columns: 1fr;
+          max-width: 32rem;
+          margin-left: auto;
+          margin-right: auto;
+        }
+
         @media (max-width: 1024px) {
           .higgs-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -603,6 +612,9 @@ export function ImageGalleryMasonry({
         @media (max-width: 768px) {
           .higgs-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .feed-grid {
+            max-width: none;
           }
         }
 

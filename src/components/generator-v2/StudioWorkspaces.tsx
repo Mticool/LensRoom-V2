@@ -267,8 +267,7 @@ export function StudioWorkspaces() {
     invalidateCache 
   } = useHistory(
     "image",
-    // Project history should include ALL photo models within this project.
-    undefined,
+    selectedModelId,
     selectedThreadId || undefined
   );
 
