@@ -58,3 +58,4 @@ next-env.d.ts
 # Root-level helper scripts - keep maintained scripts in /scripts/
 /*.sh
 !DEPLOY.sh
+lensroom-v2/
