@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Upload, Sparkles, Edit2, Info, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,10 +39,33 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
   const [startFramePreview, setStartFramePreview] = useState<string | null>(null);
   const [endFramePreview, setEndFramePreview] = useState<string | null>(null);
   const [showModelSelector, setShowModelSelector] = useState(false);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [motionReference, setMotionReference] = useState<File | null>(null);
+  const [motionReferencePreview, setMotionReferencePreview] = useState<string | null>(null);
+  
+  const motionRefInputRef = useRef<HTMLInputElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const startFrameInputRef = useRef<HTMLInputElement>(null);
   const endFrameInputRef = useRef<HTMLInputElement>(null);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+        setShowModelDropdown(false);
+      }
+    };
+
+    if (showModelDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showModelDropdown]);
 
   const modelConfig = MODEL_CONFIGS[model];
 
@@ -117,8 +140,8 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
 
   return (
     <div className="w-full max-w-sm bg-[#1A1A1C] rounded-2xl border border-white/10 p-5 space-y-5">
-      {/* Model Selection Card */}
-      <div className={`relative h-36 rounded-xl bg-gradient-to-br ${modelConfig.gradient} overflow-hidden group cursor-pointer`}
+      {/* Model Selection Card - Compact */}
+      <div className={`relative h-24 rounded-xl bg-gradient-to-br ${modelConfig.gradient} overflow-hidden group cursor-pointer`}
         onClick={() => setShowModelSelector(true)}
       >
         {/* Background image if start frame exists */}
@@ -128,26 +151,23 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
           </div>
         )}
         
-        <div className="relative h-full p-4 flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div className="px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-[#CDFF00] text-[10px] font-bold uppercase tracking-wider">
+        <div className="relative h-full p-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="px-2 py-0.5 bg-black/40 backdrop-blur-sm rounded text-[#CDFF00] text-[9px] font-bold uppercase tracking-wider">
               {modelConfig.badge}
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowModelSelector(true);
-              }}
-              className="px-2.5 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white text-xs font-medium hover:bg-white/30 transition-colors flex items-center gap-1"
-            >
-              <Edit2 className="w-3 h-3" />
-              Change
-            </button>
+            <div className="text-white text-base font-bold">{modelConfig.name}</div>
           </div>
-          
-          <div>
-            <div className="text-white text-xl font-bold">{modelConfig.name}</div>
-          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowModelSelector(true);
+            }}
+            className="px-2 py-1 bg-white/20 backdrop-blur-sm rounded-lg text-white text-[10px] font-medium hover:bg-white/30 transition-colors flex items-center gap-1"
+          >
+            <Edit2 className="w-3 h-3" />
+            Change
+          </button>
         </div>
       </div>
 
@@ -272,128 +292,105 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
       {/* Motion Control Content */}
       {activeTab === 'motion' && (
         <div className="space-y-4">
-          <div className="text-sm text-gray-400 mb-4">
-            Управление движением камеры и динамикой сцены
+          <div className="text-sm text-gray-400 mb-3">
+            Загрузите референсное видео для передачи движения камеры
           </div>
 
-          {/* Camera Pan */}
+          {/* Motion Reference Upload */}
+          <div>
+            <label className="text-sm font-semibold text-white mb-2 block">Референсное видео</label>
+            <input
+              ref={motionRefInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                
+                if (!file.type.startsWith('video/')) {
+                  toast.error('Загрузите видео файл');
+                  return;
+                }
+                
+                if (file.size > 100 * 1024 * 1024) {
+                  toast.error('Максимальный размер: 100 МБ');
+                  return;
+                }
+                
+                setMotionReference(file);
+                const url = URL.createObjectURL(file);
+                setMotionReferencePreview(url);
+                toast.success('Референс загружен');
+              }}
+            />
+            
+            {motionReferencePreview ? (
+              <div className="relative rounded-lg overflow-hidden border border-white/10 bg-black/50">
+                <video
+                  src={motionReferencePreview}
+                  className="w-full aspect-video object-cover"
+                  controls
+                  muted
+                  playsInline
+                />
+                <button
+                  onClick={() => {
+                    setMotionReference(null);
+                    setMotionReferencePreview(null);
+                  }}
+                  className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-sm rounded-lg text-white hover:bg-black/80 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => motionRefInputRef.current?.click()}
+                className="w-full aspect-video rounded-lg border-2 border-dashed border-white/20 hover:border-[#CDFF00]/50 transition-colors flex flex-col items-center justify-center gap-3 bg-white/5"
+              >
+                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-gray-400" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-white font-medium mb-1">Upload Motion Reference</div>
+                  <div className="text-xs text-gray-400">Video file up to 100MB</div>
+                </div>
+              </button>
+            )}
+          </div>
+
+          {/* Motion Strength */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Pan (Панорама)</label>
-              <span className="text-xs text-gray-400">{cameraMovement.pan}</span>
+              <label className="text-sm font-semibold text-white">Motion Strength</label>
+              <span className="text-xs text-gray-400">{cameraMovement.pan}%</span>
             </div>
             <input
               type="range"
-              min="-100"
+              min="0"
               max="100"
               value={cameraMovement.pan}
               onChange={(e) => setCameraMovement(prev => ({ ...prev, pan: Number(e.target.value) }))}
               className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
             />
             <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-              <span>←  Left</span>
-              <span>Right  →</span>
+              <span>Subtle</span>
+              <span>Strong</span>
             </div>
           </div>
 
-          {/* Camera Tilt */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Tilt (Наклон)</label>
-              <span className="text-xs text-gray-400">{cameraMovement.tilt}</span>
-            </div>
-            <input
-              type="range"
-              min="-100"
-              max="100"
-              value={cameraMovement.tilt}
-              onChange={(e) => setCameraMovement(prev => ({ ...prev, tilt: Number(e.target.value) }))}
-              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
-            />
-            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-              <span>↓  Down</span>
-              <span>Up  ↑</span>
+          {/* Info */}
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-blue-200/80 leading-relaxed">
+                AI will analyze camera movement from your reference video and apply it to the generated content
+              </div>
             </div>
           </div>
-
-          {/* Camera Zoom */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Zoom (Зум)</label>
-              <span className="text-xs text-gray-400">{cameraMovement.zoom}</span>
-            </div>
-            <input
-              type="range"
-              min="-100"
-              max="100"
-              value={cameraMovement.zoom}
-              onChange={(e) => setCameraMovement(prev => ({ ...prev, zoom: Number(e.target.value) }))}
-              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
-            />
-            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-              <span>Zoom Out</span>
-              <span>Zoom In</span>
-            </div>
-          </div>
-
-          {/* Camera Rotation */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Rotation (Поворот)</label>
-              <span className="text-xs text-gray-400">{cameraMovement.rotation}°</span>
-            </div>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              value={cameraMovement.rotation}
-              onChange={(e) => setCameraMovement(prev => ({ ...prev, rotation: Number(e.target.value) }))}
-              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
-            />
-            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-              <span>↺  CCW</span>
-              <span>CW  ↻</span>
-            </div>
-          </div>
-
-          {/* Presets */}
-          <div>
-            <label className="text-sm font-semibold text-white mb-2 block">Пресеты движения</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setCameraMovement({ pan: 50, tilt: 0, zoom: 0, rotation: 0 })}
-                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
-              >
-                Pan Right
-              </button>
-              <button
-                onClick={() => setCameraMovement({ pan: 0, tilt: 30, zoom: 0, rotation: 0 })}
-                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
-              >
-                Tilt Up
-              </button>
-              <button
-                onClick={() => setCameraMovement({ pan: 0, tilt: 0, zoom: 50, rotation: 0 })}
-                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
-              >
-                Zoom In
-              </button>
-              <button
-                onClick={() => setCameraMovement({ pan: 0, tilt: 0, zoom: 0, rotation: 45 })}
-                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
-              >
-                Rotate 45°
-              </button>
-            </div>
-          </div>
-
-          {/* Reset Button */}
-          <button
-            onClick={() => setCameraMovement({ pan: 0, tilt: 0, zoom: 0, rotation: 0 })}
-            className="w-full px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:border-white/20 transition-colors"
-          >
-            Сбросить все
-          </button>
         </div>
       )}
 
@@ -442,18 +439,49 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
 
       {/* Settings Section */}
       <div className="space-y-3 pt-3 border-t border-white/10">
-        {/* Model */}
-        <div>
+        {/* Model - Visual Dropdown */}
+        <div className="relative" ref={modelDropdownRef}>
           <label className="text-xs text-gray-400 mb-1.5 block">Model</label>
           <button
-            onClick={() => setShowModelSelector(true)}
+            onClick={() => setShowModelDropdown(!showModelDropdown)}
             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm flex items-center justify-between hover:bg-white/10 transition-colors"
           >
             <span>{modelConfig.name}</span>
-            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
+          
+          {/* Dropdown List */}
+          {showModelDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[#1A1A1C] border border-white/10 rounded-lg overflow-hidden shadow-xl z-50">
+              {(Object.keys(MODEL_CONFIGS) as VideoModel[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setModel(m);
+                    setShowModelDropdown(false);
+                  }}
+                  className={`w-full px-3 py-2.5 flex items-center gap-3 transition-colors ${
+                    model === m
+                      ? 'bg-[#CDFF00]/10 border-l-2 border-[#CDFF00]'
+                      : 'hover:bg-white/5'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${MODEL_CONFIGS[m].gradient} flex-shrink-0`} />
+                  <div className="flex-1 text-left">
+                    <div className="text-sm font-medium text-white">{MODEL_CONFIGS[m].name}</div>
+                    <div className="text-xs text-gray-400">{MODEL_CONFIGS[m].badge}</div>
+                  </div>
+                  {model === m && (
+                    <svg className="w-4 h-4 text-[#CDFF00]" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quality & Ratio */}
