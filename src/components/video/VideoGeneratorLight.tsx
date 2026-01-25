@@ -21,17 +21,17 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
 
   // Handle generation from panel
   const handleGenerate = (params: any) => {
-    // Update ratio from params to make preview adaptive
-    if (params.ratio) {
-      setCurrentRatio(params.ratio);
-    }
-    
     // Simulate generation
     const mockUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
     setVideoUrl(mockUrl);
     setGenerationHistory(prev => [mockUrl, ...prev].slice(0, 8));
     
     onGenerate?.(params);
+  };
+
+  // Handle ratio change from panel
+  const handleRatioChange = (newRatio: AspectRatio) => {
+    setCurrentRatio(newRatio);
   };
 
   // Get aspect ratio class based on current selection
@@ -83,7 +83,10 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
           {/* Left Column: Generator Panel */}
           <div className="lg:col-span-4" style={{ zIndex: 10 }}>
             <div className="sticky top-24">
-              <VideoGeneratorPanel onGenerate={handleGenerate} />
+              <VideoGeneratorPanel 
+                onGenerate={handleGenerate}
+                onRatioChange={handleRatioChange}
+              />
             </div>
           </div>
 

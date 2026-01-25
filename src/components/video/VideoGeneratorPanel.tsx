@@ -10,6 +10,7 @@ type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3';
 
 interface VideoGeneratorPanelProps {
   onGenerate?: (params: any) => void;
+  onRatioChange?: (ratio: AspectRatio) => void;
 }
 
 const MODEL_CONFIGS = {
@@ -19,11 +20,17 @@ const MODEL_CONFIGS = {
   flux: { name: 'FLUX Video', badge: 'NEW', gradient: 'from-orange-500 to-red-500' },
 };
 
-export function VideoGeneratorPanel({ onGenerate }: VideoGeneratorPanelProps) {
-  const [activeTab, setActiveTab] = useState<'frames' | 'ingredients'>('frames');
+export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGeneratorPanelProps) {
+  const [activeTab, setActiveTab] = useState<'frames' | 'motion'>('frames');
   const [model, setModel] = useState<VideoModel>('veo');
   const [quality, setQuality] = useState<Quality>('1080p');
   const [ratio, setRatio] = useState<AspectRatio>('16:9');
+  const [cameraMovement, setCameraMovement] = useState({
+    pan: 0,
+    tilt: 0,
+    zoom: 0,
+    rotation: 0,
+  });
   const [prompt, setPrompt] = useState('');
   const [enhanceOn, setEnhanceOn] = useState(false);
   const [multiShotMode, setMultiShotMode] = useState(false);
@@ -187,13 +194,13 @@ export function VideoGeneratorPanel({ onGenerate }: VideoGeneratorPanelProps) {
           )}
         </button>
         <button
-          onClick={() => setActiveTab('ingredients')}
+          onClick={() => setActiveTab('motion')}
           className={`pb-2 text-sm font-medium transition-colors relative ${
-            activeTab === 'ingredients' ? 'text-white' : 'text-gray-400'
+            activeTab === 'motion' ? 'text-white' : 'text-gray-400'
           }`}
         >
-          Ingredients
-          {activeTab === 'ingredients' && (
+          Motion Control
+          {activeTab === 'motion' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#CDFF00]" />
           )}
         </button>
@@ -262,10 +269,131 @@ export function VideoGeneratorPanel({ onGenerate }: VideoGeneratorPanelProps) {
         </div>
       )}
 
-      {/* Ingredients Content */}
-      {activeTab === 'ingredients' && (
-        <div className="text-center py-8 text-gray-400 text-sm">
-          Coming soon...
+      {/* Motion Control Content */}
+      {activeTab === 'motion' && (
+        <div className="space-y-4">
+          <div className="text-sm text-gray-400 mb-4">
+            Управление движением камеры и динамикой сцены
+          </div>
+
+          {/* Camera Pan */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold text-white">Pan (Панорама)</label>
+              <span className="text-xs text-gray-400">{cameraMovement.pan}</span>
+            </div>
+            <input
+              type="range"
+              min="-100"
+              max="100"
+              value={cameraMovement.pan}
+              onChange={(e) => setCameraMovement(prev => ({ ...prev, pan: Number(e.target.value) }))}
+              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
+            />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+              <span>←  Left</span>
+              <span>Right  →</span>
+            </div>
+          </div>
+
+          {/* Camera Tilt */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold text-white">Tilt (Наклон)</label>
+              <span className="text-xs text-gray-400">{cameraMovement.tilt}</span>
+            </div>
+            <input
+              type="range"
+              min="-100"
+              max="100"
+              value={cameraMovement.tilt}
+              onChange={(e) => setCameraMovement(prev => ({ ...prev, tilt: Number(e.target.value) }))}
+              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
+            />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+              <span>↓  Down</span>
+              <span>Up  ↑</span>
+            </div>
+          </div>
+
+          {/* Camera Zoom */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold text-white">Zoom (Зум)</label>
+              <span className="text-xs text-gray-400">{cameraMovement.zoom}</span>
+            </div>
+            <input
+              type="range"
+              min="-100"
+              max="100"
+              value={cameraMovement.zoom}
+              onChange={(e) => setCameraMovement(prev => ({ ...prev, zoom: Number(e.target.value) }))}
+              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
+            />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+              <span>Zoom Out</span>
+              <span>Zoom In</span>
+            </div>
+          </div>
+
+          {/* Camera Rotation */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold text-white">Rotation (Поворот)</label>
+              <span className="text-xs text-gray-400">{cameraMovement.rotation}°</span>
+            </div>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              value={cameraMovement.rotation}
+              onChange={(e) => setCameraMovement(prev => ({ ...prev, rotation: Number(e.target.value) }))}
+              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
+            />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+              <span>↺  CCW</span>
+              <span>CW  ↻</span>
+            </div>
+          </div>
+
+          {/* Presets */}
+          <div>
+            <label className="text-sm font-semibold text-white mb-2 block">Пресеты движения</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setCameraMovement({ pan: 50, tilt: 0, zoom: 0, rotation: 0 })}
+                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
+              >
+                Pan Right
+              </button>
+              <button
+                onClick={() => setCameraMovement({ pan: 0, tilt: 30, zoom: 0, rotation: 0 })}
+                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
+              >
+                Tilt Up
+              </button>
+              <button
+                onClick={() => setCameraMovement({ pan: 0, tilt: 0, zoom: 50, rotation: 0 })}
+                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
+              >
+                Zoom In
+              </button>
+              <button
+                onClick={() => setCameraMovement({ pan: 0, tilt: 0, zoom: 0, rotation: 45 })}
+                className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:border-[#CDFF00]/50 transition-colors"
+              >
+                Rotate 45°
+              </button>
+            </div>
+          </div>
+
+          {/* Reset Button */}
+          <button
+            onClick={() => setCameraMovement({ pan: 0, tilt: 0, zoom: 0, rotation: 0 })}
+            className="w-full px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:border-white/20 transition-colors"
+          >
+            Сбросить все
+          </button>
         </div>
       )}
 
@@ -353,7 +481,11 @@ export function VideoGeneratorPanel({ onGenerate }: VideoGeneratorPanelProps) {
             <label className="text-xs text-gray-400 mb-1.5 block">Ratio</label>
             <select
               value={ratio}
-              onChange={(e) => setRatio(e.target.value as AspectRatio)}
+              onChange={(e) => {
+                const newRatio = e.target.value as AspectRatio;
+                setRatio(newRatio);
+                onRatioChange?.(newRatio);
+              }}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#CDFF00]/50 appearance-none cursor-pointer"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
