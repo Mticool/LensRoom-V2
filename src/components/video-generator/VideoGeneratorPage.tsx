@@ -731,127 +731,117 @@ export function VideoGeneratorPage() {
       <div className="md:hidden pt-[64px] px-3 pb-3 space-y-3">
         {/* Video Preview */}
         <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
-            <VideoPreview
-              videoUrl={resultUrl}
-              status={status}
-              aspectRatio={aspectRatio}
-              isPlaying={isPlaying}
-              onPlayPause={() => setIsPlaying(!isPlaying)}
+          <VideoPreview
+            videoUrl={resultUrl}
+            status={status}
+            aspectRatio={aspectRatio}
+            isPlaying={isPlaying}
+            onPlayPause={() => setIsPlaying(!isPlaying)}
+          />
+          <div className="mt-2">
+            <TimelineSlider
+              currentTime={currentTime}
+              duration={videoDuration || duration}
+              onChange={setCurrentTime}
+              disabled={!resultUrl}
             />
+          </div>
+          <div className="mt-2">
+            <StatusBar status={status} progress={progress} error={error} />
+          </div>
+        </div>
 
-            {/* Timeline */}
-            <div className="mt-2">
-              <TimelineSlider
-                currentTime={currentTime}
-                duration={videoDuration || duration}
-                onChange={setCurrentTime}
-                disabled={!resultUrl}
+        {/* Job Queue */}
+        <JobQueue
+          jobs={jobs}
+          onRetry={handleRetry}
+          onCancel={handleCancel}
+          onDownload={handleDownload}
+          defaultExpanded={false}
+        />
+
+        {/* Settings */}
+        <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+          <SettingsTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            compactMode={false}
+            motionContent={
+              <MotionTabContent
+                isAuthenticated={isAuthenticated}
+                credits={credits}
+                refreshCredits={refreshCredits}
+                onLoginRequired={() => setLoginOpen(true)}
+              />
+            }
+          >
+            <div className="space-y-3">
+              <VideoSourceSelector
+                value={mode}
+                onChange={setMode}
+                prompt={prompt}
+                onPromptChange={setPrompt}
+                onFileUpload={handleFileUpload}
+                referenceImage={referenceImage}
+                referenceVideo={referenceVideo}
+                startFrame={startFrame}
+                endFrame={endFrame}
+                v2vInputVideo={v2vInputVideo}
+                editVideo={editVideo}
+                editRefImage={editRefImage}
+                availableModes={modelCapabilities?.availableModes || ['text', 'image', 'reference']}
+              />
+              <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+              <VideoParamsControls
+                duration={duration}
+                onDurationChange={setDuration}
+                quality={quality}
+                onQualityChange={setQuality}
+                withSound={withSound}
+                onSoundChange={setWithSound}
+                aspectRatio={aspectRatio}
+                onAspectRatioChange={setAspectRatio}
+                durationOptions={modelCapabilities?.durationOptions || [3, 5, 10, 15]}
+                qualityOptions={modelCapabilities?.qualityOptions || ['720p', '1080p', '4K']}
+                aspectRatioOptions={modelCapabilities?.aspectRatios || ['16:9', '9:16', '1:1']}
+                supportsAudio={modelCapabilities?.supportsAudio ?? true}
+              />
+              <AdvancedSettings
+                negativePrompt={negativePrompt}
+                onNegativePromptChange={setNegativePrompt}
+                supportsNegativePrompt={modelCapabilities?.supportsNegativePrompt ?? false}
+                modelVariant={modelVariant}
+                onModelVariantChange={setModelVariant}
+                availableVariants={modelCapabilities?.availableVariants || []}
+                resolution={resolution}
+                onResolutionChange={setResolution}
+                availableResolutions={modelCapabilities?.availableResolutions || []}
+                soundPreset={soundPreset}
+                onSoundPresetChange={setSoundPreset}
+                availableSoundPresets={modelCapabilities?.availableSoundPresets || []}
+              />
+              <CostEstimator
+                modelId={selectedModel}
+                mode={mode}
+                duration={duration}
+                quality={quality}
+                withSound={withSound}
               />
             </div>
-
-            {/* Status */}
-            <div className="mt-2">
-              <StatusBar status={status} progress={progress} error={error} />
-            </div>
-          </div>
-
-          {/* Job Queue (Phase 3 - Mobile) */}
-          <JobQueue
-            jobs={jobs}
-            onRetry={handleRetry}
-            onCancel={handleCancel}
-            onDownload={handleDownload}
-            defaultExpanded={false}
-          />
-
-          {/* Settings */}
-          <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
-            {/* Settings Tabs (Mobile - all 4 tabs) */}
-            <SettingsTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              compactMode={false}
-              motionContent={
-                <MotionTabContent
-                  isAuthenticated={isAuthenticated}
-                  credits={credits}
-                  refreshCredits={refreshCredits}
-                  onLoginRequired={() => setLoginOpen(true)}
-                />
-              }
-            >
-              <div className="space-y-3">
-                <VideoSourceSelector
-                  value={mode}
-                  onChange={setMode}
-                  prompt={prompt}
-                  onPromptChange={setPrompt}
-                  onFileUpload={handleFileUpload}
-                  referenceImage={referenceImage}
-                  referenceVideo={referenceVideo}
-                  startFrame={startFrame}
-                  endFrame={endFrame}
-                  v2vInputVideo={v2vInputVideo}
-                  editVideo={editVideo}
-                  editRefImage={editRefImage}
-                  availableModes={modelCapabilities?.availableModes || ['text', 'image', 'reference']}
-                />
-
-                <ModelSelector value={selectedModel} onChange={setSelectedModel} />
-
-                <VideoParamsControls
-                  duration={duration}
-                  onDurationChange={setDuration}
-                  quality={quality}
-                  onQualityChange={setQuality}
-                  withSound={withSound}
-                  onSoundChange={setWithSound}
-                  aspectRatio={aspectRatio}
-                  onAspectRatioChange={setAspectRatio}
-                  durationOptions={modelCapabilities?.durationOptions || [3, 5, 10, 15]}
-                  qualityOptions={modelCapabilities?.qualityOptions || ['720p', '1080p', '4K']}
-                  aspectRatioOptions={modelCapabilities?.aspectRatios || ['16:9', '9:16', '1:1']}
-                  supportsAudio={modelCapabilities?.supportsAudio ?? true}
-                />
-
-                <AdvancedSettings
-                  negativePrompt={negativePrompt}
-                  onNegativePromptChange={setNegativePrompt}
-                  supportsNegativePrompt={modelCapabilities?.supportsNegativePrompt ?? false}
-                  modelVariant={modelVariant}
-                  onModelVariantChange={setModelVariant}
-                  availableVariants={modelCapabilities?.availableVariants || []}
-                  resolution={resolution}
-                  onResolutionChange={setResolution}
-                  availableResolutions={modelCapabilities?.availableResolutions || []}
-                  soundPreset={soundPreset}
-                  onSoundPresetChange={setSoundPreset}
-                  availableSoundPresets={modelCapabilities?.availableSoundPresets || []}
-                />
-
-                <CostEstimator
-                  modelId={selectedModel}
-                  mode={mode}
-                  duration={duration}
-                  quality={quality}
-                  withSound={withSound}
-                />
-              </div>
-            </SettingsTabs>
-          </div>
-
-          {/* Sticky Generate Button */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--surface-glass)] backdrop-blur-2xl border-t border-[var(--border)] z-50">
-            <GenerateButton
-              onClick={handleGenerate}
-              isGenerating={isGenerating}
-              cost={estimatedCost}
-            />
-          </div>
-
-          {/* Bottom padding to prevent content being hidden by sticky button */}
-          <div className="h-20"></div>
+          </SettingsTabs>
         </div>
+
+        {/* Sticky Generate Button */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--surface-glass)] backdrop-blur-2xl border-t border-[var(--border)] z-50">
+          <GenerateButton
+            onClick={handleGenerate}
+            isGenerating={isGenerating}
+            cost={estimatedCost}
+          />
+        </div>
+
+        {/* Bottom padding */}
+        <div className="h-20"></div>
       </div>
 
       {/* Login Dialog */}
