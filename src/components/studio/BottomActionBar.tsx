@@ -15,7 +15,6 @@ const haptic = (style: 'light' | 'medium' = 'light') => {
 
 interface BottomActionBarProps {
   stars: number;
-  approxRub: number;
   hint?: string;
   canGenerate: boolean;
   onGenerate: () => void;
@@ -26,7 +25,6 @@ interface BottomActionBarProps {
 
 export const BottomActionBar = memo(function BottomActionBar({
   stars,
-  approxRub,
   hint,
   canGenerate,
   onGenerate,

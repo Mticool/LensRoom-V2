@@ -155,36 +155,6 @@ const applicationSchema = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   browserRequirements: "Requires JavaScript. Works in Chrome, Firefox, Safari, Edge.",
-  offers: {
-    "@type": "AggregateOffer",
-    priceCurrency: "RUB",
-    lowPrice: "0",
-    highPrice: "4990",
-    offerCount: "3",
-    offers: [
-      {
-        "@type": "Offer",
-        name: "Стартовый пакет",
-        price: "1490",
-        priceCurrency: "RUB",
-        description: "2200 звёзд для генерации",
-      },
-      {
-        "@type": "Offer",
-        name: "Популярный пакет",
-        price: "1990",
-        priceCurrency: "RUB",
-        description: "3000 звёзд для генерации",
-      },
-      {
-        "@type": "Offer",
-        name: "PRO пакет",
-        price: "4990",
-        priceCurrency: "RUB",
-        description: "7600 звёзд для генерации",
-      },
-    ],
-  },
   aggregateRating: {
     "@type": "AggregateRating",
     ratingValue: "4.8",
@@ -233,7 +203,7 @@ const faqSchema = {
       name: "Сколько стоит генерация в LensRoom?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Цены начинаются от 7 звёзд за изображение. Пакеты: 1490₽ за 2200 звёзд, 1990₽ за 3000 звёзд, 4990₽ за 7600 звёзд. Также доступны подписки с ежемесячными звёздами.",
+        text: "Стоимость начинается от 7⭐ за изображение. Также доступны пакеты ⭐ и подписки с ежемесячными звёздами.",
       },
     },
     {

@@ -248,7 +248,8 @@ export async function POST(request: NextRequest) {
     // Check credits using admin client
     const supabase = getSupabaseAdmin();
 
-    // Optional: validate threadId and ensure it belongs to user + matches model.
+    // Optional: validate threadId and ensure it belongs to user.
+    // NOTE: Projects are shared across Photo/Video/Motion/Music, so we must NOT enforce model_id match here.
     const threadId = threadIdRaw ? String(threadIdRaw).trim() : "";
     if (threadId) {
       try {
@@ -261,14 +262,6 @@ export async function POST(request: NextRequest) {
 
         if (threadErr || !thread) {
           return NextResponse.json({ error: "Invalid threadId" }, { status: 400 });
-        }
-
-        // Match against resolved effective model id (e.g. 'seedream-4.5')
-        if (thread.model_id && String(thread.model_id) !== String(effectiveModelId)) {
-          return NextResponse.json(
-            { error: "threadId does not match selected model" },
-            { status: 400 }
-          );
         }
       } catch (e) {
         console.error("[API] threadId validation error:", e);

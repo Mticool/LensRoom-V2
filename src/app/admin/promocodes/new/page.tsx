@@ -10,7 +10,7 @@ import { ArrowLeft, Save, Sparkles } from "lucide-react";
 const BONUS_TYPES = [
   { value: "bonus_stars", label: "⭐ Бонусные звёзды", description: "Мгновенное начисление звёзд" },
   { value: "percent_discount", label: "💰 Скидка %", description: "Процент скидки на пакет" },
-  { value: "fixed_discount", label: "💵 Скидка ₽", description: "Фиксированная скидка в рублях" },
+  { value: "fixed_discount", label: "💵 Скидка", description: "Фиксированная скидка" },
   { value: "multiplier", label: "✨ Множитель", description: "Умножение звёзд при покупке" },
   { value: "free_pack", label: "🎁 Бесплатный пакет", description: "Выдача пакета бесплатно" },
 ];
@@ -88,7 +88,7 @@ export default function NewPromocodePage() {
       case "percent_discount":
         return "Процент скидки (1-100)";
       case "fixed_discount":
-        return "Сумма скидки (₽)";
+        return "Сумма скидки";
       case "multiplier":
         return "Множитель (например 1.5 = +50%)";
       case "free_pack":
@@ -260,7 +260,7 @@ export default function NewPromocodePage() {
           {(form.bonus_type === "percent_discount" || form.bonus_type === "fixed_discount") && (
             <div>
               <label className="text-sm font-medium text-[var(--text)] mb-2 block">
-                Мин. сумма покупки (₽)
+                Мин. сумма покупки
               </label>
               <input
                 type="number"

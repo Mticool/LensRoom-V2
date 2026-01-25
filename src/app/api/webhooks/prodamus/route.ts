@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         amount: credits,
         type: 'purchase',
-        description: `Покупка ${credits} кредитов (${payload.sum}₽)`,
+        description: `Покупка ${credits} кредитов (${payload.sum})`,
       });
 
       console.log('[Prodamus Webhook] Package processed:', {

@@ -8,11 +8,11 @@ import { CheckCircle2, Film, Loader2 } from "lucide-react";
 
 import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
-// Removed: import { approxRubFromStars } from "@/config/pricing";
 import { computePrice } from "@/lib/pricing/compute-price";
 import { calcMotionControlStars, validateMotionControlDuration, type MotionControlResolution } from "@/lib/pricing/motionControl";
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { usePreferencesStore } from "@/stores/preferences-store";
+import { useHistory } from "@/components/generator-v2/hooks/useHistory";
 
 import type { Aspect, Duration, Mode, Quality } from "@/config/studioModels";
 import { getStudioModelByKey, STUDIO_PHOTO_MODELS, STUDIO_VIDEO_MODELS } from "@/config/studioModels";
@@ -102,7 +102,14 @@ async function safeReadJson(response: Response): Promise<any> {
   }
 }
 
-export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" }) {
+export function StudioRuntime({
+  defaultKind,
+  variant = "video",
+}: {
+  defaultKind: "photo" | "video";
+  /** For video kind: constrain defaults/model list (e.g. Motion-only). */
+  variant?: "video" | "motion";
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showSuccessNotifications } = usePreferencesStore();
@@ -110,7 +117,24 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const requestedKind = (searchParams.get("kind") as "photo" | "video" | null) || null;
   const kind: "photo" | "video" = requestedKind || defaultKind;
 
-  const models = kind === "photo" ? STUDIO_PHOTO_MODELS : STUDIO_VIDEO_MODELS;
+  // Project/thread (canonical: `project`, legacy: `thread`)
+  const threadId = (searchParams.get("project") || searchParams.get("thread") || "").trim() || undefined;
+  const historyMode = kind === "video" ? "video" : "image";
+  const {
+    history: projectHistory,
+    refresh: refreshProjectHistory,
+    invalidateCache: invalidateProjectHistoryCache,
+  } = useHistory(historyMode, undefined, threadId);
+
+  const videoModels = useMemo(() => {
+    if (variant === "motion") {
+      // Motion section: only Motion Control for now.
+      return STUDIO_VIDEO_MODELS.filter((m) => m.key === "kling-motion-control");
+    }
+    return STUDIO_VIDEO_MODELS;
+  }, [variant]);
+
+  const models = kind === "photo" ? STUDIO_PHOTO_MODELS : videoModels;
   const photoBaseModels = PHOTO_VARIANT_MODELS;
   const currentPlan: "free" | "pro" | "agency" = "free";
   const initialPhotoBaseId = photoBaseModels[0]?.id || "";
@@ -123,6 +147,16 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const [selectedModelId, setSelectedModelId] = useState<string>(
     kind === "photo" ? initialPhotoLegacyId : (models[0]?.key || "")
   );
+
+  // Ensure selected video model exists when switching variant (e.g. Video -> Motion).
+  useEffect(() => {
+    if (kind !== "video") return;
+    if (!models.length) return;
+    if (!models.some((m) => m.key === selectedModelId)) {
+      setSelectedModelId(models[0]!.key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant, kind, models.length]);
 
   // Common UI state
   const [mode, setMode] = useState<Mode>(kind === "photo" ? "t2i" : "t2v");
@@ -161,6 +195,18 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   useEffect(() => {
     focusedJobIdRef.current = focusedJobId;
   }, [focusedJobId]);
+
+  // Keep project history in sync when other parts of the app trigger refresh.
+  useEffect(() => {
+    const handler = () => {
+      try {
+        invalidateProjectHistoryCache();
+        refreshProjectHistory();
+      } catch {}
+    };
+    window.addEventListener("generations:refresh", handler as EventListener);
+    return () => window.removeEventListener("generations:refresh", handler as EventListener);
+  }, [invalidateProjectHistoryCache, refreshProjectHistory]);
 
   // Apply preset / query mapping (UI-only)
   useEffect(() => {
@@ -698,6 +744,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
           variants: 1,
           mode: mode === "i2i" ? "i2i" : "t2i",
           outputFormat,
+          threadId,
         };
 
         if (mode === "i2i") {
@@ -798,6 +845,7 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
         resolution: effectiveResolution || undefined, // For WAN per-second pricing
         audio: v.supportsAudio ? audio : undefined,
         soundPreset: soundPreset || undefined, // WAN sound presets
+        threadId,
       };
 
       if (mode === "i2v") {
@@ -896,6 +944,12 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
   const newResultsCount = useMemo(() => {
     return activeJobs.filter((j) => j.status === "success" && !j.opened).length;
   }, [activeJobs]);
+
+  const recentProjectHistory = useMemo(() => {
+    if (kind !== "video") return [];
+    // `useHistory` returns oldest-first; show newest first and cap for UI.
+    return (projectHistory || []).slice(-12).reverse();
+  }, [kind, projectHistory]);
 
   const handleReset = useCallback(() => {
     setPrompt("");
@@ -1024,6 +1078,38 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
               />
             )}
 
+            {/* Project history (Video/Motion) */}
+            {kind === "video" && recentProjectHistory.length > 0 && (
+              <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-5">
+                <div className="text-sm font-semibold mb-3">История проекта</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {recentProjectHistory.slice(0, 6).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        if (item.url) {
+                          setResultUrls([item.url]);
+                          setStatus("success");
+                        }
+                      }}
+                      className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border)] bg-black/30 hover:border-white/30 transition-colors"
+                      title={item.prompt || ""}
+                    >
+                      <video
+                        src={item.url}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* If some providers return multiple image URLs, show extra variants below preview */}
             {status === "success" && studioModel.kind === "photo" && resultUrls.length > 1 && (
               <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -1106,7 +1192,6 @@ export function StudioRuntime({ defaultKind }: { defaultKind: "photo" | "video" 
 
         <BottomActionBar
           stars={price.stars}
-          approxRub={0}
           hint={
             studioModel.kind === "video"
               ? "Влияет на цену: режим • качество • длительность"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Sparkles, Volume2, Play, Pause, Download, Music } from 'lucide-react';
 import { VoiceCloneCard } from './VoiceCloneCard';
@@ -8,6 +8,7 @@ import { AudioGenerateCard } from './AudioGenerateCard';
 import { cn } from '@/lib/utils';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { useAuth } from '@/components/generator-v2/hooks/useAuth';
+import { useSearchParams } from 'next/navigation';
 
 interface ClonedVoice {
   id: string;
@@ -22,6 +23,15 @@ interface AudioResult {
   generationId?: string;
 }
 
+type AudioHistoryItem = {
+  id: string;
+  url: string;
+  prompt: string;
+  status: string;
+  createdAt: string;
+  modelName?: string | null;
+};
+
 // Cost estimates based on API settings
 const COST_ESTIMATE = {
   clone: 15,
@@ -30,8 +40,13 @@ const COST_ESTIMATE = {
 };
 
 export function AudioStudio() {
+  const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, credits } = useAuth();
   const [loginOpen, setLoginOpen] = useState(false);
+
+  const threadId = useMemo(() => {
+    return (searchParams.get("project") || searchParams.get("thread") || "").trim() || "";
+  }, [searchParams]);
 
   // Step 1: Voice Clone State
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
@@ -50,6 +65,57 @@ export function AudioStudio() {
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'generating' | 'done'>('idle');
   const [result, setResult] = useState<AudioResult | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Project-scoped history (audio)
+  const [audioHistory, setAudioHistory] = useState<AudioHistoryItem[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isAuthenticated || !threadId) {
+        setAudioHistory([]);
+        return;
+      }
+      setIsHistoryLoading(true);
+      try {
+        const qs = new URLSearchParams();
+        qs.set("type", "audio");
+        qs.set("thread_id", threadId);
+        qs.set("limit", "20");
+        qs.set("offset", "0");
+        const res = await fetch(`/api/generations?${qs.toString()}`, { credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+        const gens: any[] = Array.isArray(data?.generations) ? data.generations : [];
+        const mapped: AudioHistoryItem[] = gens
+          .map((g) => {
+            const url =
+              g?.result_url ||
+              g?.asset_url ||
+              (Array.isArray(g?.result_urls) ? g.result_urls[0] : "") ||
+              "";
+            return {
+              id: String(g?.id || ""),
+              url: String(url || ""),
+              prompt: String(g?.prompt || ""),
+              status: String(g?.status || ""),
+              createdAt: String(g?.created_at || ""),
+              modelName: g?.model_name ?? null,
+            };
+          })
+          .filter((x) => x.id && x.url);
+        if (!cancelled) setAudioHistory(mapped);
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setIsHistoryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, threadId]);
 
   // Calculate estimated cost
   const estimatedCost = mode === 'speech' 
@@ -116,6 +182,7 @@ export function AudioStudio() {
             dialogue: prompt,
             language_code: language === 'mix' ? 'auto' : language,
             stability: 0.5,
+            threadId: threadId || undefined,
           }
         : {
             // Suno for music
@@ -125,6 +192,7 @@ export function AudioStudio() {
             suno_model: 'V4_5PLUS',
             custom_mode: false,
             instrumental: false,
+            threadId: threadId || undefined,
           };
 
       const response = await fetch('/api/generate/audio', {
@@ -312,6 +380,37 @@ export function AudioStudio() {
                   <Download className="w-5 h-5" />
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Project history */}
+          {threadId && (
+            <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+              <h3 className="text-lg font-semibold text-[var(--text)] mb-4">История проекта</h3>
+              {isHistoryLoading ? (
+                <div className="text-sm text-[var(--muted)]">Загрузка…</div>
+              ) : audioHistory.length === 0 ? (
+                <div className="text-sm text-[var(--muted)]">Пока нет аудио в этом проекте.</div>
+              ) : (
+                <div className="space-y-3">
+                  {audioHistory.slice(0, 6).map((h) => (
+                    <div key={h.id} className="p-3 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-[var(--text)] truncate">
+                            {h.modelName || "Audio"}
+                          </div>
+                          <div className="text-xs text-[var(--muted)] truncate">{h.prompt}</div>
+                        </div>
+                        <div className="text-xs text-[var(--muted)] whitespace-nowrap">{h.status}</div>
+                      </div>
+                      <div className="mt-2">
+                        <audio controls src={h.url} className="w-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

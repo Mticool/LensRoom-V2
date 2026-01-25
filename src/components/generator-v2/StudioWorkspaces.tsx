@@ -211,7 +211,10 @@ export function StudioWorkspaces() {
   const searchParams = useSearchParams();
 
   const selectedModelId = (searchParams.get("model") || "nano-banana-pro").trim();
-  const selectedThreadId = (searchParams.get("thread") || "").trim() || null;
+  // New: `project` is the canonical query param.
+  // Backward-compat: accept legacy `thread`.
+  const selectedThreadId =
+    (searchParams.get("project") || searchParams.get("thread") || "").trim() || null;
 
   const model = getModelById(selectedModelId);
   const photoModel = model && model.type === "photo" ? model : null;
@@ -264,7 +267,8 @@ export function StudioWorkspaces() {
     invalidateCache 
   } = useHistory(
     "image",
-    selectedModelId,
+    // Project history should include ALL photo models within this project.
+    undefined,
     selectedThreadId || undefined
   );
 
@@ -750,10 +754,10 @@ export function StudioWorkspaces() {
     }
   }, [selectedModelId, aspectRatio, qualityLabel, quantity, negativePrompt, seed, steps]);
 
-  const fetchThreads = useCallback(async (modelId: string) => {
+  const fetchThreads = useCallback(async () => {
     setThreadsLoading(true);
     try {
-      const res = await fetch(`/api/studio/threads?model_id=${encodeURIComponent(modelId)}`, {
+      const res = await fetch(`/api/studio/threads`, {
         credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
@@ -771,13 +775,13 @@ export function StudioWorkspaces() {
     }
   }, []);
 
-  const createThread = useCallback(async (modelId: string): Promise<StudioThread | null> => {
+  const createThread = useCallback(async (): Promise<StudioThread | null> => {
     try {
       const res = await fetch("/api/studio/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ modelId }),
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to create thread");
@@ -982,7 +986,7 @@ export function StudioWorkspaces() {
     }
   }, [viewerImage, supportsI2i, fetchGenerationAsDataUrl]);
 
-  // Ensure threads exist for model; ensure active thread is valid
+  // Ensure threads exist for user; ensure active project is valid
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -993,13 +997,13 @@ export function StudioWorkspaces() {
         setThreadsLoaded(false);
         return;
       }
-      await fetchThreads(selectedModelId);
+      await fetchThreads();
       if (cancelled) return;
     })();
     return () => {
       cancelled = true;
     };
-  }, [selectedModelId, fetchThreads, isAuthenticated, authLoading]);
+  }, [fetchThreads, isAuthenticated, authLoading]);
 
   useEffect(() => {
     // When threads list updates, ensure active thread exists or create one.
@@ -1011,17 +1015,23 @@ export function StudioWorkspaces() {
       if (!selectedThreadId || !threads.some((t) => t.id === selectedThreadId)) {
         if (threads.length > 0) {
           const nextThread = threads[0]!;
-          router.replace(`/create/studio${buildSearchParams(searchParams, { model: selectedModelId, thread: nextThread.id })}`, {
+          router.replace(
+            `/create/studio${buildSearchParams(searchParams, { model: selectedModelId, project: nextThread.id, thread: null })}`,
+            {
             scroll: false,
-          });
+            }
+          );
           return;
         }
-        const created = await createThread(selectedModelId);
+        const created = await createThread();
         if (created) {
           setThreads((prev) => [created, ...prev]);
-          router.replace(`/create/studio${buildSearchParams(searchParams, { model: selectedModelId, thread: created.id })}`, {
+          router.replace(
+            `/create/studio${buildSearchParams(searchParams, { model: selectedModelId, project: created.id, thread: null })}`,
+            {
             scroll: false,
-          });
+            }
+          );
         }
       }
     })();
@@ -1030,7 +1040,8 @@ export function StudioWorkspaces() {
 
   const handleModelChange = useCallback(
     (modelId: string) => {
-      router.push(`/create/studio${buildSearchParams(searchParams, { model: modelId, thread: null })}`, {
+      // Model change must NOT create a new project. Keep `project` if present.
+      router.push(`/create/studio${buildSearchParams(searchParams, { model: modelId })}`, {
         scroll: false,
       });
     },
@@ -1039,7 +1050,7 @@ export function StudioWorkspaces() {
 
   const handleSelectThread = useCallback(
     (threadId: string) => {
-      router.push(`/create/studio${buildSearchParams(searchParams, { model: selectedModelId, thread: threadId })}`, {
+      router.push(`/create/studio${buildSearchParams(searchParams, { model: selectedModelId, project: threadId, thread: null })}`, {
         scroll: false,
       });
       setLocalItems([]); // isolate per thread (pending is thread-specific)
@@ -1052,10 +1063,10 @@ export function StudioWorkspaces() {
       await startTelegramLogin();
       return;
     }
-    const created = await createThread(selectedModelId);
+    const created = await createThread();
     if (!created) return;
     setThreads((prev) => [created, ...prev]);
-    router.push(`/create/studio${buildSearchParams(searchParams, { model: selectedModelId, thread: created.id })}`, {
+    router.push(`/create/studio${buildSearchParams(searchParams, { model: selectedModelId, project: created.id, thread: null })}`, {
       scroll: false,
     });
     setLocalItems([]);
@@ -1328,9 +1339,6 @@ export function StudioWorkspaces() {
       <ThreadSidebar
         open={isThreadsOpen}
         onOpenChange={setIsThreadsOpen}
-        selectedModelId={selectedModelId}
-        onModelChange={handleModelChange}
-        modelName={photoModel.name}
         threads={threads}
         activeThreadId={selectedThreadId}
         isLoading={threadsLoading}

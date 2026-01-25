@@ -340,12 +340,12 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Affiliate earnings (RUB) */}
+              {/* Affiliate earnings */}
               <div className="mt-4 pt-4 border-t border-[var(--border)]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
-                    <div className="text-sm font-medium text-[var(--text)]">Заработок (₽)</div>
+                    <div className="text-sm font-medium text-[var(--text)]">Заработок</div>
                   </div>
                   {affiliateData?.tier && (
                     <div className="text-[10px] text-[var(--muted)]">
@@ -362,19 +362,19 @@ export default function ProfilePage() {
                       <div className="p-2.5 rounded-lg bg-white/5 text-center">
                         <div className="text-xs text-[var(--muted)] mb-0.5">всего</div>
                         <div className="text-sm font-semibold text-[var(--text)]">
-                          {Math.round(affiliateData.totals.totalRub).toLocaleString()}₽
+                          {Math.round(affiliateData.totals.totalRub).toLocaleString()}
                         </div>
                       </div>
                       <div className="p-2.5 rounded-lg bg-yellow-500/10 text-center">
                         <div className="text-xs text-yellow-500 mb-0.5">к выплате</div>
                         <div className="text-sm font-semibold text-yellow-500">
-                          {Math.round(affiliateData.totals.pendingRub).toLocaleString()}₽
+                          {Math.round(affiliateData.totals.pendingRub).toLocaleString()}
                         </div>
                       </div>
                       <div className="p-2.5 rounded-lg bg-green-500/10 text-center">
                         <div className="text-xs text-green-500 mb-0.5">выплачено</div>
                         <div className="text-sm font-semibold text-green-500">
-                          {Math.round(affiliateData.totals.paidRub).toLocaleString()}₽
+                          {Math.round(affiliateData.totals.paidRub).toLocaleString()}
                         </div>
                       </div>
                     </div>
@@ -395,7 +395,7 @@ export default function ProfilePage() {
                               </div>
                             </div>
                             <div className="text-sm font-semibold text-[var(--text)]">
-                              {Math.round(Number(e.commission_rub || 0)).toLocaleString()}₽
+                              {Math.round(Number(e.commission_rub || 0)).toLocaleString()}
                             </div>
                           </div>
                         ))}
@@ -404,7 +404,7 @@ export default function ProfilePage() {
                   </>
                 ) : (
                   <div className="text-sm text-[var(--muted)]">
-                    Начисления в ₽ появляются только у партнёров (после оплат ваших рефералов).
+                    Начисления появляются только у партнёров (после оплат ваших рефералов).
                   </div>
                 )}
               </div>

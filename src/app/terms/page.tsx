@@ -70,7 +70,7 @@ export default function TermsPage() {
                 . Цены могут быть изменены Исполнителем в одностороннем порядке без предварительного уведомления.
               </p>
               <p>
-                <strong className="text-[var(--text)]">3.4. Валюта:</strong> Все цены указаны в российских рублях (₽).
+                <strong className="text-[var(--text)]">3.4. Валюта:</strong> Все цены указаны в звёздах (⭐).
               </p>
             </div>
           </section>

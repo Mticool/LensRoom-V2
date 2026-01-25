@@ -7,7 +7,6 @@ import { computePrice, ComputedPrice } from '@/lib/pricing/compute-price';
 interface CostCalculationResult {
   stars: number;
   credits: number;
-  approxRub: number;
   breakdown?: string;
   isIncludedInPlan?: boolean;
 }
@@ -46,7 +45,6 @@ export function calculateGenerationCost(
   return {
     stars: computed.stars,
     credits: computed.credits,
-    approxRub: computed.approxRub,
     breakdown: `${settings.model}${settings.quality ? ` (${settings.quality})` : ''}${settings.duration ? ` ${settings.duration}с` : ''}`,
   };
 }

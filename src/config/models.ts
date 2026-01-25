@@ -850,7 +850,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   // === KLING O1 - Image-to-Video First/Last Frame (fal.ai) ===
   // Документация: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video
   // Себестоимость fal.ai: $0.112/сек
-  // Расчёт: $0.112 × 5s × 101.2₽/$ = 56.67₽ себестоимость → 120⭐ (маржа ~40%)
+  // Расчёт себестоимости/маржи скрыт (⭐-ориентированный UI)
   // ПРАВИЛО: 10s = 2× от 5s
   {
     id: 'kling-o1',

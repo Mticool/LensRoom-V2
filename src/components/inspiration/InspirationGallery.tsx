@@ -335,7 +335,7 @@ export function InspirationGallery() {
   // Handle repeat - redirect to generator with correct model and prompt
   const handleRepeat = useCallback((card: ContentCard) => {
     // Map content_type to section
-    const section = card.content_type === 'video' ? 'video' : 'image';
+    const section = card.content_type === 'video' ? 'video' : 'photo';
 
     // Store prompt in localStorage to be picked up by generator
     if (card.template_prompt) {
@@ -343,18 +343,10 @@ export function InspirationGallery() {
       localStorage.setItem('lensroom_prefill_model', card.model_key);
     }
 
-    // Use new video generator for video content
-    if (section === 'video') {
-      const params = new URLSearchParams();
-      params.set('model', card.model_key);
-      router.push(`/generators?${params.toString()}`);
-    } else {
-      // Use old studio for images
-      const params = new URLSearchParams();
-      params.set('section', section);
-      params.set('model', card.model_key);
-      router.push(`/create/studio?${params.toString()}`);
-    }
+    const params = new URLSearchParams();
+    params.set('section', section);
+    params.set('model', card.model_key);
+    router.push(`/create/studio?${params.toString()}`);
 
     toast.success('Открываем генератор', {
       description: `${card.model_key} • Промпт применён`,

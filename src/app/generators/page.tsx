@@ -1,6 +1,5 @@
-import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
-import { VideoGeneratorPage } from '@/components/video-generator/VideoGeneratorPage';
 
 export const metadata: Metadata = {
   title: 'Видео-генератор | LensRoom',
@@ -11,20 +10,34 @@ export const metadata: Metadata = {
   },
 };
 
-export default function GeneratorsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[var(--bg)] pt-24">
-          <div className="container mx-auto px-6 py-10">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
-              Загрузка…
-            </div>
-          </div>
-        </div>
-      }
-    >
-      <VideoGeneratorPage />
-    </Suspense>
-  );
+export default function GeneratorsPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const get = (k: string) => {
+    const v = searchParams?.[k];
+    return Array.isArray(v) ? v[0] : v;
+  };
+
+  // Legacy: /generators?mode=motion
+  const mode = String(get("mode") || "").trim().toLowerCase();
+  const section = mode === "motion" ? "motion" : "video";
+
+  const params = new URLSearchParams();
+  params.set("section", section);
+
+  const project = String(get("project") || get("thread") || "").trim();
+  if (project) params.set("project", project);
+
+  const model = String(get("model") || "").trim();
+  if (model) params.set("model", model);
+
+  const prompt = String(get("prompt") || "").trim();
+  if (prompt) params.set("prompt", prompt);
+
+  const generationId = String(get("generationId") || "").trim();
+  if (generationId) params.set("generationId", generationId);
+
+  redirect(`/create/studio?${params.toString()}`);
 }

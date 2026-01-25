@@ -71,7 +71,7 @@ export const CREDIT_PACKAGES = STAR_PACKS.map((pack) => {
     credits: pack.stars + (pack.bonus || 0), // Total stars including bonus
     price: pack.price,
     badge: badges[pack.id],
-    description: descriptions[pack.id] || `${pack.stars}⭐ за ${pack.price}₽`,
+    description: descriptions[pack.id] || `${pack.stars}⭐`,
     features: featuresList[pack.id] || [],
     popular: pack.popular,
   };

@@ -1,7 +1,5 @@
 import type { Aspect, Duration, Mode, Quality, StudioModel } from "@/config/studioModels";
 
-export const RUB_PER_STAR = 3.3;
-
 export type StudioSelectedOptions = {
   mode: Mode;
   quality: Quality;
@@ -35,10 +33,3 @@ export function calcStars(model: StudioModel, opts: StudioSelectedOptions): numb
 
   return Math.max(0, Math.ceil(total));
 }
-
-export function calcRub(stars: number): number {
-  return Math.ceil(stars * RUB_PER_STAR);
-}
-
-
-

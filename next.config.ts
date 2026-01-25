@@ -349,56 +349,6 @@ const nextConfig: NextConfig = {
         destination: '/create/studio',
         permanent: false,
       },
-      // Phase 4: Redirect old video generator to new /generators
-      {
-        source: '/create/studio',
-        has: [
-          {
-            type: 'query',
-            key: 'section',
-            value: 'video',
-          },
-        ],
-        destination: '/generators',
-        permanent: true,
-      },
-      {
-        source: '/create',
-        has: [
-          {
-            type: 'query',
-            key: 'section',
-            value: 'video',
-          },
-        ],
-        destination: '/generators',
-        permanent: true,
-      },
-      // Motion Control redirect to video generator with motion mode
-      {
-        source: '/create/studio',
-        has: [
-          {
-            type: 'query',
-            key: 'section',
-            value: 'motion',
-          },
-        ],
-        destination: '/generators?mode=motion',
-        permanent: false,
-      },
-      {
-        source: '/create',
-        has: [
-          {
-            type: 'query',
-            key: 'section',
-            value: 'motion',
-          },
-        ],
-        destination: '/generators?mode=motion',
-        permanent: false,
-      },
     ];
   },
 };

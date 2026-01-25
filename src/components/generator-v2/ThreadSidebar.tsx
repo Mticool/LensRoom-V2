@@ -3,7 +3,6 @@
 import { Plus, MessageSquare, Loader2, X, Pencil, Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 
 export type StudioThread = {
   id: string;
@@ -15,9 +14,6 @@ export type StudioThread = {
 export function ThreadSidebar({
   open,
   onOpenChange,
-  selectedModelId,
-  onModelChange,
-  modelName,
   threads,
   activeThreadId,
   isLoading,
@@ -27,9 +23,6 @@ export function ThreadSidebar({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedModelId: string;
-  onModelChange: (modelId: string) => void;
-  modelName: string;
   threads: StudioThread[];
   activeThreadId: string | null;
   isLoading: boolean;
@@ -101,7 +94,9 @@ export function ThreadSidebar({
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-xs text-[#71717A]">Мои проекты</div>
-                  <div className="text-sm font-semibold text-white truncate">{modelName}</div>
+                  <div className="text-sm font-semibold text-white truncate">
+                    {threads.length ? `${threads.length} проектов` : "Проекты"}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -114,17 +109,14 @@ export function ThreadSidebar({
               </div>
 
               <div className="mt-3 flex items-center gap-2">
-                <div className="flex-1 min-w-0 relative z-0">
-                  <ModelSelector value={selectedModelId} onChange={onModelChange} direction="down" />
-                </div>
                 <button
                   onClick={onCreateThread}
-                  className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-[#CDFF00] text-black font-semibold text-sm hover:bg-[#B8E600] transition-colors relative z-10"
-                  title="Новый чат"
+                  className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-[#CDFF00] text-black font-semibold text-sm hover:bg-[#B8E600] transition-colors relative z-10 w-full justify-center"
+                  title="Новый проект"
                   type="button"
                 >
                   <Plus className="w-4 h-4" />
-                  Новый
+                  Новый проект
                 </button>
               </div>
             </div>

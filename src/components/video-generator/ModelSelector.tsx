@@ -21,12 +21,12 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
 
   return (
     <div className="relative">
-      <label className="block text-xs font-medium mb-1">Модель</label>
+      <label className="block text-xs font-medium mb-0.5">Модель</label>
 
       {/* Selected Model Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--border-hover)] rounded-md text-[var(--text)] transition-colors"
+        className="w-full flex items-center justify-between px-3 py-1.5 bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--border-hover)] rounded-md text-[var(--text)] transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{selectedModel.name}</span>
@@ -62,7 +62,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
                 <button
                   key={model.id}
                   onClick={() => handleSelect(model.id)}
-                  className={`w-full px-3 py-2 text-left hover:bg-[var(--surface2)] transition-colors ${
+                  className={`w-full px-3 py-1.5 text-left hover:bg-[var(--surface2)] transition-colors ${
                     isSelected ? 'bg-[var(--surface2)]' : ''
                   }`}
                 >

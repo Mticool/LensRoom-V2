@@ -110,7 +110,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
   const navigation = useMemo(() => [
     { name: 'Фото', dropdown: 'design' as const },
     { name: 'Видео', dropdown: 'video' as const },
-    { name: 'Музыка', href: '/create/studio?section=audio' },
+    { name: 'Музыка', href: '/create/studio?section=music' },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },
   ], []);
@@ -176,7 +176,9 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                               {MODELS[item.dropdown].map((model: any) => (
                                 <Link
                                   key={model.id}
-                                  href={`/create/studio?section=${item.dropdown === 'design' ? 'image' : item.dropdown}&model=${model.id}`}
+                                  href={`/create/studio?section=${
+                                    item.dropdown === 'design' ? 'photo' : item.dropdown === 'audio' ? 'music' : item.dropdown
+                                  }&model=${model.id}`}
                                   onClick={() => setActiveDropdown(null)}
                                   className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-[var(--surface2)] transition-all duration-150"
                                 >
@@ -189,7 +191,9 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                             {/* Footer */}
                             <div className="px-4 py-2.5 border-t border-[var(--border)] bg-[var(--surface2)]/30">
                               <Link
-                                href={`/create/studio?section=${item.dropdown === 'design' ? 'image' : item.dropdown}`}
+                                href={`/create/studio?section=${
+                                  item.dropdown === 'design' ? 'photo' : item.dropdown === 'audio' ? 'music' : item.dropdown
+                                }`}
                                 onClick={() => setActiveDropdown(null)}
                                 className="text-[12px] font-medium text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors"
                               >
@@ -517,7 +521,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                 {/* Quick Actions */}
                 <div className="grid grid-cols-4 gap-2 mb-6">
                   <Link
-                    href="/create/studio?section=image"
+                    href="/create/studio?section=photo"
                     onClick={() => setMobileMenuOpen(false)}
                     className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-blue-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
                   >
@@ -541,7 +545,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                     <p className="text-xs font-semibold text-[var(--text)]">Motion</p>
                   </Link>
                   <Link
-                    href="/create/studio?section=audio"
+                    href="/create/studio?section=music"
                     onClick={() => setMobileMenuOpen(false)}
                     className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-pink-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
                   >
@@ -596,7 +600,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                       {MODELS[section].slice(0, 3).map((model: any) => (
                         <Link
                           key={model.id}
-                          href={`/create/studio?section=${section === 'design' ? 'image' : section}&model=${model.id}`}
+                          href={`/create/studio?section=${section === 'design' ? 'photo' : section}&model=${model.id}`}
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
                         >

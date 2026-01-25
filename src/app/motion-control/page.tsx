@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { MotionControlGenerator } from '@/components/motion-control/MotionControlGenerator';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Kling 2.6 Motion Control — Перенос движений на персонажа',
@@ -29,6 +29,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function MotionControlPage() {
-  return <MotionControlGenerator />;
+export default function MotionControlPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const get = (k: string) => {
+    const v = searchParams?.[k];
+    return Array.isArray(v) ? v[0] : v;
+  };
+
+  const params = new URLSearchParams();
+  params.set("section", "motion");
+  params.set("model", "kling-motion-control");
+
+  const project = String(get("project") || get("thread") || "").trim();
+  if (project) params.set("project", project);
+
+  redirect(`/create/studio?${params.toString()}`);
 }

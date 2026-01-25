@@ -110,7 +110,6 @@ export function LimitReachedModal({
                   <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-bold text-[var(--text)]">Lite</h4>
-                      <span className="text-lg font-bold text-[var(--gold)]">590₽/мес</span>
                     </div>
                     <p className="text-sm text-[var(--text2)] mb-3">
                       ∞ Nano Banana • 50 инструментов/мес
@@ -124,7 +123,6 @@ export function LimitReachedModal({
                     </Badge>
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-bold text-[var(--text)]">Creator</h4>
-                      <span className="text-lg font-bold text-[var(--gold)]">1490₽/мес</span>
                     </div>
                     <p className="text-sm text-[var(--text2)] mb-1">
                       ∞ Nano + 30 Nano Pro • 100 инструментов

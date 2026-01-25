@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 interface BottomActionBarProps {
   // Pricing
   stars: number;
-  approxRub: number;
   priceLabel?: string;
   
   // Button
@@ -25,7 +24,6 @@ interface BottomActionBarProps {
 
 export function BottomActionBar({
   stars,
-  approxRub,
   priceLabel = 'Стоимость',
   buttonText,
   buttonIcon = 'photo',

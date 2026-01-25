@@ -37,32 +37,44 @@ export function VideoHistory() {
 
   const handleItemClick = (item: VideoHistoryItem) => {
     // Открыть с параметрами генерации
-    router.push(`/generators?generationId=${item.id}`);
+    router.push(`/create/studio?section=video&generationId=${item.id}`);
+  };
+
+  const SkeletonGrid = ({ count = 12 }: { count?: number }) => {
+    return (
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+        {Array.from({ length: count }).map((_, i) => (
+          <div
+            key={i}
+            className="aspect-video rounded-md border border-[var(--border)] bg-[var(--surface2)] skeleton-smooth"
+          />
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin text-[var(--muted)]" />
-      </div>
+      <SkeletonGrid />
     );
   }
 
   if (!items.length) {
     return (
-      <div className="text-center py-8 text-[var(--muted)] text-sm">
-        История генераций пуста
+      <div className="space-y-2">
+        <div className="text-xs text-[var(--muted)]">Пока пусто — здесь появятся ваши последние результаты.</div>
+        <SkeletonGrid count={12} />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
       {items.map((item) => (
         <button
           key={item.id}
           onClick={() => handleItemClick(item)}
-          className="group relative aspect-video rounded-lg overflow-hidden bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-primary)] transition-all"
+          className="group relative aspect-video rounded-md overflow-hidden bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--accent-primary)] transition-all"
         >
           {item.thumbnail_url ? (
             <img
@@ -78,13 +90,13 @@ export function VideoHistory() {
           
           {/* Overlay on hover */}
           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <Play className="w-10 h-10 text-white" fill="white" />
+            <Play className="w-8 h-8 text-white" fill="white" />
           </div>
 
           {/* Status badge */}
           {item.status === 'processing' && (
-            <div className="absolute top-2 right-2 px-2 py-1 rounded bg-yellow-500/90 text-xs text-black font-semibold">
-              Обработка...
+            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-yellow-500/90 text-[10px] text-black font-semibold">
+              В работе
             </div>
           )}
         </button>

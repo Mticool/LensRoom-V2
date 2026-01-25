@@ -1,10 +1,12 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StudioWorkspaces } from "@/components/generator-v2/StudioWorkspaces";
 import { SectionTabs } from "@/components/generator-v2/SectionTabs";
+import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 import { AudioStudio } from "@/components/audio";
+import { StudioRuntime } from "@/components/studio/StudioRuntime";
 
 // Loading fallback matching the existing loading.tsx style
 function LoadingFallback() {
@@ -21,29 +23,48 @@ function LoadingFallback() {
 
 // Inner component that uses useSearchParams
 function StudioContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const section = (searchParams.get("section") || "image").trim().toLowerCase();
+  // Canonical sections: photo|video|motion|music
+  // Backward-compat: image -> photo, audio -> music
+  const raw = (searchParams.get("section") || "").trim().toLowerCase();
+  const section =
+    raw === "image" ? "photo" :
+    raw === "audio" ? "music" :
+    raw || "photo";
 
-  const initialPrompt = useMemo(() => {
-    const p = searchParams.get("prompt");
-    return typeof p === "string" ? p : "";
-  }, [searchParams]);
+  const selectedPhotoModel = (searchParams.get("model") || "nano-banana-pro").trim();
 
-  // Audio section - full page, no tabs needed (has its own header)
-  if (section === "audio") {
-    return <AudioStudio />;
-  }
-
-  // Video section redirects to /generators (see next.config.ts)
-  // No need to handle section=video here
-
-  // Image section (default) - with section tabs
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       <div className="pt-4 pb-2 px-4">
         <SectionTabs />
       </div>
-      <StudioWorkspaces />
+
+      {section === "photo" && (
+        <div className="px-4 pb-3">
+          <ModelSelector
+            value={selectedPhotoModel}
+            onChange={(modelId) => {
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("model", modelId);
+              // Keep section + project intact.
+              params.set("section", "photo");
+              router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+            }}
+            direction="down"
+          />
+        </div>
+      )}
+
+      {section === "music" ? (
+        <AudioStudio />
+      ) : section === "video" || section === "motion" ? (
+        <StudioRuntime defaultKind="video" variant={section === "motion" ? "motion" : "video"} />
+      ) : (
+        <StudioWorkspaces />
+      )}
     </div>
   );
 }

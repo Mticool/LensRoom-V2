@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         amount: credits,
         type: paymentType === 'subscription' ? 'subscription' : 'purchase',
-        description: `${paymentType === 'subscription' ? 'Подписка' : 'Покупка'}: +${credits} ⭐ (${body.sum}₽)`,
+        description: `${paymentType === 'subscription' ? 'Подписка' : 'Покупка'}: +${credits} ⭐ (${body.sum})`,
         metadata: { 
           payform_order_id: body.order_id,
           sum: body.sum,

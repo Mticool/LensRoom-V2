@@ -6,7 +6,7 @@
 export interface PricingTier {
   id: string;
   name: string;
-  price: number; // в рублях
+  price: number;
   stars: number; // звёздочек в месяц
   period: 'month';
   popular?: boolean;
@@ -26,15 +26,13 @@ export interface PricingTier {
 export interface StarPack {
   id: string;
   stars: number;
-  price: number; // в рублях
+  price: number;
   bonus?: number; // бонусных звёзд
   popular?: boolean;
   description?: string; // Для чего подходит
   capacity?: string; // Хватит примерно на
 }
 
-// === КУРС ДЛЯ UI (оценка) ===
-// Используется только для "≈ ₽" в интерфейсе. Реальная оплата — по тарифам/пакетам ниже.
 export function packTotalStars(pack: StarPack): number {
   return pack.stars + (pack.bonus || 0);
 }
@@ -182,23 +180,6 @@ export const STAR_PACKS: StarPack[] = [
   },
 ];
 
-/**
- * Сколько ⭐ в среднем даёт 1 ₽ (для "≈ ₽" в UI).
- * Берём лучший доступный пакет, чтобы оценка не была завышена.
- */
-export const starsPerRuble: number = (() => {
-  const best = STAR_PACKS.reduce((acc, p) => {
-    const rate = packTotalStars(p) / p.price; // ⭐ per ₽
-    return rate > acc ? rate : acc;
-  }, 0);
-  return best || 0.3;
-})();
-
-export function approxRubFromStars(stars: number): number {
-  if (!starsPerRuble) return 0;
-  return Math.max(0, Math.ceil(stars / starsPerRuble));
-}
-
 // === УТИЛИТЫ ===
 
 /**
@@ -233,11 +214,7 @@ export function getPopularStarPack(): StarPack {
  * Форматировать цену
  */
 export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-  }).format(price);
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(price);
 }
 
 /**

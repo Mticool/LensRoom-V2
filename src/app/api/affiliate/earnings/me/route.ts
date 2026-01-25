@@ -22,7 +22,7 @@ type EarningRow = {
  * GET /api/affiliate/earnings/me
  *
  * Returns partner earnings for the current user (if they are an affiliate).
- * Used in the user's profile to show earnings in RUB and latest transactions.
+ * Used in the user's profile to show earnings and latest transactions.
  */
 export async function GET(request: NextRequest) {
   try {

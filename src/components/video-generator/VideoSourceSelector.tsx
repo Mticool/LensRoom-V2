@@ -119,9 +119,9 @@ export function VideoSourceSelector({
   );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {/* Mode Selector */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
         {modes.map((mode) => {
           const Icon = mode.icon;
           const isActive = value === mode.value;
@@ -154,7 +154,7 @@ export function VideoSourceSelector({
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
           placeholder="Опиши сцену..."
-          className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] resize-none min-h-[70px]"
+          className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] resize-none min-h-[64px]"
         />
       </div>
 

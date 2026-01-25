@@ -413,8 +413,8 @@ export default function HomePage() {
               >
                 <Link
                   href={work.type === 'video' 
-                    ? `/generators?model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`
-                    : `/create/studio?section=image&model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`
+                    ? `/create/studio?section=video&model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`
+                    : `/create/studio?section=photo&model=${work.model}&prompt=${encodeURIComponent(work.prompt)}`
                   }
                 >
                   <motion.div
@@ -541,7 +541,7 @@ export default function HomePage() {
               </p>
               
               {/* CTA */}
-              <Link href="/generators?model=kling-motion-control">
+              <Link href="/create/studio?section=motion&model=kling-motion-control">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -639,7 +639,7 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05 }}
               >
-                <Link href={`/create?section=image&model=nano-banana-pro&prompt=${encodeURIComponent(style.prompt)}`}>
+                <Link href={`/create/studio?section=photo&model=nano-banana-pro&prompt=${encodeURIComponent(style.prompt)}`}>
                   <motion.div
                     whileHover={{ scale: 1.05, y: -5 }}
                     whileTap={{ scale: 0.95 }}

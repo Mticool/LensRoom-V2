@@ -1,10 +1,9 @@
 /**
- * Price computation: credits -> stars -> ₽
+ * Price computation: credits -> stars
  * Single source of truth for pricing calculations
  */
 
 import { ModelConfig, PhotoModelConfig, VideoModelConfig, getModelById } from '@/config/models';
-import { STAR_PACKS, packTotalStars } from '@/config/pricing';
 
 export interface PriceOptions {
   // Photo options
@@ -25,23 +24,6 @@ export interface PriceOptions {
 export interface ComputedPrice {
   credits: number; // Raw Kie credits
   stars: number; // Rounded up: ceil(credits)
-  approxRub: number; // Approximate price in RUB (based on current plan)
-}
-
-/**
- * Get current user's plan price per credit (if available)
- * Falls back to default (max pack)
- */
-function getRubPerCredit(): number {
-  // TODO: Get from user's current subscription/plan
-  // For now, use the best deal (best ⭐ per ₽)
-  const bestDeal = STAR_PACKS.reduce((best, current) => {
-    const bestPrice = best.price / packTotalStars(best); // ₽ per ⭐
-    const currentPrice = current.price / packTotalStars(current);
-    return currentPrice < bestPrice ? current : best;
-  });
-
-  return bestDeal.price / packTotalStars(bestDeal); // ₽ per ⭐
 }
 
 /**
@@ -73,13 +55,10 @@ function computePhotoPrice(
   
   const totalCredits = creditsPerImage * variants;
   const stars = Math.ceil(totalCredits);
-  const rubPerCredit = getRubPerCredit();
-  const approxRub = Math.round(stars * rubPerCredit);
   
   return {
     credits: totalCredits,
     stars,
-    approxRub,
   };
 }
 
@@ -207,13 +186,10 @@ function computeVideoPrice(
   
   const totalCredits = creditsPerVideo * variants;
   const stars = Math.ceil(totalCredits);
-  const rubPerCredit = getRubPerCredit();
-  const approxRub = Math.round(stars * rubPerCredit);
   
   return {
     credits: totalCredits,
     stars,
-    approxRub,
   };
 }
 
@@ -230,7 +206,6 @@ export function computePrice(
     return {
       credits: 0,
       stars: 0,
-      approxRub: 0,
     };
   }
   
@@ -241,27 +216,7 @@ export function computePrice(
   }
 }
 
-/**
- * Format price for display
- */
-export function formatPriceDisplay(price: ComputedPrice): {
-  stars: string;
-  rub: string;
-  full: string;
-} {
-  return {
-    stars: `${price.stars}⭐`,
-    rub: `≈${price.approxRub}₽`,
-    full: `Стоимость: ${price.stars}⭐`,
-  };
-}
-
 // Single-source star helpers (UI + server validation)
 export function calcStars(modelId: string, options: PriceOptions = {}): number {
   return computePrice(modelId, options).stars;
 }
-
-export function calcApproxRub(modelId: string, options: PriceOptions = {}): number {
-  return computePrice(modelId, options).approxRub;
-}
-

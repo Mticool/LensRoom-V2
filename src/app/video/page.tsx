@@ -27,5 +27,5 @@ export const metadata: Metadata = {
 };
 
 export default function VideoPage() {
-  redirect('/generators');
+  redirect('/create/studio?section=video');
 }

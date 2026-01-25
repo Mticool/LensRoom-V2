@@ -87,7 +87,7 @@ export function trackGeneration(model: string, type: 'photo' | 'video', credits:
   trackYMEvent('generation', { model, type, credits });
 }
 
-export function trackPurchase(itemId: string, price: number, currency: string = 'RUB') {
+export function trackPurchase(itemId: string, price: number, currency?: string) {
   trackGAEvent('purchase', 'ecommerce', itemId, price);
   trackYMEvent('purchase', { itemId, price, currency });
 }

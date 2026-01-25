@@ -161,7 +161,7 @@ export function logAllPrices(): void {
   
   for (const r of packResults) {
     const status = r.priceMatch && r.starsMatch ? '✅' : '❌';
-    console.log(`${status} Pack ${r.id.padEnd(8)} | ${r.actualPrice}₽ (ожид: ${r.expectedPrice}₽) | ${r.actualStars}⭐ (ожид: ${r.expectedStars}⭐)`);
+    console.log(`${status} Pack ${r.id.padEnd(8)} | ${r.actualPrice} (ожид: ${r.expectedPrice}) | ${r.actualStars}⭐ (ожид: ${r.expectedStars}⭐)`);
     if (!r.priceMatch || !r.starsMatch) packErrors++;
   }
   

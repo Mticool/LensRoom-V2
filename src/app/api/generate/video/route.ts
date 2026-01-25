@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     const { 
       prompt, 
       model, 
+      threadId: threadIdRaw,
       modelVariant, // For unified models like Kling
       duration, 
       mode = 't2v',
@@ -271,6 +272,26 @@ export async function POST(request: NextRequest) {
     // Use admin client for DB operations
     const supabase = getSupabaseAdmin();
 
+    // Optional: validate threadId/project and ensure it belongs to user.
+    // NOTE: Projects are shared across Photo/Video/Motion/Music, so we do NOT enforce model_id match.
+    const threadId = threadIdRaw ? String(threadIdRaw).trim() : "";
+    if (threadId) {
+      try {
+        const { data: thread, error: threadErr } = await supabase
+          .from("studio_threads")
+          .select("id,user_id")
+          .eq("id", threadId)
+          .eq("user_id", userId)
+          .single();
+        if (threadErr || !thread) {
+          return NextResponse.json({ error: "Invalid threadId" }, { status: 400 });
+        }
+      } catch (e) {
+        console.error("[API] threadId validation error:", e);
+        return NextResponse.json({ error: "Failed to validate threadId" }, { status: 500 });
+      }
+    }
+
     // Skip credit check for managers/admins
     if (!skipCredits) {
       // Get user credits (split: subscription + package)
@@ -360,6 +381,7 @@ export async function POST(request: NextRequest) {
           prompt: prompt,
           negative_prompt: negativePrompt,
           aspect_ratio: aspectRatio,
+          thread_id: threadId || null,
           params: {
             mode,
             duration: model === "kling-motion-control" ? (effectiveDuration ?? videoDuration ?? null) : (duration ?? modelInfo.fixedDuration ?? null),

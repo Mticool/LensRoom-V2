@@ -85,7 +85,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = STAR_PACKS.map((pack) => {
     credits: pack.stars + (pack.bonus || 0),
     price: pack.price,
     badge: badges[pack.id],
-    description: descriptions[pack.id] || `${pack.stars}⭐ за ${pack.price}₽`,
+    description: descriptions[pack.id] || `${pack.stars}⭐`,
     features: featuresList[pack.id] || [],
     popular: pack.popular,
   };
@@ -104,12 +104,7 @@ export function getBestDeal(): CreditPackage {
   });
 }
 export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(price);
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(price);
 }
 
 

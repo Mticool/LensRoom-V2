@@ -262,10 +262,10 @@ export function LibraryClient() {
     
     if (type === "video") {
       // Use generationId for full parameter restoration
-      router.push(`/generators?generationId=${item.id}`);
+      router.push(`/create/studio?section=video&generationId=${item.id}`);
     } else if (type === "audio") {
       // Audio doesn't support parameter restoration yet
-      router.push(`/create/studio?section=audio`);
+      router.push(`/create/studio?section=music`);
       toast.info("Откройте аудио-генератор");
       return;
     } else {
@@ -282,10 +282,10 @@ export function LibraryClient() {
     const type = item.type?.toLowerCase();
     
     if (type === "video") {
-      router.push(`/generators?generationId=${item.id}`);
+      router.push(`/create/studio?section=video&generationId=${item.id}`);
     } else if (type === "audio") {
       // Audio doesn't support parameter restoration yet
-      router.push(`/create/studio?section=audio`);
+      router.push(`/create/studio?section=music`);
       toast.info("Откройте аудио-генератор");
       return;
     } else {

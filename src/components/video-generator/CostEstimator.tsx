@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
-import { computePrice, formatPriceDisplay } from '@/lib/pricing/compute-price';
+import { computePrice } from '@/lib/pricing/compute-price';
 import type { VideoMode, VideoQuality } from '@/types/video-generator';
 
 interface CostEstimatorProps {
@@ -32,8 +32,6 @@ export function CostEstimator({
     });
   }, [modelId, mode, duration, quality, withSound, variants]);
 
-  const formattedPrice = formatPriceDisplay(priceData);
-
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -41,7 +39,7 @@ export function CostEstimator({
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
           <span className="text-sm font-bold text-[var(--accent-primary)]">
-            {formattedPrice.stars}
+            {priceData.stars}⭐
           </span>
         </div>
       </div>
@@ -62,12 +60,8 @@ export function CostEstimator({
 
         <div className="pt-1 border-t border-[var(--border)] flex justify-between text-xs font-semibold">
           <span className="text-[var(--text)]">Итого</span>
-          <span className="text-[var(--accent-primary)]">{formattedPrice.stars}</span>
+          <span className="text-[var(--accent-primary)]">{priceData.stars}⭐</span>
         </div>
-
-        {priceData.approxRub > 0 && (
-          <div className="text-center text-[10px] text-[var(--muted)]">{formattedPrice.rub}</div>
-        )}
       </div>
     </div>
   );

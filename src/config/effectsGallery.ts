@@ -345,10 +345,10 @@ export function getEffectById(id: string): EffectPreset | undefined {
 // Build URL for preset navigation
 export function buildPresetUrl(preset: EffectPreset): string {
   const isVideo = preset.contentType === 'video';
-  // Use new video generator for video content
-  const basePath = isVideo ? '/generators' : '/create/studio';
+  const basePath = '/create/studio';
 
   const params = new URLSearchParams({
+    section: isVideo ? 'video' : 'photo',
     preset: preset.presetId,
     kind: preset.contentType,
     model: preset.modelKey,

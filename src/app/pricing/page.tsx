@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
-import { SUBSCRIPTION_TIERS, STAR_PACKS, formatPrice, packBonusPercent, packTotalStars } from '@/config/pricing';
+import { SUBSCRIPTION_TIERS, STAR_PACKS, packBonusPercent, packTotalStars } from '@/config/pricing';
 import { toast } from 'sonner';
 import { LoginDialog } from '@/components/auth/login-dialog';
 
@@ -80,7 +80,7 @@ export default function PricingPage() {
     switch (type) {
       case 'bonus_stars': return `+${value} ⭐`;
       case 'percent_discount': return `-${value}%`;
-      case 'fixed_discount': return `-${value} ₽`;
+      case 'fixed_discount': return `-${value}`;
       case 'multiplier': return `x${value}`;
       default: return value;
     }
@@ -413,8 +413,8 @@ export default function PricingPage() {
                         <span className="text-2xl sm:text-3xl font-bold text-[var(--text)]">{totalStars}</span>
                         <Star className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--gold)] fill-[var(--gold)]" />
                       </div>
-                      <div className="text-lg sm:text-xl font-bold text-[var(--text)]">
-                        {formatPrice(pkg.price)}
+                      <div className="text-[11px] sm:text-xs text-[var(--muted)]">
+                        Разовая покупка
                       </div>
                     </div>
 
@@ -662,21 +662,11 @@ function PlanCard({
           </div>
           <h3 className="font-bold text-[var(--text)] text-xl sm:text-2xl mb-1">{plan.name}</h3>
           
-          {/* Price */}
-          <div className="mb-2">
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-3xl sm:text-4xl font-bold text-[var(--text)]">
-                {plan.price.toLocaleString()}
-              </span>
-              <span className="text-[var(--muted)]">₽/мес</span>
-            </div>
-          </div>
-
           {/* Stars badge */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
             <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
             <span className="text-sm font-bold text-white">
-              {plan.stars.toLocaleString()} ⭐ на платные модели
+              {plan.stars.toLocaleString()} ⭐/мес на платные модели
             </span>
           </div>
         </div>

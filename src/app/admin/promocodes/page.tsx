@@ -26,7 +26,7 @@ interface Promocode {
 const BONUS_TYPE_LABELS: Record<string, string> = {
   bonus_stars: "⭐ Бонусные звёзды",
   percent_discount: "💰 Скидка %",
-  fixed_discount: "💵 Скидка ₽",
+  fixed_discount: "💵 Скидка",
   multiplier: "✨ Множитель",
   free_pack: "🎁 Бесплатный пакет",
 };
@@ -90,7 +90,7 @@ export default function AdminPromocodesPage() {
       case "percent_discount":
         return `-${promo.bonus_value}%`;
       case "fixed_discount":
-        return `-${promo.bonus_value} ₽`;
+        return `-${promo.bonus_value}`;
       case "multiplier":
         return `x${promo.bonus_value}`;
       case "free_pack":

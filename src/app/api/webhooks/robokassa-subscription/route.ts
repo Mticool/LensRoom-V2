@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const state = params['State'] || params['state'] || 'active';
     
     // Определяем план по subscriptionId
-    // New plans: creator (990₽/1200⭐), creator_plus (1990₽/2550⭐), business (2990₽/3500⭐)
+    // New plans: creator (1200⭐), creator_plus (2550⭐), business (3500⭐)
     const subscriptionMap: Record<string, { planId: string; credits: number; name: string }> = {
       // New plans
       [process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '']: { planId: 'creator', credits: 1200, name: 'Creator' },

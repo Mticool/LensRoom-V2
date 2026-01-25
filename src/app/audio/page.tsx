@@ -112,7 +112,7 @@ export default function AudioPage() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/create?section=audio"
+              href="/create/studio?section=music"
               className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl transition-all hover:scale-105"
             >
               <Headphones className="w-5 h-5" />
@@ -175,7 +175,7 @@ export default function AudioPage() {
           
           <div className="text-center mt-10">
             <Link
-              href="/create?section=audio"
+              href="/create/studio?section=music"
               className="inline-flex items-center gap-2 px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl transition-all"
             >
               Начать генерацию
@@ -242,7 +242,7 @@ export default function AudioPage() {
             Присоединяйтесь к тысячам создателей контента
           </p>
           <Link
-            href="/create?section=audio"
+            href="/create/studio?section=music"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-pink-600 font-bold rounded-xl hover:bg-gray-100 transition-all"
           >
             <Wand2 className="w-5 h-5" />

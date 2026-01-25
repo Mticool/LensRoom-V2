@@ -110,12 +110,6 @@ export default function AdminSalesPage() {
       render: (item) => `${item.stars.toLocaleString("ru")} ⭐`,
     },
     {
-      key: "rub",
-      label: "Сумма",
-      mobileLabel: "₽",
-      render: (item) => `${item.rub.toLocaleString("ru")} ₽`,
-    },
-    {
       key: "status",
       label: "Статус",
       mobileLabel: "Статус",
@@ -127,7 +121,6 @@ export default function AdminSalesPage() {
     },
   ];
 
-  const totalRub = data?.sales.reduce((sum, s) => sum + s.rub, 0) || 0;
   const totalStars = data?.sales.reduce((sum, s) => sum + s.stars, 0) || 0;
 
   return (
@@ -193,20 +186,12 @@ export default function AdminSalesPage() {
 
       {/* Summary */}
       {data && !isLoading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardContent className="pt-6">
               <p className="text-sm text-[var(--muted)] mb-2">Всего продаж</p>
               <p className="text-2xl font-bold text-[var(--text)]">
                 {data.sales.length}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-[var(--muted)] mb-2">Сумма</p>
-              <p className="text-2xl font-bold text-[var(--text)]">
-                {totalRub.toLocaleString("ru")} ₽
               </p>
             </CardContent>
           </Card>

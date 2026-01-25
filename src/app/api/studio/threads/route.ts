@@ -28,16 +28,18 @@ export async function GET(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const modelId = (searchParams.get("model_id") || "").trim();
-    if (!modelId) return badRequest("model_id is required");
+    // Backward-compatible: old clients passed model_id and got per-model threads.
+    // New behavior: projects are global per user; model_id is optional filter only.
+    const modelId = (searchParams.get("model_id") || "").trim() || null;
 
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
       .from("studio_threads")
       .select("id,user_id,model_id,title,created_at,updated_at")
       .eq("user_id", userId)
-      .eq("model_id", modelId)
       .order("created_at", { ascending: false });
+    if (modelId) query = query.eq("model_id", modelId);
+    const { data, error } = await query;
 
     if (error) {
       console.error("[Studio Threads API] GET error:", error);
@@ -57,17 +59,17 @@ export async function POST(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json().catch(() => null);
-    const modelId = String(body?.modelId || "").trim();
-    if (!modelId) return badRequest("modelId is required");
+    // Backward-compatible: old clients sent modelId and created a per-model thread.
+    // New behavior: modelId is optional (project is content-type agnostic).
+    const modelId = String(body?.modelId || "").trim() || "project";
 
     const supabase = getSupabaseAdmin();
 
-    // Auto title: "Чат N" per user+model
+    // Auto title: "Проект N" per user (global)
     const { count, error: countErr } = await supabase
       .from("studio_threads")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("model_id", modelId);
+      .eq("user_id", userId);
 
     if (countErr) {
       console.error("[Studio Threads API] count error:", countErr);
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const nextIndex = (count || 0) + 1;
-    const title = `Чат ${nextIndex}`;
+    const title = `Проект ${nextIndex}`;
 
     const { data, error } = await supabase
       .from("studio_threads")

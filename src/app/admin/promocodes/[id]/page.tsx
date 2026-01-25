@@ -37,7 +37,7 @@ interface Usage {
 const BONUS_TYPES = [
   { value: "bonus_stars", label: "⭐ Бонусные звёзды" },
   { value: "percent_discount", label: "💰 Скидка %" },
-  { value: "fixed_discount", label: "💵 Скидка ₽" },
+  { value: "fixed_discount", label: "💵 Скидка" },
   { value: "multiplier", label: "✨ Множитель" },
   { value: "free_pack", label: "🎁 Бесплатный пакет" },
 ];

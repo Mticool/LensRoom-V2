@@ -220,7 +220,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                 {QUICK_TEMPLATES.map((template, index) => (
                   <Link
                     key={template.id}
-                    href={`/create/studio?section=image&model=nano-banana-pro&prompt=${encodeURIComponent(template.prompt)}`}
+                    href={`/create/studio?section=photo&model=nano-banana-pro&prompt=${encodeURIComponent(template.prompt)}`}
                   >
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}

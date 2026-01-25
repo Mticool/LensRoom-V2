@@ -7,7 +7,6 @@ import type { VideoStatus } from '@/types/video-generator';
 interface VideoPreviewProps {
   videoUrl: string | null;
   status: VideoStatus;
-  aspectRatio?: string;
   isPlaying?: boolean;
   onPlayPause?: () => void;
 }
@@ -15,7 +14,6 @@ interface VideoPreviewProps {
 export function VideoPreview({
   videoUrl,
   status,
-  aspectRatio = '16:9',
   isPlaying = false,
   onPlayPause,
 }: VideoPreviewProps) {
@@ -32,17 +30,9 @@ export function VideoPreview({
     }
   }, [isPlaying]);
 
-  // Aspect ratio mapping
-  const aspectClass =
-    aspectRatio === '9:16'
-      ? 'aspect-[9/16]'
-      : aspectRatio === '1:1'
-        ? 'aspect-square'
-        : 'aspect-video';
-
   return (
     <div
-      className={`${aspectClass} bg-[var(--surface2)] rounded-[var(--radius)] relative overflow-hidden group`}
+      className="w-full h-full bg-[var(--surface2)] rounded-[var(--radius)] relative overflow-hidden group"
     >
       {videoUrl ? (
         <>

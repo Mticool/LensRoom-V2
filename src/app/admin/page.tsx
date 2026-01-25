@@ -218,7 +218,7 @@ export default function AdminDashboard() {
         />
         <QuickStat
           title="Сегодня выручка"
-          value={`${(data?.today.revenue || 0).toLocaleString("ru")} ₽`}
+          value={(data?.today.revenue || 0).toLocaleString("ru")}
           icon={DollarSign}
           color="green"
         />
@@ -248,7 +248,7 @@ export default function AdminDashboard() {
         />
         <StatCard
           title={`Выручка за ${period}д`}
-          value={`${periodTotals.revenue.toLocaleString("ru")} ₽`}
+          value={periodTotals.revenue.toLocaleString("ru")}
           change={periodChanges?.revenue}
           icon={CreditCard}
           color="green"
@@ -406,7 +406,7 @@ export default function AdminDashboard() {
                 <div
                   key={d.date}
                   className="flex-1 flex items-end gap-0.5 group relative"
-                  title={`${d.date}\nПользователи: ${d.users}\nГенерации: ${d.generations}\nВыручка: ${d.revenue}₽`}
+                  title={`${d.date}\nПользователи: ${d.users}\nГенерации: ${d.generations}\nВыручка: ${d.revenue}`}
                 >
                   <div
                     className="flex-1 bg-blue-500/80 rounded-t transition-all hover:bg-blue-500"
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
                     <div className="font-medium">{new Date(d.date).toLocaleDateString("ru", { day: "numeric", month: "short" })}</div>
                     <div className="text-blue-400">👤 {d.users}</div>
                     <div className="text-purple-400">✨ {d.generations}</div>
-                    <div className="text-emerald-400">💰 {d.revenue}₽</div>
+                    <div className="text-emerald-400">💰 {d.revenue}</div>
                   </div>
                 </div>
               );
@@ -545,8 +545,8 @@ export default function AdminDashboard() {
                   <p className="text-xs text-[var(--muted)]">Потрачено (USD)</p>
                 </div>
                 <div className="p-3 rounded-xl bg-[var(--gold)]/10 border border-[var(--gold)]/20">
-                  <p className="text-2xl font-bold text-[var(--gold)]">{laozhangStats.totals.costRub.toLocaleString("ru")} ₽</p>
-                  <p className="text-xs text-[var(--muted)]">Потрачено (RUB)</p>
+                  <p className="text-2xl font-bold text-[var(--gold)]">{laozhangStats.totals.costRub.toLocaleString("ru")}</p>
+                  <p className="text-xs text-[var(--muted)]">Потрачено</p>
                 </div>
               </div>
               
@@ -575,7 +575,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-cyan-400">${m.costUsd.toFixed(2)}</p>
-                        <p className="text-xs text-[var(--muted)]">{m.costRub} ₽</p>
+                        <p className="text-xs text-[var(--muted)]">{m.costRub}</p>
                       </div>
                     </div>
                   ))}

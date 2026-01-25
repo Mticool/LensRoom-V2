@@ -146,12 +146,12 @@ export async function processAffiliateCommission(payment: PaymentData): Promise<
     if (insertError) throw insertError;
     
     console.log(
-      `[Affiliate Commission] ${isFirstPurchase ? 'FIRST' : 'REPEAT'}: ${commissionRub}₽ (${commissionPercent}%) for partner ${referrerId}, buyer ${userId}, payment ${paymentId}`
+      `[Affiliate Commission] ${isFirstPurchase ? 'FIRST' : 'REPEAT'}: ${commissionRub} (${commissionPercent}%) for partner ${referrerId}, buyer ${userId}, payment ${paymentId}`
     );
     
     return {
       success: true,
-      message: `Commission ${commissionRub}₽ (${commissionPercent}%) saved (${isFirstPurchase ? 'first' : 'repeat'})`,
+      message: `Commission ${commissionRub} (${commissionPercent}%) saved (${isFirstPurchase ? 'first' : 'repeat'})`,
       commissionRub,
     };
     

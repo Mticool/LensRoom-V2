@@ -24,8 +24,8 @@ const LAOZHANG_COSTS = {
   "sora_video2-landscape": 0.015,
 } as const;
 
-// USD to RUB rate (approximate)
-const USD_TO_RUB = 100;
+// USD conversion rate for internal cost reporting
+const USD_TO_LOCAL_RATE = 100;
 
 export async function GET(request: NextRequest) {
   try {
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     const totalSuccess = Object.values(byModel).reduce((a, b) => a + b.success, 0);
     const totalFailed = Object.values(byModel).reduce((a, b) => a + b.failed, 0);
     const totalCostUsd = Object.values(byModel).reduce((a, b) => a + b.costUsd, 0);
-    const totalCostRub = totalCostUsd * USD_TO_RUB;
+    const totalCostRub = totalCostUsd * USD_TO_LOCAL_RATE;
     
     // Daily breakdown
     const dailyStats: Record<string, { count: number; costUsd: number }> = {};
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
         date,
         count: stats.count,
         costUsd: stats.costUsd,
-        costRub: stats.costUsd * USD_TO_RUB,
+        costRub: stats.costUsd * USD_TO_LOCAL_RATE,
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
     
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
         model,
         ...stats,
         costUsd: Math.round(stats.costUsd * 1000) / 1000,
-        costRub: Math.round(stats.costUsd * USD_TO_RUB),
+        costRub: Math.round(stats.costUsd * USD_TO_LOCAL_RATE),
       })).sort((a, b) => b.count - a.count),
       daily: dailyData,
     });

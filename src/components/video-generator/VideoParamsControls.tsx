@@ -46,10 +46,10 @@ export function VideoParamsControls({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Duration Slider */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center justify-between mb-0.5">
           <label className="text-xs font-medium">Длительность</label>
           <span className="text-xs font-semibold text-[var(--accent-primary)]">
             {duration} сек
@@ -66,7 +66,7 @@ export function VideoParamsControls({
         />
 
         {/* Duration Labels */}
-        <div className="flex justify-between mt-1">
+        <div className="flex justify-between mt-0.5">
           {durationOptions.map((dur) => (
             <span
               key={dur}
@@ -82,8 +82,8 @@ export function VideoParamsControls({
 
       {/* Quality Selector */}
       <div>
-        <label className="block text-xs font-medium mb-1">Качество</label>
-        <div className="grid grid-cols-3 gap-1.5">
+        <label className="block text-xs font-medium mb-0.5">Качество</label>
+        <div className="grid grid-cols-3 gap-1">
           {qualityOptions.map((q) => {
             const isSelected = quality === q;
 
@@ -91,7 +91,7 @@ export function VideoParamsControls({
               <button
                 key={q}
                 onClick={() => onQualityChange(q)}
-                className={`px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
+                  className={`px-2 py-1 rounded-md border text-xs font-medium transition-all ${
                   isSelected
                     ? 'bg-[var(--accent-primary)] text-black border-[var(--accent-primary)]'
                     : 'bg-[var(--surface2)] text-[var(--text)] border-[var(--border)] hover:border-[var(--border-hover)]'
@@ -107,8 +107,8 @@ export function VideoParamsControls({
       {/* Aspect Ratio Selector */}
       {aspectRatio && onAspectRatioChange && aspectRatioOptions.length > 0 && (
         <div>
-          <label className="block text-xs font-medium mb-1">Соотношение сторон</label>
-          <div className="grid grid-cols-3 gap-1.5">
+          <label className="block text-xs font-medium mb-0.5">Соотношение сторон</label>
+          <div className="grid grid-cols-3 gap-1">
             {aspectRatioOptions.map((ratio) => {
               const isSelected = aspectRatio === ratio;
 
@@ -116,7 +116,7 @@ export function VideoParamsControls({
                 <button
                   key={ratio}
                   onClick={() => onAspectRatioChange(ratio)}
-                  className={`px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
+                  className={`px-2 py-1 rounded-md border text-xs font-medium transition-all ${
                     isSelected
                       ? 'bg-[var(--accent-primary)] text-black border-[var(--accent-primary)]'
                       : 'bg-[var(--surface2)] text-[var(--text)] border-[var(--border)] hover:border-[var(--border-hover)]'

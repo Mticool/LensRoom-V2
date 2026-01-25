@@ -122,19 +122,19 @@ export default function AffiliateEarningsPage() {
           <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
             <div className="text-sm text-[var(--muted)] mb-1">Всего продаж</div>
             <div className="text-3xl font-bold">
-              {summary.reduce((sum, s) => sum + s.total_sales_rub, 0).toLocaleString()}₽
+              {summary.reduce((sum, s) => sum + s.total_sales_rub, 0).toLocaleString()}
             </div>
           </div>
           <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
             <div className="text-sm text-yellow-500 mb-1">К выплате</div>
             <div className="text-3xl font-bold text-yellow-500">
-              {summary.reduce((sum, s) => sum + s.pending_rub, 0).toLocaleString()}₽
+              {summary.reduce((sum, s) => sum + s.pending_rub, 0).toLocaleString()}
             </div>
           </div>
           <div className="p-6 rounded-xl bg-green-500/10 border border-green-500/20">
             <div className="text-sm text-green-500 mb-1">Выплачено</div>
             <div className="text-3xl font-bold text-green-500">
-              {summary.reduce((sum, s) => sum + s.paid_rub, 0).toLocaleString()}₽
+              {summary.reduce((sum, s) => sum + s.paid_rub, 0).toLocaleString()}
             </div>
           </div>
         </div>
@@ -187,9 +187,9 @@ export default function AffiliateEarningsPage() {
                       </span>
                     </td>
                     <td className="p-3 text-right">{s.total_referrals}</td>
-                    <td className="p-3 text-right">{s.total_sales_rub.toLocaleString()}₽</td>
-                    <td className="p-3 text-right text-yellow-500">{s.pending_rub.toLocaleString()}₽</td>
-                    <td className="p-3 text-right text-green-500">{s.paid_rub.toLocaleString()}₽</td>
+                    <td className="p-3 text-right">{s.total_sales_rub.toLocaleString()}</td>
+                    <td className="p-3 text-right text-yellow-500">{s.pending_rub.toLocaleString()}</td>
+                    <td className="p-3 text-right text-green-500">{s.paid_rub.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -223,9 +223,9 @@ export default function AffiliateEarningsPage() {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-[var(--muted)]">
-                    {new Date(e.created_at).toLocaleDateString('ru-RU')} • {e.amount_rub}₽ • {e.commission_percent}%
+                    {new Date(e.created_at).toLocaleDateString('ru-RU')} • {e.amount_rub} • {e.commission_percent}%
                   </div>
-                  <div className="font-bold text-lg">{e.commission_rub}₽</div>
+                  <div className="font-bold text-lg">{e.commission_rub}</div>
                 </div>
                 {e.status === 'pending' && (
                   <button

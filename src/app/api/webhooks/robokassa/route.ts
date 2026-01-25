@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       const supabase = getSupabaseAdmin();
       
       // Определяем planId по subscriptionId
-      // New plans: creator (990₽/1200⭐), creator_plus (1990₽/2550⭐), business (2990₽/3500⭐)
+      // New plans: creator (1200⭐), creator_plus (2550⭐), business (3500⭐)
       // Support both new and legacy env var names
       const subscriptionMap: Record<string, { planId: string; credits: number }> = {};
       
@@ -337,7 +337,7 @@ async function addCreditsToUser(
   const notificationData = {
     telegramUsername: userProfile?.telegram_username || undefined,
     amount: Math.round(amount),
-    currency: '₽',
+    currency: undefined,
     packageName,
     creditsAdded: credits,
     paymentId: invId,

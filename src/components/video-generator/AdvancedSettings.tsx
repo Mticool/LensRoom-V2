@@ -57,7 +57,7 @@ export function AdvancedSettings({
       {/* Header Toggle */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-3 py-2 bg-[var(--surface2)] hover:bg-[var(--surface3)] flex items-center justify-between transition-colors"
+        className="w-full px-3 py-1.5 bg-[var(--surface2)] hover:bg-[var(--surface3)] flex items-center justify-between transition-colors"
       >
         <span className="text-xs font-medium text-[var(--text)]">Расширенные настройки</span>
         {isExpanded ? (
@@ -69,11 +69,11 @@ export function AdvancedSettings({
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-3 space-y-2 bg-[var(--surface)]">
+        <div className="p-2 space-y-2 bg-[var(--surface)]">
           {/* Negative Prompt */}
           {supportsNegativePrompt && (
             <div>
-              <label htmlFor="negative-prompt" className="block text-xs font-medium mb-1">
+              <label htmlFor="negative-prompt" className="block text-xs font-medium mb-0.5">
                 Негативный промпт
               </label>
               <textarea
@@ -89,7 +89,7 @@ export function AdvancedSettings({
           {/* Model Variant */}
           {availableVariants.length > 0 && (
             <div>
-              <label htmlFor="model-variant" className="block text-xs font-medium mb-1">
+              <label htmlFor="model-variant" className="block text-xs font-medium mb-0.5">
                 Вариант модели
               </label>
               <select
@@ -111,7 +111,7 @@ export function AdvancedSettings({
           {/* Resolution (Special) */}
           {availableResolutions.length > 0 && (
             <div>
-              <label htmlFor="resolution" className="block text-xs font-medium mb-1">
+              <label htmlFor="resolution" className="block text-xs font-medium mb-0.5">
                 Разрешение
               </label>
               <select
@@ -133,7 +133,7 @@ export function AdvancedSettings({
           {/* Sound Presets (WAN) */}
           {availableSoundPresets.length > 0 && (
             <div>
-              <label htmlFor="sound-preset" className="block text-xs font-medium mb-1">
+              <label htmlFor="sound-preset" className="block text-xs font-medium mb-0.5">
                 Пресет звука
               </label>
               <select

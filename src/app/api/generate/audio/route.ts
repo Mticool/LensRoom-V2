@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       prompt, // Используется как lyrics в кастомном режиме
       model = 'suno',
       generation_type = 'generate',
+      threadId: threadIdRaw,
       
       // Generate settings
       suno_model = 'V4_5PLUS',
@@ -131,6 +132,26 @@ export async function POST(request: NextRequest) {
     
     const supabase = getSupabaseAdmin();
 
+    // Optional: validate threadId/project and ensure it belongs to user.
+    // NOTE: Projects are shared across Photo/Video/Motion/Music.
+    const threadId = threadIdRaw ? String(threadIdRaw).trim() : "";
+    if (threadId) {
+      try {
+        const { data: thread, error: threadErr } = await supabase
+          .from("studio_threads")
+          .select("id,user_id")
+          .eq("id", threadId)
+          .eq("user_id", userId)
+          .single();
+        if (threadErr || !thread) {
+          return NextResponse.json({ error: "Invalid threadId" }, { status: 400 });
+        }
+      } catch (e) {
+        console.error("[API] threadId validation error:", e);
+        return NextResponse.json({ error: "Failed to validate threadId" }, { status: 500 });
+      }
+    }
+
     // Check credits
     if (!skipCredits) {
       const { data: creditsData, error: creditsError } = await supabase
@@ -196,6 +217,7 @@ export async function POST(request: NextRequest) {
         prompt: isElevenLabs ? (dialogue || prompt) : (prompt || lyrics || title || 'Audio generation'),
         credits_used: creditCost,
         status: "queued",
+        thread_id: threadId || null,
         metadata: isElevenLabs ? {
           generation_type: 'elevenlabs',
           language_code,
