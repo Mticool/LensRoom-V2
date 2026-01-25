@@ -1130,7 +1130,7 @@ export function StudioRuntime({
           availableModes={studioModel?.modes || ['t2v']}
           duration={duration as number}
           onDurationChange={(d) => setDuration(d as any)}
-          durationOptions={studioModel?.kind === "video" && studioModel.durationOptions ? studioModel.durationOptions : [5, 10]}
+          durationOptions={studioModel?.kind === "video" && studioModel.durationOptions ? (studioModel.durationOptions as number[]) : [5, 10]}
           quality={quality as string}
           onQualityChange={(q) => setQuality(q as any)}
           qualityOptions={studioModel?.qualityTiers || []}
