@@ -105,17 +105,20 @@ async function safeReadJson(response: Response): Promise<any> {
 export function StudioRuntime({
   defaultKind,
   variant = "video",
+  forceKind,
 }: {
   defaultKind: "photo" | "video";
   /** For video kind: constrain defaults/model list (e.g. Motion-only). */
   variant?: "video" | "motion";
+  /** If provided, ignore `kind` query param and force this kind. */
+  forceKind?: "photo" | "video";
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showSuccessNotifications } = usePreferencesStore();
 
   const requestedKind = (searchParams.get("kind") as "photo" | "video" | null) || null;
-  const kind: "photo" | "video" = requestedKind || defaultKind;
+  const kind: "photo" | "video" = forceKind || requestedKind || defaultKind;
 
   // Project/thread (canonical: `project`, legacy: `thread`)
   const threadId = (searchParams.get("project") || searchParams.get("thread") || "").trim() || undefined;

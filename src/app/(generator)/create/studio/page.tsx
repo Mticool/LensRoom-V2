@@ -61,7 +61,11 @@ function StudioContent() {
       {section === "music" ? (
         <AudioStudio />
       ) : section === "video" || section === "motion" ? (
-        <StudioRuntime defaultKind="video" variant={section === "motion" ? "motion" : "video"} />
+        <StudioRuntime
+          defaultKind="video"
+          forceKind="video"
+          variant={section === "motion" ? "motion" : "video"}
+        />
       ) : (
         <StudioWorkspaces />
       )}

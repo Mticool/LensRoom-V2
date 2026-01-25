@@ -63,6 +63,9 @@ export function SectionTabs({ className }: SectionTabsProps) {
     // Preserve the model param only if switching within same type
     if (sectionId !== currentSection) {
       params.delete('model');
+      // Avoid cross-mode leaks (e.g. preset links that include kind/mode).
+      params.delete('kind');
+      params.delete('mode');
     }
     
     router.push(`${pathname}?${params.toString()}`);
