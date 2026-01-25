@@ -515,16 +515,159 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
 // - Market API: POST /api/v1/jobs/createTask (kling, sora, bytedance)
 // - Veo 3.1 API: POST /api/v1/veo/generate (separate endpoint)
 
+// ===== VIDEO MODELS =====
+// Unified Video Generator: 8 models
+// Providers: Google (Veo), Kling (via Kie.ai), xAI (Grok), OpenAI (Sora), WAN
+// Motion Control moved to separate section
+
 export const VIDEO_MODELS: VideoModelConfig[] = [
-  // === GROK VIDEO - xAI === (Text-to-Video + Image-to-Video with Spicy Mode)
+  // === 1. VEO 3.1 FAST - Google ===
+  {
+    id: 'veo-3.1-fast',
+    name: 'Veo 3.1 Fast',
+    apiId: 'veo-3.1-fast',
+    type: 'video',
+    provider: 'kie_veo',
+    description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений.',
+    rank: 1,
+    featured: true,
+    speed: 'fast',
+    quality: 'high',
+    supportsI2v: true,
+    supportsAudio: false,
+    supportsStartEnd: false,
+    supportsFirstLastFrame: false,
+    maxReferenceImages: 3,
+    pricing: {
+      '4': 50,
+      '6': 75,
+      '8': 99,
+    },
+    modes: ['t2v', 'i2v'],
+    durationOptions: [4, 6, 8],
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16'],
+    shortLabel: '4-8s • Fast • 3 Refs',
+    modelTag: 'FAST',
+  },
+
+  // === 2. KLING 2.1 - Kie.ai ===
+  {
+    id: 'kling-2.1',
+    name: 'Kling 2.1',
+    apiId: 'kling-2.1/text-to-video',
+    apiIdI2v: 'kling-2.1/image-to-video',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Kling 2.1 Master — высокое качество генерации видео. Text-to-video и image-to-video.',
+    rank: 2,
+    featured: true,
+    speed: 'medium',
+    quality: 'ultra',
+    supportsI2v: true,
+    supportsAudio: false,
+    pricing: {
+      '5': 200,
+      '10': 400,
+    },
+    modes: ['t2v', 'i2v'],
+    durationOptions: [5, 10],
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: '5-10s • Master',
+    modelTag: 'ULTRA',
+  },
+
+  // === 3. KLING 2.5 - Kie.ai ===
+  {
+    id: 'kling-2.5',
+    name: 'Kling 2.5',
+    apiId: 'kling-2.5-turbo/text-to-video',
+    apiIdI2v: 'kling-2.5-turbo/image-to-video',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Kling 2.5 Turbo — быстрая генерация с хорошим балансом скорости и качества.',
+    rank: 3,
+    featured: true,
+    speed: 'fast',
+    quality: 'high',
+    supportsI2v: true,
+    supportsAudio: false,
+    pricing: {
+      '5': 105,
+      '10': 210,
+    },
+    modes: ['t2v', 'i2v'],
+    durationOptions: [5, 10],
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: '5-10s • Turbo',
+    modelTag: 'FAST',
+  },
+
+  // === 4. KLING 2.6 - Kie.ai ===
+  {
+    id: 'kling-2.6',
+    name: 'Kling 2.6',
+    apiId: 'kling-2.6/text-to-video',
+    apiIdI2v: 'kling-2.6/image-to-video',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Kling 2.6 Standard — отличная динамика и стабильность. Поддерживает генерацию звука.',
+    rank: 4,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: true,
+    supportsAudio: true,
+    supportsAudioGeneration: true,
+    pricing: {
+      '5': { no_audio: 105, audio: 135 },
+      '10': { no_audio: 210, audio: 270 },
+    },
+    modes: ['t2v', 'i2v'],
+    durationOptions: [5, 10],
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: '5-10s • Audio',
+    modelTag: 'CORE',
+  },
+
+  // === 5. KLING 2.6 MOTION CONTROL - Separate Section ===
+  {
+    id: 'kling-motion-control',
+    name: 'Kling Motion Control',
+    apiId: 'kling-2.6-motion-control',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Kling 2.6 Motion Control — передача движения из референсного видео на персонажа.',
+    rank: 5,
+    featured: false, // Motion Control в отдельном разделе
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: false,
+    supportsAudio: false,
+    pricing: {
+      '720p': { per_second: 16 },
+      '1080p': { per_second: 25 },
+    },
+    modes: ['v2v'], // video-to-video only
+    durationOptions: [], // Based on input video length (3-30s)
+    resolutionOptions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: 'Motion Transfer',
+    modelTag: 'CORE',
+  },
+
+  // === 6. GROK VIDEO - xAI ===
   {
     id: 'grok-video',
     name: 'Grok Video',
     apiId: 'grok-imagine/text-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Grok Video от xAI — создаёт короткие видео с синхронизированным звуком. Поддерживает Text-to-Video, Image-to-Video и Style Transfer с тремя режимами: Normal, Fun, Spicy 🌶️. 6 стилей на выбор.',
-    rank: 1,
+    description: 'Grok Video от xAI — создаёт видео с синхронизированным звуком. Поддерживает style transfer. 6 стилей на выбор.',
+    rank: 6,
     featured: true,
     speed: 'fast',
     quality: 'high',
@@ -538,455 +681,70 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
       '6': 25,
       '12': 45,
       '18': 65,
+      '24': 85,
+      '30': 105,
     },
     modes: ['t2v', 'i2v', 'style_transfer'],
-    durationOptions: [6, 12, 18],
+    durationOptions: [6, 12, 18, 24, 30],
     aspectRatios: ['9:16', '1:1', '3:2', '2:3'],
-    shortLabel: '6-18s • Audio • Styles',
+    shortLabel: '6-30s • Audio • Styles',
     modelTag: 'NEW',
   },
-  // === VEO 3.1 - LaoZhang API (much cheaper cost, same user price!) ===
-  // LaoZhang cost: $0.015/video, user price unchanged
-  // Supports: t2v (text-to-video), i2v (image-to-video), start_end (first/last frame)
-  // NEW: Up to 3 reference images for character/style control
-  {
-    id: 'veo-3.1',
-    name: 'Veo 3.1',
-    apiId: 'veo-3.1', // LaoZhang model ID
-    apiIdFast: 'veo-3.1-fast', // Fast variant
-    apiIdLandscape: 'veo-3.1-landscape', // 16:9 variant
-    apiIdLandscapeFast: 'veo-3.1-landscape-fast', // 16:9 fast variant
-    type: 'video',
-    provider: 'laozhang', // Switched to LaoZhang API!
-    description: 'Самая качественная модель Google. Поддерживает до 3 референс-изображений для контроля персонажа/стиля, режим первый-последний кадр и нативную генерацию звука. 4/6/8 секунд.',
-    rank: 1,
-    featured: true,
-    speed: 'slow',
-    quality: 'ultra',
-    supportsI2v: true, // LaoZhang Veo supports i2v via chat/completions with image_url
-    supportsAudio: true,
-    supportsStartEnd: true, // First/last frame mode supported
-    supportsFirstLastFrame: true,
-    supportsAudioGeneration: true,
-    maxReferenceImages: 3, // Up to 3 reference images
-    pricing: {
-      // Extended pricing for 4/6/8 seconds
-      fast: { '4': 50, '6': 75, '8': 99 },
-      quality: { '4': 250, '6': 370, '8': 490 },
-    },
-    modes: ['t2v', 'i2v', 'start_end', 'reference'], // All video modes including reference
-    durationOptions: [4, 6, 8],
-    qualityOptions: ['fast', 'quality'],
-    resolutionOptions: ['720p', '1080p'],
-    aspectRatios: ['16:9', '9:16'],
-    shortLabel: '4-8s • 3 Refs • Audio',
-    modelTag: 'ULTRA',
-  },
-  
-  // === KLING - Unified model with variants (2.5 Turbo, 2.6, 2.1) ===
-  // ОБНОВЛЕНО 2025-01-25: качественные тиры Standard/Pro/Master
-  {
-    id: 'kling',
-    name: 'Kling',
-    apiId: 'kling-2.6/text-to-video', // Default (will be overridden by variant)
-    apiIdI2v: 'kling-2.6/image-to-video', // Default
-    type: 'video',
-    provider: 'kie_market',
-    description: 'Сильный универсал для эффектных видео: отличная динамика, стабильные объекты, хорошо работает с людьми и экшеном. 3 уровня качества: Standard, Pro, Master.',
-    rank: 3,
-    featured: true,
-    speed: 'medium',
-    quality: 'ultra',
-    supportsI2v: true,
-    supportsAudio: true, // Audio only for 2.6
-    qualityTiers: ['standard', 'pro', 'master'],
-    pricing: {
-      '5': { no_audio: 105 }, // Minimum price (2.5 Turbo 5s)
-      '10': { no_audio: 210 }, // Minimum price (2.5 Turbo 10s)
-    },
-    modelVariants: [
-      // Standard tier
-      {
-        id: 'kling-2.5-turbo',
-        name: 'Kling 2.5 Turbo',
-        apiId: 'kling-2.5-turbo/text-to-video',
-        pricing: {
-          '5': { no_audio: 105 },
-          '10': { no_audio: 210 },
-        },
-      },
-      {
-        id: 'kling-2.6-standard',
-        name: 'Kling 2.6 Standard',
-        apiId: 'kling-2.6/text-to-video',
-        apiIdI2v: 'kling-2.6/image-to-video',
-        pricing: {
-          '5': { no_audio: 105, audio: 135 },
-          '10': { no_audio: 210, audio: 270 },
-        },
-      },
-      // Pro tier
-      {
-        id: 'kling-2.6-pro',
-        name: 'Kling 2.6 Pro',
-        apiId: 'kling-2.6-pro/text-to-video',
-        apiIdI2v: 'kling-2.6-pro/image-to-video',
-        pricing: {
-          '5': { no_audio: 158, audio: 203 },
-          '10': { no_audio: 315, audio: 405 },
-        },
-      },
-      {
-        id: 'kling-2.1-pro',
-        name: 'Kling 2.1 Pro',
-        apiId: 'kling/v2-1-pro',
-        pricing: {
-          '5': { no_audio: 200 },
-          '10': { no_audio: 400 },
-        },
-      },
-      // Master tier
-      {
-        id: 'kling-2.6-master',
-        name: 'Kling 2.6 Master',
-        apiId: 'kling-2.6-master/text-to-video',
-        apiIdI2v: 'kling-2.6-master/image-to-video',
-        pricing: {
-          '5': { no_audio: 210, audio: 270 },
-          '10': { no_audio: 420, audio: 540 },
-        },
-      },
-    ],
-    modes: ['t2v', 'i2v'],
-    durationOptions: [5, 10],
-    resolutionOptions: ['720p', '1080p'],
-    aspectRatios: ['1:1', '16:9', '9:16'],
-    shortLabel: '5-10s • Standard/Pro/Master',
-    modelTag: 'CORE',
-  },
 
-  // === SORA 2 - LaoZhang API (much cheaper cost, same user price!) ===
-  // LaoZhang cost: $0.015/video, user price unchanged
+  // === 7. SORA 2 - OpenAI ===
   {
     id: 'sora-2',
     name: 'Sora 2',
-    apiId: 'sora-2', // LaoZhang model ID
-    apiIdVideo2: 'sora_video2', // Alternative Sora Video2
-    apiId15s: 'sora_video2-15s', // 15 second variant
-    apiIdLandscape: 'sora_video2-landscape', // 16:9 variant
+    apiId: 'sora-2',
     type: 'video',
-    provider: 'laozhang', // Switched to LaoZhang API!
-    description: 'OpenAI Sora 2: универсальная генерация с балансом качества и скорости. Подходит для большинства задач.',
-    rank: 4,
+    provider: 'openai',
+    description: 'OpenAI Sora 2 — универсальная генерация с балансом качества и скорости. Text-to-video, image-to-video.',
+    rank: 7,
     featured: true,
     speed: 'medium',
     quality: 'high',
-    supportsI2v: false, // LaoZhang Sora - text-to-video only
+    supportsI2v: true,
+    supportsAudio: false,
     pricing: {
-      // ORIGINAL PRICING (unchanged for users)
-      '10': { standard: 50 },
-      '15': { standard: 50 },
+      '10': 250,
+      '15': 450,
     },
-    modes: ['t2v'],
+    modes: ['t2v', 'i2v'],
     durationOptions: [10, 15],
     aspectRatios: ['portrait', 'landscape'],
-    shortLabel: '10-15s • T2V',
-    modelTag: 'FAST',
+    shortLabel: '10-15s • T2V/I2V',
+    modelTag: 'PRO',
   },
 
-  // === SORA 2 PRO - Market API (i2v only) ===
+  // === 8. WAN 2.6 ===
   {
-    id: 'sora-2-pro',
-    name: 'Sora 2 Pro',
-    apiId: 'sora-2-pro-image-to-video', // i2v only
+    id: 'wan-2.6',
+    name: 'WAN 2.6',
+    apiId: 'wan-2.6/text-to-video',
+    apiIdI2v: 'wan-2.6/image-to-video',
+    apiIdV2v: 'wan-2.6/video-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'OpenAI Sora 2 Pro: максимальное качество и стабильность сцены. Когда важна "киношность" и чистота кадра.',
-    rank: 5,
+    description: 'WAN 2.6 — кинематографическая генерация с управлением камерой и стилем. Поддерживает video-to-video.',
+    rank: 8,
     featured: true,
     speed: 'slow',
     quality: 'ultra',
     supportsI2v: true,
-    pricing: {
-      // NEW PRICING: standard: 10s = 250⭐; 15s = 450⭐; high: 10s = 550⭐; 15s = 1050⭐
-      'standard': { '10': 250, '15': 450 },
-      'high': { '10': 550, '15': 1050 },
-    },
-    modes: ['i2v'], // Only i2v, start_end is Veo feature
-    durationOptions: [10, 15],
-    qualityOptions: ['standard', 'high'],
-    aspectRatios: ['portrait', 'landscape'],
-    shortLabel: '10-15s • I2V',
-    modelTag: 'PRO',
-  },
-
-  // === SORA STORYBOARD - Market API ===
-  {
-    id: 'sora-storyboard',
-    name: 'Sora Storyboard',
-    apiId: 'sora-2-pro-storyboard',
-    type: 'video',
-    provider: 'kie_market',
-    description: 'Мультисцены/раскадровка — удобно для сторителлинга и рекламных роликов.',
-    rank: 6,
-    featured: false,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2v: false,
-    supportsStoryboard: true,
-    pricing: {
-      storyboard: {
-        '10': 220,
-        '15-25': 400,
-      },
-    },
-    modes: ['storyboard'],
-    durationOptions: [10, '15-25'],
-    aspectRatios: ['16:9', '9:16'],
-    shortLabel: '10-25s',
-  },
-
-  // === WAN - Unified model with variants (2.5 / 2.6 only) ===
-  // ОБНОВЛЕНО 2025-01-25: camera motion, style presets, motion strength
-  {
-    id: 'wan',
-    name: 'WAN',
-    apiId: 'wan/2-6-text-to-video', // Default (will be overridden by variant)
-    apiIdI2v: 'wan/2-6-image-to-video', // Default
-    apiIdV2v: 'wan/2-6-video-to-video', // V2V (reference-guided)
-    type: 'video',
-    provider: 'kie_market',
-    description: 'Кинематографичное качество для сторителлинга. WAN 2.6 поддерживает управление камерой, стилевые пресеты и силу движения. Версии 2.5/2.6 с T2V, I2V, V2V и звуком.',
-    rank: 8,
-    featured: true,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2v: true,
-    supportsAudio: true, // Sound presets supported
-    // WAN 2.6 advanced features
+    supportsAudio: false,
     cameraMotionOptions: ['static', 'pan_left', 'pan_right', 'tilt_up', 'tilt_down', 'zoom_in', 'zoom_out', 'orbit', 'follow'],
-    stylePresets: ['realistic', 'anime', 'cinematic', 'artistic', 'vintage', 'neon'],
-    motionStrengthRange: { min: 0, max: 100, step: 5 },
-    pricing: {
-      '5': { no_audio: 100 }, // Minimum price (WAN 2.5 720p 5s)
-      '10': { no_audio: 200 },
-      '15': { no_audio: 300 },
-    },
-    modelVariants: [
-      {
-        id: 'wan-2.5',
-        name: 'Wan 2.5',
-        apiId: 'wan/2-5-text-to-video',
-        apiIdI2v: 'wan/2-5-image-to-video',
-        // WAN 2.5: T2V, I2V | 5s, 10s | 720p, 1080p | 16:9, 9:16, 1:1
-        // Sound: native, lip-sync, ambient, music
-        modes: ['t2v', 'i2v'],
-        durationOptions: [5, 10],
-        resolutionOptions: ['720p', '1080p'],
-        aspectRatios: ['16:9', '9:16', '1:1'],
-        soundOptions: ['native', 'lip-sync', 'ambient', 'music'],
-        pricing: {
-          '720p': { '5': 100, '10': 200 },
-          '1080p': { '5': 168, '10': 335 },
-        },
-      },
-      {
-        id: 'wan-2.6',
-        name: 'Wan 2.6',
-        apiId: 'wan/2-6-text-to-video',
-        apiIdI2v: 'wan/2-6-image-to-video',
-        apiIdV2v: 'wan/2-6-video-to-video',
-        // WAN 2.6: T2V, I2V, V2V (R2V) | 5s, 10s, 15s | 720p, 1080p, Multi-shot 1080p | 16:9, 9:16, 1:1
-        // Sound: native-dialogues, precise-lip-sync, ambient-atmospheric
-        // NEW: camera motion, style preset, motion strength
-        modes: ['t2v', 'i2v', 'v2v'],
-        durationOptions: [5, 10, 15],
-        resolutionOptions: ['720p', '1080p', '1080p_multi'],
-        aspectRatios: ['16:9', '9:16', '1:1'],
-        soundOptions: ['native-dialogues', 'precise-lip-sync', 'ambient-atmospheric'],
-        pricing: {
-          '720p': { '5': 118, '10': 235, '15': 351 },
-          '1080p': { '5': 175, '10': 351, '15': 528 },
-          '1080p_multi': { '5': 220, '10': 440, '15': 660 },
-        },
-      },
-    ],
-    modes: ['t2v', 'i2v', 'v2v'], // All modes (filtered by variant)
-    durationOptions: [5, 10, 15], // All durations (filtered by variant)
-    resolutionOptions: ['720p', '1080p', '1080p_multi'], // All resolutions (filtered by variant)
-    aspectRatios: ['16:9', '9:16', '1:1'],
-    shortLabel: '5-15s • Camera/Style Control',
-    modelTag: 'TOP',
-  },
-
-  // === BYTEDANCE (Seedance 1.0 Pro) - Market API (i2v only) ===
-  {
-    id: 'bytedance-pro',
-    name: 'Bytedance Pro',
-    apiId: 'bytedance/v1-pro-image-to-video', // i2v only
-    type: 'video',
-    provider: 'kie_market',
-    description: 'Быстрые ролики «пачкой» для тестов креативов и контент-завода.',
-    rank: 7,
-    featured: false,
-    speed: 'fast',
-    quality: 'standard',
-    supportsI2v: true,
-    pricing: {
-      // NEW PRICING: 720p: 5s=27⭐, 10s=61⭐; 1080p: 5s=61⭐, 10s=121⭐
-      '720p': { '5': 27, '10': 61 },
-      '1080p': { '5': 61, '10': 121 },
-    },
-    modes: ['i2v'], // i2v only
-    durationOptions: [5, 10],
-    resolutionOptions: ['720p', '1080p'],
-    aspectRatios: ['16:9', '9:16'],
-    shortLabel: '5/10s • Fast',
-  },
-
-  // === KLING AI AVATAR - NEW MODEL ===
-  {
-    id: 'kling-ai-avatar',
-    name: 'Kling AI Avatar',
-    apiId: 'kling/v1-avatar-standard', // Default to standard
-    type: 'video',
-    provider: 'kie_market',
-    description: 'AI Avatar генерация: создавайте говорящие аватары из фото. Два режима качества: Standard (720p) и Pro (1080p).',
-    rank: 9,
-    featured: true,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2v: true,
-    supportsAudio: false,
-    pricing: {
-      // NEW PRICING (credits per second):
-      // standard 720p (14/sec): 5s=70⭐, 10s=140⭐, 15s=210⭐
-      // pro 1080p (27/sec): 5s=135⭐, 10s=270⭐, 15s=405⭐
-      '720p': { '5': 70, '10': 140, '15': 210 },
-      '1080p': { '5': 135, '10': 270, '15': 405 },
-    },
-    modelVariants: [
-      {
-        id: 'kling-ai-avatar-standard',
-        name: 'Kling AI Avatar Standard',
-        apiId: 'kling/v1-avatar-standard',
-        pricing: {
-          // 720p pricing per duration
-          '5': 70,
-          '10': 140,
-          '15': 210,
-        },
-      },
-      {
-        id: 'kling-ai-avatar-pro',
-        name: 'Kling AI Avatar Pro',
-        apiId: 'kling/ai-avatar-v1-pro',
-        pricing: {
-          // 1080p pricing per duration
-          '5': 135,
-          '10': 270,
-          '15': 405,
-        },
-      },
-    ],
-    modes: ['i2v'], // Image to avatar video
-    durationOptions: [5, 10, 15],
-    resolutionOptions: ['720p', '1080p'],
-    aspectRatios: ['16:9', '9:16', '1:1'],
-    shortLabel: 'Avatar • 5-15s',
-  },
-
-  // === KLING O1 - Video-to-Video Edit (fal.ai) ===
-  {
-    id: 'kling-o1-edit',
-    name: 'Kling O1 Edit',
-    apiId: 'fal-ai/kling-video/o1/video-to-video/edit',
-    type: 'video',
-    provider: 'fal',
-    description: 'Kling O1 — редактирование существующих видео с помощью промпта. Поддерживает референс-изображения и элементы для замены персонажей/объектов.',
-    rank: 10,
-    featured: false,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2v: false,
-    supportsAudio: true,
-    pricing: 28,
-    modes: ['v2v'],
-    durationOptions: [],
-    aspectRatios: [],
-    shortLabel: 'V2V Edit',
-  },
-
-  // === KLING O1 - Image-to-Video First/Last Frame (fal.ai) ===
-  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video
-  // Себестоимость fal.ai: $0.112/сек
-  // Расчёт себестоимости/маржи скрыт (⭐-ориентированный UI)
-  // ПРАВИЛО: 10s = 2× от 5s
-  {
-    id: 'kling-o1',
-    name: 'Kling O1',
-    apiId: 'fal-ai/kling-video/o1/standard/image-to-video',
-    type: 'video',
-    provider: 'fal',
-    description: 'First Frame → Last Frame анимация. Точный контроль перехода между двумя кадрами. Идеально для таймлапсов, морфинга, трансформаций.',
-    rank: 5,
-    featured: true,
-    speed: 'medium',
-    quality: 'high',
-    supportsI2v: true, // Требует изображение
-    supportsAudio: false,
-    supportsStartEnd: true,
-    supportsFirstLastFrame: true, // Explicit first/last frame support
-    // UPDATED 2025-01-04: 5s=120⭐, 10s=240⭐ (правильная маржа)
+    styleOptions: ['realistic', 'cinematic', 'anime', 'cartoon'],
     pricing: {
       '5': 120,
       '10': 240,
+      '15': 360,
     },
-    modes: ['i2v', 'start_end'], // Поддерживает start + end frames
-    durationOptions: [5, 10],
-    fixedDuration: undefined,
-    // fal.ai O1 Standard supports 16:9 / 9:16 / 1:1 (and can default if omitted)
-    // Keep `auto` as a UI helper which is mapped to provider default.
-    aspectRatios: ['auto', '16:9', '9:16', '1:1'],
-    shortLabel: 'от 120⭐ • First/Last Frame',
-  },
-
-  // === KLING 2.6 MOTION CONTROL - KIE Market API ===
-  // Документация: https://kie.ai/kling-2.6-motion-control
-  // Перенос движений с референсного видео на персонажа из изображения
-  // Input: image (персонаж) + video (референс движений 3-30 сек) + prompt
-  // 
-  // ДИНАМИЧЕСКОЕ ЦЕНООБРАЗОВАНИЕ (per-second):
-  // - 720p: 16⭐/сек
-  // - 1080p: 25⭐/сек
-  // - Округление: ceil((duration * rate) / 5) * 5
-  // - Лимиты: 3-30 сек
-  {
-    id: 'kling-motion-control',
-    name: 'Kling Motion Control',
-    apiId: 'kling-2.6-motion-control/standard',
-    apiIdI2v: 'kling-2.6-motion-control/standard', // Всегда требует изображение
-    type: 'video',
-    provider: 'kie_market',
-    description: 'Перенос движений с референсного видео на персонажа. Загрузи фото человека и видео с движениями — получи анимацию персонажа, повторяющего движения из видео. Идеально для танцев, жестов, мимики.',
-    rank: 2,
-    featured: true,
-    speed: 'medium',
-    quality: 'ultra',
-    supportsI2v: true, // Требует изображение персонажа
-    supportsAudio: false,
-    // Pricing: ДИНАМИЧЕСКАЯ (per-second)
-    // 720p: 16⭐/сек, 1080p: 25⭐/сек
-    // Минимальная цена: 3с × 16⭐ = 48⭐ → округлено до 50⭐
-    pricing: {
-      '720p': { perSecond: 16 }, // Dynamic per-second
-      '1080p': { perSecond: 25 }, // Fixed: was 22, should be 25 (matches motionControl.ts RATE_1080P)
-    },
-    modes: ['i2v'], // Только Image-to-Video (с референсным видео)
-    durationOptions: [], // Длительность = длительность референсного видео (3-30 сек)
-    resolutionOptions: ['720p', '1080p'],
+    modes: ['t2v', 'i2v', 'v2v'],
+    durationOptions: [5, 10, 15],
+    resolutionOptions: ['720p', '1080p', '1080p_multi'],
     aspectRatios: ['16:9', '9:16', '1:1'],
-    shortLabel: 'от 50⭐ • Motion',
+    shortLabel: '5-15s • Camera • V2V',
+    modelTag: 'ULTRA',
   },
 ];
 

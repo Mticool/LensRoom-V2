@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from "next/navigation";
-import { HiggsGenerator } from "@/components/generator-v2/higgsfield";
 import { NanoBananaGenerator } from "@/components/generator-v2/NanoBananaGenerator";
+import { NanoBananaProGenerator } from "@/components/generator-v2/NanoBananaProGenerator";
 import { ZImageGenerator } from "@/components/generator-v2/ZImageGenerator";
 import { FluxProGenerator } from "@/components/generator-v2/FluxProGenerator";
 import { SeedreamGenerator } from "@/components/generator-v2/SeedreamGenerator";
@@ -55,8 +55,7 @@ export default function CreatePage() {
   const renderGenerator = () => {
     switch (selectedModel) {
       case 'nano-banana-pro':
-        // New Higgsfield-style generator
-        return <HiggsGenerator />;
+        return <NanoBananaProGenerator />;
       case 'nano-banana':
         return <NanoBananaGenerator />;
       case 'z-image':
@@ -74,7 +73,7 @@ export default function CreatePage() {
       case 'recraft-remove-background':
         return <RecraftRemoveBGGenerator />;
       default:
-        return <HiggsGenerator />;
+        return <NanoBananaProGenerator />;
     }
   };
 

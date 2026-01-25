@@ -57,13 +57,7 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       setIsLoading(true);
       setOffset(0);
       
-      // If no threadId, don't load history (new chat = empty gallery)
-      if (!threadId) {
-        setHistory([]);
-        setHasMore(false);
-        setIsLoading(false);
-        return;
-      }
+      // Load history for current user (threadId is optional filter)
       
       const type = mode === 'video' ? 'video' : 'photo';
       const cacheKey = `history-${type}${modelId ? `-${modelId}` : ''}${threadId ? `-${threadId}` : ''}`;
