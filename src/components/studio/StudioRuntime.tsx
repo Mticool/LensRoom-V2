@@ -1329,7 +1329,6 @@ export function StudioRuntime({
           newResultsCount={newResultsCount}
         />
       </div>
-      </div>
     </StudioShell>
   );
 }
