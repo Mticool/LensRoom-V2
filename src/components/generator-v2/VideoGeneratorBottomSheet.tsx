@@ -158,7 +158,7 @@ export function VideoGeneratorBottomSheet({
   const needsReference = mode === 'i2v';
 
   return (
-    <div className="md:hidden fixed left-0 right-0 bottom-0 z-40">
+    <div className="fixed left-0 right-0 bottom-0 z-40">
       {/* Backdrop for closing menus */}
       {activeMenu && (
         <div 

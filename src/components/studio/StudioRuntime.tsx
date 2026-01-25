@@ -24,13 +24,6 @@ import { PHOTO_VARIANT_MODELS, type ParamKey } from "@/config/photoVariantRegist
 import { StudioShell } from "@/components/studio/StudioShell";
 import { ModelSidebar, MobileModelSelector } from "@/components/studio/ModelSidebar";
 import { PhotoModelSidebar, MobilePhotoModelSelector } from "@/components/studio/PhotoModelSidebar";
-import { GeneratorPreview } from "@/components/studio/GeneratorPreview";
-import { SettingsPanel } from "@/components/studio/SettingsPanel";
-import { PhotoSettingsPanel } from "@/components/studio/PhotoSettingsPanel";
-import { PromptBox } from "@/components/studio/PromptBox";
-import { BottomActionBar } from "@/components/studio/BottomActionBar";
-import { StartEndUpload } from "@/components/studio/StartEndUpload";
-import { GenerationQueue } from "@/components/studio/GenerationQueue";
 
 type RuntimeStatus = "idle" | "queued" | "generating" | "success" | "failed";
 
@@ -1106,8 +1099,9 @@ export function StudioRuntime({
         )
       }
     >
-      {/* Mobile: fullscreen video viewer + bottom sheet */}
-      <div className="md:hidden flex flex-col min-h-screen">
+      {/* Unified fullscreen UI for all screen sizes */}
+      <div className="flex flex-col min-h-screen">
+        {/* Main video viewer - fullscreen on all devices */}
         <MobileVideoViewer
           video={activeMobileVideo}
           index={activeRunIndex}
@@ -1119,6 +1113,7 @@ export function StudioRuntime({
           isFavorite={isFavorite}
         />
 
+        {/* Bottom sheet - works on both mobile and desktop */}
         <VideoGeneratorBottomSheet
           modelId={selectedModelId}
           modelName={modelInfo?.name || studioModel?.key || ''}
@@ -1141,192 +1136,6 @@ export function StudioRuntime({
           isGenerating={isStarting || status === 'generating' || status === 'queued'}
           canGenerate={canGenerate && !isStarting}
           onGenerate={handleGenerate}
-        />
-      </div>
-
-      {/* Desktop: existing layout */}
-      <div className="hidden md:block space-y-6">
-        {/* Use lg breakpoint so desktop (even non-maximized) keeps prompt/settings visible side-by-side */}
-        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
-          <div className="space-y-6">
-            <GeneratorPreview
-              model={studioModel}
-              mode={mode}
-              aspect={aspect}
-              referencePreviewUrl={referencePreviewUrl}
-              resultUrl={resultUrls[0] || null}
-              isGenerating={status === "generating" || status === "queued" || isStarting}
-            />
-
-            {mode === "start_end" && (
-              <StartEndUpload
-                firstFrame={firstFrame}
-                lastFrame={lastFrame}
-                onFirstFrameChange={setFirstFrame}
-                onLastFrameChange={setLastFrame}
-              />
-            )}
-
-            {(status === "queued" || status === "generating") && (
-              <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="text-sm text-[var(--text)]">
-                  Статус: {status} • {Math.round(progress)}%
-                </div>
-              </div>
-            )}
-
-            {status === "failed" && lastError && (
-              <div className="rounded-[20px] border border-white/15 bg-[var(--surface)] p-5">
-                <div className="text-sm text-white/90">Статус: failed</div>
-                <div className="text-xs text-[var(--muted)] mt-1">{lastError}</div>
-              </div>
-            )}
-
-            {/* Generation Queue */}
-            {activeJobs.length > 0 && (
-              <GenerationQueue
-                jobs={activeJobs}
-                onJobClick={(job) => {
-                  if (job.status === 'success' && job.resultUrls.length > 0) {
-                    setResultUrls(job.resultUrls);
-                    setStatus('success');
-                    setFocusedJobId(job.jobId);
-                  }
-                }}
-                onClearCompleted={() => {
-                  setActiveJobs((prev) => prev.filter((j) => j.status === 'generating' || j.status === 'queued'));
-                }}
-              />
-            )}
-
-            {/* Project history (Video/Motion) */}
-            {kind === "video" && recentProjectHistory.length > 0 && (
-              <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="text-sm font-semibold mb-3">История проекта</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {recentProjectHistory.slice(0, 6).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        if (item.url) {
-                          setResultUrls([item.url]);
-                          setStatus("success");
-                        }
-                      }}
-                      className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border)] bg-black/30 hover:border-white/30 transition-colors"
-                      title={item.prompt || ""}
-                    >
-                      <video
-                        src={item.url}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* If some providers return multiple image URLs, show extra variants below preview */}
-            {status === "success" && studioModel.kind === "photo" && resultUrls.length > 1 && (
-              <div className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="text-sm font-semibold mb-3">Варианты</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {resultUrls.slice(0, 4).map((u) => (
-                    <div key={u} className="aspect-square rounded-xl overflow-hidden border border-[var(--border)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={u} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right column: keep prompt visible without page scroll (desktop), settings scroll inside */}
-          <div className="space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:flex lg:flex-col lg:overflow-hidden">
-            <div className="space-y-6 lg:flex-1 lg:overflow-y-auto lg:pr-2">
-              {kind === "photo" && activePhotoBase ? (
-                <PhotoSettingsPanel
-                  model={activePhotoBase}
-                  selection={selectedParams}
-                  onSelectionChange={setSelectedParams}
-                  mode={mode as any}
-                  onModeChange={(m) => setMode(m as any)}
-                  aspect={aspect as any}
-                  onAspectChange={(a) => setAspect(a as any)}
-                  aspectOptions={studioModel?.aspectRatios || ["1:1"]}
-                  outputFormat={outputFormat}
-                  onOutputFormatChange={(f) => setOutputFormat(f)}
-                  outputFormatOptions={photoOutputFormatOptions}
-                  referenceImage={referenceImage}
-                  onReferenceImageChange={setReferenceImage}
-                  currentPlan={currentPlan}
-                />
-              ) : (
-                <SettingsPanel
-                  model={studioModel}
-                  mode={mode}
-                  onModeChange={setMode}
-                  quality={quality}
-                  onQualityChange={setQuality}
-                  aspect={aspect}
-                  onAspectChange={setAspect}
-                  duration={studioModel.kind === "video" ? (duration as any) : undefined}
-                  onDurationChange={studioModel.kind === "video" ? (setDuration as any) : undefined}
-                  audio={studioModel.kind === "video" && studioModel.supportsAudio ? audio : undefined}
-                  onAudioChange={studioModel.kind === "video" && studioModel.supportsAudio ? setAudio : undefined}
-                  modelVariant={modelVariant}
-                  onModelVariantChange={setModelVariant}
-                  resolution={resolution}
-                  onResolutionChange={setResolution}
-                  referenceImage={referenceImage}
-                  onReferenceImageChange={setReferenceImage}
-                  motionReferenceVideo={motionReferenceVideo}
-                  onMotionReferenceVideoChange={setMotionReferenceVideo}
-                  motionReferenceVideoDurationSec={motionReferenceVideoDurationSec}
-                  soundPreset={soundPreset}
-                  onSoundPresetChange={setSoundPreset}
-                  referenceVideoUrl={referenceVideoUrl}
-                  onReferenceVideoUrlChange={setReferenceVideoUrl}
-                />
-              )}
-            </div>
-
-            <div className="lg:shrink-0">
-              <PromptBox
-                mode={mode}
-                prompt={prompt}
-                onPromptChange={setPrompt}
-                negativePrompt={negativePrompt}
-                onNegativePromptChange={setNegativePrompt}
-                scenes={scenes}
-                onScenesChange={setScenes}
-              />
-            </div>
-          </div>
-        </div>
-
-        <BottomActionBar
-          stars={price.stars}
-          hint={
-            studioModel.kind === "video"
-              ? "Влияет на цену: режим • качество • длительность"
-              : "Влияет на цену: режим • качество"
-          }
-          canGenerate={canGenerate && !isStarting}
-          onGenerate={handleGenerate}
-          onReset={handleReset}
-          onOpenLibrary={() => {
-            // Mark all completed as opened once user visits history
-            setActiveJobs((prev) => prev.map((j) => (j.status === "success" ? { ...j, opened: true } : j)));
-            router.push("/library");
-          }}
-          newResultsCount={newResultsCount}
         />
       </div>
     </StudioShell>
