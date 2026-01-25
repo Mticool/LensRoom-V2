@@ -455,15 +455,108 @@ export function VideoGeneratorPage() {
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      {/* Main Content - Compact working tool layout */}
-      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 pt-[68px] pb-3">
-        {/* Desktop Layout: Optimized 2 columns */}
-        <div className="hidden md:grid md:grid-cols-[1fr_340px] gap-3">
-          {/* Left Column: Video Preview Panel */}
-          <div className="space-y-2">
+      {/* Desktop Layout: Higgsfield-style - Left Sidebar + Main Content */}
+      <div className="hidden lg:flex min-h-screen">
+        {/* LEFT SIDEBAR - Controls (320px fixed) */}
+        <aside className="w-[320px] flex-shrink-0 bg-[var(--surface)] border-r border-[var(--border)] pt-[64px] flex flex-col">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* Settings Tabs - Only Video & Motion on desktop */}
+            <SettingsTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              compactMode={true}
+              motionContent={
+                <MotionTabContent
+                  isAuthenticated={isAuthenticated}
+                  credits={credits}
+                  refreshCredits={refreshCredits}
+                  onLoginRequired={() => setLoginOpen(true)}
+                />
+              }
+            >
+              {/* Video Tab Content */}
+              <div className="space-y-2">
+                {/* Source Selector */}
+                <VideoSourceSelector
+                  value={mode}
+                  onChange={setMode}
+                  prompt={prompt}
+                  onPromptChange={setPrompt}
+                  onFileUpload={handleFileUpload}
+                  referenceImage={referenceImage}
+                  referenceVideo={referenceVideo}
+                  startFrame={startFrame}
+                  endFrame={endFrame}
+                  v2vInputVideo={v2vInputVideo}
+                  editVideo={editVideo}
+                  editRefImage={editRefImage}
+                  availableModes={modelCapabilities?.availableModes || ['text', 'image', 'reference']}
+                />
+
+                {/* Model Selector */}
+                <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+
+                {/* Video Parameters */}
+                <VideoParamsControls
+                  duration={duration}
+                  onDurationChange={setDuration}
+                  quality={quality}
+                  onQualityChange={setQuality}
+                  withSound={withSound}
+                  onSoundChange={setWithSound}
+                  aspectRatio={aspectRatio}
+                  onAspectRatioChange={setAspectRatio}
+                  durationOptions={modelCapabilities?.durationOptions || [3, 5, 10, 15]}
+                  qualityOptions={modelCapabilities?.qualityOptions || ['720p', '1080p', '4K']}
+                  aspectRatioOptions={modelCapabilities?.aspectRatios || ['16:9', '9:16', '1:1']}
+                  supportsAudio={modelCapabilities?.supportsAudio ?? true}
+                />
+
+                {/* Advanced Settings */}
+                <AdvancedSettings
+                  negativePrompt={negativePrompt}
+                  onNegativePromptChange={setNegativePrompt}
+                  supportsNegativePrompt={modelCapabilities?.supportsNegativePrompt ?? false}
+                  modelVariant={modelVariant}
+                  onModelVariantChange={setModelVariant}
+                  availableVariants={modelCapabilities?.availableVariants || []}
+                  resolution={resolution}
+                  onResolutionChange={setResolution}
+                  availableResolutions={modelCapabilities?.availableResolutions || []}
+                  soundPreset={soundPreset}
+                  onSoundPresetChange={setSoundPreset}
+                  availableSoundPresets={modelCapabilities?.availableSoundPresets || []}
+                />
+
+                {/* Cost Estimator */}
+                <CostEstimator
+                  modelId={selectedModel}
+                  mode={mode}
+                  duration={duration}
+                  quality={quality}
+                  withSound={withSound}
+                />
+              </div>
+            </SettingsTabs>
+          </div>
+
+          {/* Sticky Generate Button at bottom */}
+          <div className="p-3 border-t border-[var(--border)] bg-[var(--surface)]">
+            <GenerateButton
+              onClick={handleGenerate}
+              isGenerating={isGenerating}
+              cost={estimatedCost}
+            />
+          </div>
+        </aside>
+
+        {/* MAIN CONTENT AREA - Preview + Gallery */}
+        <div className="flex-1 pt-[64px] overflow-y-auto">
+          <div className="max-w-[1200px] mx-auto p-4 space-y-3">
+            {/* Video Preview - Compact */}
             <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
-              {/* Video Preview - Compact working size */}
-              <div className="max-h-[260px] overflow-hidden">
+              <div className="max-h-[280px] overflow-hidden">
                 <VideoPreview
                   videoUrl={resultUrl}
                   status={status}
@@ -473,7 +566,7 @@ export function VideoGeneratorPage() {
                 />
               </div>
 
-              {/* Timeline Slider */}
+              {/* Timeline */}
               <div className="mt-2">
                 <TimelineSlider
                   currentTime={currentTime}
@@ -483,127 +576,161 @@ export function VideoGeneratorPage() {
                 />
               </div>
 
-              {/* Status Bar */}
+              {/* Status */}
               <div className="mt-2">
                 <StatusBar status={status} progress={progress} error={error} />
               </div>
             </div>
 
-            {/* Job Queue (Phase 3) */}
+            {/* Job Queue */}
             <JobQueue
               jobs={jobs}
               onRetry={handleRetry}
               onCancel={handleCancel}
               onDownload={handleDownload}
-              defaultExpanded={true}
+              defaultExpanded={false}
             />
 
-            {/* Video History */}
+            {/* Video History / Gallery */}
             <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
-              <h3 className="text-sm font-semibold mb-2 text-[var(--text)]">
-                Мои работы
-              </h3>
+              <h3 className="text-sm font-semibold mb-2 text-[var(--text)]">Мои работы</h3>
               <VideoHistory />
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Right Column: Settings Sidebar - STICKY & COMPACT */}
-          <div className="sticky top-[68px] self-start space-y-2">
-            <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
-              {/* Settings Tabs */}
-              <SettingsTabs 
-                activeTab={activeTab} 
-                onTabChange={setActiveTab}
-                motionContent={
-                  <MotionTabContent
-                    isAuthenticated={isAuthenticated}
-                    credits={credits}
-                    refreshCredits={refreshCredits}
-                    onLoginRequired={() => setLoginOpen(true)}
-                  />
-                }
-              >
-                {/* Video Tab Content */}
-                <div className="space-y-3">
-                  {/* Source Selector */}
-                  <VideoSourceSelector
-                    value={mode}
-                    onChange={setMode}
-                    prompt={prompt}
-                    onPromptChange={setPrompt}
-                    onFileUpload={handleFileUpload}
-                    referenceImage={referenceImage}
-                    referenceVideo={referenceVideo}
-                    startFrame={startFrame}
-                    endFrame={endFrame}
-                    v2vInputVideo={v2vInputVideo}
-                    editVideo={editVideo}
-                    editRefImage={editRefImage}
-                    availableModes={modelCapabilities?.availableModes || ['text', 'image', 'reference']}
-                  />
-
-                  {/* Model Selector */}
-                  <ModelSelector value={selectedModel} onChange={setSelectedModel} />
-
-                  {/* Video Parameters */}
-                  <VideoParamsControls
-                    duration={duration}
-                    onDurationChange={setDuration}
-                    quality={quality}
-                    onQualityChange={setQuality}
-                    withSound={withSound}
-                    onSoundChange={setWithSound}
+      {/* Tablet Layout (md to lg): 2-column grid */}
+      <div className="hidden md:block lg:hidden">
+        <div className="max-w-[1200px] mx-auto px-4 pt-[68px] pb-4">
+          <div className="grid grid-cols-[1fr_320px] gap-3">
+            {/* Left: Preview + History */}
+            <div className="space-y-2">
+              <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+                <div className="max-h-[240px] overflow-hidden">
+                  <VideoPreview
+                    videoUrl={resultUrl}
+                    status={status}
                     aspectRatio={aspectRatio}
-                    onAspectRatioChange={setAspectRatio}
-                    durationOptions={modelCapabilities?.durationOptions || [3, 5, 10, 15]}
-                    qualityOptions={modelCapabilities?.qualityOptions || ['720p', '1080p', '4K']}
-                    aspectRatioOptions={modelCapabilities?.aspectRatios || ['16:9', '9:16', '1:1']}
-                    supportsAudio={modelCapabilities?.supportsAudio ?? true}
-                  />
-
-                  {/* Advanced Settings (Phase 2) */}
-                  <AdvancedSettings
-                    negativePrompt={negativePrompt}
-                    onNegativePromptChange={setNegativePrompt}
-                    supportsNegativePrompt={modelCapabilities?.supportsNegativePrompt ?? false}
-                    modelVariant={modelVariant}
-                    onModelVariantChange={setModelVariant}
-                    availableVariants={modelCapabilities?.availableVariants || []}
-                    resolution={resolution}
-                    onResolutionChange={setResolution}
-                    availableResolutions={modelCapabilities?.availableResolutions || []}
-                    soundPreset={soundPreset}
-                    onSoundPresetChange={setSoundPreset}
-                    availableSoundPresets={modelCapabilities?.availableSoundPresets || []}
-                  />
-
-                  {/* Cost Estimator */}
-                  <CostEstimator
-                    modelId={selectedModel}
-                    mode={mode}
-                    duration={duration}
-                    quality={quality}
-                    withSound={withSound}
+                    isPlaying={isPlaying}
+                    onPlayPause={() => setIsPlaying(!isPlaying)}
                   />
                 </div>
-              </SettingsTabs>
+                <div className="mt-2">
+                  <TimelineSlider
+                    currentTime={currentTime}
+                    duration={videoDuration || duration}
+                    onChange={setCurrentTime}
+                    disabled={!resultUrl}
+                  />
+                </div>
+                <div className="mt-2">
+                  <StatusBar status={status} progress={progress} error={error} />
+                </div>
+              </div>
 
-              {/* Generate Button */}
-              <div className="mt-2 pt-2 border-t border-[var(--border)]">
-                <GenerateButton
-                  onClick={handleGenerate}
-                  isGenerating={isGenerating}
-                  cost={estimatedCost}
-                />
+              <JobQueue
+                jobs={jobs}
+                onRetry={handleRetry}
+                onCancel={handleCancel}
+                onDownload={handleDownload}
+                defaultExpanded={false}
+              />
+
+              <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+                <h3 className="text-sm font-semibold mb-2 text-[var(--text)]">Мои работы</h3>
+                <VideoHistory />
+              </div>
+            </div>
+
+            {/* Right: Settings */}
+            <div className="sticky top-[68px] self-start">
+              <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+                <SettingsTabs
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  compactMode={true}
+                  motionContent={
+                    <MotionTabContent
+                      isAuthenticated={isAuthenticated}
+                      credits={credits}
+                      refreshCredits={refreshCredits}
+                      onLoginRequired={() => setLoginOpen(true)}
+                    />
+                  }
+                >
+                  <div className="space-y-2">
+                    <VideoSourceSelector
+                      value={mode}
+                      onChange={setMode}
+                      prompt={prompt}
+                      onPromptChange={setPrompt}
+                      onFileUpload={handleFileUpload}
+                      referenceImage={referenceImage}
+                      referenceVideo={referenceVideo}
+                      startFrame={startFrame}
+                      endFrame={endFrame}
+                      v2vInputVideo={v2vInputVideo}
+                      editVideo={editVideo}
+                      editRefImage={editRefImage}
+                      availableModes={modelCapabilities?.availableModes || ['text', 'image', 'reference']}
+                    />
+                    <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+                    <VideoParamsControls
+                      duration={duration}
+                      onDurationChange={setDuration}
+                      quality={quality}
+                      onQualityChange={setQuality}
+                      withSound={withSound}
+                      onSoundChange={setWithSound}
+                      aspectRatio={aspectRatio}
+                      onAspectRatioChange={setAspectRatio}
+                      durationOptions={modelCapabilities?.durationOptions || [3, 5, 10, 15]}
+                      qualityOptions={modelCapabilities?.qualityOptions || ['720p', '1080p', '4K']}
+                      aspectRatioOptions={modelCapabilities?.aspectRatios || ['16:9', '9:16', '1:1']}
+                      supportsAudio={modelCapabilities?.supportsAudio ?? true}
+                    />
+                    <AdvancedSettings
+                      negativePrompt={negativePrompt}
+                      onNegativePromptChange={setNegativePrompt}
+                      supportsNegativePrompt={modelCapabilities?.supportsNegativePrompt ?? false}
+                      modelVariant={modelVariant}
+                      onModelVariantChange={setModelVariant}
+                      availableVariants={modelCapabilities?.availableVariants || []}
+                      resolution={resolution}
+                      onResolutionChange={setResolution}
+                      availableResolutions={modelCapabilities?.availableResolutions || []}
+                      soundPreset={soundPreset}
+                      onSoundPresetChange={setSoundPreset}
+                      availableSoundPresets={modelCapabilities?.availableSoundPresets || []}
+                    />
+                    <CostEstimator
+                      modelId={selectedModel}
+                      mode={mode}
+                      duration={duration}
+                      quality={quality}
+                      withSound={withSound}
+                    />
+                  </div>
+                </SettingsTabs>
+
+                <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                  <GenerateButton
+                    onClick={handleGenerate}
+                    isGenerating={isGenerating}
+                    cost={estimatedCost}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Layout: Single column */}
-        <div className="md:hidden space-y-3">
-          {/* Video Preview */}
-          <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-3">
+      {/* Mobile Layout: Single column */}
+      <div className="md:hidden pt-[64px] px-3 pb-3 space-y-3">
+        {/* Video Preview */}
+        <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
             <VideoPreview
               videoUrl={resultUrl}
               status={status}
@@ -638,11 +765,12 @@ export function VideoGeneratorPage() {
           />
 
           {/* Settings */}
-          <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-3">
-            {/* Settings Tabs (Mobile) */}
-            <SettingsTabs 
-              activeTab={activeTab} 
+          <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+            {/* Settings Tabs (Mobile - all 4 tabs) */}
+            <SettingsTabs
+              activeTab={activeTab}
               onTabChange={setActiveTab}
+              compactMode={false}
               motionContent={
                 <MotionTabContent
                   isAuthenticated={isAuthenticated}

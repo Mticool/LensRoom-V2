@@ -10,52 +10,64 @@ interface SettingsTabsProps {
   motionContent?: React.ReactNode;
   editContent?: React.ReactNode;
   musicContent?: React.ReactNode;
+  /** Hide Edit/Music tabs (for desktop layout) */
+  compactMode?: boolean;
 }
 
-export function SettingsTabs({ 
-  activeTab, 
-  onTabChange, 
+export function SettingsTabs({
+  activeTab,
+  onTabChange,
   children,
   motionContent,
   editContent,
   musicContent,
+  compactMode = false,
 }: SettingsTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as TabType)}>
-      <TabsList className="grid w-full grid-cols-4 mb-3">
-        <TabsTrigger value="video">Видео</TabsTrigger>
-        <TabsTrigger value="motion">Motion</TabsTrigger>
-        <TabsTrigger value="edit">Edit</TabsTrigger>
-        <TabsTrigger value="music">Music</TabsTrigger>
+      {/* Desktop: 2 tabs (Видео, Motion), Mobile: 4 tabs */}
+      <TabsList className={`grid w-full mb-2 ${compactMode ? 'grid-cols-2' : 'grid-cols-4'}`}>
+        <TabsTrigger value="video" className="text-xs">Видео</TabsTrigger>
+        <TabsTrigger value="motion" className="text-xs">Motion</TabsTrigger>
+        {!compactMode && (
+          <>
+            <TabsTrigger value="edit" className="text-xs">Edit</TabsTrigger>
+            <TabsTrigger value="music" className="text-xs">Music</TabsTrigger>
+          </>
+        )}
       </TabsList>
 
-      <TabsContent value="video" className="space-y-3">
+      <TabsContent value="video" className="space-y-2">
         {children}
       </TabsContent>
 
-      <TabsContent value="motion" className="space-y-3">
+      <TabsContent value="motion" className="space-y-2">
         {motionContent || (
-          <div className="text-center py-4">
-            <p className="text-[var(--muted)] text-sm">Motion Control скоро появится</p>
+          <div className="text-center py-3">
+            <p className="text-[var(--muted)] text-xs">Motion Control скоро появится</p>
           </div>
         )}
       </TabsContent>
 
-      <TabsContent value="edit" className="space-y-3">
-        {editContent || (
-          <div className="text-center py-4">
-            <p className="text-[var(--muted)] text-sm">Редактирование скоро появится</p>
-          </div>
-        )}
-      </TabsContent>
+      {!compactMode && (
+        <>
+          <TabsContent value="edit" className="space-y-2">
+            {editContent || (
+              <div className="text-center py-3">
+                <p className="text-[var(--muted)] text-xs">Редактирование скоро появится</p>
+              </div>
+            )}
+          </TabsContent>
 
-      <TabsContent value="music" className="space-y-3">
-        {musicContent || (
-          <div className="text-center py-4">
-            <p className="text-[var(--muted)] text-sm">Музыка скоро появится</p>
-          </div>
-        )}
-      </TabsContent>
+          <TabsContent value="music" className="space-y-2">
+            {musicContent || (
+              <div className="text-center py-3">
+                <p className="text-[var(--muted)] text-xs">Музыка скоро появится</p>
+              </div>
+            )}
+          </TabsContent>
+        </>
+      )}
     </Tabs>
   );
 }
