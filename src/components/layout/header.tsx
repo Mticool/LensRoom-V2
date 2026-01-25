@@ -173,17 +173,24 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                             
                             {/* Models Grid - Clean style like syntx.ai */}
                             <div className="p-3 grid grid-cols-2 gap-1">
-                              {MODELS[item.dropdown].map((model: any) => (
-                                <Link
-                                  key={model.id}
-                                  href={`/create/studio?section=${item.dropdown === 'design' ? 'photo' : item.dropdown}&model=${model.id}`}
-                                  onClick={() => setActiveDropdown(null)}
-                                  className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-[var(--surface2)] transition-all duration-150"
-                                >
-                                  {/* Name */}
-                                  <span className="text-[14px] font-medium text-[var(--text)] group-hover:text-[var(--accent-primary)] transition-colors">{model.name}</span>
-                                </Link>
-                              ))}
+                              {MODELS[item.dropdown].map((model: any) => {
+                                // Special handling for Motion Control - use motion section
+                                const section = model.id === 'kling-motion-control' 
+                                  ? 'motion' 
+                                  : (item.dropdown === 'design' ? 'photo' : item.dropdown);
+                                
+                                return (
+                                  <Link
+                                    key={model.id}
+                                    href={`/create/studio?section=${section}&model=${model.id}`}
+                                    onClick={() => setActiveDropdown(null)}
+                                    className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-[var(--surface2)] transition-all duration-150"
+                                  >
+                                    {/* Name */}
+                                    <span className="text-[14px] font-medium text-[var(--text)] group-hover:text-[var(--accent-primary)] transition-colors">{model.name}</span>
+                                  </Link>
+                                );
+                              })}
                             </div>
                             
                             {/* Footer */}

@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, Film, Loader2 } from "lucide-react";
 
+import { MobileVideoViewer } from "@/components/generator-v2/MobileVideoViewer";
+import { VideoGeneratorBottomSheet } from "@/components/generator-v2/VideoGeneratorBottomSheet";
+
 import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
@@ -194,6 +197,10 @@ export function StudioRuntime({
   const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const focusedJobIdRef = useRef<string | null>(null);
+
+  // Mobile-specific state
+  const [activeRunIndex, setActiveRunIndex] = useState(0);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     focusedJobIdRef.current = focusedJobId;
@@ -992,6 +999,78 @@ export function StudioRuntime({
     };
   }, [referencePreviewUrl]);
 
+  // Mobile helpers
+  const activeMobileVideo = useMemo(() => {
+    if (resultUrls.length > 0) {
+      const idx = Math.min(activeRunIndex, resultUrls.length - 1);
+      return {
+        id: `result_${idx}`,
+        url: resultUrls[idx] || '',
+        prompt,
+        mode: kind,
+        settings: {},
+        timestamp: Date.now(),
+      } as any;
+    }
+    return null;
+  }, [resultUrls, activeRunIndex, prompt, kind]);
+
+  const mobilePrev = useCallback(() => {
+    if (resultUrls.length > 1) {
+      setActiveRunIndex((i) => (i - 1 + resultUrls.length) % resultUrls.length);
+    }
+  }, [resultUrls.length]);
+
+  const mobileNext = useCallback(() => {
+    if (resultUrls.length > 1) {
+      setActiveRunIndex((i) => (i + 1) % resultUrls.length);
+    }
+  }, [resultUrls.length]);
+
+  const handleDownload = useCallback(async () => {
+    const video = activeMobileVideo;
+    if (!video?.url) return;
+    try {
+      const response = await fetch(video.url);
+      if (!response.ok) throw new Error("download_failed");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lensroom-video-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success("Видео скачано");
+    } catch {
+      try {
+        window.open(video.url, "_blank");
+      } catch {}
+      toast.error("Ошибка при скачивании");
+    }
+  }, [activeMobileVideo]);
+
+  const toggleFavorite = useCallback(() => {
+    const video = activeMobileVideo;
+    if (!video?.id) return;
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(video.id)) {
+        next.delete(video.id);
+        toast.success("Удалено из избранного");
+      } else {
+        next.add(video.id);
+        toast.success("Добавлено в избранное");
+      }
+      return next;
+    });
+  }, [activeMobileVideo]);
+
+  const isFavorite = useMemo(() => {
+    return activeMobileVideo ? favorites.has(activeMobileVideo.id) : false;
+  }, [activeMobileVideo, favorites]);
+
   return (
     <StudioShell
       sidebar={
@@ -1027,7 +1106,46 @@ export function StudioRuntime({
         )
       }
     >
-      <div className="space-y-6">
+      {/* Mobile: fullscreen video viewer + bottom sheet */}
+      <div className="md:hidden flex flex-col min-h-screen">
+        <MobileVideoViewer
+          video={activeMobileVideo}
+          index={activeRunIndex}
+          total={resultUrls.length}
+          onPrev={mobilePrev}
+          onNext={mobileNext}
+          onDownload={handleDownload}
+          onToggleFavorite={toggleFavorite}
+          isFavorite={isFavorite}
+        />
+
+        <VideoGeneratorBottomSheet
+          modelId={selectedModelId}
+          modelName={modelInfo?.name || studioModel?.key || ''}
+          estimatedCost={price.stars}
+          prompt={prompt}
+          onPromptChange={setPrompt}
+          mode={mode as string}
+          onModeChange={(m) => setMode(m as any)}
+          availableModes={studioModel?.modes || ['t2v']}
+          duration={duration as number}
+          onDurationChange={(d) => setDuration(d as any)}
+          durationOptions={studioModel?.kind === "video" && studioModel.durationOptions ? studioModel.durationOptions : [5, 10]}
+          quality={quality as string}
+          onQualityChange={(q) => setQuality(q as any)}
+          qualityOptions={studioModel?.qualityTiers || []}
+          referenceImage={referenceImage}
+          onReferenceImageChange={setReferenceImage}
+          negativePrompt={negativePrompt}
+          onNegativePromptChange={setNegativePrompt}
+          isGenerating={isStarting || status === 'generating' || status === 'queued'}
+          canGenerate={canGenerate && !isStarting}
+          onGenerate={handleGenerate}
+        />
+      </div>
+
+      {/* Desktop: existing layout */}
+      <div className="hidden md:block space-y-6">
         {/* Use lg breakpoint so desktop (even non-maximized) keeps prompt/settings visible side-by-side */}
         <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
           <div className="space-y-6">
@@ -1210,6 +1328,7 @@ export function StudioRuntime({
           }}
           newResultsCount={newResultsCount}
         />
+      </div>
       </div>
     </StudioShell>
   );

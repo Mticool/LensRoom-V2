@@ -3,7 +3,6 @@
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StudioWorkspaces } from "@/components/generator-v2/StudioWorkspaces";
-import { SectionTabs } from "@/components/generator-v2/SectionTabs";
 import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 import { AudioStudio } from "@/components/audio";
 import { StudioRuntime } from "@/components/studio/StudioRuntime";
@@ -38,10 +37,6 @@ function StudioContent() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      <div className="pt-4 pb-2 px-4">
-        <SectionTabs />
-      </div>
-
       {section === "photo" && (
         <div className="px-4 pb-3">
           <ModelSelector

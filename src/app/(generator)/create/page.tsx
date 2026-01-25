@@ -12,7 +12,6 @@ import { GrokImagineGenerator } from "@/components/generator-v2/GrokImagineGener
 import { TopazUpscaleGenerator } from "@/components/generator-v2/TopazUpscaleGenerator";
 import { RecraftRemoveBGGenerator } from "@/components/generator-v2/RecraftRemoveBGGenerator";
 import { ModelSelector } from "@/components/generator-v2/ModelSelector";
-import { SectionTabs } from "@/components/generator-v2/SectionTabs";
 import { AudioStudio } from "@/components/audio";
 
 export default function CreatePage() {
@@ -82,18 +81,13 @@ export default function CreatePage() {
   // Image section (default)
   return (
     <div className="relative">
-      {/* Section Tabs - Fixed below header */}
+      {/* Model Selector - Fixed below header */}
       <div className="fixed top-[72px] left-1/2 -translate-x-1/2 z-40">
-        <SectionTabs />
-      </div>
-      
-      {/* Model Selector - Fixed below section tabs */}
-      <div className="fixed top-[130px] left-1/2 -translate-x-1/2 z-40">
         <ModelSelector value={selectedModel} onChange={setSelectedModel} />
       </div>
       
-      {/* Generator - pt accounts for SectionTabs + ModelSelector */}
-      <div className="pt-28">
+      {/* Generator - pt accounts for header + ModelSelector */}
+      <div className="pt-24">
         {renderGenerator()}
       </div>
     </div>
