@@ -15,11 +15,162 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Play,
+  Pause,
+  ArrowRight,
+  Zap,
+  Move,
 } from 'lucide-react';
 import { useAuth } from '@/components/generator-v2/hooks/useAuth';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { calcMotionControlStars, MOTION_CONTROL_CONFIG } from '@/lib/pricing/motionControl';
 import { MotionControlTips } from './MotionControlTips';
+
+// Higgsfield-style Motion Flow Visualization
+function MotionFlowVisualization({
+  hasImage,
+  hasVideo,
+  isProcessing
+}: {
+  hasImage: boolean;
+  hasVideo: boolean;
+  isProcessing: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-3 py-4 px-4 bg-gradient-to-r from-purple-500/5 via-cyan-500/5 to-purple-500/5 rounded-xl border border-white/5">
+      {/* Character */}
+      <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${hasImage ? 'opacity-100' : 'opacity-40'}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${hasImage ? 'bg-purple-500/20 border border-purple-500/40' : 'bg-white/5 border border-white/10'}`}>
+          <ImageIcon className={`w-5 h-5 ${hasImage ? 'text-purple-400' : 'text-white/40'}`} />
+        </div>
+        <span className="text-[10px] text-white/60 font-medium">Персонаж</span>
+      </div>
+
+      {/* Arrow with motion wave animation */}
+      <div className="flex items-center gap-1">
+        <div className={`flex gap-0.5 ${isProcessing ? 'animate-pulse' : ''}`}>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className={`w-1 h-3 rounded-full transition-all duration-500 ${
+                hasImage && hasVideo
+                  ? 'bg-gradient-to-b from-purple-500 to-cyan-500'
+                  : 'bg-white/20'
+              }`}
+              style={{
+                animationDelay: `${i * 100}ms`,
+                transform: hasImage && hasVideo ? 'scaleY(1)' : 'scaleY(0.5)',
+              }}
+            />
+          ))}
+        </div>
+        <ArrowRight className={`w-4 h-4 ${hasImage && hasVideo ? 'text-cyan-400' : 'text-white/20'}`} />
+      </div>
+
+      {/* Motion Source */}
+      <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${hasVideo ? 'opacity-100' : 'opacity-40'}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center relative ${hasVideo ? 'bg-cyan-500/20 border border-cyan-500/40' : 'bg-white/5 border border-white/10'}`}>
+          <Video className={`w-5 h-5 ${hasVideo ? 'text-cyan-400' : 'text-white/40'}`} />
+          {hasVideo && (
+            <div className="absolute -top-1 -right-1">
+              <Move className="w-3 h-3 text-cyan-400 animate-pulse" />
+            </div>
+          )}
+        </div>
+        <span className="text-[10px] text-white/60 font-medium">Движение</span>
+      </div>
+
+      {/* Arrow */}
+      <ArrowRight className={`w-4 h-4 ${hasImage && hasVideo ? 'text-cyan-400' : 'text-white/20'}`} />
+
+      {/* Result */}
+      <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${hasImage && hasVideo ? 'opacity-100' : 'opacity-40'}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+          hasImage && hasVideo
+            ? 'bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-purple-500/40'
+            : 'bg-white/5 border border-white/10'
+        }`}>
+          {isProcessing ? (
+            <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+          ) : (
+            <Zap className={`w-5 h-5 ${hasImage && hasVideo ? 'text-purple-400' : 'text-white/40'}`} />
+          )}
+        </div>
+        <span className="text-[10px] text-white/60 font-medium">Результат</span>
+      </div>
+    </div>
+  );
+}
+
+// Video Preview with Play Button
+function VideoPreview({
+  src,
+  duration,
+  onClear
+}: {
+  src: string;
+  duration: number | null;
+  onClear: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const togglePlay = useCallback(() => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying]);
+
+  return (
+    <div className="relative group">
+      <video
+        ref={videoRef}
+        src={src}
+        className="max-h-32 mx-auto rounded-lg"
+        loop
+        muted
+        playsInline
+        onEnded={() => setIsPlaying(false)}
+      />
+      {/* Play/Pause overlay */}
+      <button
+        type="button"
+        onClick={togglePlay}
+        className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+      >
+        {isPlaying ? (
+          <Pause className="w-8 h-8 text-white drop-shadow-lg" />
+        ) : (
+          <Play className="w-8 h-8 text-white drop-shadow-lg" />
+        )}
+      </button>
+      {/* Duration badge */}
+      {duration && (
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 rounded text-xs text-white font-medium">
+          {duration.toFixed(1)}s
+        </div>
+      )}
+      {/* Info */}
+      <div className="mt-2 space-y-1">
+        <p className="text-xs text-[var(--muted)] text-center">Видео загружено</p>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            onClear();
+          }}
+          className="block mx-auto text-xs text-red-400 hover:text-red-300"
+        >
+          Удалить
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // Types
 type CharacterOrientation = 'image' | 'video';
@@ -490,6 +641,15 @@ export function MotionControlGenerator() {
 
       {/* Main Content */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Higgsfield-style Motion Flow Visualization */}
+        <div className="mb-8">
+          <MotionFlowVisualization
+            hasImage={!!characterImage}
+            hasVideo={!!motionVideo}
+            isProcessing={isGenerating}
+          />
+        </div>
+
         <div className="grid lg:grid-cols-[1fr_380px] gap-8">
           {/* Left: Result Preview */}
           <div className="space-y-6">
@@ -506,10 +666,22 @@ export function MotionControlGenerator() {
                   />
                 ) : (
                   <div className="text-center p-8">
-                    <Video className="w-16 h-16 mx-auto text-[var(--muted)] opacity-30 mb-4" />
+                    <div className="relative w-20 h-20 mx-auto mb-4">
+                      <Video className="w-full h-full text-[var(--muted)] opacity-30" />
+                      {isGenerating && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-full h-full border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                        </div>
+                      )}
+                    </div>
                     <p className="text-[var(--muted)]">
                       {isGenerating ? 'Генерация видео...' : 'Здесь появится результат'}
                     </p>
+                    {!isGenerating && !resultUrl && characterImage && motionVideo && (
+                      <p className="text-xs text-purple-400 mt-2">
+                        Нажмите «Запустить» для генерации
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -662,22 +834,11 @@ export function MotionControlGenerator() {
                     }`}
                   >
                     {motionVideoPreview ? (
-                      <div className="space-y-2">
-                        <video src={motionVideoPreview} className="max-h-32 mx-auto rounded-lg" muted />
-                        <p className="text-xs text-[var(--muted)]">
-                          Видео загружено ({motionVideoDuration?.toFixed(1)} сек)
-                        </p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            clearVideo();
-                          }}
-                          className="text-xs text-red-400 hover:text-red-300"
-                        >
-                          Удалить
-                        </button>
-                      </div>
+                      <VideoPreview
+                        src={motionVideoPreview}
+                        duration={motionVideoDuration}
+                        onClear={clearVideo}
+                      />
                     ) : (
                       <div className="space-y-2">
                         <Video className="w-10 h-10 mx-auto text-[var(--muted)]" />
@@ -703,95 +864,142 @@ export function MotionControlGenerator() {
                 </p>
               </div>
 
-              {/* Character Orientation */}
+              {/* Character Orientation - Higgsfield Style */}
               <div>
-                <label className="block text-sm font-medium mb-2">Ориентация персонажа</label>
+                <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                  <Move className="w-4 h-4 text-purple-400" />
+                  Ориентация персонажа
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setCharacterOrientation('image')}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    className={`relative p-3 rounded-xl border-2 text-left transition-all overflow-hidden ${
                       characterOrientation === 'image'
-                        ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-[var(--border-hover)]'
+                        ? 'border-purple-500/50 bg-gradient-to-br from-purple-500/10 to-purple-500/5'
+                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-purple-500/30'
                     }`}
                   >
+                    {characterOrientation === 'image' && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle className="w-4 h-4 text-purple-400" />
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mb-1">
-                      <ImageIcon className="w-4 h-4" />
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                        characterOrientation === 'image' ? 'bg-purple-500/20' : 'bg-white/5'
+                      }`}>
+                        <ImageIcon className={`w-3.5 h-3.5 ${characterOrientation === 'image' ? 'text-purple-400' : 'text-white/60'}`} />
+                      </div>
                       <span className="font-medium">Image</span>
                     </div>
-                    <p className="text-xs text-[var(--muted)]">Ориентация как на фото. Макс. 10 сек</p>
+                    <p className="text-xs text-[var(--muted)]">Поза с фото</p>
+                    <p className="text-[10px] text-purple-400/80 mt-1">Макс. 10 сек</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setCharacterOrientation('video')}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    className={`relative p-3 rounded-xl border-2 text-left transition-all overflow-hidden ${
                       characterOrientation === 'video'
-                        ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-[var(--border-hover)]'
+                        ? 'border-cyan-500/50 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5'
+                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-cyan-500/30'
                     }`}
                   >
+                    {characterOrientation === 'video' && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle className="w-4 h-4 text-cyan-400" />
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mb-1">
-                      <Video className="w-4 h-4" />
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                        characterOrientation === 'video' ? 'bg-cyan-500/20' : 'bg-white/5'
+                      }`}>
+                        <Video className={`w-3.5 h-3.5 ${characterOrientation === 'video' ? 'text-cyan-400' : 'text-white/60'}`} />
+                      </div>
                       <span className="font-medium">Video</span>
                     </div>
-                    <p className="text-xs text-[var(--muted)]">Ориентация как на видео. Макс. 30 сек</p>
+                    <p className="text-xs text-[var(--muted)]">Динамика из видео</p>
+                    <p className="text-[10px] text-cyan-400/80 mt-1">Макс. 30 сек</p>
                   </button>
                 </div>
-                <p className="text-xs text-[var(--muted)] mt-2 flex items-start gap-1">
-                  <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                  Image — сохраняет позу персонажа с фото. Video — подстраивает под движение из видео.
-                </p>
               </div>
 
-              {/* Resolution */}
+              {/* Resolution - Higgsfield Style */}
               <div>
-                <label className="block text-sm font-medium mb-2">Качество</label>
+                <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  Качество
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setResolution('720p')}
-                    className={`p-3 rounded-xl border-2 text-center transition-all ${
+                    className={`relative p-3 rounded-xl border-2 text-center transition-all ${
                       resolution === '720p'
-                        ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-[var(--border-hover)]'
+                        ? 'border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-amber-500/5'
+                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-amber-500/30'
                     }`}
                   >
-                    <span className="font-medium">720p</span>
-                    <p className="text-xs text-[var(--muted)]">{MOTION_CONTROL_CONFIG.RATE_720P}⭐/сек</p>
+                    {resolution === '720p' && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle className="w-4 h-4 text-amber-400" />
+                      </div>
+                    )}
+                    <span className="font-bold text-lg">720p</span>
+                    <p className="text-xs text-amber-400 font-medium">{MOTION_CONTROL_CONFIG.RATE_720P}⭐/сек</p>
+                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Стандарт</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setResolution('1080p')}
-                    className={`p-3 rounded-xl border-2 text-center transition-all ${
+                    className={`relative p-3 rounded-xl border-2 text-center transition-all ${
                       resolution === '1080p'
-                        ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-[var(--border-hover)]'
+                        ? 'border-purple-500/50 bg-gradient-to-br from-purple-500/10 to-purple-500/5'
+                        : 'border-[var(--border)] bg-[var(--surface2)] hover:border-purple-500/30'
                     }`}
                   >
-                    <span className="font-medium">1080p</span>
-                    <p className="text-xs text-[var(--muted)]">{MOTION_CONTROL_CONFIG.RATE_1080P}⭐/сек</p>
+                    {resolution === '1080p' && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle className="w-4 h-4 text-purple-400" />
+                      </div>
+                    )}
+                    <span className="font-bold text-lg">1080p</span>
+                    <p className="text-xs text-purple-400 font-medium">{MOTION_CONTROL_CONFIG.RATE_1080P}⭐/сек</p>
+                    <p className="text-[10px] text-[var(--muted)] mt-0.5">Высокое качество</p>
                   </button>
                 </div>
-                <p className="text-xs text-[var(--muted)] mt-2">
-                  720p — стандартный режим (дешевле). 1080p — улучшенное качество.
-                </p>
               </div>
 
-              {/* Cost Estimator */}
-              <div className="p-4 bg-[var(--surface2)] rounded-xl">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[var(--muted)]">Стоимость:</span>
-                  <span className="text-lg font-bold text-[var(--accent-primary)]">
-                    {motionVideoDuration
-                      ? `${estimatedCost}⭐`
-                      : `от ${calcMotionControlStars(LIMITS.VIDEO_MIN_DURATION, resolution, true) || 50}⭐`}
+              {/* Cost Estimator - Higgsfield Style */}
+              <div className="p-4 bg-gradient-to-br from-purple-500/5 via-transparent to-cyan-500/5 rounded-xl border border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-[var(--muted)] flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    Стоимость:
                   </span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                      {motionVideoDuration
+                        ? estimatedCost
+                        : `от ${calcMotionControlStars(LIMITS.VIDEO_MIN_DURATION, resolution, true) || 50}`}
+                    </span>
+                    <span className="text-sm text-amber-400">⭐</span>
+                  </div>
                 </div>
                 {motionVideoDuration && (
-                  <p className="text-xs text-[var(--muted)] mt-1">
-                    {motionVideoDuration.toFixed(1)} сек × {resolution === '720p' ? MOTION_CONTROL_CONFIG.RATE_720P : MOTION_CONTROL_CONFIG.RATE_1080P}⭐/сек
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                    <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full"
+                        style={{ width: `${Math.min((motionVideoDuration / maxVideoDuration) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span>{motionVideoDuration.toFixed(1)}s</span>
+                    <span className="text-white/40">×</span>
+                    <span className="text-amber-400">
+                      {resolution === '720p' ? MOTION_CONTROL_CONFIG.RATE_720P : MOTION_CONTROL_CONFIG.RATE_1080P}⭐/s
+                    </span>
+                  </div>
                 )}
               </div>
 

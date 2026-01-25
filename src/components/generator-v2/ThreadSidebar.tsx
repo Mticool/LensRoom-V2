@@ -67,17 +67,7 @@ export function ThreadSidebar({
 
   return (
     <>
-      {/* Toggle button (always visible) */}
-      <button
-        onClick={() => onOpenChange(true)}
-        className="fixed left-3 z-40 inline-flex items-center gap-2 h-10 px-3 rounded-xl bg-[#18181B]/95 backdrop-blur border border-[#27272A] text-white hover:bg-[#1F1F22] transition-colors
-                   bottom-[calc(env(safe-area-inset-bottom)+6.25rem)] md:bottom-auto md:top-20 md:left-4"
-        title="Открыть чаты"
-        type="button"
-      >
-        <MessageSquare className="w-4 h-4 text-[#CDFF00]" />
-        <span className="text-sm font-medium">История генераций</span>
-      </button>
+      {/* Toggle button - removed */}
 
       {/* Drawer */}
       {open && (

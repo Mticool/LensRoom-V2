@@ -49,6 +49,10 @@
   --radius-xl: 24px;
   --radius-2xl: 32px;
   
+  /* Drag and drop zone */
+  --drag-over-border: rgba(205, 255, 0, 0.5);
+  --drag-over-bg: rgba(205, 255, 0, 0.05);
+  
   /* Glass effect */
   --glass-bg: rgba(13, 17, 23, 0.85);
   
@@ -702,4 +706,121 @@ html.tg-webview body {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  
+  /* Drag and drop zone styles */
+  .drag-drop-zone.drag-over {
+    border-color: rgba(205, 255, 0, 0.5) !important;
+    background-color: rgba(205, 255, 0, 0.05) !important;
+  }
+  
+  .drag-drop-zone.drag-over > div {
+    color: rgba(205, 255, 0, 0.8) !important;
+  }
+}
+
+/* Gallery grid styles – Higgsfield reference (higgsfield-effects-gallery.html) */
+.higgs-grid {
+  display: grid !important;
+  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.feed-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+  max-width: 32rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Higgsfield breakpoints: 4 → 3 → 2 → 1 columns */
+@media (max-width: 1024px) {
+  .higgs-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .higgs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .feed-grid {
+    max-width: none;
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .higgs-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .feed-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Higgsfield-style gallery card (reference: .gallery-item) */
+.higgs-gallery-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  aspect-ratio: 1 / 1.2;
+  transform: translateZ(0);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  cursor: pointer;
+}
+
+.higgs-gallery-item:hover {
+  transform: scale(1.02) translateZ(0);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+  border-color: rgba(204, 255, 0, 0.25);
+}
+
+.higgs-gallery-item[data-aspect="1:1"] { aspect-ratio: 1 / 1; }
+.higgs-gallery-item[data-aspect="1:1.2"] { aspect-ratio: 1 / 1.2; }
+.higgs-gallery-item[data-aspect="4:3"] { aspect-ratio: 4 / 3; }
+.higgs-gallery-item[data-aspect="3:4"] { aspect-ratio: 3 / 4; }
+.higgs-gallery-item[data-aspect="16:9"] { aspect-ratio: 16 / 9; }
+.higgs-gallery-item[data-aspect="9:16"] { aspect-ratio: 9 / 16; }
+.higgs-gallery-item[data-aspect="2:3"] { aspect-ratio: 2 / 3; }
+.higgs-gallery-item[data-aspect="3:2"] { aspect-ratio: 3 / 2; }
+.higgs-gallery-item[data-aspect="4:5"] { aspect-ratio: 4 / 5; }
+.higgs-gallery-item[data-aspect="5:4"] { aspect-ratio: 5 / 4; }
+
+.higgs-gallery-item [data-image-wrap] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.higgs-gallery-item [data-image-wrap] img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Label overlay (reference: .label) – bottom-left prompt */
+.higgs-gallery-label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }

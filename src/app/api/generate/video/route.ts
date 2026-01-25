@@ -34,12 +34,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { 
-      prompt, 
-      model, 
+    const {
+      prompt,
+      model,
       threadId: threadIdRaw,
       modelVariant, // For unified models like Kling
-      duration, 
+      duration,
       mode = 't2v',
       quality,
       resolution,
@@ -58,6 +58,13 @@ export async function POST(request: NextRequest) {
       keepAudio, // For Kling O1 Edit (FAL): keep original audio
       shots, // For storyboard mode
       characterOrientation, // For motion control: 'image' (max 10s) or 'video' (max 30s)
+      // NEW: Extended model capabilities
+      style, // Grok Video: 'realistic' | 'fantasy' | 'sci-fi' | 'cinematic' | 'anime' | 'cartoon'
+      cameraMotion, // WAN 2.6: 'static' | 'pan_left' | 'pan_right' | 'tilt_up' | 'tilt_down' | 'zoom_in' | 'zoom_out' | 'orbit' | 'follow'
+      stylePreset, // WAN 2.6: 'realistic' | 'anime' | 'cinematic' | 'artistic' | 'vintage' | 'neon'
+      motionStrength, // WAN 2.6: 0-100
+      qualityTier, // Kling: 'standard' | 'pro' | 'master'
+      referenceImages, // Veo 3.1: array of up to 3 reference images
     } = body;
     
     // Normalize aspect ratio: UI may send "auto" which should mean "use model default"
@@ -166,7 +173,81 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    
+
+    // === NEW: Validate extended model capabilities ===
+
+    // Validate Grok Video style
+    if (model === 'grok-video' && style) {
+      const allowedStyles = ['realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'];
+      if (!allowedStyles.includes(style)) {
+        return NextResponse.json(
+          { error: `Invalid style '${style}'. Allowed: ${allowedStyles.join(', ')}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate WAN 2.6 camera motion
+    if (model === 'wan' && cameraMotion) {
+      const allowedMotions = ['static', 'pan_left', 'pan_right', 'tilt_up', 'tilt_down', 'zoom_in', 'zoom_out', 'orbit', 'follow'];
+      if (!allowedMotions.includes(cameraMotion)) {
+        return NextResponse.json(
+          { error: `Invalid cameraMotion '${cameraMotion}'. Allowed: ${allowedMotions.join(', ')}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate WAN 2.6 style preset
+    if (model === 'wan' && stylePreset) {
+      const allowedPresets = ['realistic', 'anime', 'cinematic', 'artistic', 'vintage', 'neon'];
+      if (!allowedPresets.includes(stylePreset)) {
+        return NextResponse.json(
+          { error: `Invalid stylePreset '${stylePreset}'. Allowed: ${allowedPresets.join(', ')}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate WAN 2.6 motion strength
+    if (model === 'wan' && motionStrength !== undefined) {
+      if (typeof motionStrength !== 'number' || motionStrength < 0 || motionStrength > 100) {
+        return NextResponse.json(
+          { error: `motionStrength must be a number between 0 and 100` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate Kling quality tier
+    if (model === 'kling' && qualityTier) {
+      const allowedTiers = ['standard', 'pro', 'master'];
+      if (!allowedTiers.includes(qualityTier)) {
+        return NextResponse.json(
+          { error: `Invalid qualityTier '${qualityTier}'. Allowed: ${allowedTiers.join(', ')}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate Veo 3.1 reference images (max 3)
+    if (model === 'veo-3.1' && referenceImages) {
+      if (!Array.isArray(referenceImages)) {
+        return NextResponse.json(
+          { error: 'referenceImages must be an array' },
+          { status: 400 }
+        );
+      }
+      if (referenceImages.length > 3) {
+        return NextResponse.json(
+          { error: 'Veo 3.1 supports maximum 3 reference images' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // === END: Extended model capabilities validation ===
+
     // Special pricing for Motion Control (per-second dynamic pricing)
     let creditCost: number;
     let effectiveDuration: number | undefined;

@@ -9,14 +9,17 @@ export interface PriceOptions {
   // Photo options
   quality?: string; // '1k', '2k', '4k', 'turbo', 'balanced', 'quality', 'fast', 'ultra', '1k_2k'
   resolution?: string; // '512x512', '1024x1024', '480p', '720p', '1080p' etc. (for video: '720p', '1080p')
-  
+
   // Video options
   mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard';
   duration?: number | string; // 5, 10, 15, or '15-25'
   videoQuality?: string; // '720p', '1080p', '480p', 'fast', 'quality', 'standard', 'high'
   audio?: boolean;
   modelVariant?: string; // For unified models like Kling/WAN: 'kling-2.5-turbo', 'wan-2.5', etc.
-  
+
+  // Kling quality tiers
+  qualityTier?: 'standard' | 'pro' | 'master'; // Kling 2.6 quality tier
+
   // Common
   variants?: number; // Number of variants to generate
 }
@@ -74,10 +77,22 @@ function computeVideoPrice(
   
   const duration = options.duration || model.fixedDuration || 5;
   const durationKey = String(duration);
-  
+
+  // Auto-select Kling variant based on qualityTier
+  let effectiveModelVariant = options.modelVariant;
+  if (model.id === 'kling' && options.qualityTier && !effectiveModelVariant) {
+    // Map qualityTier to variant ID
+    const tierToVariant: Record<string, string> = {
+      standard: 'kling-2.6-standard',
+      pro: 'kling-2.6-pro',
+      master: 'kling-2.6-master',
+    };
+    effectiveModelVariant = tierToVariant[options.qualityTier];
+  }
+
   // If model has variants and modelVariant is specified, use variant pricing
-  if (model.modelVariants && options.modelVariant) {
-    const variant = model.modelVariants.find(v => v.id === options.modelVariant);
+  if (model.modelVariants && effectiveModelVariant) {
+    const variant = model.modelVariants.find(v => v.id === effectiveModelVariant);
     if (variant) {
       // Check for per-second pricing (e.g., WAN 2.5)
       if (variant.perSecondPricing && options.resolution) {

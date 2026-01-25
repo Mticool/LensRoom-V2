@@ -923,3 +923,312 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ========================================
+   MOTION CONTROL SECTION - HIGGSFIELD STYLE
+   ======================================== */
+
+.motion-control-section {
+  position: relative;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, rgba(0, 217, 255, 0.05) 100%);
+  border: 2px solid transparent;
+  border-radius: var(--higgs-radius-xl);
+  padding: 24px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.motion-control-section::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #A855F7 0%, #00D9FF 100%);
+  z-index: -1;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.motion-control-section:hover::before {
+  opacity: 0.7;
+}
+
+.motion-control-section::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--higgs-bg-secondary);
+  z-index: -1;
+}
+
+/* Motion Control Header */
+.motion-control-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.motion-control-title {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #A855F7 0%, #00D9FF 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.motion-control-badge {
+  padding: 4px 10px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(0, 217, 255, 0.2));
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #A855F7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Motion Wave Icon Animation */
+@keyframes motionWave {
+  0%, 100% {
+    transform: translateX(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(8px);
+    opacity: 1;
+  }
+}
+
+.motion-wave-icon {
+  animation: motionWave 2s ease-in-out infinite;
+  color: #A855F7;
+}
+
+/* Motion Control Upload Zones */
+.motion-upload-container {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.motion-upload-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: var(--higgs-radius-lg);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.motion-upload-zone:hover {
+  border-color: rgba(168, 85, 247, 0.5);
+  background: rgba(168, 85, 247, 0.05);
+}
+
+.motion-upload-zone.has-file {
+  border-style: solid;
+  border-color: rgba(168, 85, 247, 0.5);
+}
+
+.motion-upload-zone::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(205, 255, 0, 0.15), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.motion-upload-zone:hover::after,
+.motion-upload-zone.has-file::after {
+  opacity: 1;
+}
+
+.motion-upload-zone.dragging {
+  border-color: var(--higgs-primary);
+  background: rgba(205, 255, 0, 0.05);
+}
+
+.motion-upload-zone.dragging::after {
+  background: radial-gradient(ellipse at center, rgba(205, 255, 0, 0.25), transparent 70%);
+  opacity: 1;
+}
+
+.motion-upload-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  color: var(--higgs-text-secondary);
+  transition: color 0.3s ease;
+}
+
+.motion-upload-zone:hover .motion-upload-icon {
+  color: #A855F7;
+}
+
+.motion-upload-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--higgs-text);
+  margin-bottom: 4px;
+}
+
+.motion-upload-hint {
+  font-size: 12px;
+  color: var(--higgs-text-muted);
+}
+
+/* Transfer Arrow Animation */
+@keyframes transferPulse {
+  0%, 100% {
+    transform: scaleX(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleX(1.15);
+    opacity: 1;
+  }
+}
+
+.motion-transfer-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.motion-transfer-arrow svg {
+  width: 32px;
+  height: 32px;
+  animation: transferPulse 1.5s ease-in-out infinite;
+}
+
+.motion-transfer-arrow span {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, #A855F7, #00D9FF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Motion Video Preview */
+.motion-video-preview {
+  position: relative;
+  border-radius: var(--higgs-radius-md);
+  overflow: hidden;
+}
+
+.motion-video-preview video,
+.motion-video-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.motion-video-duration {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--higgs-primary);
+}
+
+/* Motion Control Cost Display */
+.motion-control-cost {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--higgs-radius-md);
+  border: 1px solid var(--higgs-border);
+}
+
+.motion-control-cost-label {
+  font-size: 13px;
+  color: var(--higgs-text-secondary);
+}
+
+.motion-control-cost-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--higgs-primary);
+}
+
+.motion-control-cost-rate {
+  font-size: 12px;
+  color: var(--higgs-text-muted);
+  margin-left: 8px;
+}
+
+/* Resolution Toggle for Motion Control */
+.motion-resolution-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.motion-resolution-btn {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--higgs-border);
+  border-radius: var(--higgs-radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--higgs-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.motion-resolution-btn:hover {
+  border-color: rgba(168, 85, 247, 0.5);
+  color: var(--higgs-text);
+}
+
+.motion-resolution-btn.active {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(0, 217, 255, 0.15));
+  border-color: #A855F7;
+  color: var(--higgs-text);
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .motion-upload-container {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .motion-transfer-arrow {
+    transform: rotate(90deg);
+    padding: 8px 0;
+  }
+
+  .motion-upload-zone {
+    min-height: 140px;
+  }
+}

@@ -81,6 +81,14 @@ function apiQualityFromLabel(modelId: string, label: string): string | undefined
   const l = String(label || "").trim();
   if (!l) return undefined;
 
+  // Topaz upscale: 2K -> 2, 4K -> 4, 8K -> 8 (for upscale_factor parameter)
+  if (modelId === "topaz-image-upscale") {
+    if (l === "8K" || l === "8k") return "8";
+    if (l === "4K" || l === "4k") return "4";
+    if (l === "2K" || l === "2k") return "2";
+    return "2"; // default to 2x
+  }
+
   if (modelId === "nano-banana-pro") {
     if (l === "4K") return "4k";
     // 1K and 2K are the same tier in pricing (1k_2k)
@@ -128,14 +136,14 @@ function getQualityOptionsForModel(modelId: string): string[] {
 
   // Tool models
   if (modelId === "topaz-image-upscale") {
-    return ["2K", "4K"];
+    return ["2K", "4K", "8K"];
   }
   if (modelId === "recraft-remove-background") {
     return ["Auto"];
   }
 
   if (modelId === "nano-banana-pro") {
-    return ["1K", "2K", "4K"];
+    return ["2K", "4K"];
   }
   if (modelId === "grok-imagine") {
     return ["Normal", "Fun", "Spicy"];
@@ -237,6 +245,14 @@ export function StudioWorkspaces() {
   const [aspectRatio, setAspectRatio] = useState<string>(photoModel?.aspectRatios?.[0] || "1:1");
   const [qualityLabel, setQualityLabel] = useState<string>(() => {
     const opts = getQualityOptionsForModel(selectedModelId);
+    // For nano-banana-pro, default to 2K if available, otherwise first option
+    if (selectedModelId === "nano-banana-pro" && opts.includes("2K")) {
+      return "2K";
+    }
+    // For topaz-image-upscale, default to 2K
+    if (selectedModelId === "topaz-image-upscale" && opts.includes("2K")) {
+      return "2K";
+    }
     return opts[0] || "Balanced";
   });
 
@@ -250,6 +266,10 @@ export function StudioWorkspaces() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const { toggleFavorite, isFavorite: isFavoriteId, fetchFavorites, _hasHydrated } = useFavoritesStore();
+  
+  // Refs for scrolling to top when model changes
+  const mobileGalleryRef = useRef<HTMLDivElement>(null);
+  const desktopGalleryRef = useRef<HTMLDivElement>(null);
 
   const activeThread = useMemo(
     () => threads.find((t) => t.id === selectedThreadId) || null,
@@ -270,16 +290,30 @@ export function StudioWorkspaces() {
     selectedThreadId || undefined
   );
 
+  // For tool models, don't show history from other models - only show empty state or current results
+  const filteredHistory = useMemo(() => {
+    if (!isToolModel) return history;
+    // For tool models, only show results from this specific model
+    return history.filter((img) => {
+      const imgModelId = String(img.settings?.model || "");
+      return imgModelId === selectedModelId;
+    });
+  }, [history, isToolModel, selectedModelId]);
+
   const effectiveImages = useMemo(() => {
+    // For tool models, only show local items (no history from other models)
+    if (isToolModel) {
+      return localItems;
+    }
     // De-dup by id (keep history order first, then append new local items).
     // This ensures:
     // - history stays at top
     // - newly generated/pending items appear at the bottom
     const map = new Map<string, GenerationResult>();
-    for (const h of history) map.set(h.id, h);
+    for (const h of filteredHistory) map.set(h.id, h);
     for (const i of localItems) map.set(i.id, i); // override if same id, append if new
     return Array.from(map.values());
-  }, [localItems, history]);
+  }, [localItems, filteredHistory, isToolModel]);
 
   const viewerList = useMemo(() => {
     return effectiveImages.filter(
@@ -687,6 +721,18 @@ export function StudioWorkspaces() {
     [pollJob, selectedThreadId, updateLocalItem]
   );
 
+  // Scroll to top when model changes
+  useEffect(() => {
+    // Scroll mobile gallery to top
+    if (mobileGalleryRef.current) {
+      mobileGalleryRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    // Scroll desktop gallery to top
+    if (desktopGalleryRef.current) {
+      desktopGalleryRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [selectedModelId]);
+
   // Load per-model saved settings on model change
   useEffect(() => {
     // Reset per-model state
@@ -704,7 +750,15 @@ export function StudioWorkspaces() {
     if (m && m.type === "photo") {
       setAspectRatio(normalizeAspect(m.aspectRatios?.[0] || "1:1") || "1:1");
       const qOpts = getQualityOptionsForModel(selectedModelId);
-      setQualityLabel(qOpts[0] || "Balanced");
+      // For nano-banana-pro, default to 2K if available
+      // For topaz-image-upscale, default to 2K
+      let defaultQuality = qOpts[0] || "Balanced";
+      if (selectedModelId === "nano-banana-pro" && qOpts.includes("2K")) {
+        defaultQuality = "2K";
+      } else if (selectedModelId === "topaz-image-upscale" && qOpts.includes("2K")) {
+        defaultQuality = "2K";
+      }
+      setQualityLabel(defaultQuality);
     }
 
     // Restore from storage (best-effort)
@@ -716,7 +770,22 @@ export function StudioWorkspaces() {
           const normalized = normalizeAspect(parsed.aspectRatio);
           setAspectRatio(normalized || "1:1");
         }
-        if (typeof parsed?.qualityLabel === "string") setQualityLabel(parsed.qualityLabel);
+        if (typeof parsed?.qualityLabel === "string") {
+          // For nano-banana-pro, replace 1K with 2K if saved
+          if (selectedModelId === "nano-banana-pro" && parsed.qualityLabel === "1K") {
+            setQualityLabel("2K");
+          } else if (selectedModelId === "topaz-image-upscale") {
+            // Ensure valid quality for topaz (2K or 4K)
+            const validQualities = getQualityOptionsForModel(selectedModelId);
+            if (validQualities.includes(parsed.qualityLabel)) {
+              setQualityLabel(parsed.qualityLabel);
+            } else {
+              setQualityLabel(validQualities[0] || "2K");
+            }
+          } else {
+            setQualityLabel(parsed.qualityLabel);
+          }
+        }
         if (typeof parsed?.quantity === "number") setQuantity(parsed.quantity);
         if (typeof parsed?.negativePrompt === "string") setNegativePrompt(parsed.negativePrompt);
         if (typeof parsed?.seed === "number") setSeed(parsed.seed);
@@ -1116,9 +1185,13 @@ export function StudioWorkspaces() {
     const generationPrompt = tool ? (normalizedPrompt || defaultPromptForModel(selectedModelId)) : normalizedPrompt;
     const grokOutputs = selectedModelId === "grok-imagine" ? 6 : null;
     const n = tool ? 1 : grokOutputs ? grokOutputs : Math.max(1, Math.min(4, Number(quantity) || 1));
+    
+    // Topaz upscale: convert quality label (2K/4K) to upscale_factor (2/4)
     const extraParams: Record<string, unknown> | null =
       selectedModelId === "topaz-image-upscale"
-        ? { scale: apiQualityFromLabel(selectedModelId, qualityLabel) }
+        ? { 
+            upscale_factor: apiQualityFromLabel(selectedModelId, qualityLabel) || "2"
+          }
         : null;
 
     // Create N pending placeholders in order (left-to-right for grid)
@@ -1348,11 +1421,17 @@ export function StudioWorkspaces() {
       <div className="flex-1 flex flex-col">
         {/* Mobile: Instagram-like feed + bottom sheet; tap image → viewer */}
         <div className="md:hidden flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div 
+            ref={mobileGalleryRef}
+            className="flex-1 overflow-y-auto min-h-0"
+            style={{ 
+              paddingBottom: 'calc(220px + env(safe-area-inset-bottom, 0px))'
+            }}
+          >
             <ImageGalleryMasonry
               images={effectiveImages}
               isGenerating={false}
-              layout="feed"
+              layout="grid"
               autoScrollToBottom
               onImageClick={(img) => {
                 const key = getRunKey(img);
@@ -1363,15 +1442,23 @@ export function StudioWorkspaces() {
                 setViewerImage(img);
               }}
               onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
+              enableDragDrop={isToolModel && supportsI2i}
               emptyTitle={isToolModel ? "Загрузите фото" : undefined}
               emptyDescription={
-                isToolModel ? 'Нажмите «+» внизу и загрузите изображение для обработки' : undefined
+                isToolModel 
+                  ? selectedModelId === "topaz-image-upscale"
+                    ? 'Нажмите кнопку «+» внизу, загрузите изображение, выберите разрешение (2K, 4K или 8K) и нажмите «Сгенерировать»'
+                    : selectedModelId === "recraft-remove-background"
+                    ? 'Нажмите кнопку «+» внизу, загрузите изображение и нажмите «Сгенерировать» для удаления фона'
+                    : 'Нажмите «+» внизу и загрузите изображение для обработки'
+                  : undefined
               }
-              hasMore={hasMore}
-              onLoadMore={loadMore}
-              isLoadingMore={isLoadingMore}
-            />
+            hasMore={isToolModel ? false : hasMore}
+            onLoadMore={isToolModel ? undefined : loadMore}
+            isLoadingMore={isLoadingMore}
+          />
           </div>
+        </div>
 
           <GeneratorBottomSheet
             modelId={selectedModelId}
@@ -1407,22 +1494,30 @@ export function StudioWorkspaces() {
           />
         </div>
 
-        {/* Desktop: Instagram-like feed */}
+        {/* Desktop: 4-column grid gallery */}
         <div className="hidden md:flex flex-col pb-44 sm:pb-40">
           {/* Gallery */}
-          <ImageGalleryMasonry
-            images={effectiveImages}
-            isGenerating={false}
-            layout="feed"
-            autoScrollToBottom
+          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto">
+            <ImageGalleryMasonry
+              images={effectiveImages}
+              isGenerating={false}
+              layout="grid"
+              autoScrollToBottom={false}
             onImageClick={handleImageClick}
             onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
+            enableDragDrop={isToolModel && supportsI2i}
             emptyTitle={isToolModel ? "Загрузите фото" : undefined}
             emptyDescription={
-              isToolModel ? 'Нажмите «+» внизу и загрузите изображение для обработки' : undefined
+              isToolModel 
+                ? selectedModelId === "topaz-image-upscale"
+                  ? 'Нажмите кнопку «+» внизу, загрузите изображение, выберите разрешение (2K, 4K или 8K) и нажмите «Сгенерировать»'
+                  : selectedModelId === "recraft-remove-background"
+                  ? 'Нажмите кнопку «+» внизу, загрузите изображение и нажмите «Сгенерировать» для удаления фона'
+                  : 'Нажмите «+» внизу и загрузите изображение для обработки'
+                : undefined
             }
-            hasMore={hasMore}
-            onLoadMore={loadMore}
+            hasMore={isToolModel ? false : hasMore}
+            onLoadMore={isToolModel ? undefined : loadMore}
             isLoadingMore={isLoadingMore}
           />
 

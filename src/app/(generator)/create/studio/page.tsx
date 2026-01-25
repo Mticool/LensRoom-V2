@@ -36,7 +36,7 @@ function StudioContent() {
   const selectedPhotoModel = (searchParams.get("model") || "nano-banana-pro").trim();
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
+    <div className="min-h-screen bg-[var(--bg)] pt-24">
       {section === "photo" && (
         <div className="hidden md:block px-4 pb-3">
           <ModelSelector

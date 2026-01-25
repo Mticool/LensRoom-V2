@@ -1120,8 +1120,10 @@ export async function POST(request: NextRequest) {
           "") as any;
 
       const s = String(raw || "").trim().toLowerCase();
-      // Accept: "4", "4x", "4k" => "4"; everything else defaults to "2"
-      const upscaleFactor = s === "4" || s === "4x" || s === "4k" ? "4" : "2";
+      // Accept: "8", "8x", "8k" => "8"; "4", "4x", "4k" => "4"; everything else defaults to "2"
+      const upscaleFactor = 
+        s === "8" || s === "8x" || s === "8k" ? "8" :
+        s === "4" || s === "4x" || s === "4k" ? "4" : "2";
       generateParams.upscaleFactor = upscaleFactor;
     }
     

@@ -25,6 +25,8 @@ interface ImageGalleryMasonryProps {
   hasMore?: boolean;
   onLoadMore?: () => void;
   isLoadingMore?: boolean;
+  /** Enable drag and drop for tool models (Recraft, Topaz) */
+  enableDragDrop?: boolean;
 }
 
 // Helper to check if image is ready to display
@@ -50,6 +52,7 @@ export function ImageGalleryMasonry({
   hasMore = false,
   onLoadMore,
   isLoadingMore = false,
+  enableDragDrop = false,
 }: ImageGalleryMasonryProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const { toggleFavorite, isFavorite: isFavoriteId } = useFavoritesStore();
@@ -57,7 +60,7 @@ export function ImageGalleryMasonry({
   const lastLenRef = useRef<number>(images.length);
   const cardClassName =
     layout === "grid" || layout === "feed"
-      ? "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-colors"
+      ? "higgs-gallery-item group"
       : "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl";
 
   const getAspect = (size?: string): { w: number; h: number } => {
@@ -73,15 +76,22 @@ export function ImageGalleryMasonry({
 
   const getTileStyle = (size?: string) => {
     let { w, h } = getAspect(size);
-    // Limit extreme aspect ratios (max 9:16 or 16:9)
     const ratio = w / h;
-    if (ratio < 9/16) { w = 9; h = 16; } // Clamp very tall images
-    if (ratio > 16/9) { w = 16; h = 9; } // Clamp very wide images
-    
+    if (ratio < 9/16) { w = 9; h = 16; }
+    if (ratio > 16/9) { w = 16; h = 9; }
     return {
       aspectRatio: `${w} / ${h}`,
       width: "100%",
     } as const;
+  };
+
+  /** data-aspect for Higgsfield-style cards (reference: gallery-item) */
+  const getDataAspect = (size?: string): string => {
+    let { w, h } = getAspect(size);
+    const ratio = w / h;
+    if (ratio < 9/16) { w = 9; h = 16; }
+    if (ratio > 16/9) { w = 16; h = 9; }
+    return `${w}:${h}`;
   };
 
   const getAspectRatioStyle = (size?: string) => {
@@ -206,12 +216,11 @@ export function ImageGalleryMasonry({
     onUseAsReference(image);
   };
 
-  // Show loading skeletons when generating
   const renderSkeletons = () => {
     return Array.from({ length: 4 }).map((_, i) => (
       <div
         key={`skeleton-${i}`}
-        className="relative aspect-square rounded-none overflow-hidden bg-[#27272A] animate-pulse"
+        className="higgs-gallery-item overflow-hidden bg-[#27272A] animate-pulse border border-white/[0.08]"
       >
         <div className="absolute inset-0 flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
@@ -222,16 +231,21 @@ export function ImageGalleryMasonry({
 
   // Don't show empty state if there are demo images
   if (images.length === 0 && !isGenerating) {
+    const isUploadTool = emptyTitle?.toLowerCase().includes('загрузите') || emptyDescription?.toLowerCase().includes('загрузите');
     return (
-      <div className="flex-1 flex items-center justify-center text-center px-4">
-        <div className="max-w-md">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-[#27272A] flex items-center justify-center">
-            <ZoomIn className="w-10 h-10 text-[#A1A1AA]" />
+      <div className="flex-1 flex items-center justify-center text-center px-4 py-12 md:py-20">
+        <div className="max-w-sm w-full">
+          <div className={`w-28 h-28 mx-auto mb-6 rounded-2xl ${isUploadTool ? 'bg-[#1C1C1E] border-2 border-[#CDFF00]/30' : 'bg-[#1C1C1E] border border-white/10'} flex items-center justify-center`}>
+            {isUploadTool ? (
+              <ImagePlus className="w-14 h-14 text-[#CDFF00]" strokeWidth={2} />
+            ) : (
+              <ZoomIn className="w-14 h-14 text-[#A1A1AA]" />
+            )}
           </div>
-          <h3 className="text-lg font-medium text-white mb-2">
+          <h3 className="text-2xl font-bold text-white mb-3">
             {emptyTitle || "Начните создавать"}
           </h3>
-          <p className="text-sm text-[#A1A1AA]">
+          <p className="text-base text-[#A1A1AA] leading-relaxed px-4">
             {emptyDescription || 'Введите описание изображения и нажмите "Сгенерировать"'}
           </p>
         </div>
@@ -240,7 +254,7 @@ export function ImageGalleryMasonry({
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto bg-black px-8 py-8">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto bg-black" style={{ padding: '32px' }}>
       {/* Load More Button - at top since new items appear at bottom */}
       {hasMore && onLoadMore && (
         <div className="flex justify-center py-2">
@@ -262,7 +276,7 @@ export function ImageGalleryMasonry({
       )}
 
       {(layout === 'grid' || layout === 'feed') ? (
-        <div className={layout === 'feed' ? 'feed-grid' : 'higgs-grid'}>
+        <div className={layout === 'feed' ? 'feed-grid' : 'higgs-grid'} data-layout={layout}>
           {isGenerating && renderSkeletons()}
           {images.map((image) => {
             const isDemo = image.id.startsWith('demo-');
@@ -273,12 +287,30 @@ export function ImageGalleryMasonry({
                 onMouseEnter={() => setHoveredId(image.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
-                <div className={cardClassName}>
-                  <div
-                    className="relative w-full overflow-hidden"
-                    onClick={() => onImageClick?.(image)}
-                    style={getTileStyle(image.settings?.size)}
-                  >
+                <div
+                  className={cardClassName}
+                  data-aspect={getDataAspect(image.settings?.size)}
+                  style={{
+                    ...getTileStyle(image.settings?.size),
+                    cursor: enableDragDrop && onUseAsReference && image.url && image.status !== 'pending' && image.status !== 'failed' ? 'grab' : undefined,
+                  }}
+                  draggable={!!(enableDragDrop && onUseAsReference && image.url && image.status !== 'pending' && image.status !== 'failed')}
+                  onDragStart={(e) => {
+                    if (!enableDragDrop || !onUseAsReference || !image.url) return;
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData('application/json', JSON.stringify({
+                      id: image.id,
+                      url: image.url,
+                      prompt: image.prompt,
+                      settings: image.settings,
+                    }));
+                    const img = new Image();
+                    img.src = image.previewUrl || image.url;
+                    e.dataTransfer.setDragImage(img, img.width / 2, img.height / 2);
+                  }}
+                  onClick={() => onImageClick?.(image)}
+                >
+                  <div data-image-wrap className="absolute inset-0 w-full h-full overflow-hidden">
                     {image.status === 'pending' ? (
                       <>
                         <div className="absolute inset-0 bg-[#27272A] animate-pulse" />
@@ -298,22 +330,24 @@ export function ImageGalleryMasonry({
                       <OptimizedImage
                         src={image.previewUrl || image.url}
                         alt={image.prompt}
-                        className="absolute inset-0"
+                        className="absolute inset-0 w-full h-full object-cover block"
                         priority={false}
                       />
                     )}
                   </div>
+
+                  <div className="higgs-gallery-label">
+                    {image.prompt || ''}
+                  </div>
               
-              {/* Demo Badge */}
               {isDemo && (
-                <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#CDFF00] text-black text-xs font-medium">
+                <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#CDFF00] text-black text-xs font-medium z-10">
                   Пример
                 </div>
               )}
 
-              {/* Hover Overlay */}
               {hoveredId === image.id && (
-                <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0 pointer-events-none z-10">
                   {/* Action Buttons в правом нижнем углу (hide for demo images) */}
                   {!isDemo && (
                     <div className="absolute bottom-3 right-3 flex flex-col gap-2 pointer-events-auto">
@@ -400,13 +434,6 @@ export function ImageGalleryMasonry({
                   )}
                 </div>
               )}
-                </div>
-
-                {/* Prompt caption (Higgsfield-style) */}
-                <div className="mt-2">
-                  <div className="text-[11px] leading-snug text-white/75 line-clamp-2">
-                    {image.prompt || ""}
-                  </div>
                 </div>
               </div>
             );
@@ -586,42 +613,6 @@ export function ImageGalleryMasonry({
       <style jsx>{`
         .masonry-grid {
           column-gap: 16px;
-        }
-
-        .higgs-grid {
-          display: grid;
-          gap: 16px;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
-        .feed-grid {
-          display: grid;
-          gap: 16px;
-          grid-template-columns: 1fr;
-          max-width: 32rem;
-          margin-left: auto;
-          margin-right: auto;
-        }
-
-        @media (max-width: 1024px) {
-          .higgs-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-        }
-        
-        @media (max-width: 768px) {
-          .higgs-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .feed-grid {
-            max-width: none;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .higgs-grid {
-            grid-template-columns: 1fr;
-          }
         }
         
         @media (max-width: 768px) {

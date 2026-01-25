@@ -28,18 +28,89 @@ export interface VideoModelConfig {
 }
 
 export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
+  // === GROK VIDEO - xAI с стилями и длительностями ===
+  "grok-video": {
+    name: "Grok Video",
+    settings: {
+      style: {
+        label: "Стиль",
+        type: "select",
+        options: [
+          { value: "realistic", label: "Реалистичный" },
+          { value: "fantasy", label: "Фэнтези" },
+          { value: "sci-fi", label: "Sci-Fi" },
+          { value: "cinematic", label: "Кинематографичный" },
+          { value: "anime", label: "Аниме" },
+          { value: "cartoon", label: "Мультфильм" }
+        ],
+        default: "realistic",
+        description: "Визуальный стиль видео",
+        required: true,
+        order: 1
+      },
+      mode: {
+        label: "Режим",
+        type: "buttons",
+        options: [
+          { value: "text-to-video", label: "Text → Video" },
+          { value: "image-to-video", label: "Image → Video" },
+          { value: "style-transfer", label: "Style Transfer" }
+        ],
+        default: "text-to-video",
+        description: "Источник для создания видео",
+        required: true,
+        order: 2
+      },
+      duration: {
+        label: "Длительность (с)",
+        type: "buttons",
+        options: [
+          { value: 6, label: "6с" },
+          { value: 12, label: "12с" },
+          { value: 18, label: "18с" }
+        ],
+        default: 6,
+        description: "Длительность видео",
+        required: true,
+        order: 3
+      },
+      aspectRatio: {
+        label: "Соотношение",
+        type: "buttons",
+        options: [
+          { value: "9:16", label: "9:16" },
+          { value: "1:1", label: "1:1" },
+          { value: "3:2", label: "3:2" }
+        ],
+        default: "9:16",
+        description: "Пропорции видео",
+        optional: true,
+        order: 4
+      },
+      spicyMode: {
+        label: "Spicy Mode 🌶️",
+        type: "checkbox",
+        default: false,
+        description: "Более выразительные и креативные результаты",
+        optional: true,
+        order: 5
+      }
+    }
+  },
+
+  // === VEO 3.1 - Google с референсами ===
   "veo-3.1": {
     name: "Veo 3.1",
     settings: {
       model: {
-        label: "Модель",
+        label: "Качество",
         type: "buttons",
         options: [
-          { value: "fast", label: "Veo 3.1 Fast" },
-          { value: "quality", label: "Veo 3.1 Quality" }
+          { value: "fast", label: "Fast (99⭐)" },
+          { value: "quality", label: "Quality (490⭐)" }
         ],
         default: "fast",
-        description: "Fast - быстрая генерация, Quality - высокое качество (дольше)",
+        description: "Fast - быстрая генерация, Quality - максимальное качество",
         required: true,
         order: 1
       },
@@ -47,27 +118,52 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Тип генерации",
         type: "buttons",
         options: [
-          { value: "text-to-video", label: "Text to Video" },
-          { value: "image-to-video", label: "Image to Video" },
-          { value: "reference-to-video", label: "Reference to Video" }
+          { value: "text-to-video", label: "Text → Video" },
+          { value: "image-to-video", label: "Image → Video" },
+          { value: "reference-to-video", label: "3 Refs → Video" },
+          { value: "first-last-frame", label: "First/Last Frame" }
         ],
         default: "text-to-video",
-        description: "Выберите источник для создания видео",
+        description: "Reference - до 3 изображений для контроля стиля/персонажа",
         required: true,
         order: 2
+      },
+      duration: {
+        label: "Длительность (с)",
+        type: "buttons",
+        options: [
+          { value: 4, label: "4с" },
+          { value: 6, label: "6с" },
+          { value: 8, label: "8с" }
+        ],
+        default: 8,
+        description: "Длительность видео",
+        required: true,
+        order: 3
       },
       ratio: {
         label: "Соотношение сторон",
         type: "buttons",
         options: [
-          { value: "auto", label: "Auto" },
           { value: "16:9", label: "16:9" },
           { value: "9:16", label: "9:16" }
         ],
-        default: "auto",
-        description: "Auto автоматически выбирает оптимальное соотношение",
+        default: "16:9",
+        description: "Пропорции видео",
         optional: true,
-        order: 3
+        order: 4
+      },
+      resolution: {
+        label: "Разрешение",
+        type: "buttons",
+        options: [
+          { value: "720p", label: "720p" },
+          { value: "1080p", label: "1080p" }
+        ],
+        default: "1080p",
+        description: "Качество выходного видео",
+        optional: true,
+        order: 5
       },
       seed: {
         label: "Seed",
@@ -77,45 +173,54 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         max: 99999,
         optional: true,
         description: "Для воспроизводимости результатов",
-        order: 4
+        order: 6
       }
     }
   },
 
-  // Объединённая модель Kling - заменяет kling-2.6, kling-2.5-turbo, kling-2.1-pro, kling-o1
+  // Объединённая модель Kling с quality tiers: Standard, Pro, Master
   "kling": {
     name: "Kling AI",
     settings: {
+      qualityTier: {
+        label: "Уровень качества",
+        type: "buttons",
+        options: [
+          { value: "standard", label: "Standard" },
+          { value: "pro", label: "Pro" },
+          { value: "master", label: "Master" }
+        ],
+        default: "standard",
+        description: "Standard - быстро, Pro - баланс, Master - максимум качества",
+        required: true,
+        order: 1
+      },
       version: {
         label: "Версия",
         type: "select",
         options: [
           { value: "2.5-turbo", label: "2.5 Turbo — Быстрая генерация" },
-          { value: "2.6", label: "2.6 — С поддержкой аудио" },
-          { value: "2.1-pro", label: "2.1 Pro — Премиум качество" },
-          { value: "o1", label: "O1 — Video-to-Video" }
+          { value: "2.6-standard", label: "2.6 Standard — С аудио" },
+          { value: "2.6-pro", label: "2.6 Pro — Высокое качество" },
+          { value: "2.1-pro", label: "2.1 Pro — Премиум" },
+          { value: "2.6-master", label: "2.6 Master — Максимум" }
         ],
         default: "2.5-turbo",
         description: "Выберите версию Kling для генерации",
         required: true,
-        order: 1
+        order: 2
       },
-      modelType: {
+      mode: {
         label: "Режим",
         type: "buttons",
         options: [
-          { value: "text-to-video", label: "Текст в видео" },
-          { value: "image-to-video", label: "Изображение в видео" },
-          { value: "video-to-video", label: "Видео в видео" },
-          { value: "standard", label: "Standard" },
-          { value: "pro", label: "Pro" },
-          { value: "master-text-to-video", label: "Master T2V" },
-          { value: "master-image-to-video", label: "Master I2V" }
+          { value: "text-to-video", label: "Text → Video" },
+          { value: "image-to-video", label: "Image → Video" }
         ],
         default: "text-to-video",
-        description: "Создание видео из текста, изображения или видео",
+        description: "Источник для создания видео",
         required: true,
-        order: 2
+        order: 3
       },
       duration: {
         label: "Длительность (с)",
@@ -127,7 +232,19 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         default: 10,
         description: "Длительность видео в секундах",
         required: true,
-        order: 3
+        order: 4
+      },
+      resolution: {
+        label: "Разрешение",
+        type: "buttons",
+        options: [
+          { value: "720p", label: "720p" },
+          { value: "1080p", label: "1080p" }
+        ],
+        default: "1080p",
+        description: "Качество выходного видео",
+        optional: true,
+        order: 5
       },
       aspectRatio: {
         label: "Соотношение сторон",
@@ -140,23 +257,23 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         default: "16:9",
         description: "Пропорции видео",
         optional: true,
-        order: 4
+        order: 6
       },
       sound: {
         label: "Включить звук",
         type: "checkbox",
         default: false,
-        description: "Автоматическая генерация звука (только для версии 2.6)",
+        description: "Генерация звука (только 2.6)",
         optional: true,
-        order: 5
+        order: 7
       },
       negativePrompt: {
         label: "Негативный промпт",
         type: "textarea",
-        placeholder: "blur, distort, and low quality",
+        placeholder: "blur, distort, low quality",
         description: "Что НЕ должно быть в видео",
         optional: true,
-        order: 6
+        order: 8
       },
       cfgScale: {
         label: "CFG Scale",
@@ -165,9 +282,9 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         max: 1,
         step: 0.1,
         default: 0.5,
-        description: "Насколько точно следовать промпту (0 = свобода, 1 = точность)",
+        description: "Точность следования промпту (0 = свобода, 1 = точность)",
         optional: true,
-        order: 7
+        order: 9
       }
     }
   },
@@ -287,7 +404,7 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
     }
   },
 
-  // Объединённая модель WAN - заменяет wan-2.5 и wan-2.6
+  // Объединённая модель WAN с advanced controls (2.6)
   "wan": {
     name: "WAN AI",
     settings: {
@@ -296,10 +413,10 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         type: "select",
         options: [
           { value: "2.5", label: "WAN 2.5 — Кинематографика" },
-          { value: "2.6", label: "WAN 2.6 — V2V, до 15с" }
+          { value: "2.6", label: "WAN 2.6 — V2V, Camera Control, 15с" }
         ],
-        default: "2.5",
-        description: "Выберите версию WAN для генерации",
+        default: "2.6",
+        description: "2.6 поддерживает управление камерой и стилем",
         required: true,
         order: 1
       },
@@ -307,9 +424,9 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Режим",
         type: "buttons",
         options: [
-          { value: "text-to-video", label: "Текст в видео" },
-          { value: "image-to-video", label: "Изображение в видео" },
-          { value: "video-to-video", label: "Видео в видео" }
+          { value: "text-to-video", label: "Text → Video" },
+          { value: "image-to-video", label: "Image → Video" },
+          { value: "video-to-video", label: "Video → Video" }
         ],
         default: "text-to-video",
         description: "V2V доступен только для WAN 2.6",
@@ -334,10 +451,11 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         type: "buttons",
         options: [
           { value: "720p", label: "720p" },
-          { value: "1080p", label: "1080p" }
+          { value: "1080p", label: "1080p" },
+          { value: "1080p_multi", label: "1080p Multi" }
         ],
         default: "1080p",
-        description: "Качество выходного видео",
+        description: "Multi-shot для сложных сцен (только 2.6)",
         optional: true,
         order: 4
       },
@@ -346,20 +464,67 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         type: "buttons",
         options: [
           { value: "16:9", label: "16:9" },
-          { value: "9:16", label: "9:16" }
+          { value: "9:16", label: "9:16" },
+          { value: "1:1", label: "1:1" }
         ],
         default: "16:9",
         description: "Пропорции видео",
         optional: true,
         order: 5
       },
+      cameraMotion: {
+        label: "Движение камеры",
+        type: "select",
+        options: [
+          { value: "static", label: "Статично" },
+          { value: "pan_left", label: "Панорама влево" },
+          { value: "pan_right", label: "Панорама вправо" },
+          { value: "tilt_up", label: "Наклон вверх" },
+          { value: "tilt_down", label: "Наклон вниз" },
+          { value: "zoom_in", label: "Приближение" },
+          { value: "zoom_out", label: "Отдаление" },
+          { value: "orbit", label: "Орбита" },
+          { value: "follow", label: "Следование" }
+        ],
+        default: "static",
+        description: "Управление движением камеры (только WAN 2.6)",
+        optional: true,
+        order: 6
+      },
+      stylePreset: {
+        label: "Стиль",
+        type: "select",
+        options: [
+          { value: "realistic", label: "Реалистичный" },
+          { value: "cinematic", label: "Кинематографичный" },
+          { value: "anime", label: "Аниме" },
+          { value: "artistic", label: "Художественный" },
+          { value: "vintage", label: "Винтаж" },
+          { value: "neon", label: "Неон" }
+        ],
+        default: "cinematic",
+        description: "Визуальный стиль (только WAN 2.6)",
+        optional: true,
+        order: 7
+      },
+      motionStrength: {
+        label: "Сила движения",
+        type: "slider",
+        min: 0,
+        max: 100,
+        step: 5,
+        default: 50,
+        description: "Интенсивность движения в кадре (0 = минимум, 100 = максимум)",
+        optional: true,
+        order: 8
+      },
       negativePrompt: {
         label: "Негативный промпт",
         type: "textarea",
         placeholder: "Что не должно быть в видео...",
-        description: "Нежелательные элементы в видео",
+        description: "Нежелательные элементы",
         optional: true,
-        order: 6
+        order: 9
       },
       seed: {
         label: "Seed",
@@ -367,9 +532,9 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         placeholder: "Для воспроизводимых результатов",
         min: 1,
         max: 999999999,
-        description: "Число для получения одинаковых результатов",
+        description: "Число для одинаковых результатов",
         optional: true,
-        order: 7
+        order: 10
       }
     }
   },
@@ -414,6 +579,185 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         description: "Пропорции для всех сцен",
         required: true,
         order: 3
+      }
+    }
+  },
+
+  // === BYTEDANCE PRO (Seedance 1.0 Pro) ===
+  "bytedance-pro": {
+    name: "Bytedance Pro",
+    settings: {
+      duration: {
+        label: "Длительность",
+        type: "buttons",
+        options: [
+          { value: 5, label: "5с" },
+          { value: 10, label: "10с" }
+        ],
+        default: 5,
+        description: "Длительность видео",
+        required: true,
+        order: 1
+      },
+      resolution: {
+        label: "Разрешение",
+        type: "buttons",
+        options: [
+          { value: "720p", label: "720p (27⭐)" },
+          { value: "1080p", label: "1080p (61⭐)" }
+        ],
+        default: "720p",
+        description: "Качество выходного видео",
+        required: true,
+        order: 2
+      },
+      aspectRatio: {
+        label: "Соотношение сторон",
+        type: "buttons",
+        options: [
+          { value: "16:9", label: "16:9" },
+          { value: "9:16", label: "9:16" }
+        ],
+        default: "16:9",
+        description: "Пропорции видео",
+        optional: true,
+        order: 3
+      }
+    }
+  },
+
+  // === KLING AI AVATAR ===
+  "kling-ai-avatar": {
+    name: "Kling AI Avatar",
+    settings: {
+      quality: {
+        label: "Качество",
+        type: "buttons",
+        options: [
+          { value: "standard", label: "Standard (720p)" },
+          { value: "pro", label: "Pro (1080p)" }
+        ],
+        default: "standard",
+        description: "Standard - 14⭐/сек, Pro - 27⭐/сек",
+        required: true,
+        order: 1
+      },
+      duration: {
+        label: "Длительность",
+        type: "buttons",
+        options: [
+          { value: 5, label: "5с" },
+          { value: 10, label: "10с" },
+          { value: 15, label: "15с" }
+        ],
+        default: 5,
+        description: "Длительность говорящего аватара",
+        required: true,
+        order: 2
+      },
+      aspectRatio: {
+        label: "Соотношение сторон",
+        type: "buttons",
+        options: [
+          { value: "16:9", label: "16:9" },
+          { value: "9:16", label: "9:16" },
+          { value: "1:1", label: "1:1" }
+        ],
+        default: "16:9",
+        description: "Пропорции видео",
+        optional: true,
+        order: 3
+      }
+    }
+  },
+
+  // === KLING O1 - First/Last Frame ===
+  "kling-o1": {
+    name: "Kling O1",
+    settings: {
+      mode: {
+        label: "Режим",
+        type: "buttons",
+        options: [
+          { value: "i2v", label: "Один кадр" },
+          { value: "start_end", label: "First → Last Frame" }
+        ],
+        default: "i2v",
+        description: "Один кадр или анимация между двумя кадрами",
+        required: true,
+        order: 1
+      },
+      duration: {
+        label: "Длительность",
+        type: "buttons",
+        options: [
+          { value: 5, label: "5с (120⭐)" },
+          { value: 10, label: "10с (240⭐)" }
+        ],
+        default: 5,
+        description: "Длительность выходного видео",
+        required: true,
+        order: 2
+      },
+      aspectRatio: {
+        label: "Соотношение сторон",
+        type: "buttons",
+        options: [
+          { value: "auto", label: "Авто" },
+          { value: "16:9", label: "16:9" },
+          { value: "9:16", label: "9:16" },
+          { value: "1:1", label: "1:1" }
+        ],
+        default: "auto",
+        description: "Авто подберёт пропорции по изображению",
+        optional: true,
+        order: 3
+      }
+    }
+  },
+
+  // === KLING O1 EDIT - Video-to-Video ===
+  "kling-o1-edit": {
+    name: "Kling O1 Edit",
+    settings: {
+      keepAudio: {
+        label: "Сохранить аудио",
+        type: "checkbox",
+        default: true,
+        description: "Сохранить оригинальную звуковую дорожку",
+        optional: true,
+        order: 1
+      }
+    }
+  },
+
+  // === KLING 2.6 MOTION CONTROL ===
+  "kling-motion-control": {
+    name: "Kling Motion Control",
+    settings: {
+      characterOrientation: {
+        label: "Ориентация персонажа",
+        type: "buttons",
+        options: [
+          { value: "image", label: "Image (макс 10с)" },
+          { value: "video", label: "Video (макс 30с)" }
+        ],
+        default: "image",
+        description: "Image - поза с фото, Video - подстройка под движение",
+        required: true,
+        order: 1
+      },
+      resolution: {
+        label: "Качество",
+        type: "buttons",
+        options: [
+          { value: "720p", label: "720p (16⭐/сек)" },
+          { value: "1080p", label: "1080p (25⭐/сек)" }
+        ],
+        default: "720p",
+        description: "Разрешение выходного видео",
+        required: true,
+        order: 2
       }
     }
   }
