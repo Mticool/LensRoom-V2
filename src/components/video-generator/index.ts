@@ -19,5 +19,8 @@ export { MotionTabContent } from './MotionTabContent';
 export { JobQueue } from './JobQueue';
 export { JobCard } from './JobCard';
 
+// History Components
+export { VideoHistory } from './VideoHistory';
+
 // Main Page Component
 export { VideoGeneratorPage } from './VideoGeneratorPage';

@@ -110,7 +110,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
   const navigation = useMemo(() => [
     { name: 'Фото', dropdown: 'design' as const },
     { name: 'Видео', dropdown: 'video' as const },
-    { name: 'Музыка', dropdown: 'audio' as const },
+    { name: 'Музыка', href: '/create/studio?section=audio' },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },
   ], []);
