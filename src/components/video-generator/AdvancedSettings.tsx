@@ -53,53 +53,50 @@ export function AdvancedSettings({
   }
 
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden">
+    <div className="border border-[var(--border)] rounded-md overflow-hidden">
       {/* Header Toggle */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 bg-[var(--surface2)] hover:bg-[var(--surface3)] flex items-center justify-between transition-colors"
+        className="w-full px-3 py-2 bg-[var(--surface2)] hover:bg-[var(--surface3)] flex items-center justify-between transition-colors"
       >
-        <span className="text-sm font-medium text-[var(--text)]">Расширенные настройки</span>
+        <span className="text-xs font-medium text-[var(--text)]">Расширенные настройки</span>
         {isExpanded ? (
-          <ChevronUp className="w-4 h-4 text-[var(--muted)]" />
+          <ChevronUp className="w-3.5 h-3.5 text-[var(--muted)]" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-[var(--muted)]" />
+          <ChevronDown className="w-3.5 h-3.5 text-[var(--muted)]" />
         )}
       </button>
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-4 space-y-4 bg-[var(--surface)]">
+        <div className="p-3 space-y-2 bg-[var(--surface)]">
           {/* Negative Prompt */}
           {supportsNegativePrompt && (
             <div>
-              <label htmlFor="negative-prompt" className="block text-sm font-medium mb-2">
-                Негативный промпт (опционально)
+              <label htmlFor="negative-prompt" className="block text-xs font-medium mb-1">
+                Негативный промпт
               </label>
               <textarea
                 id="negative-prompt"
                 value={negativePrompt}
                 onChange={(e) => onNegativePromptChange(e.target.value)}
-                placeholder="Что НЕ должно быть в видео..."
-                className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] resize-none min-h-[60px] text-sm"
+                placeholder="Что НЕ должно быть..."
+                className="w-full px-2 py-1.5 bg-[var(--surface2)] border border-[var(--border)] rounded-md text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] resize-none min-h-[40px] text-xs"
               />
-              <p className="text-xs text-[var(--muted)] mt-1">
-                Описание элементов, которые нужно исключить из генерации
-              </p>
             </div>
           )}
 
           {/* Model Variant */}
           {availableVariants.length > 0 && (
             <div>
-              <label htmlFor="model-variant" className="block text-sm font-medium mb-2">
+              <label htmlFor="model-variant" className="block text-xs font-medium mb-1">
                 Вариант модели
               </label>
               <select
                 id="model-variant"
                 value={modelVariant}
                 onChange={(e) => onModelVariantChange(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] text-sm"
+                className="w-full px-2 py-1.5 bg-[var(--surface2)] border border-[var(--border)] rounded-md text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] text-xs"
               >
                 <option value="">По умолчанию</option>
                 {availableVariants.map((variant) => (
@@ -114,14 +111,14 @@ export function AdvancedSettings({
           {/* Resolution (Special) */}
           {availableResolutions.length > 0 && (
             <div>
-              <label htmlFor="resolution" className="block text-sm font-medium mb-2">
+              <label htmlFor="resolution" className="block text-xs font-medium mb-1">
                 Разрешение
               </label>
               <select
                 id="resolution"
                 value={resolution}
                 onChange={(e) => onResolutionChange(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] text-sm"
+                className="w-full px-2 py-1.5 bg-[var(--surface2)] border border-[var(--border)] rounded-md text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] text-xs"
               >
                 <option value="">Стандарт</option>
                 {availableResolutions.map((res) => (
@@ -136,14 +133,14 @@ export function AdvancedSettings({
           {/* Sound Presets (WAN) */}
           {availableSoundPresets.length > 0 && (
             <div>
-              <label htmlFor="sound-preset" className="block text-sm font-medium mb-2">
+              <label htmlFor="sound-preset" className="block text-xs font-medium mb-1">
                 Пресет звука
               </label>
               <select
                 id="sound-preset"
                 value={soundPreset}
                 onChange={(e) => onSoundPresetChange(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] text-sm"
+                className="w-full px-2 py-1.5 bg-[var(--surface2)] border border-[var(--border)] rounded-md text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] text-xs"
               >
                 <option value="">Без звука</option>
                 {availableSoundPresets.map((preset) => (
@@ -152,7 +149,6 @@ export function AdvancedSettings({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-[var(--muted)] mt-1">Предустановленные звуковые эффекты</p>
             </div>
           )}
         </div>

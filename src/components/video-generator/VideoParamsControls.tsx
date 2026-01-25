@@ -46,12 +46,12 @@ export function VideoParamsControls({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Duration Slider */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <label className="text-sm font-medium">Длительность</label>
-          <span className="text-sm font-semibold text-[var(--accent-primary)]">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-medium">Длительность</label>
+          <span className="text-xs font-semibold text-[var(--accent-primary)]">
             {duration} сек
           </span>
         </div>
@@ -66,11 +66,11 @@ export function VideoParamsControls({
         />
 
         {/* Duration Labels */}
-        <div className="flex justify-between mt-2">
+        <div className="flex justify-between mt-1">
           {durationOptions.map((dur) => (
             <span
               key={dur}
-              className={`text-xs ${
+              className={`text-[10px] ${
                 dur === duration ? 'text-[var(--accent-primary)] font-semibold' : 'text-[var(--muted)]'
               }`}
             >
@@ -82,8 +82,8 @@ export function VideoParamsControls({
 
       {/* Quality Selector */}
       <div>
-        <label className="block text-sm font-medium mb-2">Качество</label>
-        <div className="grid grid-cols-3 gap-2">
+        <label className="block text-xs font-medium mb-1">Качество</label>
+        <div className="grid grid-cols-3 gap-1.5">
           {qualityOptions.map((q) => {
             const isSelected = quality === q;
 
@@ -91,7 +91,7 @@ export function VideoParamsControls({
               <button
                 key={q}
                 onClick={() => onQualityChange(q)}
-                className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                className={`px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
                   isSelected
                     ? 'bg-[var(--accent-primary)] text-black border-[var(--accent-primary)]'
                     : 'bg-[var(--surface2)] text-[var(--text)] border-[var(--border)] hover:border-[var(--border-hover)]'
@@ -107,8 +107,8 @@ export function VideoParamsControls({
       {/* Aspect Ratio Selector */}
       {aspectRatio && onAspectRatioChange && aspectRatioOptions.length > 0 && (
         <div>
-          <label className="block text-sm font-medium mb-2">Соотношение сторон</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="block text-xs font-medium mb-1">Соотношение сторон</label>
+          <div className="grid grid-cols-3 gap-1.5">
             {aspectRatioOptions.map((ratio) => {
               const isSelected = aspectRatio === ratio;
 
@@ -116,7 +116,7 @@ export function VideoParamsControls({
                 <button
                   key={ratio}
                   onClick={() => onAspectRatioChange(ratio)}
-                  className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                  className={`px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
                     isSelected
                       ? 'bg-[var(--accent-primary)] text-black border-[var(--accent-primary)]'
                       : 'bg-[var(--surface2)] text-[var(--text)] border-[var(--border)] hover:border-[var(--border-hover)]'
@@ -133,7 +133,7 @@ export function VideoParamsControls({
       {/* Sound Checkbox (only if supported by model) */}
       {supportsAudio && (
         <div>
-          <label className="flex items-center gap-3 cursor-pointer group">
+          <label className="flex items-center gap-2 cursor-pointer group">
             <div className="relative">
               <input
                 type="checkbox"
@@ -142,19 +142,19 @@ export function VideoParamsControls({
                 className="sr-only peer"
               />
               <div
-                className={`w-5 h-5 border-2 rounded transition-all ${
+                className={`w-4 h-4 border-2 rounded transition-all ${
                   withSound
                     ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]'
                     : 'bg-[var(--surface2)] border-[var(--border)] group-hover:border-[var(--border-hover)]'
                 }`}
               >
-                {withSound && <Check className="w-4 h-4 text-black absolute top-0 left-0" strokeWidth={3} />}
+                {withSound && <Check className="w-3 h-3 text-black absolute top-0 left-0" strokeWidth={3} />}
               </div>
             </div>
-            <span className="text-sm font-medium">Со звуком</span>
+            <span className="text-xs font-medium">Со звуком</span>
           </label>
-          <p className="text-xs text-[var(--muted)] mt-1 ml-8">
-            Генерировать видео с синхронизированным звуком
+          <p className="text-[10px] text-[var(--muted)] mt-0.5 ml-6">
+            Синхронизированный звук
           </p>
         </div>
       )}

@@ -35,47 +35,40 @@ export function CostEstimator({
   const formattedPrice = formatPriceDisplay(priceData);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[var(--text)]">Стоимость генерации</span>
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[var(--accent-primary)]" />
-          <span className="text-lg font-bold text-[var(--accent-primary)]">
+        <span className="text-xs font-medium text-[var(--text)]">Стоимость</span>
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+          <span className="text-sm font-bold text-[var(--accent-primary)]">
             {formattedPrice.stars}
           </span>
         </div>
       </div>
 
       {/* Price Breakdown */}
-      <div className="rounded-lg bg-[var(--surface2)] p-4 space-y-2">
-        <div className="flex justify-between text-xs">
+      <div className="rounded-md bg-[var(--surface2)] p-2 space-y-1">
+        <div className="flex justify-between text-[10px]">
           <span className="text-[var(--muted)]">За видео</span>
           <span className="text-[var(--text)]">{Math.ceil(priceData.stars / variants)}⭐</span>
         </div>
 
         {variants > 1 && (
-          <div className="flex justify-between text-xs">
+          <div className="flex justify-between text-[10px]">
             <span className="text-[var(--muted)]">Количество</span>
             <span className="text-[var(--text)]">×{variants}</span>
           </div>
         )}
 
-        <div className="pt-2 border-t border-[var(--border)] flex justify-between text-sm font-semibold">
+        <div className="pt-1 border-t border-[var(--border)] flex justify-between text-xs font-semibold">
           <span className="text-[var(--text)]">Итого</span>
           <span className="text-[var(--accent-primary)]">{formattedPrice.stars}</span>
         </div>
 
         {priceData.approxRub > 0 && (
-          <div className="text-center text-xs text-[var(--muted)]">{formattedPrice.rub}</div>
+          <div className="text-center text-[10px] text-[var(--muted)]">{formattedPrice.rub}</div>
         )}
       </div>
-
-      {/* Info Text */}
-      <p className="text-xs text-[var(--muted)] leading-relaxed">
-        {mode === 'image' || mode === 'reference'
-          ? 'Стоимость будет рассчитана автоматически после загрузки файла.'
-          : 'Стоимость зависит от длительности, качества и выбранной модели.'}
-      </p>
     </div>
   );
 }

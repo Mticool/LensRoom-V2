@@ -21,18 +21,18 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
 
   return (
     <div className="relative">
-      <label className="block text-sm font-medium mb-2">Модель</label>
+      <label className="block text-xs font-medium mb-1">Модель</label>
 
       {/* Selected Model Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--border-hover)] rounded-lg text-[var(--text)] transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] hover:border-[var(--border-hover)] rounded-md text-[var(--text)] transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <span className="font-medium">{selectedModel.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{selectedModel.name}</span>
           {selectedModel.modelTag && (
             <span
-              className={`px-2 py-0.5 text-xs font-semibold rounded ${
+              className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${
                 selectedModel.modelTag === 'NEW'
                   ? 'bg-green-500/10 text-green-500'
                   : selectedModel.modelTag === 'ULTRA'
@@ -44,7 +44,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
             </span>
           )}
         </div>
-        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
@@ -54,7 +54,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
 
           {/* Menu */}
-          <div className="absolute z-50 w-full mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg max-h-[400px] overflow-auto">
+          <div className="absolute z-50 w-full mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-md shadow-lg max-h-[300px] overflow-auto">
             {VIDEO_MODELS.map((model) => {
               const isSelected = model.id === value;
 
@@ -62,17 +62,17 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
                 <button
                   key={model.id}
                   onClick={() => handleSelect(model.id)}
-                  className={`w-full px-4 py-3 text-left hover:bg-[var(--surface2)] transition-colors ${
+                  className={`w-full px-3 py-2 text-left hover:bg-[var(--surface2)] transition-colors ${
                     isSelected ? 'bg-[var(--surface2)]' : ''
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-[var(--text)]">{model.name}</span>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-sm font-medium text-[var(--text)]">{model.name}</span>
                         {model.modelTag && (
                           <span
-                            className={`px-2 py-0.5 text-xs font-semibold rounded ${
+                            className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${
                               model.modelTag === 'NEW'
                                 ? 'bg-green-500/10 text-green-500'
                                 : model.modelTag === 'ULTRA'
@@ -84,16 +84,13 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[var(--muted)] line-clamp-2">
+                      <p className="text-[10px] text-[var(--muted)] line-clamp-1">
                         {model.description}
                       </p>
-                      {model.shortLabel && (
-                        <p className="text-xs text-[var(--muted)] mt-1">{model.shortLabel}</p>
-                      )}
                     </div>
 
                     {isSelected && (
-                      <Check className="w-5 h-5 text-[var(--accent-primary)] flex-shrink-0 mt-0.5" />
+                      <Check className="w-4 h-4 text-[var(--accent-primary)] flex-shrink-0 mt-0.5" />
                     )}
                   </div>
                 </button>

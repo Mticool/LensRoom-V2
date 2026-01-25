@@ -77,37 +77,37 @@ export function VideoSourceSelector({
     fileType: 'image' | 'video';
   }) => (
     <div>
-      <label className="block text-sm font-medium mb-2">{label}</label>
+      <label className="block text-xs font-medium mb-1">{label}</label>
       <label className="block cursor-pointer">
         <div
-          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+          className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors ${
             currentFile
               ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/5'
               : 'border-[var(--border)] hover:border-[var(--border-hover)] bg-[var(--surface2)]'
           }`}
         >
           {currentFile ? (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {fileType === 'image' ? (
-                <img src={currentFile} alt="Preview" className="max-h-32 mx-auto rounded-lg" />
+                <img src={currentFile} alt="Preview" className="max-h-20 mx-auto rounded-lg" />
               ) : (
-                <Film className="w-12 h-12 mx-auto text-[var(--accent-primary)]" />
+                <Film className="w-8 h-8 mx-auto text-[var(--accent-primary)]" />
               )}
-              <p className="text-xs text-[var(--muted)]">
-                {fileType === 'image' ? 'Изображение загружено' : 'Видео загружено'}
+              <p className="text-[10px] text-[var(--muted)]">
+                {fileType === 'image' ? 'Загружено' : 'Видео загружено'}
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              <div className="w-12 h-12 mx-auto rounded-full bg-[var(--surface3)] flex items-center justify-center">
+            <div className="space-y-1">
+              <div className="w-8 h-8 mx-auto rounded-full bg-[var(--surface3)] flex items-center justify-center">
                 {fileType === 'image' ? (
-                  <Image className="w-6 h-6 text-[var(--muted)]" />
+                  <Image className="w-4 h-4 text-[var(--muted)]" />
                 ) : (
-                  <Film className="w-6 h-6 text-[var(--muted)]" />
+                  <Film className="w-4 h-4 text-[var(--muted)]" />
                 )}
               </div>
-              <p className="text-sm text-[var(--muted)]">Перетащи файл или нажми для загрузки</p>
-              <p className="text-xs text-[var(--muted)]">
+              <p className="text-xs text-[var(--muted)]">Нажми для загрузки</p>
+              <p className="text-[10px] text-[var(--muted)]">
                 {fileType === 'image' ? 'PNG, JPG, WEBP' : 'MP4, MOV, WEBM'}
               </p>
             </div>
@@ -119,9 +119,9 @@ export function VideoSourceSelector({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Mode Selector */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
         {modes.map((mode) => {
           const Icon = mode.icon;
           const isActive = value === mode.value;
@@ -130,15 +130,15 @@ export function VideoSourceSelector({
             <button
               key={mode.value}
               onClick={() => onChange(mode.value)}
-              className={`flex-1 min-w-[100px] px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+              className={`flex-1 min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
                 isActive
                   ? 'bg-[var(--accent-primary)] text-black border-[var(--accent-primary)]'
                   : 'bg-[var(--surface2)] text-[var(--text)] border-[var(--border)] hover:border-[var(--border-hover)]'
               }`}
               title={mode.description}
             >
-              <Icon className="w-4 h-4 mx-auto mb-1" />
-              <span className="block">{mode.label}</span>
+              <Icon className="w-3 h-3 mx-auto mb-0.5" />
+              <span className="block text-[10px]">{mode.label}</span>
             </button>
           );
         })}
@@ -146,15 +146,15 @@ export function VideoSourceSelector({
 
       {/* Prompt Textarea (always visible) */}
       <div>
-        <label htmlFor="prompt" className="block text-sm font-medium mb-2">
+        <label htmlFor="prompt" className="block text-xs font-medium mb-1">
           Описание сцены
         </label>
         <textarea
           id="prompt"
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
-          placeholder="Опиши сцену, которую нужно сгенерировать..."
-          className="w-full px-4 py-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] resize-none min-h-[100px]"
+          placeholder="Опиши сцену..."
+          className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] resize-none min-h-[70px]"
         />
       </div>
 

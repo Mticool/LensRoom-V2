@@ -21,6 +21,7 @@ import {
   CostEstimator,
   GenerateButton,
   JobQueue,
+  VideoHistory,
 } from './index';
 import { MotionTabContent } from './MotionTabContent';
 
@@ -454,36 +455,26 @@ export function VideoGeneratorPage() {
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      {/* Page Header */}
-      <div className="border-b border-[var(--border)] bg-[var(--surface-glass)] backdrop-blur-2xl">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-3">
-            Видео-генератор
-          </h1>
-          <p className="text-[var(--muted)] text-base md:text-lg">
-            Создавай видео из текста, картинок и motion-референсов
-          </p>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Desktop Layout: 2 columns */}
-        <div className="hidden md:grid md:grid-cols-[2fr_1fr] gap-6 lg:gap-8">
+      {/* Main Content - Compact working tool layout */}
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 pt-[68px] pb-3">
+        {/* Desktop Layout: Optimized 2 columns */}
+        <div className="hidden md:grid md:grid-cols-[1fr_340px] gap-3">
           {/* Left Column: Video Preview Panel */}
-          <div className="space-y-6">
-            <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-6">
-              {/* Video Preview */}
-              <VideoPreview
-                videoUrl={resultUrl}
-                status={status}
-                aspectRatio={aspectRatio}
-                isPlaying={isPlaying}
-                onPlayPause={() => setIsPlaying(!isPlaying)}
-              />
+          <div className="space-y-2">
+            <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+              {/* Video Preview - Compact working size */}
+              <div className="max-h-[260px] overflow-hidden">
+                <VideoPreview
+                  videoUrl={resultUrl}
+                  status={status}
+                  aspectRatio={aspectRatio}
+                  isPlaying={isPlaying}
+                  onPlayPause={() => setIsPlaying(!isPlaying)}
+                />
+              </div>
 
               {/* Timeline Slider */}
-              <div className="mt-6">
+              <div className="mt-2">
                 <TimelineSlider
                   currentTime={currentTime}
                   duration={videoDuration || duration}
@@ -493,7 +484,7 @@ export function VideoGeneratorPage() {
               </div>
 
               {/* Status Bar */}
-              <div className="mt-4">
+              <div className="mt-2">
                 <StatusBar status={status} progress={progress} error={error} />
               </div>
             </div>
@@ -506,11 +497,19 @@ export function VideoGeneratorPage() {
               onDownload={handleDownload}
               defaultExpanded={true}
             />
+
+            {/* Video History */}
+            <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+              <h3 className="text-sm font-semibold mb-2 text-[var(--text)]">
+                Мои работы
+              </h3>
+              <VideoHistory />
+            </div>
           </div>
 
-          {/* Right Column: Settings Sidebar */}
-          <div className="space-y-6">
-            <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-6">
+          {/* Right Column: Settings Sidebar - STICKY & COMPACT */}
+          <div className="sticky top-[68px] self-start space-y-2">
+            <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
               {/* Settings Tabs */}
               <SettingsTabs 
                 activeTab={activeTab} 
@@ -525,7 +524,7 @@ export function VideoGeneratorPage() {
                 }
               >
                 {/* Video Tab Content */}
-                <div className="space-y-6">
+                <div className="space-y-3">
                   {/* Source Selector */}
                   <VideoSourceSelector
                     value={mode}
@@ -590,7 +589,7 @@ export function VideoGeneratorPage() {
               </SettingsTabs>
 
               {/* Generate Button */}
-              <div className="mt-6 pt-6 border-t border-[var(--border)]">
+              <div className="mt-2 pt-2 border-t border-[var(--border)]">
                 <GenerateButton
                   onClick={handleGenerate}
                   isGenerating={isGenerating}
@@ -602,9 +601,9 @@ export function VideoGeneratorPage() {
         </div>
 
         {/* Mobile Layout: Single column */}
-        <div className="md:hidden space-y-6">
+        <div className="md:hidden space-y-3">
           {/* Video Preview */}
-          <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-4">
+          <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-3">
             <VideoPreview
               videoUrl={resultUrl}
               status={status}
@@ -614,7 +613,7 @@ export function VideoGeneratorPage() {
             />
 
             {/* Timeline */}
-            <div className="mt-4">
+            <div className="mt-2">
               <TimelineSlider
                 currentTime={currentTime}
                 duration={videoDuration || duration}
@@ -624,7 +623,7 @@ export function VideoGeneratorPage() {
             </div>
 
             {/* Status */}
-            <div className="mt-3">
+            <div className="mt-2">
               <StatusBar status={status} progress={progress} error={error} />
             </div>
           </div>
@@ -639,7 +638,7 @@ export function VideoGeneratorPage() {
           />
 
           {/* Settings */}
-          <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-4">
+          <div className="rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] p-3">
             {/* Settings Tabs (Mobile) */}
             <SettingsTabs 
               activeTab={activeTab} 
@@ -653,7 +652,7 @@ export function VideoGeneratorPage() {
                 />
               }
             >
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <VideoSourceSelector
                   value={mode}
                   onChange={setMode}
