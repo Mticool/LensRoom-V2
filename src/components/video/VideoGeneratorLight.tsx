@@ -110,30 +110,11 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-        <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold text-gray-900">LensRoom</span>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-900">
-              ⭐ {credits || 0} звезд
-            </div>
-            <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full" />
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <div className="max-w-[1600px] mx-auto px-6 pt-12 pb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-3">Видео-генератор</h1>
-        <p className="text-lg text-gray-600">Создавайте профессиональные видео с помощью топовых нейросетей</p>
+    <div className="min-h-screen bg-[#0F0F10] text-white">
+      {/* Hero Section - No custom header needed, using app header */}
+      <div className="max-w-[1600px] mx-auto px-6 pt-8 pb-6">
+        <h1 className="text-3xl font-bold text-white mb-2">Видео-генератор</h1>
+        <p className="text-base text-gray-400">Создавайте профессиональные видео с помощью топовых нейросетей</p>
       </div>
 
       {/* Main Content Grid */}
@@ -141,9 +122,9 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Settings Panel - Dark Theme */}
           <div className="lg:col-span-4">
-            <div className="bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden sticky top-24 shadow-xl">
+            <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden sticky top-24 shadow-xl" style={{ zIndex: 10 }}>
               {/* Tabs */}
-              <div className="border-b border-zinc-800">
+              <div className="border-b border-white/10">
                 <div className="flex">
                   {[
                     { id: 'video', label: 'Видео' },
@@ -154,13 +135,13 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                       onClick={() => setActiveTab(tab.id as any)}
                       className={`flex-1 px-4 py-3 text-xs font-medium transition-colors relative ${
                         activeTab === tab.id
-                          ? 'text-violet-400'
+                          ? 'text-[#CDFF00]'
                           : 'text-gray-400 hover:text-gray-200'
                       }`}
                     >
                       {tab.label}
                       {activeTab === tab.id && (
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500" />
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#CDFF00]" />
                       )}
                     </button>
                   ))}
@@ -172,7 +153,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                 {/* Source Mode */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 mb-2">Источник</label>
-                  <div className="inline-flex bg-zinc-900 rounded-lg p-1 w-full">
+                  <div className="inline-flex bg-white/5 rounded-lg p-1 w-full">
                     {[
                       { id: 'text', label: 'Текст' },
                       { id: 'image', label: 'Картинка' },
@@ -183,7 +164,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                         onClick={() => setSourceMode(mode.id as SourceMode)}
                         className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                           sourceMode === mode.id
-                            ? 'bg-violet-600 text-white shadow-sm'
+                            ? 'bg-[#CDFF00] text-black shadow-sm'
                             : 'text-gray-400 hover:text-gray-200'
                         }`}
                       >
@@ -203,7 +184,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Опишите желаемое видео..."
                     rows={3}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-gray-200 text-sm placeholder:text-gray-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all resize-none"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#CDFF00]/50 focus:ring-1 focus:ring-[#CDFF00]/30 transition-all resize-none"
                   />
                 </div>
 
@@ -219,7 +200,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-gray-300 hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:bg-white/10 transition-colors flex items-center justify-center gap-2 text-xs font-medium"
                     >
                       <Upload className="w-4 h-4" />
                       {referenceFile ? referenceFile.name : `Загрузить ${sourceMode === 'image' ? 'изображение' : 'видео'}`}
@@ -233,7 +214,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                   <select
                     value={model}
                     onChange={(e) => setModel(e.target.value as VideoModel)}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all appearance-none cursor-pointer"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#CDFF00]/50 focus:ring-1 focus:ring-[#CDFF00]/30 transition-all appearance-none cursor-pointer"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
                       backgroundPosition: 'right 0.5rem center',
@@ -258,8 +239,8 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                         onClick={() => setAspectRatio(ratio)}
                         className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all ${
                           aspectRatio === ratio
-                            ? 'bg-violet-600 text-white border-violet-600'
-                            : 'bg-zinc-900 text-gray-400 border-zinc-800 hover:border-violet-500'
+                            ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                            : 'bg-white/5 text-gray-400 border-white/10 hover:border-[#CDFF00]/50'
                         }`}
                       >
                         {ratio}
@@ -279,7 +260,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                     max="15"
                     value={duration}
                     onChange={(e) => setDuration(Number(e.target.value))}
-                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-violet-500"
+                    className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#CDFF00]"
                   />
                   <div className="flex justify-between text-[10px] text-gray-600 mt-1">
                     <span>1s</span>
@@ -297,8 +278,8 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                         onClick={() => setQuality(q)}
                         className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all ${
                           quality === q
-                            ? 'bg-violet-600 text-white border-violet-600'
-                            : 'bg-zinc-900 text-gray-400 border-zinc-800 hover:border-violet-500'
+                            ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                            : 'bg-white/5 text-gray-400 border-white/10 hover:border-[#CDFF00]/50'
                         }`}
                       >
                         {q.toUpperCase()}
@@ -313,12 +294,12 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                   <button
                     onClick={() => setWithAudio(!withAudio)}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      withAudio ? 'bg-violet-600' : 'bg-zinc-800'
+                      withAudio ? 'bg-[#CDFF00]' : 'bg-white/10'
                     }`}
                   >
                     <span
-                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                        withAudio ? 'translate-x-5' : 'translate-x-0.5'
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full transition-transform ${
+                        withAudio ? 'translate-x-5 bg-black' : 'translate-x-0.5 bg-white'
                       }`}
                     />
                   </button>
@@ -326,18 +307,18 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
               </div>
 
               {/* Generate Button - Sticky to Bottom */}
-              <div className="absolute bottom-0 left-0 right-0 p-5 bg-zinc-950 border-t border-zinc-800">
+              <div className="absolute bottom-0 left-0 right-0 p-5 bg-[#1A1A1C] border-t border-white/10">
                 {/* Cost Info */}
                 <div className="mb-3 flex items-center justify-between text-xs">
                   <span className="text-gray-400">Итого:</span>
-                  <span className="font-bold text-violet-400 text-sm">⭐ {estimatedCost}</span>
+                  <span className="font-bold text-[#CDFF00] text-sm">⭐ {estimatedCost}</span>
                 </div>
 
                 {/* Generate Button */}
                 <button
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className="w-full py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold rounded-xl hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2 text-sm"
+                  className="w-full py-3 bg-[#CDFF00] text-black font-semibold rounded-xl hover:bg-[#CDFF00]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 text-sm"
                 >
                   {isGenerating ? (
                     <>
@@ -360,8 +341,8 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
             {/* Video Player - Adaptive Aspect Ratio */}
             <div className="flex items-start justify-center">
               <div className={`w-full max-w-4xl ${aspectRatio === '9:16' ? 'max-w-md' : aspectRatio === '1:1' ? 'max-w-2xl' : ''}`}>
-                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                  <div className={`relative ${getAspectClass()} bg-gray-100 max-h-[60vh]`}>
+                <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
+                  <div className={`relative ${getAspectClass()} bg-black/50 max-h-[60vh]`}>
                     {videoUrl ? (
                       <video
                         ref={videoRef}
@@ -374,10 +355,10 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="text-center">
-                          <div className="w-20 h-20 mx-auto bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 shadow-lg">
-                            <Play className="w-10 h-10 text-gray-700" />
+                          <div className="w-20 h-20 mx-auto bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
+                            <Play className="w-10 h-10 text-gray-400" />
                           </div>
-                          <p className="text-gray-500 text-sm">Результат появится здесь</p>
+                          <p className="text-gray-400 text-sm">Результат появится здесь</p>
                         </div>
                       </div>
                     )}
@@ -385,16 +366,16 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
 
                   {/* Timeline */}
                   {videoUrl && (
-                    <div className="p-4 border-t border-gray-200">
+                    <div className="p-4 border-t border-white/10">
                       <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600 font-mono">{formatTime(currentTime)}</span>
-                        <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                        <span className="text-sm text-gray-400 font-mono">{formatTime(currentTime)}</span>
+                        <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-violet-600 transition-all"
+                            className="h-full bg-[#CDFF00] transition-all"
                             style={{ width: `${(currentTime / totalDuration) * 100}%` }}
                           />
                         </div>
-                        <span className="text-sm text-gray-600 font-mono">{formatTime(totalDuration)}</span>
+                        <span className="text-sm text-gray-400 font-mono">{formatTime(totalDuration)}</span>
                       </div>
                     </div>
                   )}
@@ -403,15 +384,15 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
             </div>
 
             {/* Мои работы - Compact History Grid */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Мои работы</h3>
+            <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 p-5">
+              <h3 className="text-sm font-semibold text-white mb-4">Мои работы</h3>
               {generationHistory.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
                   {generationHistory.map((url, i) => (
                     <button
                       key={i}
                       onClick={() => setVideoUrl(url)}
-                      className="aspect-video bg-gray-100 rounded-lg border border-gray-200 overflow-hidden hover:border-violet-400 transition-colors group"
+                      className="relative aspect-video bg-black/50 rounded-lg border border-white/10 overflow-hidden hover:border-[#CDFF00] transition-colors group"
                     >
                       <video
                         src={url}
@@ -420,13 +401,13 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                         playsInline
                         preload="metadata"
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                     </button>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-400">Здесь появятся ваши работы</p>
+                  <p className="text-sm text-gray-500">Здесь появятся ваши работы</p>
                 </div>
               )}
             </div>

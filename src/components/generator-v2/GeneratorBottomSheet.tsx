@@ -42,6 +42,8 @@ interface GeneratorBottomSheetProps {
   onGenerate: () => void;
 
   onOpenMenu: () => void;
+  /** When provided, gear opens Settings sheet with model selector. */
+  onModelChange?: (modelId: string) => void;
 }
 
 // Aspect ratio icon based on value
@@ -83,8 +85,10 @@ export function GeneratorBottomSheet({
   canGenerate,
   onGenerate,
   onOpenMenu,
+  onModelChange,
 }: GeneratorBottomSheetProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<'aspect' | 'quality' | 'quantity' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -467,19 +471,22 @@ export function GeneratorBottomSheet({
 
         {/* Input row */}
         <div className="px-3 pb-2 flex items-end gap-2">
-          {/* Settings button */}
+          {/* Settings (gear): open model picker + advanced when onModelChange, else toggle advanced */}
           <button
             type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
+            onClick={() => {
+              if (onModelChange) setSettingsOpen(true);
+              else setShowAdvanced(!showAdvanced);
+            }}
             disabled={isGenerating}
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 active:scale-95
-              ${showAdvanced 
+              ${showAdvanced || settingsOpen
                 ? 'bg-[#CDFF00] text-black' 
                 : 'bg-white/10 text-white/60 border border-white/10'
               }
               ${isGenerating ? 'opacity-50' : ''}`}
           >
-            {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+            <Settings className="w-4 h-4" />
           </button>
 
           {/* Prompt input */}
@@ -523,6 +530,61 @@ export function GeneratorBottomSheet({
           </button>
         </div>
       </div>
+
+      {/* Settings sheet: model selector + advanced (gear) */}
+      {onModelChange && (
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent className="w-[min(96vw,420px)] max-h-[85vh] overflow-y-auto border border-white/10 bg-[#0B0B0C] text-white p-4 gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Настройки</h3>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(false)}
+                className="p-2 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5 text-white/60" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Нейросеть</div>
+                <ModelSelector
+                  value={modelId}
+                  onChange={(id) => {
+                    onModelChange(id);
+                    setSettingsOpen(false);
+                  }}
+                  direction="down"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 uppercase tracking-wider mb-2 block">Негативный промпт</label>
+                <input
+                  type="text"
+                  value={negativePrompt}
+                  onChange={(e) => onNegativePromptChange(e.target.value)}
+                  disabled={isGenerating}
+                  placeholder="Что исключить..."
+                  className="w-full min-h-[60px] px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#CDFF00] resize-none"
+                />
+              </div>
+              {onSeedChange && (
+                <div>
+                  <label className="text-xs text-white/40 uppercase tracking-wider mb-2 block">Seed</label>
+                  <input
+                    type="number"
+                    value={seed ?? ''}
+                    onChange={(e) => onSeedChange(e.target.value ? Number(e.target.value) : null)}
+                    disabled={isGenerating}
+                    placeholder="Случайный"
+                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#CDFF00]"
+                  />
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
