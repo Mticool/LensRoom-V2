@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Play, Upload, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/components/generator-v2/hooks/useAuth';
 
 type SourceMode = 'text' | 'image' | 'video';
 type VideoModel = 'sora' | 'kling' | 'veo' | 'flux';
