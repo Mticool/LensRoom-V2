@@ -179,14 +179,8 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
 
   return (
     <div className="min-h-screen bg-[#0F0F10] text-white">
-      {/* Hero Section */}
-      <div className="max-w-[1600px] mx-auto px-6 pt-8 pb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Видео-генератор</h1>
-        <p className="text-base text-gray-400">Создавайте профессиональные видео с помощью топовых нейросетей</p>
-      </div>
-
       {/* Main Content - Sidebar Layout */}
-      <div className="max-w-[1600px] mx-auto px-6 pb-12">
+      <div className="max-w-[1600px] mx-auto px-6 pt-4 pb-12">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Column: Generator Panel - Fixed Width */}
           <div className="lg:w-[380px] lg:flex-shrink-0" style={{ zIndex: 10 }}>
