@@ -817,6 +817,8 @@ export async function POST(request: NextRequest) {
           provider: 'video',
           kind: 'video',
           creditCost: creditCost,
+          resultUrl: finalVideoUrl,
+          videoUrl: finalVideoUrl,
           results: [{ url: finalVideoUrl }],
         });
       } catch (videoError: any) {
