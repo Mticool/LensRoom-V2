@@ -188,36 +188,40 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
           {/* Right Column: Player & History - Flexible */}
           <div className="flex-1 space-y-6">
             {/* Video Player */}
-            <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
-              {isGenerating ? (
-                <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
-                  <div className="text-center">
-                    <div className="relative w-20 h-20 mx-auto mb-4">
-                      <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-[#CDFF00] border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex justify-center">
+              <div className="w-full max-w-2xl">
+                <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
+                  {isGenerating ? (
+                    <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
+                      <div className="text-center">
+                        <div className="relative w-20 h-20 mx-auto mb-4">
+                          <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                          <div className="absolute inset-0 border-4 border-[#CDFF00] border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <p className="text-gray-400 text-sm mb-2">Генерация видео...</p>
+                        <p className="text-gray-500 text-xs">Это может занять до 2 минут</p>
+                      </div>
                     </div>
-                    <p className="text-gray-400 text-sm mb-2">Генерация видео...</p>
-                    <p className="text-gray-500 text-xs">Это может занять до 2 минут</p>
-                  </div>
-                </div>
-              ) : videoUrl ? (
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  controls
-                  autoPlay
-                  className="w-full max-h-[70vh] bg-black"
-                />
-              ) : (
-                <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
+                  ) : videoUrl ? (
+                    <video
+                      ref={videoRef}
+                      src={videoUrl}
+                      controls
+                      autoPlay
+                      className="w-full bg-black"
+                    />
+                  ) : (
+                    <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
+                      <div className="text-center">
+                        <div className="w-20 h-20 mx-auto bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
                       <Play className="w-10 h-10 text-gray-400" />
                     </div>
                     <p className="text-gray-400 text-sm">Результат появится здесь</p>
                   </div>
                 </div>
               )}
+                </div>
+              </div>
             </div>
 
             {/* Мои работы - Compact History Grid */}
