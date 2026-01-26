@@ -25,25 +25,99 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
   const [offset, setOffset] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Helper function to get asset URL with fallback priority (similar to getSourceAssetUrl)
+  const getAssetUrl = useCallback((gen: any): string => {
+    // Priority 1: asset_url
+    if (gen.asset_url && typeof gen.asset_url === 'string') {
+      return gen.asset_url;
+    }
+    
+    // Priority 2: result_url
+    if (gen.result_url && typeof gen.result_url === 'string') {
+      return gen.result_url;
+    }
+    
+    // Priority 3: result_urls[0]
+    if (gen.result_urls) {
+      if (Array.isArray(gen.result_urls) && gen.result_urls.length > 0) {
+        const first = gen.result_urls[0];
+        if (typeof first === 'string') return first;
+      }
+      if (typeof gen.result_urls === 'string') {
+        // Might be JSON string
+        try {
+          const parsed = JSON.parse(gen.result_urls);
+          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+            return parsed[0];
+          }
+        } catch {
+          // If not JSON, treat as single URL
+          return gen.result_urls;
+        }
+      }
+    }
+    
+    // Priority 4: thumbnail_url
+    if (gen.thumbnail_url && typeof gen.thumbnail_url === 'string') {
+      return gen.thumbnail_url;
+    }
+    
+    // Priority 5: preview_url
+    if (gen.preview_url && typeof gen.preview_url === 'string') {
+      return gen.preview_url;
+    }
+    
+    // Priority 6: Parse JSON columns (output/result/data) for URLs
+    const jsonColumns = [gen.output, gen.result, gen.data];
+    for (const col of jsonColumns) {
+      if (!col) continue;
+      const str = typeof col === 'string' ? col : JSON.stringify(col);
+      const urlMatch = str.match(/https:\/\/[^\s"']+/);
+      if (urlMatch) return urlMatch[0];
+    }
+    
+    // Priority 7: Use download endpoint if we have an ID but no direct URL
+    if (gen.id && gen.status === 'success') {
+      // Try preview first, fallback to original
+      return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview`;
+    }
+    
+    return '';
+  }, []);
+
   // Transform API response to GenerationResult format
   const transformResults = useCallback((generations: any[]): GenerationResult[] => {
-    return (generations || []).map((gen: any): GenerationResult => ({
-      id: gen.id,
-      url: gen.result_urls?.[0] || '',
-      prompt: gen.prompt || '',
-      mode: (gen.type === 'video' ? 'video' : 'image') as GeneratorMode,
-      settings: {
-        model: gen.model_id || '',
-        size: normalizeAspectRatio(gen.aspect_ratio),
-        quality: gen?.params?.quality || undefined,
-        outputFormat: gen?.params?.outputFormat || undefined,
-        negativePrompt: gen.negative_prompt || undefined,
-      } as GenerationSettings,
-      timestamp: new Date(gen.created_at).getTime(),
-      previewUrl: gen.preview_url || gen.result_urls?.[0] || '',
-      status: gen.status,
-    })).filter((r) => r.status === 'success' && r.url);
-  }, []);
+    return (generations || []).map((gen: any): GenerationResult => {
+      const assetUrl = getAssetUrl(gen);
+      
+      // For previewUrl, prefer preview_url, then assetUrl, then download endpoint
+      let previewUrl = gen.preview_url || assetUrl;
+      if (!previewUrl && gen.id && gen.status === 'success') {
+        // Use download endpoint as fallback
+        previewUrl = `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview`;
+      }
+      
+      // If we still don't have a URL but have an ID, use download endpoint for original
+      const finalUrl = assetUrl || (gen.id && gen.status === 'success' ? `/api/generations/${encodeURIComponent(gen.id)}/download?kind=original` : '');
+      
+      return {
+        id: gen.id,
+        url: finalUrl,
+        prompt: gen.prompt || '',
+        mode: (gen.type === 'video' ? 'video' : 'image') as GeneratorMode,
+        settings: {
+          model: gen.model_id || '',
+          size: normalizeAspectRatio(gen.aspect_ratio),
+          quality: gen?.params?.quality || undefined,
+          outputFormat: gen?.params?.outputFormat || undefined,
+          negativePrompt: gen.negative_prompt || undefined,
+        } as GenerationSettings,
+        timestamp: new Date(gen.created_at).getTime(),
+        previewUrl: previewUrl,
+        status: gen.status,
+      };
+    }).filter((r) => r.status === 'success' && (r.url || r.id)); // Allow items with ID even if URL is not yet available
+  }, [getAssetUrl]);
 
   const fetchHistory = useCallback(async () => {
     try {
