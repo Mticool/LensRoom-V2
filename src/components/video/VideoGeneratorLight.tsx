@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Play } from 'lucide-react';
 import { VideoGeneratorHiru } from './VideoGeneratorHiru';
+import { useVideoGeneration } from '@/hooks/useVideoGeneration';
+import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
 
 type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3';
 
@@ -19,19 +22,121 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
   
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Load history on mount
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const loadHistory = async () => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('generations')
+        .select('result_url')
+        .eq('user_id', user.id)
+        .eq('type', 'video')
+        .eq('status', 'completed')
+        .not('result_url', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      if (error) throw error;
+      
+      const urls = data?.map((g: any) => g.result_url).filter(Boolean) || [];
+      setGenerationHistory(urls);
+    } catch (error) {
+      console.error('Failed to load history:', error);
+    }
+  };
+
+  const { generate, isGenerating } = useVideoGeneration({
+    onSuccess: (url) => {
+      setVideoUrl(url);
+      loadHistory(); // Reload history from DB
+    },
+    onError: (error) => {
+      toast.error(error);
+    }
+  });
+
+  // Convert File to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   // Handle generation from panel
-  const handleGenerate = (params: any) => {
-    // Simulate generation
-    const mockUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-    setVideoUrl(mockUrl);
-    setGenerationHistory(prev => [mockUrl, ...prev].slice(0, 8));
-    
-    onGenerate?.(params);
+  const handleGenerate = async (params: any) => {
+    try {
+      console.log('[VideoGeneratorLight] Starting generation with params:', {
+        model: params.model,
+        prompt: params.prompt,
+        duration: params.duration,
+        quality: params.quality,
+        aspectRatio: params.aspectRatio,
+        hasReferenceImage: !!params.referenceImage,
+        hasStartFrame: !!params.startFrame,
+        hasEndFrame: !!params.endFrame,
+        hasMotionVideo: !!params.motionVideo,
+      });
+
+      // Validate model
+      if (!params.model) {
+        toast.error('Модель не выбрана');
+        return;
+      }
+
+      // Determine mode based on inputs
+      let mode: 'text' | 'image' | 'reference' | 'v2v' | 'motion' = 'text';
+      if (params.referenceImage) mode = 'image';
+      else if (params.startFrame && params.endFrame) mode = 'reference';
+      else if (params.motionVideo) mode = 'motion';
+      
+      // Convert files to base64
+      const referenceImageBase64 = params.referenceImage ? await fileToBase64(params.referenceImage) : undefined;
+      const startFrameBase64 = params.startFrame ? await fileToBase64(params.startFrame) : undefined;
+      const endFrameBase64 = params.endFrame ? await fileToBase64(params.endFrame) : undefined;
+      const motionVideoBase64 = params.motionVideo ? await fileToBase64(params.motionVideo) : undefined;
+      const characterImageBase64 = params.characterImage ? await fileToBase64(params.characterImage) : undefined;
+      
+      console.log('[VideoGeneratorLight] Calling generate with model:', params.model);
+      
+      await generate({
+        selectedModel: params.model,
+        prompt: params.prompt || '',
+        mode,
+        duration: params.duration,
+        quality: params.quality || '720p',
+        aspectRatio: params.aspectRatio,
+        withSound: params.audioEnabled || false,
+        referenceImage: referenceImageBase64,
+        startFrame: startFrameBase64,
+        endFrame: endFrameBase64,
+        motionVideo: motionVideoBase64,
+        characterImage: characterImageBase64,
+      });
+      
+      onGenerate?.(params);
+    } catch (error) {
+      console.error('[VideoGeneratorLight] Generation failed:', error);
+      toast.error('Ошибка: ' + (error instanceof Error ? error.message : 'неизвестная ошибка'));
+    }
   };
 
   // Handle ratio change from panel
-  const handleRatioChange = (newRatio: AspectRatio) => {
-    setCurrentRatio(newRatio);
+  const handleRatioChange = (newRatio: string) => {
+    if (newRatio === '16:9' || newRatio === '9:16' || newRatio === '1:1' || newRatio === '4:3') {
+      setCurrentRatio(newRatio);
+      return;
+    }
+    setCurrentRatio('16:9');
   };
 
   // Get aspect ratio class based on current selection
@@ -86,6 +191,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
               <VideoGeneratorHiru 
                 onGenerate={handleGenerate}
                 onRatioChange={handleRatioChange}
+                isGeneratingProp={isGenerating}
               />
             </div>
           </div>

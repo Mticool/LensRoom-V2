@@ -22,6 +22,8 @@ type Tab = 'create' | 'motion';
 
 interface VideoGeneratorHiruProps {
   onGenerate?: (params: any) => void;
+  onRatioChange?: (newRatio: string) => void;
+  isGeneratingProp?: boolean;
 }
 
 // Dropdown component
@@ -85,7 +87,7 @@ function Dropdown({ label, value, options, onChange }: DropdownProps) {
             );
           }
         
-export function VideoGeneratorHiru({ onGenerate }: VideoGeneratorHiruProps) {
+export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp = false }: VideoGeneratorHiruProps) {
   // Main tabs
   const [activeTab, setActiveTab] = useState<Tab>('create');
   
@@ -117,8 +119,8 @@ export function VideoGeneratorHiru({ onGenerate }: VideoGeneratorHiruProps) {
   const [duration, setDuration] = useState(8);
   const [sceneControlMode, setSceneControlMode] = useState<'video' | 'image'>('video');
   
-  // Loading
-  const [isGenerating, setIsGenerating] = useState(false);
+  // Use prop for loading state if provided, otherwise local state
+  const isGenerating = isGeneratingProp;
   
   // Get current model info
   const currentModel = VIDEO_MODELS.find(m => m.id === selectedModel) as VideoModelConfig | undefined;
@@ -147,6 +149,11 @@ export function VideoGeneratorHiru({ onGenerate }: VideoGeneratorHiruProps) {
   const getAspectRatioOptions = () => {
     if (!currentModel) return [{ value: '16:9', label: '16:9' }, { value: '9:16', label: '9:16' }];
     return currentModel.aspectRatios.map(ratio => ({ value: ratio, label: ratio }));
+  };
+
+  const handleAspectRatioChange = (newRatio: string) => {
+    setAspectRatio(newRatio);
+    onRatioChange?.(newRatio);
   };
 
   const getDurationOptions = () => {
@@ -218,8 +225,6 @@ export function VideoGeneratorHiru({ onGenerate }: VideoGeneratorHiruProps) {
       return;
     }
     
-    setIsGenerating(true);
-    
     try {
       // Call API
       if (onGenerate) {
@@ -239,13 +244,9 @@ export function VideoGeneratorHiru({ onGenerate }: VideoGeneratorHiruProps) {
           audioEnabled,
         });
       }
-      
-      toast.success('Video generation started!');
     } catch (error) {
-      toast.error('Failed to generate video');
+      toast.error('Ошибка генерации');
       console.error(error);
-    } finally {
-      setIsGenerating(false);
     }
   };
   
@@ -525,7 +526,7 @@ export function VideoGeneratorHiru({ onGenerate }: VideoGeneratorHiruProps) {
                 label="Формат"
                 value={aspectRatio}
                 options={getAspectRatioOptions()}
-                onChange={setAspectRatio}
+                onChange={handleAspectRatioChange}
               />
               
               {/* Duration */}

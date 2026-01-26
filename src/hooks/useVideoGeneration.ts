@@ -255,6 +255,17 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
         }
 
         // Call API
+        console.log('[useVideoGeneration] Request body:', {
+          model: requestBody.model,
+          prompt: requestBody.prompt,
+          mode: requestBody.mode,
+          duration: requestBody.duration,
+          quality: requestBody.quality,
+          aspectRatio: requestBody.aspectRatio,
+          hasReferenceImage: !!requestBody.referenceImage,
+          referenceImageSize: requestBody.referenceImage?.length,
+        });
+
         const response = await fetch('/api/generate/video', {
           method: 'POST',
           headers: {
@@ -263,8 +274,11 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
           body: JSON.stringify(requestBody),
         });
 
+        console.log('[useVideoGeneration] Response status:', response.status);
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
+          console.error('[useVideoGeneration] Error response:', errorData);
           throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
 
