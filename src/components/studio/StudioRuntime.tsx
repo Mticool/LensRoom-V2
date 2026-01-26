@@ -1129,6 +1129,9 @@ export function StudioRuntime({
           quality={quality as string}
           onQualityChange={(q) => setQuality(q as any)}
           qualityOptions={studioModel?.qualityTiers || []}
+          aspectRatio={String(aspect || "")}
+          onAspectRatioChange={(v) => setAspect(v as any)}
+          aspectRatioOptions={studioModel?.aspectRatios || []}
           referenceImage={referenceImage}
           onReferenceImageChange={setReferenceImage}
           negativePrompt={negativePrompt}

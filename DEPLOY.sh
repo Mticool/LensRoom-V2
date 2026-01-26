@@ -27,36 +27,46 @@ echo "   Path: ${SERVER_PATH}"
 echo "   PM2 App: ${PM2_APP_NAME}"
 echo ""
 
-# Step 1: Pre-deploy checks
+# Step 1: Pre-deploy checks (can be skipped)
+SKIP_PRECHECKS="${SKIP_PRECHECKS:-0}"
 echo "✓ Step 1: Pre-deploy checks"
-echo "   Checking git status..."
-if [[ -n $(git status --porcelain) ]]; then
-    echo -e "${RED}✗ Error: Uncommitted changes found${NC}"
-    echo "   Please commit or stash your changes"
-    exit 1
-fi
-echo -e "${GREEN}   ✓ Git is clean${NC}"
-
-echo "   Checking branch..."
-CURRENT_BRANCH=$(git branch --show-current)
-if [[ "$CURRENT_BRANCH" != "main" ]]; then
-    echo -e "${YELLOW}   Warning: Not on main branch (current: $CURRENT_BRANCH)${NC}"
-    read -p "   Continue? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+if [[ "$SKIP_PRECHECKS" == "1" ]]; then
+    echo -e "${YELLOW}   ⚠ Skipping pre-checks (SKIP_PRECHECKS=1)${NC}"
+    echo ""
+else
+    echo "   Checking git status..."
+    if [[ -n $(git status --porcelain) ]]; then
+        echo -e "${RED}✗ Error: Uncommitted changes found${NC}"
+        echo "   Please commit or stash your changes"
         exit 1
     fi
-fi
-echo -e "${GREEN}   ✓ Branch: $CURRENT_BRANCH${NC}"
+    echo -e "${GREEN}   ✓ Git is clean${NC}"
 
-echo "   Running build test..."
-if ! npm run build > /dev/null 2>&1; then
-    echo -e "${RED}✗ Error: Build failed${NC}"
-    echo "   Please fix build errors before deploying"
-    exit 1
+    echo "   Checking branch..."
+    CURRENT_BRANCH=$(git branch --show-current)
+    if [[ "$CURRENT_BRANCH" != "main" ]]; then
+        echo -e "${YELLOW}   Warning: Not on main branch (current: $CURRENT_BRANCH)${NC}"
+        read -p "   Continue? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    echo -e "${GREEN}   ✓ Branch: $CURRENT_BRANCH${NC}"
+
+    echo "   Running build test..."
+    if ! npm run build > /dev/null 2>&1; then
+        echo -e "${RED}✗ Error: Build failed${NC}"
+        echo "   Please fix build errors before deploying"
+        exit 1
+    fi
+    echo -e "${GREEN}   ✓ Build passed${NC}"
+    echo ""
 fi
-echo -e "${GREEN}   ✓ Build passed${NC}"
-echo ""
+
+if [[ -z "$CURRENT_BRANCH" ]]; then
+    CURRENT_BRANCH=$(git branch --show-current)
+fi
 
 # Step 2: Push to remote
 echo "✓ Step 2: Push to remote"

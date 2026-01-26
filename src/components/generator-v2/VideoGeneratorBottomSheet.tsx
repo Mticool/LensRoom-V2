@@ -27,6 +27,10 @@ interface VideoGeneratorBottomSheetProps {
   onQualityChange: (v: string) => void;
   qualityOptions: string[];
 
+  aspectRatio: string;
+  onAspectRatioChange: (v: string) => void;
+  aspectRatioOptions: string[];
+
   referenceImage: File | null;
   onReferenceImageChange: (v: File | null) => void;
 
@@ -55,6 +59,9 @@ export function VideoGeneratorBottomSheet({
   quality,
   onQualityChange,
   qualityOptions,
+  aspectRatio,
+  onAspectRatioChange,
+  aspectRatioOptions,
   referenceImage,
   onReferenceImageChange,
   negativePrompt,
@@ -65,7 +72,7 @@ export function VideoGeneratorBottomSheet({
   onOpenModelSelector,
 }: VideoGeneratorBottomSheetProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [activeMenu, setActiveMenu] = useState<'mode' | 'duration' | 'quality' | null>(null);
+  const [activeMenu, setActiveMenu] = useState<'mode' | 'duration' | 'quality' | 'aspect' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,6 +145,12 @@ export function VideoGeneratorBottomSheet({
     if (lower.includes('720p')) return '720p';
     if (lower.includes('4k') || lower.includes('2160p')) return '4K';
     return q || 'Авто';
+  };
+
+  const getAspectLabel = (value: string) => {
+    const v = String(value || '').trim();
+    if (!v) return 'Авто';
+    return v.replace('/', ':');
   };
 
   const handleFileClick = () => {
@@ -261,6 +274,37 @@ export function VideoGeneratorBottomSheet({
             </div>
           </motion.div>
         )}
+
+        {activeMenu === 'aspect' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.15 }}
+            className="fixed right-3 z-50 bg-[#1C1C1E] border border-white/20 rounded-2xl shadow-2xl overflow-hidden"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
+          >
+            <div className="p-1">
+              {aspectRatioOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onAspectRatioChange(opt);
+                    setActiveMenu(null);
+                  }}
+                  className={`w-full min-w-[100px] px-4 py-3 text-left text-sm rounded-xl ${
+                    opt === aspectRatio
+                      ? 'bg-[#CDFF00] text-black font-semibold'
+                      : 'text-white active:bg-white/10'
+                  }`}
+                >
+                  {getAspectLabel(opt)}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Main panel */}
@@ -356,6 +400,23 @@ export function VideoGeneratorBottomSheet({
             <Clock className="w-3.5 h-3.5" />
             <span>{duration}s</span>
           </button>
+
+          {/* Aspect ratio chip */}
+          {aspectRatioOptions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveMenu(activeMenu === 'aspect' ? null : 'aspect')}
+              disabled={isGenerating}
+              className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
+                ${isGenerating ? 'opacity-50' : 'active:scale-95'}
+                ${activeMenu === 'aspect'
+                  ? 'bg-[#CDFF00] text-black'
+                  : 'bg-white/10 text-white/80 border border-white/10'
+                }`}
+            >
+              <span>{getAspectLabel(aspectRatio)}</span>
+            </button>
+          )}
 
           {/* Quality chip */}
           {qualityOptions.length > 0 && (
