@@ -14,7 +14,9 @@ interface VideoGeneratorPanelProps {
   onRatioChange?: (ratio: AspectRatio) => void;
 }
 
-// Get featured video models (8 models)
+// Get featured video models (7 standard + 1 motion control)
+const STANDARD_MODELS = VIDEO_MODELS.filter(m => m.featured && m.id !== 'kling-motion-control');
+const MOTION_CONTROL_MODEL = VIDEO_MODELS.find(m => m.id === 'kling-motion-control');
 const FEATURED_MODELS = VIDEO_MODELS.filter(m => m.featured);
 
 export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGeneratorPanelProps) {
@@ -23,6 +25,10 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
   const [prompt, setPrompt] = useState('');
   const [enhanceOn, setEnhanceOn] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationId, setGenerationId] = useState<string | null>(null);
+  const [generationStatus, setGenerationStatus] = useState<'queued' | 'processing' | 'completed' | 'failed' | null>(null);
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Dynamic settings based on selected model
   const [modelSettings, setModelSettings] = useState<Record<string, any>>(() => {
@@ -89,6 +95,61 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
     }, 1000);
   }, [prompt]);
 
+  // Poll generation status
+  const pollGenerationStatus = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/video/status?id=${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to check status');
+      }
+
+      const data = await response.json();
+      setGenerationStatus(data.status);
+
+      if (data.status === 'completed') {
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        setIsGenerating(false);
+        toast.success('Видео готово!');
+
+        // Call onGenerate callback with completed video
+        onGenerate?.({
+          id: data.id,
+          status: data.status,
+          videoUrl: data.video_url,
+          thumbnailUrl: data.thumbnail_url,
+        });
+      } else if (data.status === 'failed') {
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        setIsGenerating(false);
+        toast.error(data.error || 'Ошибка генерации');
+      } else {
+        // Still processing
+        if (data.eta_seconds) {
+          setEtaSeconds(data.eta_seconds);
+        }
+      }
+    } catch (error) {
+      console.error('[VideoGenerator] Status poll error:', error);
+    }
+  }, [onGenerate]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() && modelSettings.mode !== 'video_to_video') {
       toast.error('Введите описание видео');
@@ -96,22 +157,79 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
     }
 
     setIsGenerating(true);
+    setGenerationStatus('queued');
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      toast.success('Видео генерируется!');
-      onGenerate?.({
-        model: selectedModel,
-        prompt,
-        settings: modelSettings,
-        startFrame,
-        motionReference
+      // Upload files if needed
+      let referenceImageUrls: string[] = [];
+      let inputVideoUrl: string | undefined;
+
+      if (startFrame) {
+        // TODO: Upload image to storage
+        // For now, using data URL (not recommended for production)
+        if (startFramePreview) {
+          referenceImageUrls.push(startFramePreview);
+        }
+      }
+
+      if (motionReference && motionReferencePreview) {
+        // TODO: Upload video to storage
+        inputVideoUrl = motionReferencePreview;
+      }
+
+      // Call generation API
+      const response = await fetch('/api/video/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          provider: currentModel.provider,
+          mode: modelSettings.mode || 'text_to_video',
+          prompt: prompt.trim(),
+          reference_images: referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
+          input_video: inputVideoUrl,
+          duration_seconds: modelSettings.duration_seconds || 5,
+          resolution: modelSettings.resolution || '1080p',
+          aspect_ratio: modelSettings.aspect_ratio || '16:9',
+          options: {
+            quality: modelSettings.quality,
+            style: modelSettings.style,
+            motion_strength: modelSettings.motion_strength,
+            camera_motion: modelSettings.camera_motion,
+            generate_audio: modelSettings.generate_audio,
+          },
+        }),
       });
-    } catch (error) {
-      toast.error('Ошибка генерации');
-    } finally {
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start generation');
+      }
+
+      const data = await response.json();
+      setGenerationId(data.id);
+      setGenerationStatus(data.status);
+      setEtaSeconds(data.eta_seconds);
+
+      toast.success('Видео поставлено в очередь!');
+
+      // Start polling for status
+      pollingIntervalRef.current = setInterval(() => {
+        pollGenerationStatus(data.id);
+      }, 3000); // Poll every 3 seconds
+
+      // Also poll immediately
+      setTimeout(() => pollGenerationStatus(data.id), 1000);
+
+    } catch (error: any) {
+      console.error('[VideoGenerator] Generation error:', error);
+      toast.error(error.message || 'Ошибка генерации');
       setIsGenerating(false);
+      setGenerationStatus('failed');
     }
-  }, [selectedModel, prompt, modelSettings, startFrame, motionReference, onGenerate]);
+  }, [selectedModel, currentModel, prompt, modelSettings, startFrame, motionReference, startFramePreview, motionReferencePreview, pollGenerationStatus]);
 
   // Calculate cost based on model and settings
   const calculateCost = useCallback(() => {
@@ -258,31 +376,74 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowModelSelector(false)}>
           <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-4">Выбор модели</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {FEATURED_MODELS.map((m) => {
-                const Icon = getModelIcon(m.id);
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedModel(m.id);
-                      setShowModelSelector(false);
-                    }}
-                    className={`p-4 rounded-xl border transition-all text-left ${
-                      selectedModel === m.id
-                        ? 'border-[#CDFF00] bg-[#CDFF00]/10'
-                        : 'border-white/10 hover:border-white/20'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <Icon size={32} />
-                      <div className="text-white text-sm font-semibold">{m.name}</div>
-                    </div>
-                    <div className="text-gray-400 text-xs">{m.shortLabel}</div>
-                  </button>
-                );
-              })}
+
+            {/* Standard Models */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-400 mb-3">Стандартные модели</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {STANDARD_MODELS.map((m) => {
+                  const Icon = getModelIcon(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setSelectedModel(m.id);
+                        setShowModelSelector(false);
+                      }}
+                      className={`p-4 rounded-xl border transition-all text-left ${
+                        selectedModel === m.id
+                          ? 'border-[#CDFF00] bg-[#CDFF00]/10'
+                          : 'border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Icon size={32} />
+                        <div className="text-white text-sm font-semibold">{m.name}</div>
+                      </div>
+                      <div className="text-gray-400 text-xs">{m.shortLabel}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Motion Control Section */}
+            {MOTION_CONTROL_MODEL && (
+              <div className="pt-4 border-t border-white/10">
+                <h4 className="text-sm font-semibold text-gray-400 mb-3">Продвинутые функции</h4>
+                <div className="grid grid-cols-1 gap-3">
+                  {(() => {
+                    const m = MOTION_CONTROL_MODEL;
+                    const Icon = getModelIcon(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedModel(m.id);
+                          setShowModelSelector(false);
+                        }}
+                        className={`p-4 rounded-xl border transition-all text-left ${
+                          selectedModel === m.id
+                            ? 'border-[#CDFF00] bg-[#CDFF00]/10'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <Icon size={32} />
+                          <div>
+                            <div className="text-white text-sm font-semibold">{m.name}</div>
+                            <div className="text-gray-400 text-xs mt-1">{m.shortLabel}</div>
+                          </div>
+                        </div>
+                        <div className="text-gray-500 text-xs mt-2">
+                          Передача движений из референсного видео на сгенерированное
+                        </div>
+                      </button>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -407,7 +568,8 @@ export function VideoGeneratorPanel({ onGenerate, onRatioChange }: VideoGenerato
         {isGenerating ? (
           <>
             <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-            Generating...
+            {generationStatus === 'queued' && 'В очереди...'}
+            {generationStatus === 'processing' && (etaSeconds ? `Генерация... ~${Math.ceil(etaSeconds / 60)} мин` : 'Обработка...')}
           </>
         ) : (
           <>

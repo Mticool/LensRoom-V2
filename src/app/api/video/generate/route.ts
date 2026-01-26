@@ -6,6 +6,8 @@ import { getModelById, type VideoModelConfig } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
+import { getKieClient } from '@/lib/api/kie-client';
+import { getOpenAIClient } from '@/lib/api/openai-client';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -161,15 +163,94 @@ export async function POST(request: NextRequest) {
     let providerJobId: string | undefined;
     let etaSeconds = 60;
 
-    // TODO: Implement actual provider API calls here
-    // For now, just return queued status
+    try {
+      // Route to appropriate provider
+      if (provider === 'kie_veo' || provider === 'kie_market') {
+        // KIE.ai API (Veo, Kling, Grok, WAN)
+        const kieClient = getKieClient();
 
-    // Update generation with provider job ID
-    if (providerJobId) {
+        // Map mode to KIE format
+        const kieMode = mode === 'text_to_video' ? 't2v'
+                      : mode === 'image_to_video' ? 'i2v'
+                      : mode === 'video_to_video' ? 'v2v'
+                      : 't2v';
+
+        // Prepare request with proper type casting
+        const kieRequest: import('@/lib/api/kie-client').GenerateVideoRequest = {
+          provider: provider as 'kie_veo' | 'kie_market',
+          model,
+          mode: kieMode,
+          prompt,
+          imageUrl: reference_images?.[0], // First reference image
+          imageUrls: reference_images, // All reference images for Veo
+          videoUrl: input_video,
+          duration: duration_seconds,
+          aspectRatio: aspect_ratio,
+          quality: options.quality || resolution,
+          resolution: resolution,
+          sound: options.generate_audio,
+          characterOrientation: input_video ? 'video' : (reference_images?.[0] ? 'image' : undefined),
+        };
+
+        const kieResponse = await kieClient.generateVideo(kieRequest);
+
+        if (kieResponse.id) {
+          providerJobId = kieResponse.id;
+          etaSeconds = kieResponse.estimatedTime || 120;
+        } else {
+          throw new Error('Provider did not return task ID');
+        }
+
+      } else if (provider === 'openai') {
+        // OpenAI Sora 2 API
+        // TODO: Implement when Sora 2 API is available
+        const openaiClient = getOpenAIClient();
+
+        // For now, throw error since Sora 2 API is not yet available
+        throw new Error('Sora 2 API is not yet available. Coming soon!');
+
+        // Future implementation:
+        // const soraResponse = await openaiClient.generateSoraVideo({
+        //   prompt,
+        //   duration: duration_seconds,
+        //   aspectRatio: aspect_ratio,
+        //   quality: options.quality,
+        // });
+        // providerJobId = soraResponse.id;
+        // etaSeconds = 180;
+
+      } else {
+        throw new Error(`Unknown provider: ${provider}`);
+      }
+
+      // Update generation with provider job ID
       await supabase
         .from('generations')
-        .update({ provider_job_id: providerJobId })
+        .update({
+          provider_job_id: providerJobId,
+          status: 'processing'
+        })
         .eq('id', generation.id);
+
+    } catch (providerError: any) {
+      console.error('[VideoGenerate] Provider API error:', providerError);
+
+      // Update generation with error
+      await supabase
+        .from('generations')
+        .update({
+          status: 'failed',
+          error_message: providerError.message || 'Provider API error'
+        })
+        .eq('id', generation.id);
+
+      return NextResponse.json(
+        {
+          error: providerError.message || 'Failed to queue generation',
+          id: generation.id
+        },
+        { status: 500 }
+      );
     }
 
     const response: VideoGenerateResponse = {
