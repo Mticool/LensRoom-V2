@@ -767,9 +767,7 @@ export function getModelsByType(type: ModelType): ModelConfig[] {
 
 export function getModelById(id: string): ModelConfig | undefined {
   // Backward-compatible aliases (older URLs/localStorage)
-  if (id === 'veo-3.1-fast' || id === 'veo-3.1-quality') {
-    id = 'veo-3.1';
-  }
+  // veo-3.1-fast is the actual model ID, no alias needed
   if (id === 'nano_banana') {
     id = 'nano-banana';
   }
