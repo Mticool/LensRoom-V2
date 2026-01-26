@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { Upload, Sparkles, Video, Image as ImageIcon, Plus, Camera, Info } from 'lucide-react';
+import { Upload, Sparkles, Video, Image as ImageIcon, Plus, Camera, Info, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { VIDEO_MODELS } from '@/config/models';
 import { getModelIcon } from '@/components/icons/model-icons';
@@ -17,10 +17,14 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
   const [activeTab, setActiveTab] = useState<Tab>('create');
   const [selectedModel, setSelectedModel] = useState('kling-2.6');
   const [showModelSelector, setShowModelSelector] = useState(false);
+  const [showDurationSelector, setShowDurationSelector] = useState(false);
+  const [showQualitySelector, setShowQualitySelector] = useState(false);
+  const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [enhanceOn, setEnhanceOn] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [duration, setDuration] = useState('5s');
+  const [quality, setQuality] = useState('720p');
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [sceneControlMode, setSceneControlMode] = useState<SceneControlMode>('image');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -173,7 +177,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
         <div className="flex-1 px-4 py-4 space-y-4">
           {/* Model Card */}
           <div
-            className="relative h-28 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 overflow-hidden cursor-pointer group"
+            className="relative h-32 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 overflow-hidden cursor-pointer group"
             onClick={() => setShowModelSelector(true)}
           >
             <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
@@ -185,10 +189,8 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 }}
                 className="self-end px-2.5 py-1 bg-white/15 backdrop-blur-sm rounded-md text-white text-[11px] font-medium hover:bg-white/25 transition-colors flex items-center gap-1"
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
                 Change
+                <ChevronRight className="w-3 h-3" />
               </button>
               <div>
                 <div className="text-[#D4FF00] text-xs font-bold uppercase tracking-wide mb-0.5">
@@ -296,7 +298,10 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
+                  <button
+                    onClick={() => setShowDurationSelector(true)}
+                    className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors"
+                  >
                     <div>
                       <div className="text-xs text-zinc-500 mb-1">Duration</div>
                       <div className="text-sm font-medium text-white">{duration}</div>
@@ -304,9 +309,12 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                     <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                  </div>
+                  </button>
 
-                  <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
+                  <button
+                    onClick={() => setShowAspectRatioSelector(true)}
+                    className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors"
+                  >
                     <div>
                       <div className="text-xs text-zinc-500 mb-1">Aspect Ratio</div>
                       <div className="text-sm font-medium text-white">{aspectRatio}</div>
@@ -314,7 +322,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                     <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                  </div>
+                  </button>
                 </div>
               </div>
             </>
@@ -367,15 +375,18 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
               </div>
 
               {/* Quality */}
-              <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
+              <button
+                onClick={() => setShowQualitySelector(true)}
+                className="w-full flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors"
+              >
                 <div>
                   <div className="text-xs text-zinc-500 mb-1">Quality</div>
-                  <div className="text-sm font-medium text-white">720p</div>
+                  <div className="text-sm font-medium text-white">{quality}</div>
                 </div>
                 <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </div>
+              </button>
 
               {/* Scene Control Mode */}
               <div className="space-y-3">
@@ -584,6 +595,103 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                   </button>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duration Selector Modal */}
+      {showDurationSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDurationSelector(false)}>
+          <div className="bg-[#161616] rounded-3xl border border-[#262626] p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-6">Select Duration</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {['4s', '5s', '6s', '8s', '10s', '15s', '30s'].map((dur) => (
+                <button
+                  key={dur}
+                  onClick={() => {
+                    setDuration(dur);
+                    setShowDurationSelector(false);
+                    toast.success(`Duration set to ${dur}`);
+                  }}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                    duration === dur
+                      ? 'border-[#D4FF00] bg-[#D4FF00]/5'
+                      : 'border-[#262626] hover:border-zinc-600'
+                  }`}
+                >
+                  <div className="text-white text-base font-semibold text-center">{dur}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quality Selector Modal */}
+      {showQualitySelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowQualitySelector(false)}>
+          <div className="bg-[#161616] rounded-3xl border border-[#262626] p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-6">Select Quality</h3>
+            <div className="space-y-3">
+              {[
+                { value: '720p', label: '720p', desc: 'Standard Definition' },
+                { value: '1080p', label: '1080p', desc: 'Full HD' },
+              ].map((qual) => (
+                <button
+                  key={qual.value}
+                  onClick={() => {
+                    setQuality(qual.value);
+                    setShowQualitySelector(false);
+                    toast.success(`Quality set to ${qual.label}`);
+                  }}
+                  className={`w-full p-4 rounded-2xl border transition-all text-left cursor-pointer ${
+                    quality === qual.value
+                      ? 'border-[#D4FF00] bg-[#D4FF00]/5'
+                      : 'border-[#262626] hover:border-zinc-600'
+                  }`}
+                >
+                  <div className="text-white text-base font-semibold">{qual.label}</div>
+                  <div className="text-zinc-500 text-xs mt-1">{qual.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aspect Ratio Selector Modal */}
+      {showAspectRatioSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAspectRatioSelector(false)}>
+          <div className="bg-[#161616] rounded-3xl border border-[#262626] p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-6">Select Aspect Ratio</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: '16:9', label: '16:9', icon: 'landscape' },
+                { value: '9:16', label: '9:16', icon: 'portrait' },
+                { value: '1:1', label: '1:1', icon: 'square' },
+              ].map((ratio) => (
+                <button
+                  key={ratio.value}
+                  onClick={() => {
+                    setAspectRatio(ratio.value);
+                    setShowAspectRatioSelector(false);
+                    toast.success(`Aspect ratio set to ${ratio.label}`);
+                  }}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                    aspectRatio === ratio.value
+                      ? 'border-[#D4FF00] bg-[#D4FF00]/5'
+                      : 'border-[#262626] hover:border-zinc-600'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`rounded border-2 ${
+                      aspectRatio === ratio.value ? 'border-[#D4FF00]' : 'border-zinc-600'
+                    } ${ratio.icon === 'landscape' ? 'w-12 h-8' : ratio.icon === 'portrait' ? 'w-8 h-12' : 'w-10 h-10'}`} />
+                    <div className="text-white text-sm font-semibold">{ratio.label}</div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
