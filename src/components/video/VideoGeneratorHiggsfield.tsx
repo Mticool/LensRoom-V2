@@ -131,12 +131,12 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
   return (
     <div className="flex h-screen bg-[#0A0A0A] text-white">
       {/* Sidebar */}
-      <div className="w-[350px] flex flex-col border-r border-[#262626] overflow-y-auto">
+      <div className="w-full max-w-[340px] flex flex-col border-r border-zinc-800 overflow-y-auto">
         {/* Tabs Switcher */}
-        <div className="flex items-center gap-6 px-6 pt-6 pb-4 border-b border-[#262626]">
+        <div className="flex items-center gap-6 px-4 pt-4 pb-3 border-b border-[#262626]">
           <button
             onClick={() => setActiveTab('create')}
-            className={`text-base font-semibold transition-colors relative pb-1 ${
+            className={`text-sm font-semibold transition-colors relative pb-1 ${
               activeTab === 'create' ? 'text-white' : 'text-zinc-500 hover:text-zinc-400'
             }`}
           >
@@ -147,7 +147,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
           </button>
           <button
             onClick={() => setActiveTab('edit')}
-            className={`text-base font-semibold transition-colors relative pb-1 ${
+            className={`text-sm font-semibold transition-colors relative pb-1 ${
               activeTab === 'edit' ? 'text-white' : 'text-zinc-500 hover:text-zinc-400'
             }`}
           >
@@ -158,7 +158,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
           </button>
           <button
             onClick={() => setActiveTab('motion')}
-            className={`text-base font-semibold transition-colors relative pb-1 ${
+            className={`text-sm font-semibold transition-colors relative pb-1 ${
               activeTab === 'motion' ? 'text-white' : 'text-zinc-500 hover:text-zinc-400'
             }`}
           >
@@ -170,31 +170,31 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
         </div>
 
         {/* Content */}
-        <div className="flex-1 px-6 py-6 space-y-6">
+        <div className="flex-1 px-4 py-4 space-y-4">
           {/* Model Card */}
           <div
-            className="relative h-32 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 overflow-hidden cursor-pointer group"
+            className="relative h-28 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 overflow-hidden cursor-pointer group"
             onClick={() => setShowModelSelector(true)}
           >
             <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
-            <div className="relative h-full p-4 flex flex-col justify-between">
+            <div className="relative h-full p-3 flex flex-col justify-between">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowModelSelector(true);
                 }}
-                className="self-end px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white text-xs font-medium hover:bg-white/30 transition-colors flex items-center gap-1.5"
+                className="self-end px-2.5 py-1 bg-white/15 backdrop-blur-sm rounded-md text-white text-[11px] font-medium hover:bg-white/25 transition-colors flex items-center gap-1"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
                 Change
               </button>
               <div>
-                <div className="text-[#D4FF00] text-sm font-bold uppercase tracking-wide mb-1">
+                <div className="text-[#D4FF00] text-xs font-bold uppercase tracking-wide mb-0.5">
                   {activeTab === 'create' ? 'GENERAL' : activeTab === 'motion' ? 'MOTION CONTROL' : 'KLING O1 EDIT'}
                 </div>
-                <div className="text-white text-lg font-semibold">{currentModel.name}</div>
+                <div className="text-white text-base font-semibold">{currentModel.name}</div>
               </div>
             </div>
           </div>
@@ -217,7 +217,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 />
                 <button
                   onClick={() => imageInputRef.current?.click()}
-                  className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-3 overflow-hidden"
+                  className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-3 overflow-hidden cursor-pointer"
                 >
                   {referenceImagePreview ? (
                     <img src={referenceImagePreview} alt="Reference" className="w-full h-full object-cover" />
@@ -259,14 +259,14 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
               </div>
 
               {/* Audio Toggle */}
-              <div className="flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626]">
+              <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626]">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-white">Audio</span>
                   <Info className="w-4 h-4 text-zinc-500" />
                 </div>
                 <button
                   onClick={() => setAudioEnabled(!audioEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                     audioEnabled ? 'bg-[#D4FF00]' : 'bg-[#262626]'
                   }`}
                 >
@@ -280,7 +280,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
 
               {/* Settings Grid */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
+                <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
                   <div>
                     <div className="text-xs text-zinc-500 mb-1">Model</div>
                     <div className="text-sm font-medium text-white flex items-center gap-2">
@@ -296,7 +296,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
+                  <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
                     <div>
                       <div className="text-xs text-zinc-500 mb-1">Duration</div>
                       <div className="text-sm font-medium text-white">{duration}</div>
@@ -306,7 +306,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                     </svg>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
+                  <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
                     <div>
                       <div className="text-xs text-zinc-500 mb-1">Aspect Ratio</div>
                       <div className="text-sm font-medium text-white">{aspectRatio}</div>
@@ -334,7 +334,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 />
                 <button
                   onClick={() => motionVideoInputRef.current?.click()}
-                  className="aspect-square rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-2 p-4"
+                  className="aspect-square rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-2 p-3 cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-full bg-[#262626] flex items-center justify-center">
                     <Camera className="w-5 h-5 text-zinc-500" />
@@ -354,7 +354,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 />
                 <button
                   onClick={() => characterImageInputRef.current?.click()}
-                  className="aspect-square rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-2 p-4"
+                  className="aspect-square rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-2 p-3 cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-full bg-[#262626] flex items-center justify-center">
                     <Plus className="w-5 h-5 text-zinc-500" />
@@ -367,7 +367,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
               </div>
 
               {/* Quality */}
-              <div className="flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
+              <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] cursor-pointer hover:border-zinc-500 transition-colors">
                 <div>
                   <div className="text-xs text-zinc-500 mb-1">Quality</div>
                   <div className="text-sm font-medium text-white">720p</div>
@@ -379,11 +379,11 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
 
               {/* Scene Control Mode */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626]">
+                <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626]">
                   <span className="text-sm font-medium text-white">Scene control mode</span>
                   <button
                     onClick={() => setSceneControlMode(sceneControlMode === 'video' ? 'image' : 'video')}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                       sceneControlMode === 'image' ? 'bg-[#D4FF00]' : 'bg-[#262626]'
                     }`}
                   >
@@ -399,7 +399,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 <div className="flex items-center gap-2 p-1 bg-[#161616] rounded-xl border border-[#262626]">
                   <button
                     onClick={() => setSceneControlMode('video')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                       sceneControlMode === 'video'
                         ? 'bg-[#262626] text-white'
                         : 'text-zinc-500 hover:text-zinc-400'
@@ -410,7 +410,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                   </button>
                   <button
                     onClick={() => setSceneControlMode('image')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                       sceneControlMode === 'image'
                         ? 'bg-[#262626] text-white'
                         : 'text-zinc-500 hover:text-zinc-400'
@@ -427,7 +427,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
               </div>
 
               {/* Advanced Settings */}
-              <button className="w-full flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626] hover:border-zinc-500 transition-colors">
+              <button className="w-full flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626] hover:border-zinc-500 transition-colors cursor-pointer">
                 <span className="text-sm font-medium text-white">Advanced settings</span>
                 <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -451,7 +451,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                 />
                 <button
                   onClick={() => editVideoInputRef.current?.click()}
-                  className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-3"
+                  className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-3 cursor-pointer"
                 >
                   {editVideoPreview ? (
                     <video src={editVideoPreview} className="w-full h-full object-cover rounded-2xl" controls />
@@ -475,7 +475,7 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                   <label className="text-sm font-medium text-white">Upload images & elements</label>
                   <span className="text-xs text-zinc-500">Optional</span>
                 </div>
-                <button className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-3">
+                <button className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#262626] hover:border-zinc-600 transition-colors bg-[#161616] flex flex-col items-center justify-center gap-3 cursor-pointer">
                   <div className="w-12 h-12 rounded-full bg-[#262626] flex items-center justify-center">
                     <Plus className="w-6 h-6 text-zinc-500" />
                   </div>
@@ -499,11 +499,11 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
               </div>
 
               {/* Auto Settings */}
-              <div className="flex items-center justify-between p-4 bg-[#161616] rounded-2xl border border-[#262626]">
+              <div className="flex items-center justify-between p-3 bg-[#161616] rounded-2xl border border-[#262626]">
                 <span className="text-sm font-medium text-white">Auto settings</span>
                 <button
                   onClick={() => setAudioEnabled(!audioEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                     audioEnabled ? 'bg-[#D4FF00]' : 'bg-[#262626]'
                   }`}
                 >
@@ -519,11 +519,11 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
         </div>
 
         {/* Generate Button */}
-        <div className="p-6 border-t border-[#262626]">
+        <div className="p-4 border-t border-[#262626]">
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="w-full py-4 bg-[#D4FF00] text-black font-bold text-base rounded-2xl hover:bg-[#c4ef00] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
+            className="w-full py-3.5 bg-[#D4FF00] text-black font-bold text-base rounded-2xl hover:bg-[#c4ef00] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
           >
             {isGenerating ? (
               <>
@@ -570,15 +570,15 @@ export function VideoGeneratorHiggsfield({ onGenerate }: VideoGeneratorHiggsfiel
                       setSelectedModel(m.id);
                       setShowModelSelector(false);
                     }}
-                    className={`p-5 rounded-2xl border transition-all text-left ${
+                    className={`p-4 rounded-2xl border transition-all text-left cursor-pointer ${
                       selectedModel === m.id
                         ? 'border-[#D4FF00] bg-[#D4FF00]/5'
                         : 'border-[#262626] hover:border-zinc-600'
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <Icon size={36} />
-                      <div className="text-white text-base font-semibold">{m.name}</div>
+                      <Icon size={32} />
+                      <div className="text-white text-sm font-semibold">{m.name}</div>
                     </div>
                     <div className="text-zinc-500 text-xs">{m.shortLabel}</div>
                   </button>
