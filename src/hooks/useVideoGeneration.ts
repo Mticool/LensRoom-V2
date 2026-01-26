@@ -292,8 +292,22 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
           throw new Error(data.error || 'Failed to start generation');
         }
 
-        // Start polling
         setJobId(data.jobId);
+
+        // Check if video already completed (LaoZhang sync response)
+        const videoUrl = data.resultUrl || data.videoUrl || data.results?.[0]?.url;
+        if (data.status === 'completed' && videoUrl) {
+          console.log('[useVideoGeneration] Video ready immediately:', videoUrl);
+          setIsGenerating(false);
+          setStatus('success');
+          setProgress(100);
+          setResultUrl(videoUrl);
+          options.onSuccess?.(videoUrl);
+          toast.success('Видео готово!');
+          return;
+        }
+
+        // Start polling for async providers (KIE)
         setStatus('queued');
         toast.loading('Генерация началась...', { id: 'video-gen' });
 
