@@ -77,9 +77,10 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
     }
     
     // Priority 7: Use download endpoint if we have an ID but no direct URL
+    // Use proxy=1 to get direct image data instead of redirect
     if (gen.id && gen.status === 'success') {
       // Try preview first, fallback to original
-      return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview`;
+      return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
     }
     
     return '';
@@ -90,15 +91,25 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
     return (generations || []).map((gen: any): GenerationResult => {
       const assetUrl = getAssetUrl(gen);
       
-      // For previewUrl, prefer preview_url, then assetUrl, then download endpoint
+      // For previewUrl, prefer preview_url, then assetUrl, then download endpoint with proxy
       let previewUrl = gen.preview_url || assetUrl;
       if (!previewUrl && gen.id && gen.status === 'success') {
-        // Use download endpoint as fallback
-        previewUrl = `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview`;
+        // Use download endpoint with proxy=1 to get direct image data
+        previewUrl = `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
       }
       
-      // If we still don't have a URL but have an ID, use download endpoint for original
-      const finalUrl = assetUrl || (gen.id && gen.status === 'success' ? `/api/generations/${encodeURIComponent(gen.id)}/download?kind=original` : '');
+      // If we still don't have a URL but have an ID, use download endpoint with proxy for original
+      // Also ensure we have at least some URL for display
+      let finalUrl = assetUrl;
+      if (!finalUrl && gen.id && gen.status === 'success') {
+        // Try original with proxy first
+        finalUrl = `/api/generations/${encodeURIComponent(gen.id)}/download?kind=original&proxy=1`;
+      }
+      
+      // If previewUrl is empty but we have finalUrl, use it
+      if (!previewUrl && finalUrl) {
+        previewUrl = finalUrl;
+      }
       
       return {
         id: gen.id,
@@ -113,10 +124,13 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
           negativePrompt: gen.negative_prompt || undefined,
         } as GenerationSettings,
         timestamp: new Date(gen.created_at).getTime(),
-        previewUrl: previewUrl,
+        previewUrl: previewUrl || finalUrl, // Ensure previewUrl is always set if we have any URL
         status: gen.status,
       };
-    }).filter((r) => r.status === 'success' && (r.url || r.id)); // Allow items with ID even if URL is not yet available
+    }).filter((r) => {
+      // Only show items with success status and either URL or ID (for download endpoint)
+      return r.status === 'success' && (r.url || r.previewUrl || r.id);
+    });
   }, [getAssetUrl]);
 
   const fetchHistory = useCallback(async () => {

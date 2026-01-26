@@ -719,9 +719,12 @@ html.tg-webview body {
 }
 
 /* Gallery grid styles – Higgsfield reference (higgsfield-effects-gallery.html) */
-.higgs-grid {
+/* Base styles - 4 columns by default for desktop */
+.higgs-grid,
+div.higgs-grid,
+[class*="higgs-grid"] {
   display: grid !important;
-  gap: 16px;
+  gap: 16px !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 
@@ -734,15 +737,29 @@ html.tg-webview body {
   margin-right: auto;
 }
 
-/* Higgsfield breakpoints: 4 → 3 → 2 → 1 columns */
-@media (max-width: 1024px) {
-  .higgs-grid {
+/* Desktop (≥1025px) - explicitly set 4 columns with higher specificity */
+@media (min-width: 1025px) {
+  .higgs-grid,
+  div.higgs-grid,
+  [class*="higgs-grid"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Tablet (769px - 1024px) - 3 columns */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .higgs-grid,
+  div.higgs-grid,
+  [class*="higgs-grid"] {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 }
 
-@media (max-width: 768px) {
-  .higgs-grid {
+/* Mobile (481px - 768px) - 2 columns */
+@media (min-width: 481px) and (max-width: 768px) {
+  .higgs-grid,
+  div.higgs-grid,
+  [class*="higgs-grid"] {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
   .feed-grid {
@@ -751,8 +768,11 @@ html.tg-webview body {
   }
 }
 
+/* Small mobile (≤480px) - 1 column */
 @media (max-width: 480px) {
-  .higgs-grid {
+  .higgs-grid,
+  div.higgs-grid,
+  [class*="higgs-grid"] {
     grid-template-columns: 1fr !important;
   }
   .feed-grid {

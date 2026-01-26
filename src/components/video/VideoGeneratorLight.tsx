@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Play } from 'lucide-react';
-import { VideoGeneratorPanel } from './VideoGeneratorPanel';
+import { VideoGeneratorHiru } from './VideoGeneratorHiru';
 
 type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3';
 
@@ -77,21 +77,21 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
         <p className="text-base text-gray-400">Создавайте профессиональные видео с помощью топовых нейросетей</p>
       </div>
 
-      {/* Main Content Grid */}
+      {/* Main Content - Sidebar Layout */}
       <div className="max-w-[1600px] mx-auto px-6 pb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Generator Panel */}
-          <div className="lg:col-span-4" style={{ zIndex: 10 }}>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left Column: Generator Panel - Fixed Width */}
+          <div className="lg:w-[380px] lg:flex-shrink-0" style={{ zIndex: 10 }}>
             <div className="sticky top-24">
-              <VideoGeneratorPanel 
+              <VideoGeneratorHiru 
                 onGenerate={handleGenerate}
                 onRatioChange={handleRatioChange}
               />
             </div>
           </div>
 
-          {/* Right Column: Player & History */}
-          <div className="lg:col-span-8 space-y-6">
+          {/* Right Column: Player & History - Flexible */}
+          <div className="flex-1 space-y-6">
             {/* Video Player - Adaptive Aspect Ratio */}
             <div className="flex items-start justify-center">
               <div className={`w-full ${getMaxWidth()}`}>

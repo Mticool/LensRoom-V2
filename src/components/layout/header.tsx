@@ -28,14 +28,14 @@ const MODELS = {
     { id: "z-image", name: "Z-image", badge: "Эконом", desc: "Самая дешёвая" },
   ],
   video: [
-    { id: "veo-3.1", name: "Veo 3.1", badge: "Google", hot: true, desc: "Аудио + высокое качество" },
-    { id: "kling-motion-control", name: "Motion Control", badge: "Motion", new: true, desc: "Перенос движений" },
-    { id: "kling", name: "Kling AI", badge: "Trending", desc: "Turbo/Audio/Pro режимы" },
-    { id: "grok-video", name: "Grok Video", badge: "xAI", hot: true, desc: "T2V + I2V + Аудио" },
-    { id: "sora-2", name: "Sora 2", badge: "OpenAI", desc: "Баланс цена/качество" },
-    { id: "sora-2-pro", name: "Sora 2 Pro", badge: "Premium", desc: "1080p до 15 сек" },
-    { id: "kling-o1", name: "Kling O1", badge: "FAL.ai", desc: "First→Last кадры" },
-    { id: "wan", name: "WAN AI", desc: "Высокое разрешение" },
+    { id: "veo-3.1-fast", name: "Veo 3.1 Fast", badge: "Google", hot: true, desc: "4-8с • Fast • 3 Refs" },
+    { id: "kling-2.1", name: "Kling 2.1", badge: "Master", desc: "5-10с • Ultra качество" },
+    { id: "kling-2.5", name: "Kling 2.5", badge: "Turbo", desc: "5-10с • Быстрая генерация" },
+    { id: "kling-2.6", name: "Kling 2.6", badge: "Audio", new: true, desc: "5-10с • С аудио" },
+    { id: "kling-motion-control", name: "Motion Control", badge: "Motion", desc: "Перенос движений" },
+    { id: "grok-video", name: "Grok Video", badge: "xAI", hot: true, desc: "6-30с • Стили • Audio" },
+    { id: "sora-2", name: "Sora 2", badge: "OpenAI", desc: "10-15с • T2V/I2V" },
+    { id: "wan-2.6", name: "WAN 2.6", badge: "Ultra", desc: "5-15с • Камера • V2V" },
   ],
   audio: [
     { id: "suno", name: "Suno AI", badge: "Music", desc: "Генерация музыки" },
@@ -135,10 +135,10 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                 const isActive = item.href && (pathname === item.href || pathname.startsWith(item.href + '/'));
                 
                 if (item.dropdown) {
-                  const isDropdownOpen = activeDropdown === item.dropdown;
-                  return (
-                    <div key={item.name} className="relative">
-                      <button
+            const isDropdownOpen = activeDropdown === item.dropdown;
+            return (
+              <div key={item.name || `dropdown-${index}`} className="relative">
+                <button
                         onClick={() => setActiveDropdown(isDropdownOpen ? null : item.dropdown!)}
                         className={cn(
                           "px-4 py-2 text-[14px] font-medium transition-all duration-200 rounded-[10px] flex items-center gap-1.5",

@@ -528,7 +528,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiId: 'veo-3.1-fast',
     type: 'video',
     provider: 'kie_veo',
-    description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений.',
+    description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений, start/end frames.',
     rank: 1,
     featured: true,
     speed: 'fast',
@@ -536,7 +536,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: false,
     supportsStartEnd: false,
-    supportsFirstLastFrame: false,
+    supportsFirstLastFrame: true,
     maxReferenceImages: 3,
     pricing: {
       '4': 50,
@@ -559,13 +559,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'kling-2.1/image-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Kling 2.1 Master — высокое качество генерации видео. Text-to-video и image-to-video.',
+    description: 'Kling 2.1 Master — высокое качество генерации видео. Text-to-video, image-to-video, start/end frames.',
     rank: 2,
     featured: true,
     speed: 'medium',
     quality: 'ultra',
     supportsI2v: true,
     supportsAudio: false,
+    supportsFirstLastFrame: true,
     pricing: {
       '5': 200,
       '10': 400,
@@ -586,13 +587,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'kling-2.5-turbo/image-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Kling 2.5 Turbo — быстрая генерация с хорошим балансом скорости и качества.',
+    description: 'Kling 2.5 Turbo — быстрая генерация с хорошим балансом скорости и качества. Поддержка start/end frames.',
     rank: 3,
     featured: true,
     speed: 'fast',
     quality: 'high',
     supportsI2v: true,
     supportsAudio: false,
+    supportsFirstLastFrame: true,
     pricing: {
       '5': 105,
       '10': 210,
@@ -613,7 +615,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'kling-2.6/image-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Kling 2.6 Standard — отличная динамика и стабильность. Поддерживает генерацию звука.',
+    description: 'Kling 2.6 Standard — отличная динамика и стабильность. Поддерживает генерацию звука и start/end frames.',
     rank: 4,
     featured: true,
     speed: 'medium',
@@ -621,6 +623,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: true,
     supportsAudioGeneration: true,
+    supportsFirstLastFrame: true,
     pricing: {
       '5': { no_audio: 105, audio: 135 },
       '10': { no_audio: 210, audio: 270 },
@@ -666,7 +669,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiId: 'grok-imagine/text-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Grok Video от xAI — создаёт видео с синхронизированным звуком. Поддерживает style transfer. 6 стилей на выбор.',
+    description: 'Grok Video от xAI — создаёт видео с синхронизированным звуком. Поддерживает style transfer, start/end frames. 6 стилей на выбор.',
     rank: 6,
     featured: true,
     speed: 'fast',
@@ -674,6 +677,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: true,
     supportsStartEnd: false,
+    supportsFirstLastFrame: false, // Grok uses simple I2V, not start/end frames
     supportsStyleTransfer: true,
     supportsAudioGeneration: true,
     styleOptions: ['realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'],
@@ -691,14 +695,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'NEW',
   },
 
-  // === 7. SORA 2 - OpenAI ===
+  // === 7. SORA 2 - OpenAI via Kie.ai ===
   {
     id: 'sora-2',
     name: 'Sora 2',
-    apiId: 'sora-2',
+    apiId: 'sora-2-pro', // Kie.ai Market model ID
     type: 'video',
-    provider: 'openai',
-    description: 'OpenAI Sora 2 — универсальная генерация с балансом качества и скорости. Text-to-video, image-to-video.',
+    provider: 'kie_market', // Migrated from 'openai' to 'kie_market'
+    description: 'OpenAI Sora 2 через Kie.ai — универсальная генерация с балансом качества и скорости. Text-to-video, image-to-video.',
     rank: 7,
     featured: true,
     speed: 'medium',

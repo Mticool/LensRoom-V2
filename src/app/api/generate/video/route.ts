@@ -149,6 +149,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate start/end frames support
+    if ((startImage || endImage) && !modelInfo.supportsFirstLastFrame) {
+      return NextResponse.json(
+        { error: `Model '${modelInfo.name}' does not support start/end frames` },
+        { status: 400 }
+      );
+    }
+
     // Require start image for i2v/start_end (for models that expose those modes)
     if ((mode === "i2v" || mode === "start_end") && !referenceImage && !startImage) {
       return NextResponse.json(

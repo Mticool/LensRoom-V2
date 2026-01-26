@@ -29,6 +29,7 @@ export const OptimizedImage = memo(function OptimizedImage({
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [retryUrl, setRetryUrl] = useState<string | null>(null);
   
   const handleLoad = () => {
     setIsLoaded(true);
@@ -37,6 +38,23 @@ export const OptimizedImage = memo(function OptimizedImage({
   
   const handleError = () => {
     console.warn('[OptimizedImage] Failed to load:', src?.substring(0, 100));
+    
+    // If URL is a download endpoint without proxy, try with proxy
+    if (src && src.includes('/api/generations/') && src.includes('/download') && !src.includes('proxy=1')) {
+      const newUrl = src.includes('?') ? `${src}&proxy=1` : `${src}?proxy=1`;
+      setRetryUrl(newUrl);
+      setHasError(false); // Reset error to try again
+      return;
+    }
+    
+    // If URL is a download endpoint with proxy, try without proxy (fallback to redirect)
+    if (src && src.includes('/api/generations/') && src.includes('/download') && src.includes('proxy=1')) {
+      const newUrl = src.replace('&proxy=1', '').replace('?proxy=1', '');
+      setRetryUrl(newUrl);
+      setHasError(false);
+      return;
+    }
+    
     setHasError(true);
   };
   
@@ -58,6 +76,9 @@ export const OptimizedImage = memo(function OptimizedImage({
     );
   }
   
+  // Use retry URL if available, otherwise use original src
+  const imageSrc = retryUrl || src;
+  
   // Always use simple img tag for reliability (Next.js Image has issues with external URLs)
   return (
     <>
@@ -66,7 +87,7 @@ export const OptimizedImage = memo(function OptimizedImage({
         <div className="absolute inset-0 bg-[var(--surface2)] animate-pulse" />
       )}
       <img
-        src={src}
+        src={imageSrc}
         alt={alt}
         className={`w-full h-full object-cover ${className} transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         loading={priority ? 'eager' : 'lazy'}
@@ -74,6 +95,7 @@ export const OptimizedImage = memo(function OptimizedImage({
         onLoad={handleLoad}
         onError={handleError}
         style={{ objectFit: 'cover' }}
+        key={imageSrc} // Force re-render when URL changes
       />
     </>
   );
