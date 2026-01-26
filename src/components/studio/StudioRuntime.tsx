@@ -896,6 +896,43 @@ export function StudioRuntime({
       invalidateCached("generations:");
       try { window.dispatchEvent(new CustomEvent("generations:refresh")); } catch {}
 
+      // Check if video generation already completed (e.g., LaoZhang sync response)
+      if (data.status === 'completed' && (data.resultUrl || data.videoUrl || data.results?.[0]?.url)) {
+        const url = data.resultUrl || data.videoUrl || data.results?.[0]?.url;
+        const job: ActiveJob = {
+          jobId,
+          kind: "video",
+          provider: data?.provider,
+          modelName: modelInfo.name,
+          createdAt: Date.now(),
+          status: "success",
+          progress: 100,
+          resultUrls: [url],
+          opened: false,
+        };
+        setActiveJobs((prev) => [job, ...prev]);
+        setFocusedJobId(jobId);
+        setResultUrls([url]);
+        setStatus("success");
+        setProgress(100);
+        setIsStarting(false);
+        
+        // Refresh library
+        invalidateCached("generations:");
+        try { window.dispatchEvent(new CustomEvent("generations:refresh")); } catch {}
+        
+        // Show success notification
+        toast.success("Видео готово! ✅", {
+          description: "Сохранено в библиотеку",
+          duration: 4000,
+          action: {
+            label: "Открыть",
+            onClick: () => router.push("/library"),
+          },
+        });
+        return;
+      }
+
       const job: ActiveJob = {
         jobId,
         kind: "video",
