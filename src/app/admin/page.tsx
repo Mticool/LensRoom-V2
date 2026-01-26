@@ -27,6 +27,15 @@ import {
   ArrowDownRight,
   Calendar,
   BarChart3,
+  UserCog,
+  FileText,
+  Handshake,
+  Wallet,
+  ClipboardList,
+  Share2,
+  Tag,
+  Coins,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -602,11 +611,20 @@ export default function AdminDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
             <QuickLink href="/admin/users" icon={Users} label="Пользователи" />
             <QuickLink href="/admin/sales" icon={CreditCard} label="Продажи" />
+            <QuickLink href="/admin/managers" icon={UserCog} label="Менеджеры" />
             <QuickLink href="/admin/gallery" icon={ImageIcon} label="Галерея" />
-            <QuickLink href="/admin/promocodes" icon={Star} label="Промокоды" />
+            <QuickLink href="/admin/styles" icon={Star} label="Стили AI" />
+            <QuickLink href="/admin/articles" icon={FileText} label="Статьи" />
+            <QuickLink href="/admin/promocodes" icon={Tag} label="Промокоды" />
+            <QuickLink href="/admin/broadcast" icon={Send} label="Рассылки" />
+            <QuickLink href="/admin/referrals" icon={Share2} label="Рефералы" />
+            <QuickLink href="/admin/partners" icon={Handshake} label="Партнёры" />
+            <QuickLink href="/admin/affiliate-earnings" icon={Wallet} label="Заработки" />
+            <QuickLink href="/admin/waitlist" icon={ClipboardList} label="Лист ожидания" />
+            <QuickLink href="/admin/credits" icon={Coins} label="Начисление ⭐" />
           </div>
         </CardContent>
       </Card>

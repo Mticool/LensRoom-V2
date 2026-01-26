@@ -72,30 +72,45 @@ export async function GET(request: NextRequest) {
       .filter((r) => r.reward_type === "stars")
       .reduce((sum, r) => sum + r.amount, 0);
     
-    // Get top referrers
-    const topReferrers = await safeSelect<{ referrer_user_id: string; profiles: any }>(
+    // Get top referrers: count by referrer_user_id, then resolve names via telegram_profiles
+    const attributions = await safeSelect<{ referrer_user_id: string }>(
       "referral_attributions",
-      "referrer_user_id, profiles!referral_attributions_referrer_user_id_fkey(display_name, username)",
-      { limit: 1000 }
+      "referrer_user_id",
+      { limit: 5000 }
     );
-    
-    const referrerCounts = topReferrers.reduce((acc: Record<string, number>, a) => {
-      acc[a.referrer_user_id] = (acc[a.referrer_user_id] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const topReferrersList = Object.entries(referrerCounts)
+    const referrerCounts: Record<string, number> = {};
+    for (const a of attributions) {
+      const id = a.referrer_user_id;
+      if (id) referrerCounts[id] = (referrerCounts[id] || 0) + 1;
+    }
+    const topIds = Object.entries(referrerCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
-      .map((entry) => {
-        const [refUserId, count] = entry;
-        const refProfile = topReferrers.find((r) => r.referrer_user_id === refUserId)?.profiles;
-        return {
-          userId: refUserId,
-          displayName: refProfile?.display_name || refProfile?.username || "Unknown",
-          referralsCount: count,
-        };
-      });
+      .map(([id]) => id);
+    let profileMap: Record<string, { display_name: string; username?: string }> = {};
+    if (topIds.length > 0) {
+      try {
+        const { data: profiles } = await supabase
+          .from("telegram_profiles")
+          .select("auth_user_id, first_name, last_name, telegram_username")
+          .in("auth_user_id", topIds);
+        for (const p of profiles || []) {
+          const aid = (p as any).auth_user_id;
+          const name = [(p as any).first_name, (p as any).last_name].filter(Boolean).join(" ").trim();
+          if (aid) profileMap[aid] = { display_name: name || (p as any).telegram_username || "—", username: (p as any).telegram_username };
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    const topReferrersList = topIds.map((refUserId) => {
+      const p = profileMap[refUserId];
+      return {
+        userId: refUserId,
+        displayName: p?.display_name || p?.username || "Unknown",
+        referralsCount: referrerCounts[refUserId] || 0,
+      };
+    });
     
     // Get affiliate stats
     const totalAffiliateApps = await safeCount("affiliate_applications");

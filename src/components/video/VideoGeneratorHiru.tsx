@@ -5,6 +5,8 @@ import { Sparkles, ChevronDown, Info, X, Check, Upload, Image as ImageIcon, Vide
 import { toast } from 'sonner';
 import { VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { VIDEO_MODELS_CONFIG, getDefaultVideoSettings } from '@/config/video-models-config';
+import { VIDEO_MODELS as CAPABILITY_MODELS, getModelCapability, getDefaultsForModel, getCapabilitySummary } from '@/lib/videoModels/capabilities';
+import type { ModelCapability } from '@/lib/videoModels/schema';
 
 // Gradient backgrounds for each model
 const MODEL_GRADIENTS: Record<string, string> = {
@@ -127,18 +129,31 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   const currentGradient = MODEL_GRADIENTS[selectedModel] || 'from-blue-600 to-purple-600';
   const modelConfig = VIDEO_MODELS_CONFIG[selectedModel];
   
+  // NEW: Get capability-based config
+  const capability = getModelCapability(selectedModel);
+  
   // Update settings when model changes
   useEffect(() => {
-    if (modelConfig) {
+    if (capability) {
+      const defaults = getDefaultsForModel(selectedModel);
+      if (defaults) {
+        setDuration(defaults.durationSec);
+        setQuality(defaults.quality || '720p');
+        setAspectRatio(defaults.aspectRatio);
+      }
+    } else if (modelConfig) {
       const defaults = getDefaultVideoSettings(selectedModel);
       if (defaults.duration_seconds) setDuration(defaults.duration_seconds);
       if (defaults.resolution) setQuality(defaults.resolution);
       if (defaults.aspect_ratio) setAspectRatio(defaults.aspect_ratio);
     }
-  }, [selectedModel, modelConfig]);
+  }, [selectedModel, modelConfig, capability]);
   
-  // Get available options for current model
+  // Get available options for current model (NEW: capability-driven)
   const getQualityOptions = () => {
+    if (capability?.supportedQualities) {
+      return capability.supportedQualities.map(q => ({ value: q, label: q.toUpperCase() }));
+    }
     if (!currentModel) return [{ value: '720p', label: '720p' }, { value: '1080p', label: '1080p' }];
     if (currentModel.resolutionOptions) {
       return currentModel.resolutionOptions.map(res => ({ value: res, label: res }));
@@ -147,6 +162,9 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   };
 
   const getAspectRatioOptions = () => {
+    if (capability?.supportedAspectRatios) {
+      return capability.supportedAspectRatios.map(ar => ({ value: ar, label: ar }));
+    }
     if (!currentModel) return [{ value: '16:9', label: '16:9' }, { value: '9:16', label: '9:16' }];
     return currentModel.aspectRatios.map(ratio => ({ value: ratio, label: ratio }));
   };
@@ -157,6 +175,9 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   };
 
   const getDurationOptions = () => {
+    if (capability?.supportedDurationsSec) {
+      return capability.supportedDurationsSec.map(dur => ({ value: dur, label: `${dur}s` }));
+    }
     if (!currentModel) return [{ value: 8, label: '8s' }];
     return currentModel.durationOptions.map(dur => ({
       value: typeof dur === 'number' ? dur : parseInt(dur),
@@ -164,12 +185,23 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
     }));
   };
   
-  // Check what features current model supports
-  const supportsStartEndFrames = currentModel?.supportsFirstLastFrame || false;
-  const supportsReferenceImages = (currentModel?.maxReferenceImages || 0) > 0;
-  const supportsI2v = currentModel?.supportsI2v || false;
-  const hasResolutionOptions = (currentModel?.resolutionOptions?.length || 0) > 0;
-  const supportsAudioGeneration = currentModel?.supportsAudioGeneration || false;
+  // Check what features current model supports (NEW: capability-driven)
+  // If capability exists, use ONLY capability data (no fallback to old config)
+  const supportsStartEndFrames = capability 
+    ? (capability.supportsStartEndFrames || false)
+    : (currentModel?.supportsFirstLastFrame || false);
+  const supportsReferenceImages = capability
+    ? (capability.supportsReferenceImages || false)
+    : ((currentModel?.maxReferenceImages || 0) > 0);
+  const supportsI2v = capability
+    ? capability.supportedModes.includes('i2v')
+    : (currentModel?.supportsI2v || false);
+  const hasResolutionOptions = capability
+    ? ((capability.supportedQualities?.length || 0) > 0)
+    : ((currentModel?.resolutionOptions?.length || 0) > 0);
+  const supportsAudioGeneration = capability
+    ? (capability.supportsSound || false)
+    : (currentModel?.supportsAudioGeneration || false);
   
   // Simple I2V input (no tabs): Grok, Sora
   const useSimpleImageInput = ['grok-video', 'sora-2'].includes(selectedModel) && supportsI2v;
@@ -529,13 +561,20 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
                 onChange={handleAspectRatioChange}
               />
               
-              {/* Duration */}
-              <Dropdown
-                label="Длина"
-                value={duration}
-                options={getDurationOptions()}
-                onChange={setDuration}
-              />
+              {/* Duration - locked if only one option, dropdown otherwise */}
+              {capability?.fixedDuration || getDurationOptions().length === 1 ? (
+                <div className="flex-1 p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Длина</div>
+                  <div className="text-[13px] font-medium text-white">{duration}s (фиксировано)</div>
+                </div>
+              ) : (
+                <Dropdown
+                  label="Длина"
+                  value={duration}
+                  options={getDurationOptions()}
+                  onChange={setDuration}
+                />
+              )}
             </div>
           </>
         )}

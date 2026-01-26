@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { getModelById } from "@/config/models";
 import { STUDIO_VIDEO_MODELS } from "@/config/studioModels";
+import { getModelCapability } from "@/lib/videoModels/capabilities";
+import type { ModelCapability } from "@/lib/videoModels/schema";
 
 interface VideoGeneratorBottomSheetProps {
   modelId: string;

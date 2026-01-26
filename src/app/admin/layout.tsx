@@ -17,6 +17,11 @@ import {
   Settings,
   LogOut,
   Send,
+  UserCog,
+  FileText,
+  Handshake,
+  Wallet,
+  ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -29,6 +34,7 @@ const NAV_GROUPS = [
       { href: "/admin", label: "Аналитика", icon: LayoutDashboard },
       { href: "/admin/users", label: "Пользователи", icon: Users },
       { href: "/admin/sales", label: "Продажи", icon: CreditCard },
+      { href: "/admin/managers", label: "Менеджеры", icon: UserCog },
     ],
   },
   {
@@ -36,6 +42,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/gallery", label: "Галерея", icon: FileImage },
       { href: "/admin/styles", label: "Стили AI", icon: Star, badge: "AI" },
+      { href: "/admin/articles", label: "Статьи", icon: FileText },
     ],
   },
   {
@@ -44,6 +51,9 @@ const NAV_GROUPS = [
       { href: "/admin/broadcast", label: "Рассылки", icon: Send, badge: "NEW" },
       { href: "/admin/promocodes", label: "Промокоды", icon: Tag },
       { href: "/admin/referrals", label: "Рефералы", icon: Share2 },
+      { href: "/admin/partners", label: "Партнёры", icon: Handshake },
+      { href: "/admin/affiliate-earnings", label: "Заработки партнёров", icon: Wallet },
+      { href: "/admin/waitlist", label: "Лист ожидания", icon: ClipboardList },
       { href: "/admin/credits", label: "Начисление ⭐", icon: Coins },
     ],
   },

@@ -19,6 +19,9 @@ import { getCreditBalance, deductCredits } from "@/lib/credits/split-credits";
 import { refundCredits } from "@/lib/credits/refund";
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 import { resolveVideoAspectRatio, logVideoAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
+import { VideoGenerationRequestSchema, validateAgainstCapability } from '@/lib/videoModels/schema';
+import { getModelCapability } from '@/lib/videoModels/capabilities';
+import { z } from 'zod';
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 export const maxDuration = 60; // 60 seconds timeout
@@ -66,6 +69,86 @@ export async function POST(request: NextRequest) {
       qualityTier, // Kling: 'standard' | 'pro' | 'master'
       referenceImages, // Veo 3.1: array of up to 3 reference images
     } = body;
+    
+    // === NEW: STRICT ZOD + CAPABILITY VALIDATION ===
+    // Try to map legacy model IDs to capability model IDs
+    const modelIdForCapability = 
+      model === 'veo-3.1-fast' ? 'veo3_1_fast' :
+      model === 'kling-2.6' ? 'kling_2_6' :
+      model === 'kling-2.5' ? 'kling_2_5' :
+      model === 'kling-2.1' ? 'kling_2_1' :
+      model === 'grok-video' ? 'grok_video' :
+      model === 'sora-2' ? 'sora_2' :
+      model === 'wan-2.6' ? 'wan_2_6' :
+      model === 'kling-motion-control' ? 'kling_2_6_motion_control' :
+      model;
+    
+    // Get capability config
+    const capability = getModelCapability(modelIdForCapability);
+    
+    // NEW: Validate with Zod schema if capability exists
+    if (capability) {
+      try {
+        // Build validation request object
+        const validationRequest = {
+          modelId: modelIdForCapability,
+          mode: mode,
+          prompt: prompt || '',
+          negativePrompt,
+          aspectRatio: aspectRatioFromBody || capability.supportedAspectRatios[0],
+          durationSec: duration || capability.supportedDurationsSec[0],
+          quality: quality || resolution,
+          inputImage: referenceImage || startImage,
+          referenceImages,
+          referenceVideo: referenceVideo || v2vVideoUrl,
+          startImage,
+          endImage,
+          sound: audio,
+          soundPreset,
+          style,
+          cameraMotion,
+          stylePreset,
+          motionStrength,
+          qualityTier,
+          variants,
+          threadId: threadIdRaw,
+        };
+        
+        // Validate with Zod schema
+        const parseResult = VideoGenerationRequestSchema.safeParse(validationRequest);
+        if (!parseResult.success) {
+          const errors = parseResult.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message,
+          }));
+          return NextResponse.json(
+            {
+              error: 'VALIDATION_ERROR',
+              message: 'Request validation failed',
+              details: errors,
+            },
+            { status: 400 }
+          );
+        }
+        
+        // Validate against capability constraints
+        const capabilityValidation = validateAgainstCapability(parseResult.data, capability);
+        if (!capabilityValidation.valid) {
+          return NextResponse.json(
+            {
+              error: 'VALIDATION_ERROR',
+              message: 'Request does not match model capabilities',
+              details: capabilityValidation.errors,
+            },
+            { status: 400 }
+          );
+        }
+      } catch (error) {
+        console.error('[Video API] Capability validation error:', error);
+        // Continue with legacy validation if capability validation fails
+      }
+    }
+    // === END NEW VALIDATION ===
     
     // Normalize aspect ratio: UI may send "auto" which should mean "use model default"
     const normalizedAspectFromBody =

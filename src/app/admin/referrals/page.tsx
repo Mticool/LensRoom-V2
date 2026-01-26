@@ -36,7 +36,7 @@ export default function AdminReferralsPage() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/referrals/overview');
+      const res = await fetch('/api/admin/referrals/overview', { credentials: 'include' });
       
       if (res.status === 401 || res.status === 403) {
         router.push('/');

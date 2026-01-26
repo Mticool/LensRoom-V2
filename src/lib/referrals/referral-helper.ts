@@ -15,7 +15,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 export const REFERRAL_REWARDS = {
   signup: {
     referrer: 50, // ⭐ for referrer when invitee signs up
-    invitee: 25,  // ⭐ welcome bonus for invitee
+    invitee: 50,  // ⭐ welcome bonus for invitee (UI: "Вам +50 и другу +50")
   },
   first_generation: {
     referrer: 100, // ⭐ for referrer when invitee completes first generation

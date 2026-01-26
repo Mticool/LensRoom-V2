@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
-import { claimReferral } from '@/lib/referrals/referral-helper';
+import { claimReferral, recordReferralEventAndReward } from '@/lib/referrals/referral-helper';
 
 /**
  * POST /api/referrals/claim
@@ -44,6 +44,18 @@ export async function POST(request: NextRequest) {
     const result = await claimReferral(userId, code.toUpperCase());
     
     if (result.success) {
+      // Record signup event + rewards (idempotent). Ensures bonuses are granted even if
+      // ensure-profile signup never runs (e.g. profile created before claim).
+      try {
+        await recordReferralEventAndReward(
+          userId,
+          'signup',
+          `signup:${userId}`,
+          { source: 'claim' }
+        );
+      } catch (e) {
+        console.warn('[/api/referrals/claim] Signup event failed (non-fatal):', e);
+      }
       return NextResponse.json({
         success: true,
         message: 'Referral claimed successfully',
