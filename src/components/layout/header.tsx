@@ -131,7 +131,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
 
             {/* Desktop Nav - Premium style */}
             <div className="hidden lg:flex items-center gap-1" ref={dropdownRef}>
-              {navigation.map((item) => {
+              {navigation.map((item, index) => {
                 const isActive = item.href && (pathname === item.href || pathname.startsWith(item.href + '/'));
                 
                 if (item.dropdown) {
