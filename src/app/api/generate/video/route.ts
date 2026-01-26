@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
         // Validate with Zod schema
         const parseResult = VideoGenerationRequestSchema.safeParse(validationRequest);
         if (!parseResult.success) {
-          const errors = parseResult.error.errors.map(err => ({
+          const errors = parseResult.error.issues.map(err => ({
             path: err.path.join('.'),
             message: err.message,
           }));

@@ -44,16 +44,15 @@ export type Provider = z.infer<typeof ProviderEnum>;
 
 // ===== CONSTRAINTS =====
 
-export const ConstraintsByModeSchema = z.record(
-  ModeEnum,
-  z.object({
-    durationsSec: z.array(z.number()).optional(),
-    qualities: z.array(QualityEnum).optional(),
-    aspectRatios: z.array(AspectRatioEnum).optional(),
-    maxDurationSec: z.number().optional(),
-    minDurationSec: z.number().optional(),
-  })
-).optional();
+export const ModeConstraintSchema = z.object({
+  durationsSec: z.array(z.number()).optional(),
+  qualities: z.array(QualityEnum).optional(),
+  aspectRatios: z.array(AspectRatioEnum).optional(),
+  maxDurationSec: z.number().optional(),
+  minDurationSec: z.number().optional(),
+});
+
+export const ConstraintsByModeSchema = z.record(z.string(), ModeConstraintSchema).optional();
 
 export type ConstraintsByMode = z.infer<typeof ConstraintsByModeSchema>;
 
@@ -72,12 +71,12 @@ export const ModelCapabilitySchema = z.object({
   supportedQualities: z.array(QualityEnum).optional(),
   
   // Feature flags
-  supportsSound: z.boolean().optional().default(false),
-  supportsReferenceVideo: z.boolean().optional().default(false),
-  supportsReferenceImages: z.boolean().optional().default(false),
+  supportsSound: z.boolean().optional(),
+  supportsReferenceVideo: z.boolean().optional(),
+  supportsReferenceImages: z.boolean().optional(),
   maxReferenceImages: z.number().optional(),
-  supportsNegativePrompt: z.boolean().optional().default(false),
-  supportsStartEndFrames: z.boolean().optional().default(false),
+  supportsNegativePrompt: z.boolean().optional(),
+  supportsStartEndFrames: z.boolean().optional(),
   
   // Model-specific features
   styleOptions: z.array(z.string()).optional(),
