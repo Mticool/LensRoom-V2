@@ -35,17 +35,18 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
 
       const { data, error } = await supabase
         .from('generations')
-        .select('result_url')
+        .select('result_urls')
         .eq('user_id', user.id)
         .eq('type', 'video')
-        .eq('status', 'completed')
-        .not('result_url', 'is', null)
+        .in('status', ['success', 'completed'])
+        .not('result_urls', 'is', null)
         .order('created_at', { ascending: false })
         .limit(8);
 
       if (error) throw error;
       
-      const urls = data?.map((g: any) => g.result_url).filter(Boolean) || [];
+      // Extract first URL from result_urls array
+      const urls = data?.map((g: any) => g.result_urls?.[0]).filter(Boolean) || [];
       setGenerationHistory(urls);
     } catch (error) {
       console.error('Failed to load history:', error);
