@@ -16,8 +16,6 @@ interface VideoGeneratorLightProps {
 export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [generationHistory, setGenerationHistory] = useState<string[]>([]);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [totalDuration, setTotalDuration] = useState(0);
   const [currentRatio, setCurrentRatio] = useState<AspectRatio>('16:9');
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -31,7 +29,10 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('[VideoGeneratorLight] No user for history');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('generations')
@@ -43,20 +44,26 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
         .order('created_at', { ascending: false })
         .limit(8);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[VideoGeneratorLight] History query error:', error);
+        throw error;
+      }
       
       // Extract first URL from result_urls array
       const urls = data?.map((g: any) => g.result_urls?.[0]).filter(Boolean) || [];
+      console.log('[VideoGeneratorLight] Loaded history:', urls.length, 'videos');
       setGenerationHistory(urls);
     } catch (error) {
-      console.error('Failed to load history:', error);
+      console.error('[VideoGeneratorLight] Failed to load history:', error);
     }
   };
 
   const { generate, isGenerating } = useVideoGeneration({
     onSuccess: (url) => {
+      console.log('[VideoGeneratorLight] Generation success, URL:', url);
       setVideoUrl(url);
-      loadHistory(); // Reload history from DB
+      // Small delay to ensure DB write completes
+      setTimeout(() => loadHistory(), 1000);
     },
     onError: (error) => {
       toast.error(error);
@@ -156,25 +163,6 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
     }
   };
 
-  const getMaxWidth = () => {
-    switch (currentRatio) {
-      case '9:16':
-        return 'max-w-md';
-      case '1:1':
-        return 'max-w-2xl';
-      case '4:3':
-        return 'max-w-3xl';
-      default:
-        return 'max-w-4xl';
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <div className="min-h-screen bg-[#0F0F10] text-white">
       {/* Hero Section */}
@@ -199,60 +187,37 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
 
           {/* Right Column: Player & History - Flexible */}
           <div className="flex-1 space-y-6">
-            {/* Video Player - Adaptive Aspect Ratio */}
-            <div className="flex items-start justify-center">
-              <div className={`w-full ${getMaxWidth()}`}>
-                <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
-                  <div className={`relative ${getAspectClass()} bg-black/50 max-h-[60vh]`}>
-                    {isGenerating ? (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="relative w-20 h-20 mx-auto mb-4">
-                            <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
-                            <div className="absolute inset-0 border-4 border-[#CDFF00] border-t-transparent rounded-full animate-spin"></div>
-                          </div>
-                          <p className="text-gray-400 text-sm mb-2">Генерация видео...</p>
-                          <p className="text-gray-500 text-xs">Это может занять до 2 минут</p>
-                        </div>
-                      </div>
-                    ) : videoUrl ? (
-                      <video
-                        ref={videoRef}
-                        src={videoUrl}
-                        controls
-                        className="w-full h-full object-contain"
-                        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                        onLoadedMetadata={(e) => setTotalDuration(e.currentTarget.duration)}
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="w-20 h-20 mx-auto bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
-                            <Play className="w-10 h-10 text-gray-400" />
-                          </div>
-                          <p className="text-gray-400 text-sm">Результат появится здесь</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Timeline */}
-                  {videoUrl && (
-                    <div className="p-4 border-t border-white/10">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-400 font-mono">{formatTime(currentTime)}</span>
-                        <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-[#CDFF00] transition-all"
-                            style={{ width: `${(currentTime / totalDuration) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-400 font-mono">{formatTime(totalDuration)}</span>
-                      </div>
+            {/* Video Player */}
+            <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
+              {isGenerating ? (
+                <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
+                  <div className="text-center">
+                    <div className="relative w-20 h-20 mx-auto mb-4">
+                      <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-[#CDFF00] border-t-transparent rounded-full animate-spin"></div>
                     </div>
-                  )}
+                    <p className="text-gray-400 text-sm mb-2">Генерация видео...</p>
+                    <p className="text-gray-500 text-xs">Это может занять до 2 минут</p>
+                  </div>
                 </div>
-              </div>
+              ) : videoUrl ? (
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  controls
+                  autoPlay
+                  className="w-full max-h-[70vh] bg-black"
+                />
+              ) : (
+                <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
+                  <div className="text-center">
+                    <div className="w-20 h-20 mx-auto bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
+                      <Play className="w-10 h-10 text-gray-400" />
+                    </div>
+                    <p className="text-gray-400 text-sm">Результат появится здесь</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Мои работы - Compact History Grid */}
