@@ -670,7 +670,10 @@ export function GeneratorBottomSheet({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleSubmit();
+                  // Only submit if can generate (prevents accidental triggers)
+                  if (canGenerate && !isGenerating) {
+                    handleSubmit();
+                  }
                 }
               }}
             />

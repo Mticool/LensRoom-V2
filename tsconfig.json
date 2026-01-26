@@ -34,6 +34,7 @@
     "node_modules",
     "_archive",
     "src/components/generator-v2/_backup/**",
+    "scripts/**",
     "**/__tests__/**",
     "vitest.config.ts",
     "src/test/**"

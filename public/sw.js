@@ -1,7 +1,7 @@
 // LensRoom Service Worker v2.0
 // Расширенное кеширование, push-уведомления и офлайн режим
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `lensroom-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `lensroom-dynamic-${CACHE_VERSION}`;
 const IMAGE_CACHE = `lensroom-images-${CACHE_VERSION}`;

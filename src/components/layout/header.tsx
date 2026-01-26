@@ -137,7 +137,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                 if (item.dropdown) {
             const isDropdownOpen = activeDropdown === item.dropdown;
             return (
-              <div key={item.name || `dropdown-${index}`} className="relative">
+              <div key={item.name || `dropdown-${item.dropdown}`} className="relative">
                 <button
                         onClick={() => setActiveDropdown(isDropdownOpen ? null : item.dropdown!)}
                         className={cn(

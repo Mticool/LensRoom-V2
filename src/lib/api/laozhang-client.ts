@@ -421,12 +421,15 @@ export class LaoZhangClient {
       ],
     };
 
-    console.log("[Video API] Request:", JSON.stringify({
+    console.log("[Video API] Request to LaoZhang:", JSON.stringify({
+      baseUrl: this.baseUrl,
+      endpoint: "/chat/completions",
       model: params.model,
       hasStartImage: !!params.startImageUrl,
       hasEndImage: !!params.endImageUrl,
-      promptLength: params.prompt.length
-    }));
+      promptLength: params.prompt.length,
+      promptPreview: params.prompt.substring(0, 100)
+    }, null, 2));
 
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
@@ -590,10 +593,10 @@ export function getLaoZhangVideoModelId(
   quality?: string,
   duration?: number | string
 ): string {
-  // Veo 3.1 mapping
-  if (lensroomModelId === "veo-3.1") {
+  // Veo 3.1 mapping (supports veo-3.1, veo-3.1-fast, veo-3.1-quality)
+  if (lensroomModelId === "veo-3.1" || lensroomModelId.startsWith("veo-3.1")) {
     const isLandscape = aspectRatio === "16:9" || aspectRatio === "landscape";
-    const isFast = quality === "fast";
+    const isFast = quality === "fast" || lensroomModelId.includes("fast");
     
     if (isLandscape && isFast) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_FAST;
     if (isLandscape) return LAOZHANG_MODELS.VEO_31_LANDSCAPE;

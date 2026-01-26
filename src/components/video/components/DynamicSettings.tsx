@@ -81,7 +81,10 @@ function SettingControl({ settingKey, setting, value, onChange }: SettingControl
         <div className="flex items-center gap-1.5">
           <label className="text-sm font-semibold text-white">{setting.label}</label>
           {setting.description && (
-            <Info className="w-3.5 h-3.5 text-gray-400" title={setting.description} />
+            <div className="group relative">
+              <Info className="w-3.5 h-3.5 text-gray-400" />
+              <span className="absolute left-full ml-2 hidden group-hover:block bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">{setting.description}</span>
+            </div>
           )}
         </div>
         <button

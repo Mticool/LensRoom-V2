@@ -521,13 +521,13 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
 // Motion Control moved to separate section
 
 export const VIDEO_MODELS: VideoModelConfig[] = [
-  // === 1. VEO 3.1 FAST - Google ===
+  // === 1. VEO 3.1 FAST - Google via LaoZhang ===
   {
     id: 'veo-3.1-fast',
     name: 'Veo 3.1 Fast',
     apiId: 'veo-3.1-fast',
     type: 'video',
-    provider: 'kie_veo',
+    provider: 'laozhang',
     description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений, start/end frames.',
     rank: 1,
     featured: true,
@@ -695,14 +695,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'NEW',
   },
 
-  // === 7. SORA 2 - OpenAI via Kie.ai ===
+  // === 7. SORA 2 - OpenAI via LaoZhang ===
   {
     id: 'sora-2',
     name: 'Sora 2',
-    apiId: 'sora-2-pro', // Kie.ai Market model ID
+    apiId: 'sora-2', // LaoZhang API model ID
     type: 'video',
-    provider: 'kie_market', // Migrated from 'openai' to 'kie_market'
-    description: 'OpenAI Sora 2 через Kie.ai — универсальная генерация с балансом качества и скорости. Text-to-video, image-to-video.',
+    provider: 'laozhang', // Uses LaoZhang API
+    description: 'OpenAI Sora 2 через LaoZhang — универсальная генерация с балансом качества и скорости. Text-to-video, image-to-video.',
     rank: 7,
     featured: true,
     speed: 'medium',

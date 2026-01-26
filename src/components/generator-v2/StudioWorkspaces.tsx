@@ -1419,13 +1419,13 @@ export function StudioWorkspaces() {
       />
 
       <div className="flex-1 flex flex-col">
-        {/* Mobile: Instagram-like feed + bottom sheet; tap image → viewer */}
+        {/* Mobile: Instagram-like feed + bottom sheet; tap image -> viewer */}
         <div className="md:hidden flex-1 flex flex-col min-h-0">
-          <div 
+          <div
             ref={mobileGalleryRef}
             className="flex-1 overflow-y-auto min-h-0"
-            style={{ 
-              paddingBottom: 'calc(220px + env(safe-area-inset-bottom, 0px))'
+            style={{
+              paddingBottom: "calc(220px + env(safe-area-inset-bottom, 0px))",
             }}
           >
             <ImageGalleryMasonry
@@ -1445,83 +1445,85 @@ export function StudioWorkspaces() {
               enableDragDrop={isToolModel && supportsI2i}
               emptyTitle={isToolModel ? "Загрузите фото" : undefined}
               emptyDescription={
-                isToolModel 
+                isToolModel
                   ? selectedModelId === "topaz-image-upscale"
-                    ? 'Нажмите кнопку «+» внизу, загрузите изображение, выберите разрешение (2K, 4K или 8K) и нажмите «Сгенерировать»'
+                    ? "Нажмите кнопку «+» внизу, загрузите изображение, выберите разрешение (2K, 4K или 8K) и нажмите «Сгенерировать»"
                     : selectedModelId === "recraft-remove-background"
-                    ? 'Нажмите кнопку «+» внизу, загрузите изображение и нажмите «Сгенерировать» для удаления фона'
-                    : 'Нажмите «+» внизу и загрузите изображение для обработки'
+                    ? "Нажмите кнопку «+» внизу, загрузите изображение и нажмите «Сгенерировать» для удаления фона"
+                    : "Нажмите «+» внизу и загрузите изображение для обработки"
                   : undefined
               }
-            hasMore={isToolModel ? false : hasMore}
-            onLoadMore={isToolModel ? undefined : loadMore}
-            isLoadingMore={isLoadingMore}
-          />
+              hasMore={isToolModel ? false : hasMore}
+              onLoadMore={isToolModel ? undefined : loadMore}
+              isLoadingMore={isLoadingMore}
+            />
           </div>
         </div>
 
-          <GeneratorBottomSheet
-            modelId={selectedModelId}
-            modelName={photoModel.name}
-            estimatedCost={estimatedCost}
-            prompt={prompt}
-            onPromptChange={setPrompt}
-            aspectRatio={aspectRatio}
-            onAspectRatioChange={(v) => setAspectRatio(normalizeAspect(v) || "1:1")}
-            aspectRatioOptions={isToolModel ? ["1:1"] : photoModel.aspectRatios}
-            quality={qualityLabel}
-            onQualityChange={setQualityLabel}
-            qualityOptions={qualityOptions}
-            quantity={isToolModel ? 1 : quantity}
-            onQuantityChange={isToolModel ? undefined : setQuantity}
-            quantityMax={isToolModel ? 1 : 4}
-            supportsI2i={supportsI2i}
-            referenceImages={supportsI2i ? referenceImages : []}
-            onReferenceImagesChange={supportsI2i ? setReferenceImages : () => {}}
-            negativePrompt={negativePrompt}
-            onNegativePromptChange={setNegativePrompt}
-            seed={seed}
-            onSeedChange={setSeed}
-            steps={steps}
-            onStepsChange={setSteps}
-            isGenerating={isGeneratingBatch}
-            canGenerate={!!(isAuthenticated && (!isToolModel ? prompt.trim().length > 0 : referenceImages.length > 0) && authCredits >= estimatedCost * (isToolModel ? 1 : quantity) && !isGeneratingBatch)}
-            onGenerate={handleGenerate}
-            onOpenMenu={() => {}}
-            onModelChange={(id) => {
-              router.push(`/create/studio${buildSearchParams(searchParams, { model: id, section: "photo" })}`, { scroll: false });
-            }}
-          />
-        </div>
+        <GeneratorBottomSheet
+          modelId={selectedModelId}
+          modelName={photoModel.name}
+          estimatedCost={estimatedCost}
+          prompt={prompt}
+          onPromptChange={setPrompt}
+          aspectRatio={aspectRatio}
+          onAspectRatioChange={(v) => setAspectRatio(normalizeAspect(v) || "1:1")}
+          aspectRatioOptions={isToolModel ? ["1:1"] : photoModel.aspectRatios}
+          quality={qualityLabel}
+          onQualityChange={setQualityLabel}
+          qualityOptions={qualityOptions}
+          quantity={isToolModel ? 1 : quantity}
+          onQuantityChange={isToolModel ? undefined : setQuantity}
+          quantityMax={isToolModel ? 1 : 4}
+          supportsI2i={supportsI2i}
+          referenceImages={supportsI2i ? referenceImages : []}
+          onReferenceImagesChange={supportsI2i ? setReferenceImages : () => {}}
+          negativePrompt={negativePrompt}
+          onNegativePromptChange={setNegativePrompt}
+          seed={seed}
+          onSeedChange={setSeed}
+          steps={steps}
+          onStepsChange={setSteps}
+          isGenerating={isGeneratingBatch}
+          canGenerate={!!(isAuthenticated && (!isToolModel ? prompt.trim().length > 0 : referenceImages.length > 0) && authCredits >= estimatedCost * (isToolModel ? 1 : quantity) && !isGeneratingBatch)}
+          onGenerate={handleGenerate}
+          onOpenMenu={() => {}}
+          onModelChange={(id) => {
+            router.push(`/create/studio${buildSearchParams(searchParams, { model: id, section: "photo" })}`, { scroll: false });
+          }}
+        />
 
         {/* Desktop: 4-column grid gallery */}
-        <div className="hidden md:flex flex-col pb-44 sm:pb-40">
-          {/* Gallery */}
-          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto">
+        <div className="hidden md:flex flex-col">
+          {/* Gallery - centered with proper spacing */}
+          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto pb-44">
             <ImageGalleryMasonry
               images={effectiveImages}
               isGenerating={false}
               layout="grid"
               autoScrollToBottom={false}
-            onImageClick={handleImageClick}
-            onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
-            enableDragDrop={isToolModel && supportsI2i}
-            emptyTitle={isToolModel ? "Загрузите фото" : undefined}
-            emptyDescription={
-              isToolModel 
-                ? selectedModelId === "topaz-image-upscale"
-                  ? 'Нажмите кнопку «+» внизу, загрузите изображение, выберите разрешение (2K, 4K или 8K) и нажмите «Сгенерировать»'
-                  : selectedModelId === "recraft-remove-background"
-                  ? 'Нажмите кнопку «+» внизу, загрузите изображение и нажмите «Сгенерировать» для удаления фона'
-                  : 'Нажмите «+» внизу и загрузите изображение для обработки'
-                : undefined
-            }
-            hasMore={isToolModel ? false : hasMore}
-            onLoadMore={isToolModel ? undefined : loadMore}
-            isLoadingMore={isLoadingMore}
-          />
+              onImageClick={handleImageClick}
+              onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
+              enableDragDrop={isToolModel && supportsI2i}
+              emptyTitle={isToolModel ? "Загрузите фото" : undefined}
+              emptyDescription={
+                isToolModel
+                  ? selectedModelId === "topaz-image-upscale"
+                    ? "Нажмите кнопку «+» внизу, загрузите изображение, выберите разрешение (2K, 4K или 8K) и нажмите «Сгенерировать»"
+                    : selectedModelId === "recraft-remove-background"
+                    ? "Нажмите кнопку «+» внизу, загрузите изображение и нажмите «Сгенерировать» для удаления фона"
+                    : "Нажмите «+» внизу и загрузите изображение для обработки"
+                  : undefined
+              }
+              hasMore={isToolModel ? false : hasMore}
+              onLoadMore={isToolModel ? undefined : loadMore}
+              isLoadingMore={isLoadingMore}
+            />
+          </div>
+        </div>
 
-          {/* Bottom control bar */}
+        {/* Bottom control bar - fixed outside gallery container */}
+        <div className="hidden md:block">
           <ControlBarBottom
             prompt={prompt}
             onPromptChange={setPrompt}
@@ -1560,7 +1562,10 @@ export function StudioWorkspaces() {
             if (!open) setViewerImage(null);
           }}
         >
-          <DialogContent className="max-w-none w-[min(96vw,1200px)] max-h-[calc(100vh-2rem)] p-0 gap-0 border border-white/10 bg-[#0B0B0C] shadow-2xl overflow-hidden">
+          <DialogContent 
+            className="max-w-none max-h-[calc(100vh-2rem)] p-0 gap-0 border border-white/10 bg-[#0B0B0C] shadow-2xl overflow-hidden"
+            style={{ width: 'min(96vw, 1200px)' }}
+          >
             <div className="flex flex-col md:flex-row items-stretch">
               <div
                 className="relative flex items-center justify-center md:flex-1 bg-black"
@@ -1568,7 +1573,7 @@ export function StudioWorkspaces() {
                 onTouchEnd={onViewerTouchEnd}
                 style={{
                   width: "100%",
-                  height: `min(calc(100vh - 2rem), ${getViewerBox(viewerImage?.settings?.size).height}px)`,
+                  height: viewerImage ? `min(calc(100vh - 2rem), ${getViewerBox(viewerImage?.settings?.size || "1:1").height}px)` : "calc(100vh - 2rem)",
                 }}
               >
                 {viewerImage?.url ? (
@@ -1600,17 +1605,17 @@ export function StudioWorkspaces() {
               </div>
               <aside className="md:w-[420px] border-t md:border-t-0 md:border-l border-white/10 bg-[#0F0F10] p-4 md:p-5 overflow-y-auto">
                 <div className="text-xs text-white/50">Характеристики</div>
-                <div className="mt-1 text-sm font-semibold text-white break-words">{viewerImage?.prompt || "—"}</div>
+                <div className="mt-1 text-sm font-semibold text-white break-words">{viewerImage?.prompt || "-"}</div>
                 <div className="mt-4 grid grid-cols-[110px_1fr] gap-x-3 gap-y-2 text-sm">
                   <div className="text-white/50">Модель</div>
                   <div className="text-white/90 text-right break-words whitespace-normal">
                     {getModelById(String(viewerImage?.settings?.model || selectedModelId))?.name || String(viewerImage?.settings?.model || selectedModelId)}
                   </div>
                   <div className="text-white/50">Формат</div>
-                  <div className="text-white/90 text-right break-words whitespace-normal">{String(viewerImage?.settings?.size || "—")}</div>
+                  <div className="text-white/90 text-right break-words whitespace-normal">{String(viewerImage?.settings?.size || "-")}</div>
                   <div className="text-white/50">Качество</div>
                   <div className="text-white/90 text-right break-words whitespace-normal">
-                    {viewerImage?.settings?.quality ? qualityLabelFromApi(String(viewerImage?.settings?.model || selectedModelId), String(viewerImage.settings.quality)) : "—"}
+                    {viewerImage?.settings?.quality ? qualityLabelFromApi(String(viewerImage?.settings?.model || selectedModelId), String(viewerImage.settings.quality)) : "-"}
                   </div>
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-2">

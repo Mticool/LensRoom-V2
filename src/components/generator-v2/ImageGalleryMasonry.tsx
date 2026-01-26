@@ -41,7 +41,7 @@ const isImageReady = (image: GenerationResult): boolean => {
 export function ImageGalleryMasonry({ 
   images, 
   isGenerating,
-  layout = 'grid',
+  layout = 'masonry',
   onRegenerate,
   onImageClick,
   onUseAsReference,
@@ -254,8 +254,9 @@ export function ImageGalleryMasonry({
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto bg-black" style={{ padding: '32px' }}>
-      {/* Load More Button - at top since new items appear at bottom */}
+    <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div className="w-full max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-8">
+        {/* Load More Button - at top since new items appear at bottom */}
       {hasMore && onLoadMore && (
         <div className="flex justify-center py-2">
           <button
@@ -633,6 +634,7 @@ export function ImageGalleryMasonry({
           }
         }
       `}</style>
+      </div>
     </div>
   );
 }

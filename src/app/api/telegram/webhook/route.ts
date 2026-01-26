@@ -30,10 +30,10 @@ const PHOTO_MODELS = [
 ];
 
 const VIDEO_MODELS = [
-  { id: 'veo-3.1', apiModel: 'veo3_fast', name: 'Veo 3.1 Fast', emoji: '🎬', cost: 99, badge: 'Google', provider: 'kie_veo' as KieProvider },
-  { id: 'veo-3.1-quality', apiModel: 'veo3', name: 'Veo 3.1 Quality', emoji: '🎬', cost: 490, badge: 'Google HD', provider: 'kie_veo' as KieProvider },
+  { id: 'veo-3.1', apiModel: 'veo3_fast', name: 'Veo 3.1 Fast', emoji: '🎬', cost: 99, badge: 'Google', provider: 'laozhang' as KieProvider },
+  { id: 'veo-3.1-quality', apiModel: 'veo3', name: 'Veo 3.1 Quality', emoji: '🎬', cost: 490, badge: 'Google HD', provider: 'laozhang' as KieProvider },
   { id: 'kling', apiModel: 'kling/v2.5-turbo', name: 'Kling 2.5', emoji: '⚡', cost: 105, badge: 'Trending', provider: 'kie_market' as KieProvider },
-  { id: 'sora-2', apiModel: 'sora/v2', name: 'Sora 2', emoji: '🎥', cost: 50, badge: 'OpenAI', provider: 'kie_market' as KieProvider },
+  { id: 'sora-2', apiModel: 'sora/v2', name: 'Sora 2', emoji: '🎥', cost: 50, badge: 'OpenAI', provider: 'laozhang' as KieProvider },
   { id: 'grok-video', apiModel: 'grok/video', name: 'Grok Video', emoji: '🌶️', cost: 25, badge: 'xAI', provider: 'kie_market' as KieProvider },
 ];
 

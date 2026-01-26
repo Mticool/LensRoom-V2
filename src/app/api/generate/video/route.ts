@@ -727,15 +727,19 @@ export async function POST(request: NextRequest) {
           });
         }
         
-        console.log('[API] Video generation request:', {
+        console.log('[API] Video generation request to LaoZhang:', {
+          provider: 'laozhang',
           model: videoModelId,
           originalModel: model,
           aspectRatio,
           quality,
+          duration,
           mode,
           hasStartImage: !!startImageUrlForVideo,
           hasEndImage: !!endImageUrlForVideo,
           prompt: fullPrompt.substring(0, 50),
+          userId,
+          generationId: generation?.id,
         });
         
         // Generate video (sync - returns URL directly)
@@ -748,7 +752,9 @@ export async function POST(request: NextRequest) {
         });
         
         // Upload video to Supabase Storage for permanent storage
-        console.log('[API] Video generation URL:', videoGenResponse.videoUrl);
+        console.log('[API] Video generation successful from LaoZhang');
+        console.log('[API] Video URL from provider:', videoGenResponse.videoUrl);
+        console.log('[API] Downloading video for storage upload...');
         
         // Download video and upload to our storage
         const videoResponse = await fetch(videoGenResponse.videoUrl);
@@ -777,7 +783,20 @@ export async function POST(request: NextRequest) {
         
         const finalVideoUrl = uploadError ? videoGenResponse.videoUrl : publicUrlData.publicUrl;
         
+        console.log('[API] Video storage upload:', {
+          success: !uploadError,
+          storagePath: uploadError ? 'failed' : storagePath,
+          finalUrl: finalVideoUrl.substring(0, 100),
+          fallbackToProviderUrl: !!uploadError,
+        });
+        
         // Update generation record with success
+        console.log('[API] Updating generation record:', {
+          generationId: generation?.id,
+          status: 'success',
+          resultUrl: finalVideoUrl.substring(0, 100),
+        });
+        
         await supabase
           .from('generations')
           .update({
