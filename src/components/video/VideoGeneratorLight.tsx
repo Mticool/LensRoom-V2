@@ -163,6 +163,20 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
     }
   };
 
+  // Get max width based on aspect ratio
+  const getMaxWidth = () => {
+    switch (currentRatio) {
+      case '9:16':
+        return 'max-w-md'; // ~448px для вертикального видео
+      case '1:1':
+        return 'max-w-xl'; // ~576px для квадрата
+      case '4:3':
+      case '16:9':
+      default:
+        return 'max-w-2xl'; // ~672px для горизонтального
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0F0F10] text-white">
       {/* Hero Section */}
@@ -189,7 +203,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
           <div className="flex-1 space-y-6">
             {/* Video Player */}
             <div className="flex justify-center">
-              <div className="w-full max-w-2xl">
+              <div className={`w-full ${getMaxWidth()}`}>
                 <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
                   {isGenerating ? (
                     <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
