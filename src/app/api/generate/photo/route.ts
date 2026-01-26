@@ -675,6 +675,138 @@ export async function POST(request: NextRequest) {
 
     let response: any;
     
+    // Handle GenAIPro provider (Nano Banana / Nano Banana Pro)
+    if (modelInfo.provider === 'genaipro') {
+      const { getGenAIProClient, IMAGE_ASPECT_RATIOS } = await import("@/lib/api/genaipro-client");
+      
+      try {
+        const genaiproClient = getGenAIProClient();
+        
+        // Resolve aspect ratio with model-specific default
+        const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
+        logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'GenAIPro');
+        
+        // Map aspect ratio to GenAIPro format
+        const genaiproAspectRatio = 
+          finalAspectRatio === '16:9' || finalAspectRatio === '3:2' ? IMAGE_ASPECT_RATIOS.LANDSCAPE :
+          finalAspectRatio === '9:16' || finalAspectRatio === '2:3' ? IMAGE_ASPECT_RATIOS.PORTRAIT :
+          IMAGE_ASPECT_RATIOS.SQUARE;
+        
+        // Number of images to generate
+        const numVariants = Math.min(Math.max(Number(variants) || 1, 1), 4);
+        
+        console.log('[API] GenAIPro request:', { 
+          model: effectiveModelId,
+          aspectRatio: genaiproAspectRatio,
+          mode,
+          hasReference: !!referenceForProvider,
+          variants: numVariants,
+        });
+        
+        // Generate image with GenAIPro
+        const genaiproResponse = await genaiproClient.generateImage({
+          prompt: prompt,
+          aspect_ratio: genaiproAspectRatio,
+          number_of_images: numVariants,
+          // reference_images: referenceImages // TODO: Add reference images support
+        });
+
+        const imageUrls = genaiproResponse?.images?.map(img => img.url) || [];
+        
+        if (imageUrls.length === 0) {
+          throw new Error("No images returned from GenAIPro");
+        }
+
+        console.log(`[API] GenAIPro generation completed: ${imageUrls.length} images`);
+
+        // Download and upload images to our storage
+        const uploadPromises = imageUrls.map(async (imageUrl, index) => {
+          const dl = await fetch(imageUrl);
+          if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
+          const sourceBuffer = Buffer.from(await dl.arrayBuffer());
+          return await uploadGeneratedImageBuffer(sourceBuffer, `genaipro_${index}`, requestedOutputFormat);
+        });
+
+        const uploadedResults = await Promise.all(uploadPromises);
+        const finalUrls = uploadedResults.map(r => r.publicUrl);
+        const originalPath = uploadedResults[0]?.storagePath || null;
+
+        // Update generation record with success
+        await supabase
+          .from("generations")
+          .update({
+            status: "success",
+            result_urls: finalUrls,
+            original_path: originalPath,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", generation?.id);
+        
+        // Log generation run for analytics
+        try {
+          await supabase.from('generation_runs').insert({
+            generation_id: generation?.id,
+            user_id: userId,
+            provider: 'genaipro',
+            provider_model: modelInfo.apiId,
+            variant_key: quality || 'default',
+            stars_charged: creditCost,
+            status: 'success',
+          });
+        } catch (logError) {
+          console.error('[API] Failed to log generation run:', logError);
+        }
+        
+        // Return completed status (no polling needed)
+        return NextResponse.json({
+          success: true,
+          jobId: generation?.id,
+          status: 'completed',
+          generationId: generation?.id,
+          provider: 'genaipro',
+          kind: 'image',
+          creditCost: creditCost,
+          results: finalUrls.map(url => ({ url })),
+        });
+      } catch (genaiproError: any) {
+        console.error('[API] GenAIPro generation failed:', genaiproError);
+        
+        // Refund only if we actually charged stars
+        if (!skipCredits && !isIncludedByPlan && actualCreditCost > 0) {
+          await refundStars(supabase, userId, actualCreditCost, generation?.id);
+        }
+        
+        // Update generation status
+        await supabase
+          .from('generations')
+          .update({
+            status: 'failed',
+            error: genaiproError.message || 'GenAIPro API error',
+          })
+          .eq('id', generation?.id);
+        
+        // Log failed run
+        try {
+          await supabase.from('generation_runs').insert({
+            generation_id: generation?.id,
+            user_id: userId,
+            provider: 'genaipro',
+            provider_model: modelInfo.apiId,
+            variant_key: quality || 'default',
+            stars_charged: 0,
+            status: 'refunded',
+          });
+        } catch (logError) {
+          console.error('[API] Failed to log failed run:', logError);
+        }
+        
+        return NextResponse.json(
+          { error: genaiproError.message || 'Failed to generate image' },
+          { status: 500 }
+        );
+      }
+    }
+    
     // Handle LaoZhang provider (Nano Banana / Nano Banana Pro)
     if (modelInfo.provider === 'laozhang') {
       const { getLaoZhangClient, getLaoZhangModelId, aspectRatioToLaoZhangSize, resolutionToLaoZhangSize } = await import("@/lib/api/laozhang-client");

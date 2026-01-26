@@ -51,7 +51,7 @@ export type StylePreset = 'realistic' | 'anime' | 'cinematic' | 'artistic' | 'vi
 export type KlingQualityTier = 'standard' | 'pro' | 'master';
 
 // KIE API Provider type
-export type KieProvider = 'kie_market' | 'kie_veo' | 'openai' | 'fal' | 'laozhang';
+export type KieProvider = 'kie_market' | 'kie_veo' | 'openai' | 'fal' | 'laozhang' | 'genaipro';
 
 // Pricing structure: credits per generation
 export type PhotoPricing = 
@@ -252,9 +252,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'nano-banana',
     name: 'Nano Banana',
-    apiId: 'gemini-2.5-flash-image-preview', // LaoZhang API model (fast)
+    apiId: 'nano-banana', // GenAIPro API model
     type: 'photo',
-    provider: 'laozhang', // Switched from kie_market to LaoZhang
+    provider: 'genaipro', // Using GenAIPro API
     shortDescription: 'Фотореализм и "вкусная" картинка за секунды.',
     description: 'Лучший универсал на каждый день: стабильный реализм, хорошие лица, одежда, предметка. Подходит для быстрых тестов идей и массового контента.',
     rank: 1,
@@ -275,11 +275,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'nano-banana-pro',
     name: 'Nano Banana Pro',
-    apiId: 'gemini-3-pro-image-preview', // LaoZhang API model (quality)
-    apiId2k: 'gemini-3-pro-image-preview-2k', // 2K variant
-    apiId4k: 'gemini-3-pro-image-preview-4k', // 4K variant
+    apiId: 'nano-banana-pro', // GenAIPro API model
     type: 'photo',
-    provider: 'laozhang', // Switched from kie_market to LaoZhang
+    provider: 'genaipro', // Using GenAIPro API
     shortDescription: 'Максимум качества: детали, кожа, свет, чистые текстуры.',
     description: 'Премиальная версия для коммерции: более точные материалы, лучше мелкие детали, меньше артефактов. Выбирай, когда картинка "должна продавать".',
     rank: 2,
@@ -521,13 +519,13 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
 // Motion Control moved to separate section
 
 export const VIDEO_MODELS: VideoModelConfig[] = [
-  // === 1. VEO 3.1 FAST - Google via LaoZhang ===
+  // === 1. VEO 3.1 FAST - Google via GenAIPro ===
   {
     id: 'veo-3.1-fast',
     name: 'Veo 3.1 Fast',
     apiId: 'veo-3.1-fast',
     type: 'video',
-    provider: 'laozhang',
+    provider: 'genaipro', // Using GenAIPro API
     description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений, start/end frames.',
     rank: 1,
     featured: true,

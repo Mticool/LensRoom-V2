@@ -767,6 +767,145 @@ export async function POST(request: NextRequest) {
     let response: any;
     let usedFallback = false;
     
+    // === GENAIPRO PROVIDER (Veo 3.1) ===
+    if (modelInfo.provider === 'genaipro') {
+      console.log('[API] Using GenAIPro provider for model:', model);
+      
+      try {
+        const { getGenAIProClient, VIDEO_ASPECT_RATIOS } = await import("@/lib/api/genaipro-client");
+        const genaiproClient = getGenAIProClient();
+        
+        // Map aspect ratio to GenAIPro format
+        const genaiproAspectRatio = 
+          aspectRatio === '16:9' || aspectRatio === 'landscape' ? VIDEO_ASPECT_RATIOS.LANDSCAPE :
+          aspectRatio === '9:16' || aspectRatio === 'portrait' ? VIDEO_ASPECT_RATIOS.PORTRAIT :
+          VIDEO_ASPECT_RATIOS.LANDSCAPE; // default to landscape
+        
+        console.log('[API] Video generation request to GenAIPro:', {
+          provider: 'genaipro',
+          model,
+          aspectRatio: genaiproAspectRatio,
+          mode,
+          duration,
+          prompt: fullPrompt.substring(0, 50),
+          userId,
+          generationId: generation?.id,
+        });
+        
+        // Generate video (uses Server-Sent Events internally)
+        const videoGenResponse = await genaiproClient.generateVideoFromText({
+          prompt: fullPrompt,
+          aspect_ratio: genaiproAspectRatio,
+          number_of_videos: 1,
+        });
+        
+        // The response from SSE will have videos array
+        const videoUrl = videoGenResponse?.videos?.[0]?.url;
+        
+        if (!videoUrl) {
+          throw new Error('No video URL returned from GenAIPro');
+        }
+        
+        console.log('[API] Video generation successful from GenAIPro');
+        console.log('[API] Video URL from provider:', videoUrl);
+        console.log('[API] Downloading video for storage upload...');
+        
+        // Download video and upload to our storage
+        const videoResponse = await fetch(videoUrl);
+        if (!videoResponse.ok) {
+          throw new Error(`Failed to download video: ${videoResponse.status}`);
+        }
+        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+        const fileName = `video_${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
+        const storagePath = `${userId}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('generations')
+          .upload(storagePath, videoBuffer, {
+            contentType: 'video/mp4',
+            upsert: true
+          });
+        
+        if (uploadError) {
+          console.error('[API] Failed to upload video to storage:', uploadError);
+        }
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('generations')
+          .getPublicUrl(storagePath);
+        
+        const finalVideoUrl = uploadError ? videoUrl : publicUrlData.publicUrl;
+        
+        console.log('[API] Video storage upload:', {
+          success: !uploadError,
+          storagePath: uploadError ? 'failed' : storagePath,
+          finalUrl: finalVideoUrl.substring(0, 100),
+          fallbackToProviderUrl: !!uploadError,
+        });
+        
+        // Update generation record with success
+        await supabase
+          .from('generations')
+          .update({
+            status: 'success',
+            result_urls: [finalVideoUrl],
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', generation?.id);
+        
+        // Log generation run
+        try {
+          await supabase.from('generation_runs').insert({
+            generation_id: generation?.id,
+            user_id: userId,
+            provider: 'genaipro',
+            provider_model: model,
+            variant_key: `${quality || 'default'}_${aspectRatio || '16:9'}`,
+            stars_charged: creditCost,
+            status: 'success',
+          });
+        } catch (logError) {
+          console.error('[API] Failed to log generation run:', logError);
+        }
+        
+        // Return completed status (no polling needed)
+        return NextResponse.json({
+          success: true,
+          jobId: generation?.id,
+          status: 'completed',
+          generationId: generation?.id,
+          provider: 'genaipro',
+          kind: 'video',
+          creditCost: creditCost,
+          resultUrl: finalVideoUrl,
+          videoUrl: finalVideoUrl,
+          results: [{ url: finalVideoUrl }],
+        });
+      } catch (genaiproError: any) {
+        console.error('[API] GenAIPro video generation failed:', genaiproError);
+        
+        // Refund credits on error
+        await supabase.rpc('adjust_credits', {
+          p_user_id: userId,
+          p_amount: creditCost,
+        });
+        
+        // Update generation status
+        await supabase
+          .from('generations')
+          .update({
+            status: 'failed',
+            error: genaiproError.message || 'GenAIPro video generation error',
+          })
+          .eq('id', generation?.id);
+        
+        return NextResponse.json(
+          { error: genaiproError.message || 'Failed to generate video' },
+          { status: 500 }
+        );
+      }
+    }
+    
     // === VIDEO PROVIDER (Veo 3.1, Sora 2) ===
     if (modelInfo.provider === 'laozhang') {
       console.log('[API] Using video provider for model:', model);
