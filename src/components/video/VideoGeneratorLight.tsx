@@ -203,7 +203,18 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
               <div className={`w-full ${getMaxWidth()}`}>
                 <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
                   <div className={`relative ${getAspectClass()} bg-black/50 max-h-[60vh]`}>
-                    {videoUrl ? (
+                    {isGenerating ? (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="relative w-20 h-20 mx-auto mb-4">
+                            <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                            <div className="absolute inset-0 border-4 border-[#CDFF00] border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                          <p className="text-gray-400 text-sm mb-2">Генерация видео...</p>
+                          <p className="text-gray-500 text-xs">Это может занять до 2 минут</p>
+                        </div>
+                      </div>
+                    ) : videoUrl ? (
                       <video
                         ref={videoRef}
                         src={videoUrl}

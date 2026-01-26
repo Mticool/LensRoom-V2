@@ -85,10 +85,13 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
             setIsGenerating(false);
             setStatus('success');
             setProgress(100);
-            setResultUrl(data.resultUrl || data.videoUrl || null);
+            
+            // Check for video URL in multiple formats
+            const videoUrl = data.resultUrl || data.videoUrl || data.results?.[0]?.url || null;
+            setResultUrl(videoUrl);
 
-            if (data.resultUrl || data.videoUrl) {
-              options.onSuccess?.(data.resultUrl || data.videoUrl);
+            if (videoUrl) {
+              options.onSuccess?.(videoUrl);
               toast.success('Видео готово!');
             } else {
               const errorMsg = 'Видео сгенерировано, но URL не получен';
