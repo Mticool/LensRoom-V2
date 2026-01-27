@@ -24,6 +24,7 @@ import { getModelCapability } from '@/lib/videoModels/capabilities';
 import { z } from 'zod';
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
+// Настройка в next.config.ts: experimental.middlewareClientMaxBodySize = '50mb'
 export const maxDuration = 60; // 60 seconds timeout
 export const dynamic = 'force-dynamic';
 

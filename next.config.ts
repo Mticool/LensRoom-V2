@@ -257,6 +257,9 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '50mb',
     },
+    // CRITICAL: Fix "Unterminated string in JSON" - increase API route body limit
+    // Without this, Next.js truncates request body at 10MB, breaking base64 images
+    middlewareClientMaxBodySize: '50mb',
   },
 
   // Aggressive code splitting for better performance
