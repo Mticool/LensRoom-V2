@@ -70,28 +70,16 @@ export async function POST(request: NextRequest) {
       referenceImages, // Veo 3.1: array of up to 3 reference images
     } = body;
     
-    // === NEW: STRICT ZOD + CAPABILITY VALIDATION ===
-    // Try to map legacy model IDs to capability model IDs
-    const modelIdForCapability = 
-      model === 'veo-3.1-fast' ? 'veo3_1_fast' :
-      model === 'kling-2.6' ? 'kling_2_6' :
-      model === 'kling-2.5' ? 'kling_2_5' :
-      model === 'kling-2.1' ? 'kling_2_1' :
-      model === 'grok-video' ? 'grok_video' :
-      model === 'sora-2' ? 'sora_2' :
-      model === 'wan-2.6' ? 'wan_2_6' :
-      model === 'kling-motion-control' ? 'kling_2_6_motion_control' :
-      model;
-    
-    // Get capability config
-    const capability = getModelCapability(modelIdForCapability);
+    // === NEW: STRICT ZOD + CAPABILITY VALIDATION ===    
+    // Get capability config (capabilities now use dashed IDs matching UI)
+    const capability = getModelCapability(model);
     
     // NEW: Validate with Zod schema if capability exists
     if (capability) {
       try {
         // Build validation request object
         const validationRequest = {
-          modelId: modelIdForCapability,
+          modelId: model,
           mode: mode,
           prompt: prompt || '',
           negativePrompt,
@@ -388,7 +376,7 @@ export async function POST(request: NextRequest) {
       creditCost = mcPrice;
       
       console.log('[API] Motion Control pricing:', {
-        modelId: 'kling26_motion_control',
+        modelId: 'kling-motion-control',
         videoDuration: mcDuration,
         autoTrim,
         effectiveDuration,
@@ -493,7 +481,7 @@ export async function POST(request: NextRequest) {
           ? effectiveDuration 
           : (duration || modelInfo.fixedDuration || 5);
         const variantKey = model === 'kling-motion-control' 
-          ? `kling26_motion_control_${resolution || '720p'}`
+          ? `kling-motion-control_${resolution || '720p'}`
           : model === 'kling-o1' 
             ? `kling_o1_${durationSec}s` 
             : (modelVariant || 'default');

@@ -6,7 +6,7 @@ export default async function AdminCreditsPage() {
   try {
     await requireRole("admin");
   } catch {
-    redirect("/admin");
+    redirect("/");
   }
   return <AdminCreditsClient />;
 }

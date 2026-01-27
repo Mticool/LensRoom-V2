@@ -7,6 +7,7 @@ import { VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { VIDEO_MODELS_CONFIG, getDefaultVideoSettings } from '@/config/video-models-config';
 import { VIDEO_MODELS as CAPABILITY_MODELS, getModelCapability, getDefaultsForModel, getCapabilitySummary } from '@/lib/videoModels/capabilities';
 import type { ModelCapability } from '@/lib/videoModels/schema';
+import { computePrice } from '@/lib/pricing/compute-price';
 
 // Gradient backgrounds for each model
 const MODEL_GRADIENTS: Record<string, string> = {
@@ -177,24 +178,15 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
     }
   }, [selectedModel, modelConfig, capability]);
   
-  // Get available options for current model (NEW: capability-driven)
+  // Get available options for current model (STRICT: capability-driven only)
   const getQualityOptions = () => {
-    if (capability?.supportedQualities) {
-      return capability.supportedQualities.map(q => ({ value: q, label: q.toUpperCase() }));
-    }
-    if (!currentModel) return [{ value: '720p', label: '720p' }, { value: '1080p', label: '1080p' }];
-    if (currentModel.resolutionOptions) {
-      return currentModel.resolutionOptions.map(res => ({ value: res, label: res }));
-    }
-    return [{ value: '720p', label: '720p' }, { value: '1080p', label: '1080p' }];
+    if (!capability?.supportedQualities?.length) return [];
+    return capability.supportedQualities.map(q => ({ value: q, label: q.toUpperCase() }));
   };
 
   const getAspectRatioOptions = () => {
-    if (capability?.supportedAspectRatios) {
-      return capability.supportedAspectRatios.map(ar => ({ value: ar, label: ar }));
-    }
-    if (!currentModel) return [{ value: '16:9', label: '16:9' }, { value: '9:16', label: '9:16' }];
-    return currentModel.aspectRatios.map(ratio => ({ value: ratio, label: ratio }));
+    if (!capability) return [];
+    return capability.supportedAspectRatios.map(ar => ({ value: ar, label: ar }));
   };
 
   const handleAspectRatioChange = (newRatio: string) => {
@@ -203,77 +195,38 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   };
 
   const getDurationOptions = () => {
-    if (capability?.supportedDurationsSec) {
-      return capability.supportedDurationsSec.map(dur => ({ value: dur, label: `${dur}s` }));
-    }
-    if (!currentModel) return [{ value: 8, label: '8s' }];
-    return currentModel.durationOptions.map(dur => ({
-      value: typeof dur === 'number' ? dur : parseInt(dur),
-      label: typeof dur === 'number' ? `${dur}s` : dur
-    }));
+    if (!capability) return [];
+    return capability.supportedDurationsSec.map(dur => ({ value: dur, label: `${dur}s` }));
   };
   
-  // Check what features current model supports (NEW: capability-driven)
-  // If capability exists, use ONLY capability data (no fallback to old config)
-  const supportsStartEndFrames = capability 
-    ? (capability.supportsStartEndFrames || false)
-    : (currentModel?.supportsFirstLastFrame || false);
-  const supportsReferenceImages = capability
-    ? (capability.supportsReferenceImages || false)
-    : ((currentModel?.maxReferenceImages || 0) > 0);
-  const supportsI2v = capability
-    ? capability.supportedModes.includes('i2v')
-    : (currentModel?.supportsI2v || false);
-  const hasResolutionOptions = capability
-    ? ((capability.supportedQualities?.length || 0) > 0)
-    : ((currentModel?.resolutionOptions?.length || 0) > 0);
-  const supportsAudioGeneration = capability
-    ? (capability.supportsSound || false)
-    : (currentModel?.supportsAudioGeneration || false);
+  // Check what features current model supports (STRICT: capability-driven only)
+  const supportsStartEndFrames = capability?.supportsStartEndFrames || false;
+  const supportsReferenceImages = capability?.supportsReferenceImages || false;
+  const supportsI2v = capability?.supportedModes.includes('i2v') || false;
+  const hasResolutionOptions = (capability?.supportedQualities?.length || 0) > 0;
+  const supportsAudioGeneration = capability?.supportsSound || false;
   
   // Simple I2V input (no tabs): Grok, Sora
+  // Veo uses tabs but needs i2v logic for first frame
   const useSimpleImageInput = ['grok-video', 'sora-2'].includes(selectedModel) && supportsI2v;
   
-  // Calculate cost (real calculation from pricing)
+  // Calculate cost using centralized pricing
   const calculateCost = () => {
-    if (!currentModel) return 0;
-    const pricing = currentModel.pricing as any;
-    
-    // Motion Control per-second pricing
-    if (selectedModel === 'kling-motion-control') {
-      const perSecondRate = pricing[quality]?.per_second || 16;
-      return Math.round(perSecondRate * duration);
+    try {
+      // Determine if quality is a tier (for Kling 2.1) or resolution
+      const isTier = ['standard', 'pro', 'master'].includes(quality);
+      const result = computePrice(selectedModel, {
+        duration,
+        resolution: isTier ? undefined : quality,
+        audio: audioEnabled,
+        qualityTier: isTier ? (quality as 'standard' | 'pro' | 'master') : undefined,
+        variants: 1,
+      });
+      return result.stars;
+    } catch (error) {
+      console.error('Price calculation error:', error);
+      return 0;
     }
-    
-    // Fixed pricing by duration
-    let baseCost = 0;
-    if (typeof pricing === 'number') {
-      baseCost = pricing;
-    } else if (pricing[duration]) {
-      const durationPrice = pricing[duration];
-      // Kling 2.6 has nested object: { no_audio: 105, audio: 135 }
-      if (typeof durationPrice === 'object' && durationPrice !== null) {
-        baseCost = audioEnabled ? (durationPrice.audio || durationPrice.no_audio || 0) : (durationPrice.no_audio || 0);
-      } else {
-        baseCost = durationPrice;
-      }
-    } else if (pricing[String(duration)]) {
-      const durationPrice = pricing[String(duration)];
-      if (typeof durationPrice === 'object' && durationPrice !== null) {
-        baseCost = audioEnabled ? (durationPrice.audio || durationPrice.no_audio || 0) : (durationPrice.no_audio || 0);
-      } else {
-        baseCost = durationPrice;
-      }
-    } else {
-      baseCost = 22; // default
-    }
-    
-    // Grok: Audio adds +30 credits (Kling 2.6 already handled above)
-    if (selectedModel === 'grok-video' && audioEnabled) {
-      baseCost += 30;
-    }
-    
-    return baseCost;
   };
   
   const cost = calculateCost();
@@ -286,6 +239,22 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
     }
     
     try {
+      // For Veo i2v mode: use first image from referenceImages as startFrame
+      const effectiveStartFrame = mode === 'i2v' && selectedModel === 'veo-3.1-fast' && referenceImages.length > 0
+        ? referenceImages[0]
+        : startFrame;
+      
+      // For ref2v mode: use referenceImages array
+      const effectiveReferenceImages = mode === 'ref2v' ? referenceImages : [];
+      
+      console.log('[VideoGeneratorHiru] Calling onGenerate with:', {
+        mode,
+        model: selectedModel,
+        hasStartFrame: !!effectiveStartFrame,
+        hasReferenceImages: effectiveReferenceImages.length,
+        hasReferenceImage: !!referenceImage,
+      });
+      
       // Call API
       if (onGenerate) {
         await onGenerate({
@@ -294,9 +263,9 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
           duration,
           quality,
           aspectRatio,
-          startFrame,
+          startFrame: effectiveStartFrame,
           endFrame,
-          referenceImages,
+          referenceImages: effectiveReferenceImages,
           referenceImage, // Simple I2V (Grok, Sora)
           motionVideo,
           characterImage,
@@ -957,64 +926,130 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
         </button>
       </div>
       
-      {/* Model Selector Modal - Apple Style Minimalist */}
+      {/* Model Selector Modal - Dark Unified List */}
       {showModelSelector && (
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-2xl z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-[#1A1A1C]/98 backdrop-blur-3xl rounded-[24px] p-10 max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-white/[0.08] shadow-2xl">
-            {/* Header - Minimal */}
-            <div className="flex items-center justify-between mb-10">
-              <h2 className="text-3xl font-semibold text-white tracking-tight">Выберите модель</h2>
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-200">
+          <div className="bg-zinc-950 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-zinc-800/50 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800/50">
+              <h2 className="text-xl font-semibold text-white tracking-tight" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                Выберите модель
+              </h2>
               <button 
                 onClick={() => setShowModelSelector(false)} 
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-zinc-500 hover:text-white transition-all duration-200"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
             
-            {/* Models Grid - Apple Clean Style */}
-            <div className="grid grid-cols-2 gap-5">
-              {STANDARD_MODELS.map((model) => (
-                <button
-                  key={model.id}
-                  onClick={() => {
-                    setSelectedModel(model.id);
-                    setShowModelSelector(false);
-                  }}
-                  className={`group relative overflow-hidden rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
-                    selectedModel === model.id ? 'ring-2 ring-white/30 shadow-xl' : 'hover:shadow-lg'
-                  }`}
-                >
-                  {/* Gradient Background */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${MODEL_GRADIENTS[model.id]} opacity-90 group-hover:opacity-100 transition-all duration-300`} />
+            {/* Search (optional - can add state later) */}
+            <div className="px-6 py-4 border-b border-zinc-800/50">
+              <input 
+                type="text"
+                placeholder="Поиск модели..."
+                className="w-full px-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-all"
+              />
+            </div>
+            
+            {/* Models List - Scrollable */}
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <div className="space-y-2">
+                {STANDARD_MODELS.map((model) => {
+                  const cap = getModelCapability(model.id);
+                  const isSelected = selectedModel === model.id;
                   
-                  {/* Subtle Grain */}
-                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNhKSIgb3BhY2l0eT0iLjA1Ii8+PC9zdmc+')] opacity-30 mix-blend-overlay" />
+                  // Build meta info
+                  const durationText = cap?.supportedDurationsSec?.length 
+                    ? cap.supportedDurationsSec.length === 1 
+                      ? `${cap.supportedDurationsSec[0]}с` 
+                      : `${Math.min(...cap.supportedDurationsSec)}-${Math.max(...cap.supportedDurationsSec)}с`
+                    : model.fixedDuration ? `${model.fixedDuration}с` : null;
                   
-                  {/* Content */}
-                  <div className="relative p-6 h-36 flex flex-col justify-between">
-                    {/* Badge - Minimal */}
-                    <div className="inline-flex items-center self-start">
-                      <div className="px-2.5 py-1 bg-black/40 backdrop-blur-xl rounded-md border border-white/10">
-                        <span className="text-white text-[10px] font-bold uppercase tracking-wider">{model.modelTag || 'GENERAL'}</span>
+                  const modesText = cap?.supportedModes?.length
+                    ? cap.supportedModes.join(' • ').toUpperCase()
+                    : null;
+                  
+                  const qualityText = cap?.supportedQualities?.length
+                    ? cap.supportedQualities.join(', ')
+                    : null;
+                  
+                  return (
+                    <button
+                      key={model.id}
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setShowModelSelector(false);
+                      }}
+                      className={`w-full text-left px-4 py-4 rounded-xl transition-all ${
+                        isSelected 
+                          ? 'bg-zinc-800/80 ring-1 ring-zinc-700' 
+                          : 'bg-zinc-900/50 hover:bg-zinc-900'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Left: Name + Badges + Meta */}
+                        <div className="flex-1 min-w-0 space-y-2">
+                          {/* Name + Badges */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white font-semibold text-base tracking-tight" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                              {model.name}
+                            </span>
+                            {model.modelTag && (
+                              <span className="inline-flex items-center px-2 py-0.5 bg-zinc-800 text-zinc-300 text-[10px] font-bold uppercase tracking-wide rounded">
+                                {model.modelTag}
+                              </span>
+                            )}
+                            {model.speed === 'fast' && (
+                              <span className="inline-flex items-center px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wide rounded">
+                                FAST
+                              </span>
+                            )}
+                            {model.quality === 'ultra' && (
+                              <span className="inline-flex items-center px-2 py-0.5 bg-purple-500/20 text-purple-400 text-[10px] font-bold uppercase tracking-wide rounded">
+                                ULTRA
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Meta: Duration, Modes, Quality, Audio */}
+                          <div className="flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
+                            {durationText && (
+                              <span className="flex items-center gap-1">
+                                <VideoIcon className="w-3 h-3" />
+                                {durationText}
+                              </span>
+                            )}
+                            {modesText && (
+                              <span className="text-zinc-400">{modesText}</span>
+                            )}
+                            {qualityText && (
+                              <span className="text-zinc-400">{qualityText}</span>
+                            )}
+                            {model.supportsAudio && (
+                              <span className="text-zinc-400">+ Аудио</span>
+                            )}
+                          </div>
+                          
+                          {/* Subtitle */}
+                          {model.shortLabel && (
+                            <div className="text-xs text-zinc-600 line-clamp-1">
+                              {model.shortLabel}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Right: Checkmark */}
+                        {isSelected && (
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                            <Check className="w-3 h-3 text-black" strokeWidth={3} />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    
-                    {/* Model Name & Info - Clean Typography */}
-                    <div className="space-y-1">
-                      <div className="text-white text-lg font-semibold tracking-tight">{model.name}</div>
-                      <div className="text-white/60 text-xs font-medium">{model.shortLabel}</div>
-                    </div>
-                  </div>
-                  
-                  {/* Selection Check - Subtle */}
-                  {selectedModel === model.id && (
-                    <div className="absolute top-4 right-4 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-lg">
-                      <Check className="w-4 h-4 text-black" />
-                    </div>
-                  )}
-                </button>
-              ))}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

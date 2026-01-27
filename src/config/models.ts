@@ -33,7 +33,7 @@ export type PhotoQuality =
   | 'c_60cred'
   | 'c_72cred';
 export type VideoQuality = '720p' | '1080p' | '480p' | '580p' | 'fast' | 'quality' | 'standard' | 'high';
-export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference' | 'v2v' | 'style_transfer';
+export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference' | 'v2v' | 'style_transfer' | 'motion_control';
 export type PhotoMode = 't2i' | 'i2i';
 
 // === NEW TYPES FOR EXTENDED MODEL CAPABILITIES ===
@@ -537,15 +537,13 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsFirstLastFrame: true,
     maxReferenceImages: 3,
     pricing: {
-      '4': 50,
-      '6': 75,
       '8': 99,
     },
     modes: ['t2v', 'i2v'],
-    durationOptions: [4, 6, 8],
-    resolutionOptions: ['720p', '1080p'],
+    durationOptions: [8],
+    resolutionOptions: [],
     aspectRatios: ['16:9', '9:16'],
-    shortLabel: '4-8s • Fast • 3 Refs',
+    shortLabel: '8s • Fast • 3 Refs',
     modelTag: 'FAST',
   },
 
@@ -652,7 +650,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
       '720p': { per_second: 16 },
       '1080p': { per_second: 25 },
     },
-    modes: ['v2v'], // video-to-video only
+    modes: ['motion_control'], // motion control mode
     durationOptions: [], // Based on input video length (3-30s)
     resolutionOptions: ['720p', '1080p'],
     aspectRatios: ['16:9', '9:16', '1:1'],

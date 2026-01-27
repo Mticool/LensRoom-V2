@@ -16,9 +16,9 @@ import { ModelCapability } from './schema';
 export const VIDEO_MODELS: ModelCapability[] = [
   // ===== VEO 3.1 FAST - Google =====
   {
-    id: 'veo3_1_fast',
+    id: 'veo-3.1-fast',
     label: 'Veo 3.1 Fast',
-    provider: 'kie',
+    provider: 'laozhang',
     description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества с поддержкой референсов',
     apiId: 'veo-3.1-fast',
     
@@ -38,7 +38,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
   
   // ===== KLING 2.6 =====
   {
-    id: 'kling_2_6',
+    id: 'kling-2.6',
     label: 'Kling 2.6',
     provider: 'kie',
     description: 'Kling 2.6 Standard — отличная динамика с поддержкой звука',
@@ -58,7 +58,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
   
   // ===== KLING 2.5 =====
   {
-    id: 'kling_2_5',
+    id: 'kling-2.5',
     label: 'Kling 2.5',
     provider: 'kie',
     description: 'Kling 2.5 Turbo — быстрая генерация с балансом скорости и качества',
@@ -78,7 +78,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
   
   // ===== KLING 2.1 =====
   {
-    id: 'kling_2_1',
+    id: 'kling-2.1',
     label: 'Kling 2.1',
     provider: 'kie',
     description: 'Kling 2.1 Master — высокое качество генерации с тремя уровнями качества',
@@ -98,7 +98,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
   
   // ===== GROK VIDEO - xAI =====
   {
-    id: 'grok_video',
+    id: 'grok-video',
     label: 'Grok Video',
     provider: 'kie',
     description: 'Grok Video от xAI — создаёт видео с синхронизированным звуком и 6 стилей',
@@ -119,7 +119,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
   
   // ===== SORA 2 - OpenAI =====
   {
-    id: 'sora_2',
+    id: 'sora-2',
     label: 'Sora 2',
     provider: 'laozhang',
     description: 'OpenAI Sora 2 — универсальная генерация с балансом качества и скорости',
@@ -136,7 +136,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
   
   // ===== WAN 2.6 =====
   {
-    id: 'wan_2_6',
+    id: 'wan-2.6',
     label: 'WAN 2.6',
     provider: 'kie',
     description: 'WAN 2.6 — кинематографическая генерация с управлением камерой',
@@ -169,7 +169,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
   
   // ===== KLING 2.6 MOTION CONTROL =====
   {
-    id: 'kling_2_6_motion_control',
+    id: 'kling-motion-control',
     label: 'Kling Motion Control',
     provider: 'kie',
     description: 'Kling 2.6 Motion Control — передача движения из референсного видео',

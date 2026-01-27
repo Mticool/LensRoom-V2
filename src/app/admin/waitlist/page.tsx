@@ -56,7 +56,7 @@ export default function AdminWaitlistPage() {
   // Fetch stats
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/telegram/broadcast');
+      const response = await fetch('/api/telegram/broadcast', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -70,7 +70,7 @@ export default function AdminWaitlistPage() {
   const fetchSubscriptions = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/waitlist?type=${selectedType}`);
+      const response = await fetch(`/api/admin/waitlist?type=${selectedType}`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setSubscriptions(data.subscriptions || []);

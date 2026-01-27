@@ -172,8 +172,14 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
             apiMode = 'v2v';
             break;
           case 'reference':
-            // Detect if start/end frames or reference video
-            apiMode = params.startFrame && params.endFrame ? 'start_end' : 'v2v';
+            // Detect type: ref2v (Veo refs), start_end (frames), or v2v (video)
+            if (params.referenceImages && params.referenceImages.length > 0) {
+              apiMode = 'ref2v'; // Veo multiple reference images
+            } else if (params.startFrame && params.endFrame) {
+              apiMode = 'start_end'; // Start/end frames
+            } else {
+              apiMode = 'v2v'; // Reference video
+            }
             break;
           case 'motion':
             apiMode = 'motion';
@@ -197,12 +203,22 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
         };
 
         // Add reference files based on mode
-        if (params.mode === 'image' && params.referenceImage) {
-          requestBody.referenceImage = params.referenceImage;
+        if (params.mode === 'image') {
+          // For i2v: use referenceImage OR startFrame (for Veo)
+          if (params.referenceImage) {
+            requestBody.referenceImage = params.referenceImage;
+          } else if (params.startFrame) {
+            // Veo i2v uses startFrame as first frame
+            requestBody.startImage = params.startFrame;
+          }
         }
 
         if (params.mode === 'reference') {
-          if (params.startFrame && params.endFrame) {
+          if (params.referenceImages && params.referenceImages.length > 0) {
+            // Veo multiple reference images (ref2v)
+            requestBody.referenceImages = params.referenceImages;
+            console.log('[useVideoGeneration] Adding reference images:', params.referenceImages.length);
+          } else if (params.startFrame && params.endFrame) {
             // Start/End Frame mode
             requestBody.startFrame = params.startFrame;
             requestBody.endFrame = params.endFrame;

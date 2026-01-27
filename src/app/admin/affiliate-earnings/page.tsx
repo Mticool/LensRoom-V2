@@ -63,7 +63,7 @@ export default function AffiliateEarningsPage() {
       
       if (params.toString()) url += `?${params}`;
       
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: 'include' });
       
       if (res.status === 401 || res.status === 403) {
         router.push('/');
@@ -87,6 +87,7 @@ export default function AffiliateEarningsPage() {
       const res = await fetch('/api/admin/affiliate/earnings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ earningId }),
       });
       

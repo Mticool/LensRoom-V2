@@ -83,12 +83,12 @@ export function mapRequestToKiePayload(
   // Model-specific parameters
   
   // Grok Video: style
-  if (request.modelId === 'grok_video' && request.style) {
+  if (request.modelId === 'grok-video' && request.style) {
     (payload as any).style = request.style;
   }
 
   // WAN 2.6: camera motion, style preset, motion strength
-  if (request.modelId === 'wan_2_6') {
+  if (request.modelId === 'wan-2.6') {
     if (request.cameraMotion) {
       (payload as any).cameraMotion = request.cameraMotion;
     }
@@ -106,7 +106,7 @@ export function mapRequestToKiePayload(
   }
 
   // Motion Control: character orientation
-  if (request.modelId === 'kling_2_6_motion_control') {
+  if (request.modelId === 'kling-motion-control') {
     (payload as any).characterOrientation = 'video'; // Default to video orientation
   }
 
@@ -149,7 +149,7 @@ export function validateKieRequest(request: VideoGenerationRequest): {
   }
 
   // Veo-specific validations
-  if (request.modelId === 'veo3_1_fast') {
+  if (request.modelId === 'veo-3.1-fast') {
     // Veo doesn't support 1:1 aspect ratio
     if (request.aspectRatio === '1:1') {
       errors.push('Veo 3.1 does not support 1:1 aspect ratio');

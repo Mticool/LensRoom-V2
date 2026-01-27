@@ -34,25 +34,34 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
         return;
       }
 
+      console.log('[VideoGeneratorLight] Loading history for user:', user.id);
+
       const { data, error } = await supabase
         .from('generations')
-        .select('result_urls')
+        .select('id, result_urls, status, created_at, task_id')
         .eq('user_id', user.id)
         .eq('type', 'video')
         .in('status', ['success', 'completed'])
-        .not('result_urls', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(20); // Увеличим лимит чтобы точно захватить успешные
 
       if (error) {
         console.error('[VideoGeneratorLight] History query error:', error);
         throw error;
       }
       
-      // Extract first URL from result_urls array
-      const urls = data?.map((g: any) => g.result_urls?.[0]).filter(Boolean) || [];
-      console.log('[VideoGeneratorLight] Loaded history:', urls.length, 'videos');
-      setGenerationHistory(urls);
+      console.log('[VideoGeneratorLight] Query returned:', data?.length || 0, 'generations');
+      console.log('[VideoGeneratorLight] Full data:', data);
+      
+      // Extract first URL from result_urls array, filter out invalid entries
+      const urls = data
+        ?.filter((g: any) => g.result_urls && Array.isArray(g.result_urls) && g.result_urls.length > 0)
+        .map((g: any) => g.result_urls[0])
+        .filter(Boolean) || [];
+      
+      console.log('[VideoGeneratorLight] Valid generations with URLs:', urls.length);
+      console.log('[VideoGeneratorLight] Extracted URLs:', urls);
+      setGenerationHistory(urls.slice(0, 8)); // Ограничим до 8 для отображения
     } catch (error) {
       console.error('[VideoGeneratorLight] Failed to load history:', error);
     }
@@ -101,11 +110,28 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
         return;
       }
 
-      // Determine mode based on inputs
+      // Determine mode based on inputs and params.mode
       let mode: 'text' | 'image' | 'reference' | 'v2v' | 'motion' = 'text';
-      if (params.referenceImage) mode = 'image';
-      else if (params.startFrame && params.endFrame) mode = 'reference';
+      
+      // Use mode from params if provided (from UI selector)
+      if (params.mode === 'i2v') mode = 'image';
+      else if (params.mode === 'ref2v') mode = 'reference';
+      else if (params.mode === 'v2v') mode = 'v2v';
+      else if (params.mode === 'motion_control') mode = 'motion';
+      // Auto-detect from inputs if mode not explicitly set
       else if (params.motionVideo) mode = 'motion';
+      else if (params.startFrame && params.endFrame) mode = 'reference';
+      else if (params.referenceImages && params.referenceImages.length > 0) mode = 'reference';
+      else if (params.referenceImage) mode = 'image';
+      
+      console.log('[VideoGeneratorLight] Mode determined:', mode, {
+        paramsMode: params.mode,
+        hasReferenceImages: params.referenceImages?.length || 0,
+        hasReferenceImage: !!params.referenceImage,
+        hasStartFrame: !!params.startFrame,
+        hasEndFrame: !!params.endFrame,
+        hasMotionVideo: !!params.motionVideo,
+      });
       
       // Convert files to base64
       const referenceImageBase64 = params.referenceImage ? await fileToBase64(params.referenceImage) : undefined;
@@ -113,6 +139,18 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
       const endFrameBase64 = params.endFrame ? await fileToBase64(params.endFrame) : undefined;
       const motionVideoBase64 = params.motionVideo ? await fileToBase64(params.motionVideo) : undefined;
       const characterImageBase64 = params.characterImage ? await fileToBase64(params.characterImage) : undefined;
+      
+      // Convert reference images array to base64
+      const referenceImagesBase64 = params.referenceImages && params.referenceImages.length > 0
+        ? await Promise.all(params.referenceImages.map((file: File) => fileToBase64(file)))
+        : undefined;
+      
+      console.log('[VideoGeneratorLight] Converted files:', {
+        referenceImagesCount: referenceImagesBase64?.length || 0,
+        hasReferenceImage: !!referenceImageBase64,
+        hasStartFrame: !!startFrameBase64,
+        hasEndFrame: !!endFrameBase64,
+      });
       
       console.log('[VideoGeneratorLight] Calling generate with model:', params.model);
       
@@ -125,6 +163,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
         aspectRatio: params.aspectRatio,
         withSound: params.audioEnabled || false,
         referenceImage: referenceImageBase64,
+        referenceImages: referenceImagesBase64, // Veo multiple refs
         startFrame: startFrameBase64,
         endFrame: endFrameBase64,
         motionVideo: motionVideoBase64,

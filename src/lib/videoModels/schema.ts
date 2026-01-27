@@ -3,14 +3,14 @@ import { z } from 'zod';
 // ===== ENUMS =====
 
 export const ModelIdEnum = z.enum([
-  'veo3_1_fast',
-  'kling_2_6',
-  'kling_2_5',
-  'kling_2_1',
-  'grok_video',
-  'sora_2',
-  'wan_2_6',
-  'kling_2_6_motion_control',
+  'veo-3.1-fast',
+  'kling-2.6',
+  'kling-2.5',
+  'kling-2.1',
+  'grok-video',
+  'sora-2',
+  'wan-2.6',
+  'kling-motion-control',
 ]);
 export type ModelId = z.infer<typeof ModelIdEnum>;
 

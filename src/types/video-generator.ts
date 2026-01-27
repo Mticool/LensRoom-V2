@@ -17,6 +17,7 @@ export interface VideoGenerationParams {
 
   // Basic modes (text, image, reference)
   referenceImage?: string | null;
+  referenceImages?: string[] | null; // Veo multiple reference images
   referenceVideo?: string | null;
 
   // Start/End Frame mode (extends reference)

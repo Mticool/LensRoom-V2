@@ -6,7 +6,7 @@ export default async function AdminUsersPage() {
   try {
     await requireRole("admin");
   } catch {
-    redirect("/admin");
+    redirect("/");
   }
   return <AdminUsersClient />;
 }

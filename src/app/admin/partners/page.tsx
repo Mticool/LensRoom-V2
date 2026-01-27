@@ -114,6 +114,7 @@ export default function AdminPartnersPage() {
       const res = await fetch('/api/admin/partners', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           applicationId,
           action,
