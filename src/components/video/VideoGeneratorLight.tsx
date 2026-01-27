@@ -28,6 +28,11 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
   const loadHistory = async () => {
     try {
       const supabase = createClient();
+      if (!supabase) {
+        console.log('[VideoGeneratorLight] Supabase client not initialized');
+        return;
+      }
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log('[VideoGeneratorLight] No user for history');

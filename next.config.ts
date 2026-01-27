@@ -44,20 +44,20 @@ function loadEnvFromCandidateFiles() {
   const candidates = [
     // local project root (should already work, but harmless)
     path.resolve(__dirname, ".env.local"),
-    path.resolve(__dirname, ".env.local.production"),
+    path.resolve(__dirname, ".env.production.local"),
     path.resolve(__dirname, ".env.production"),
     path.resolve(__dirname, ".env"),
     // parent(s)
     path.resolve(__dirname, "..", ".env.local"),
-    path.resolve(__dirname, "..", ".env.local.production"),
+    path.resolve(__dirname, "..", ".env.production.local"),
     path.resolve(__dirname, "..", ".env.production"),
     path.resolve(__dirname, "..", ".env"),
     path.resolve(__dirname, "..", "..", ".env.local"),
-    path.resolve(__dirname, "..", "..", ".env.local.production"),
+    path.resolve(__dirname, "..", "..", ".env.production.local"),
     path.resolve(__dirname, "..", "..", ".env.production"),
     path.resolve(__dirname, "..", "..", ".env"),
     path.resolve(__dirname, "..", "..", "..", ".env.local"),
-    path.resolve(__dirname, "..", "..", "..", ".env.local.production"),
+    path.resolve(__dirname, "..", "..", "..", ".env.production.local"),
     path.resolve(__dirname, "..", "..", "..", ".env.production"),
     path.resolve(__dirname, "..", "..", "..", ".env"),
   ];
