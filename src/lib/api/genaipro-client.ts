@@ -54,6 +54,7 @@ export interface GenAIProVideoTextRequest {
   prompt: string;
   aspect_ratio?: string; // VIDEO_ASPECT_RATIO_LANDSCAPE / PORTRAIT / SQUARE
   number_of_videos?: number;
+  reference_images?: string[]; // Optional reference image URLs (for Veo 3.1)
 }
 
 export interface GenAIProVideoFramesRequest {

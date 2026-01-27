@@ -366,18 +366,67 @@ export class LaoZhangClient {
   /**
    * Generate video using Veo / Sora models
    * Uses chat/completions endpoint which returns video URL directly
-   * Supports: t2v (text only), i2v (single image), start_end (first + last frame)
+   * Supports: t2v (text only), i2v (single image), start_end (first + last frame), ref2v (with reference images)
    */
   async generateVideo(params: {
     model: string;
     prompt: string;
     startImageUrl?: string; // First frame image URL (for i2v or start_end)
     endImageUrl?: string; // Last frame image URL (for start_end mode)
+    referenceImages?: string[]; // Reference images as Base64 data URLs (for Veo 3.1 ref2v)
   }): Promise<LaoZhangVideoResponse> {
+    // Check if model needs -fl suffix for reference images (Veo with refs)
+    let finalModel = params.model;
+    const hasReferenceImages = params.referenceImages && params.referenceImages.length > 0;
+    
+    if (hasReferenceImages && params.model.startsWith('veo') && !params.model.includes('-fl')) {
+      // Add -fl suffix for Veo with reference images (required by API)
+      const parts = params.model.split('-');
+      const baseName = parts.slice(0, -1).join('-'); // e.g., "veo-3.1"
+      const lastPart = parts[parts.length - 1]; // e.g., "fast" or "landscape"
+      
+      if (lastPart === 'fast' || lastPart === 'landscape') {
+        finalModel = `${baseName}-fl-${lastPart}`;
+      } else {
+        finalModel = `${params.model}-fl`;
+      }
+      
+      console.log('[Video API] Using -fl model for reference images:', {
+        original: params.model,
+        final: finalModel,
+        referenceCount: params.referenceImages?.length || 0,
+      });
+    }
+    
     // Build message content
     let messageContent: string | { type: string; text?: string; image_url?: { url: string } }[];
     
-    if (params.startImageUrl || params.endImageUrl) {
+    if (hasReferenceImages) {
+      // ref2v mode - prompt + reference images (Base64)
+      const contentParts: { type: string; text?: string; image_url?: { url: string } }[] = [
+        { type: "text", text: params.prompt }
+      ];
+      
+      // Add reference images (must be Base64 data URLs)
+      if (params.referenceImages) {
+        for (const refImageBase64 of params.referenceImages) {
+          if (!refImageBase64.startsWith('data:image/')) {
+            console.warn('[Video API] Reference image not in Base64 format, skipping');
+            continue;
+          }
+          contentParts.push({
+            type: "image_url",
+            image_url: { url: refImageBase64 }
+          });
+        }
+      }
+      
+      messageContent = contentParts;
+      console.log("[Video API] Using ref2v mode with reference images:", {
+        referenceCount: params.referenceImages?.length || 0,
+        format: 'base64 data URLs',
+      });
+    } else if (params.startImageUrl || params.endImageUrl) {
       // i2v or start_end mode - use multimodal content
       const contentParts: { type: string; text?: string; image_url?: { url: string } }[] = [
         { type: "text", text: params.prompt }
@@ -415,7 +464,7 @@ export class LaoZhangClient {
     }
     
     const body = {
-      model: params.model,
+      model: finalModel,
       messages: [
         { role: "user", content: messageContent }
       ],
@@ -424,9 +473,12 @@ export class LaoZhangClient {
     console.log("[Video API] Request to LaoZhang:", JSON.stringify({
       baseUrl: this.baseUrl,
       endpoint: "/chat/completions",
-      model: params.model,
+      model: finalModel,
+      originalModel: params.model,
       hasStartImage: !!params.startImageUrl,
       hasEndImage: !!params.endImageUrl,
+      hasReferenceImages: hasReferenceImages,
+      referenceImagesCount: params.referenceImages?.length || 0,
       promptLength: params.prompt.length,
       promptPreview: params.prompt.substring(0, 100)
     }, null, 2));

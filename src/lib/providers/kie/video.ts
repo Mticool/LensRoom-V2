@@ -62,8 +62,8 @@ export function mapRequestToKiePayload(
     payload.lastFrameUrl = request.endImage;
   }
 
-  // Quality/Resolution
-  if (request.quality) {
+  // Quality/Resolution - only send if model supports it
+  if (request.quality && capability.supportedQualities?.includes(request.quality)) {
     // Map quality to appropriate field based on model
     if (['720p', '1080p', '4k'].includes(request.quality)) {
       payload.resolution = request.quality;

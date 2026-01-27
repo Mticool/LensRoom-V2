@@ -39,8 +39,27 @@ export const QualityEnum = z.enum([
 ]);
 export type Quality = z.infer<typeof QualityEnum>;
 
-export const ProviderEnum = z.enum(['kie', 'laozhang', 'openai', 'fal']);
+export const ProviderEnum = z.enum(['kie', 'laozhang', 'openai', 'fal', 'genaipro']);
 export type Provider = z.infer<typeof ProviderEnum>;
+
+// Grok Video styles
+export const GrokStyleEnum = z.enum([
+  'realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'
+]);
+export type GrokStyle = z.infer<typeof GrokStyleEnum>;
+
+// WAN camera motion options
+export const CameraMotionEnum = z.enum([
+  'static', 'pan_left', 'pan_right', 'tilt_up', 'tilt_down', 
+  'zoom_in', 'zoom_out', 'orbit', 'follow'
+]);
+export type CameraMotion = z.infer<typeof CameraMotionEnum>;
+
+// WAN style presets
+export const WANStylePresetEnum = z.enum([
+  'realistic', 'anime', 'cinematic', 'artistic'
+]);
+export type WANStylePreset = z.infer<typeof WANStylePresetEnum>;
 
 // ===== CONSTRAINTS =====
 
@@ -128,10 +147,10 @@ export const VideoGenerationRequestSchema = z.object({
   sound: z.boolean().optional(),
   soundPreset: z.string().optional(),
   
-  // Model-specific
-  style: z.string().optional(),
-  cameraMotion: z.string().optional(),
-  stylePreset: z.string().optional(),
+  // Model-specific (with enum validation)
+  style: GrokStyleEnum.optional(), // Grok Video styles
+  cameraMotion: CameraMotionEnum.optional(), // WAN camera motion
+  stylePreset: WANStylePresetEnum.optional(), // WAN style presets
   motionStrength: z.number().min(0).max(100).optional(),
   qualityTier: z.enum(['standard', 'pro', 'master']).optional(),
   

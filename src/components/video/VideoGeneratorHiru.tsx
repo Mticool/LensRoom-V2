@@ -110,6 +110,8 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   const [referenceImage, setReferenceImage] = useState<File | null>(null); // Simple I2V input (Grok, Sora)
   const [motionVideo, setMotionVideo] = useState<File | null>(null);
   const [characterImage, setCharacterImage] = useState<File | null>(null);
+  const [referenceVideo, setReferenceVideo] = useState<File | null>(null); // For ref2v mode
+  const [v2vVideo, setV2vVideo] = useState<File | null>(null); // For v2v mode
   
   // Audio generation toggle (Kling 2.6, Grok)
   const [audioEnabled, setAudioEnabled] = useState(false);
@@ -120,6 +122,11 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [duration, setDuration] = useState(8);
   const [sceneControlMode, setSceneControlMode] = useState<'video' | 'image'>('video');
+  const [mode, setMode] = useState<'t2v' | 'i2v' | 'v2v' | 'ref2v'>('t2v');
+  const [style, setStyle] = useState<string>('');
+  const [cameraMotion, setCameraMotion] = useState<string>('static');
+  const [stylePreset, setStylePreset] = useState<string>('');
+  const [motionStrength, setMotionStrength] = useState(50);
   
   // Use prop for loading state if provided, otherwise local state
   const isGenerating = isGeneratingProp;
@@ -132,14 +139,35 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   // NEW: Get capability-based config
   const capability = getModelCapability(selectedModel);
   
-  // Update settings when model changes
+  // Update settings when model changes - reset invalid values
   useEffect(() => {
     if (capability) {
       const defaults = getDefaultsForModel(selectedModel);
       if (defaults) {
+        // Always reset to defaults to avoid invalid states
         setDuration(defaults.durationSec);
         setQuality(defaults.quality || '720p');
         setAspectRatio(defaults.aspectRatio);
+        setAudioEnabled(false);
+        
+        // Reset mode to first supported
+        if (capability.supportedModes && capability.supportedModes.length > 0) {
+          setMode(capability.supportedModes[0] as any);
+        }
+        
+        // Reset advanced settings
+        setStyle('');
+        setCameraMotion('static');
+        setStylePreset('');
+        setMotionStrength(50);
+        
+        // Reset files
+        setReferenceImage(null);
+        setStartFrame(null);
+        setEndFrame(null);
+        setReferenceImages([]);
+        setReferenceVideo(null);
+        setV2vVideo(null);
       }
     } else if (modelConfig) {
       const defaults = getDefaultVideoSettings(selectedModel);
@@ -274,6 +302,13 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
           characterImage,
           sceneControlMode,
           audioEnabled,
+          mode,
+          style,
+          cameraMotion,
+          stylePreset,
+          motionStrength,
+          referenceVideo, // For ref2v
+          v2vVideo, // For v2v
         });
       }
     } catch (error) {
@@ -345,7 +380,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
             </div>
             
             {/* Simple Image Input for I2V (Grok, Sora) */}
-            {useSimpleImageInput && (
+            {useSimpleImageInput && mode === 'i2v' && (
               <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                 <input
                   type="file"
@@ -368,6 +403,66 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
                   <p className="text-xs text-zinc-500">PNG, JPG • Для режима изображение→видео</p>
                   
                   {referenceImage && (
+                    <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
+                      <Check className="w-3 h-3" />
+                      <span>Загружено</span>
+                    </div>
+                  )}
+                </div>
+              </label>
+            )}
+            
+            {/* Reference Video Input for Ref2V (Veo) */}
+            {mode === 'ref2v' && capability?.supportedModes?.includes('ref2v') && (
+              <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => setReferenceVideo(e.target.files?.[0] || null)}
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-cyan-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                <div className="relative border-2 border-dashed border-zinc-700/50 bg-gradient-to-br from-zinc-900/50 to-zinc-800/30 backdrop-blur-sm rounded-xl p-6 flex flex-col items-center justify-center group-hover:border-zinc-600 transition-colors">
+                  <div className="relative mb-3">
+                    <div className="absolute inset-0 bg-blue-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <VideoIcon className="w-8 h-8 text-zinc-600 group-hover:text-blue-400 transition-colors relative z-10" />
+                  </div>
+                  
+                  <p className="text-sm text-white font-semibold mb-1">Референсное видео</p>
+                  <p className="text-xs text-zinc-500">MP4 • Для ref2v режима</p>
+                  
+                  {referenceVideo && (
+                    <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
+                      <Check className="w-3 h-3" />
+                      <span>Загружено</span>
+                    </div>
+                  )}
+                </div>
+              </label>
+            )}
+            
+            {/* V2V Video Input (WAN) */}
+            {mode === 'v2v' && capability?.supportedModes?.includes('v2v') && (
+              <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => setV2vVideo(e.target.files?.[0] || null)}
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                <div className="relative border-2 border-dashed border-zinc-700/50 bg-gradient-to-br from-zinc-900/50 to-zinc-800/30 backdrop-blur-sm rounded-xl p-6 flex flex-col items-center justify-center group-hover:border-zinc-600 transition-colors">
+                  <div className="relative mb-3">
+                    <div className="absolute inset-0 bg-green-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <VideoIcon className="w-8 h-8 text-zinc-600 group-hover:text-green-400 transition-colors relative z-10" />
+                  </div>
+                  
+                  <p className="text-sm text-white font-semibold mb-1">Входное видео</p>
+                  <p className="text-xs text-zinc-500">MP4 • Для video-to-video</p>
+                  
+                  {v2vVideo && (
                     <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
                       <Check className="w-3 h-3" />
                       <span>Загружено</span>
@@ -526,6 +621,107 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
                     }`}
                   />
                 </button>
+              </div>
+            )}
+            
+            {/* Mode Selector (if model supports multiple modes) */}
+            {capability?.supportedModes && capability.supportedModes.length > 1 && (
+              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Режим</div>
+                <div className="flex gap-2">
+                  {capability.supportedModes.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setMode(m as any)}
+                      className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                        mode === m
+                          ? 'bg-[#D4FF00] text-black'
+                          : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 't2v' ? 'Text→Video' : m === 'i2v' ? 'Image→Video' : m === 'v2v' ? 'Video→Video' : m === 'ref2v' ? 'Ref→Video' : m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Style Selector (Grok, WAN styleOptions) */}
+            {capability?.styleOptions && capability.styleOptions.length > 0 && (
+              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Стиль</div>
+                <select
+                  value={style}
+                  onChange={(e) => setStyle(e.target.value)}
+                  className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
+                >
+                  <option value="">По умолчанию</option>
+                  {capability.styleOptions.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* WAN Style Preset */}
+            {selectedModel === 'wan-2.6' && (
+              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Пресет стиля</div>
+                <select
+                  value={stylePreset}
+                  onChange={(e) => setStylePreset(e.target.value)}
+                  className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
+                >
+                  <option value="">По умолчанию</option>
+                  <option value="realistic">Реалистичный</option>
+                  <option value="anime">Аниме</option>
+                  <option value="cinematic">Кинематографичный</option>
+                  <option value="artistic">Художественный</option>
+                </select>
+              </div>
+            )}
+            
+            {/* Camera Motion (WAN) */}
+            {capability?.cameraMotionOptions && capability.cameraMotionOptions.length > 0 && (
+              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Движение камеры</div>
+                <select
+                  value={cameraMotion}
+                  onChange={(e) => setCameraMotion(e.target.value)}
+                  className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
+                >
+                  {capability.cameraMotionOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c === 'static' ? 'Статичная' :
+                       c === 'pan_left' ? 'Панорама влево' :
+                       c === 'pan_right' ? 'Панорама вправо' :
+                       c === 'tilt_up' ? 'Наклон вверх' :
+                       c === 'tilt_down' ? 'Наклон вниз' :
+                       c === 'zoom_in' ? 'Приближение' :
+                       c === 'zoom_out' ? 'Отдаление' :
+                       c === 'orbit' ? 'Орбита' :
+                       c === 'follow' ? 'Следование' : c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* Motion Strength Slider (WAN) */}
+            {selectedModel === 'wan-2.6' && (
+              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Сила движения</div>
+                  <div className="text-[13px] text-white font-medium">{motionStrength}%</div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={motionStrength}
+                  onChange={(e) => setMotionStrength(Number(e.target.value))}
+                  className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#D4FF00]"
+                />
               </div>
             )}
             

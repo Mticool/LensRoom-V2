@@ -653,6 +653,21 @@ export async function POST(request: NextRequest) {
       imageUrl = await uploadDataUrlToStorage(startImage, 'ref');
     }
     
+    // Handle Veo 3.1 reference images (array)
+    // Keep as Base64 data URLs - required by Veo API
+    let referenceImageBase64s: string[] | undefined;
+    if (referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0) {
+      // Limit to 2 images for stability (Veo supports up to 3, but 2 is recommended)
+      const maxRefs = 2;
+      referenceImageBase64s = referenceImages.slice(0, maxRefs);
+      console.log('[API] Veo reference images:', {
+        total: referenceImages.length,
+        using: referenceImageBase64s.length,
+        format: 'base64 data URLs',
+        limited: referenceImages.length > maxRefs,
+      });
+    }
+    
     // Handle motion control reference video
     if (model === 'kling-motion-control') {
       // Character image (required)
@@ -718,12 +733,32 @@ export async function POST(request: NextRequest) {
       apiModelId = modelInfo.apiIdI2v;
     }
 
-    console.log('[API] Video generation request:', {
+    console.log('[API] 🔍 PROVIDER PAYLOAD AUDIT:', {
       model: model,
       apiModelId: apiModelId,
       provider: modelInfo.provider,
       mode: mode,
+      aspectRatio: aspectRatio,
       duration: duration,
+      quality: quality || resolution,
+      sound: audio,
+      // Reference assets
+      hasReferenceImage: !!imageUrl,
+      hasReferenceImages: !!referenceImageBase64s,
+      referenceImagesCount: referenceImageBase64s?.length || 0,
+      referenceImagesFormat: referenceImageBase64s ? 'base64 data URLs' : 'none',
+      hasStartImage: !!imageUrl && mode === 'start_end',
+      hasEndImage: !!lastFrameUrl,
+      hasReferenceVideo: !!videoUrl && (mode === 'ref2v' || model === 'kling-motion-control'),
+      // Advanced settings
+      style: style || 'not set',
+      cameraMotion: cameraMotion || 'not set',
+      stylePreset: stylePreset || 'not set',
+      motionStrength: motionStrength || 'not set',
+      // URLs/data (redacted)
+      referenceImageSample: referenceImageBase64s?.[0]?.substring(0, 60) || 'none',
+      imageUrlSample: imageUrl?.substring(0, 50) || 'none',
+      videoUrlSample: videoUrl?.substring(0, 50) || 'none',
     });
 
     // Call KIE API with provider info
@@ -767,148 +802,9 @@ export async function POST(request: NextRequest) {
     let response: any;
     let usedFallback = false;
     
-    // === GENAIPRO PROVIDER (Veo 3.1) ===
-    if (modelInfo.provider === 'genaipro') {
-      console.log('[API] Using GenAIPro provider for model:', model);
-      
-      try {
-        const { getGenAIProClient, VIDEO_ASPECT_RATIOS } = await import("@/lib/api/genaipro-client");
-        const genaiproClient = getGenAIProClient();
-        
-        // Map aspect ratio to GenAIPro format
-        const genaiproAspectRatio = 
-          aspectRatio === '16:9' || aspectRatio === 'landscape' ? VIDEO_ASPECT_RATIOS.LANDSCAPE :
-          aspectRatio === '9:16' || aspectRatio === 'portrait' ? VIDEO_ASPECT_RATIOS.PORTRAIT :
-          VIDEO_ASPECT_RATIOS.LANDSCAPE; // default to landscape
-        
-        console.log('[API] Video generation request to GenAIPro:', {
-          provider: 'genaipro',
-          model,
-          aspectRatio: genaiproAspectRatio,
-          mode,
-          duration,
-          prompt: fullPrompt.substring(0, 50),
-          userId,
-          generationId: generation?.id,
-        });
-        
-        // Generate video (uses Server-Sent Events internally)
-        const videoGenResponse = await genaiproClient.generateVideoFromText({
-          prompt: fullPrompt,
-          aspect_ratio: genaiproAspectRatio,
-          number_of_videos: 1,
-        });
-        
-        // The response from SSE will have videos array
-        const videoUrl = videoGenResponse?.videos?.[0]?.url;
-        
-        if (!videoUrl) {
-          throw new Error('No video URL returned from GenAIPro');
-        }
-        
-        console.log('[API] Video generation successful from GenAIPro');
-        console.log('[API] Video URL from provider:', videoUrl);
-        console.log('[API] Downloading video for storage upload...');
-        
-        // Download video and upload to our storage
-        const videoResponse = await fetch(videoUrl);
-        if (!videoResponse.ok) {
-          throw new Error(`Failed to download video: ${videoResponse.status}`);
-        }
-        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-        const fileName = `video_${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
-        const storagePath = `${userId}/${fileName}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('generations')
-          .upload(storagePath, videoBuffer, {
-            contentType: 'video/mp4',
-            upsert: true
-          });
-        
-        if (uploadError) {
-          console.error('[API] Failed to upload video to storage:', uploadError);
-        }
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('generations')
-          .getPublicUrl(storagePath);
-        
-        const finalVideoUrl = uploadError ? videoUrl : publicUrlData.publicUrl;
-        
-        console.log('[API] Video storage upload:', {
-          success: !uploadError,
-          storagePath: uploadError ? 'failed' : storagePath,
-          finalUrl: finalVideoUrl.substring(0, 100),
-          fallbackToProviderUrl: !!uploadError,
-        });
-        
-        // Update generation record with success
-        await supabase
-          .from('generations')
-          .update({
-            status: 'success',
-            result_urls: [finalVideoUrl],
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', generation?.id);
-        
-        // Log generation run
-        try {
-          await supabase.from('generation_runs').insert({
-            generation_id: generation?.id,
-            user_id: userId,
-            provider: 'genaipro',
-            provider_model: model,
-            variant_key: `${quality || 'default'}_${aspectRatio || '16:9'}`,
-            stars_charged: creditCost,
-            status: 'success',
-          });
-        } catch (logError) {
-          console.error('[API] Failed to log generation run:', logError);
-        }
-        
-        // Return completed status (no polling needed)
-        return NextResponse.json({
-          success: true,
-          jobId: generation?.id,
-          status: 'completed',
-          generationId: generation?.id,
-          provider: 'genaipro',
-          kind: 'video',
-          creditCost: creditCost,
-          resultUrl: finalVideoUrl,
-          videoUrl: finalVideoUrl,
-          results: [{ url: finalVideoUrl }],
-        });
-      } catch (genaiproError: any) {
-        console.error('[API] GenAIPro video generation failed:', genaiproError);
-        
-        // Refund credits on error
-        await supabase.rpc('adjust_credits', {
-          p_user_id: userId,
-          p_amount: creditCost,
-        });
-        
-        // Update generation status
-        await supabase
-          .from('generations')
-          .update({
-            status: 'failed',
-            error: genaiproError.message || 'GenAIPro video generation error',
-          })
-          .eq('id', generation?.id);
-        
-        return NextResponse.json(
-          { error: genaiproError.message || 'Failed to generate video' },
-          { status: 500 }
-        );
-      }
-    }
-    
-    // === VIDEO PROVIDER (Veo 3.1, Sora 2) ===
+    // === LAOZHANG PROVIDER (Veo 3.1, Sora 2, Nano Banana) ===
     if (modelInfo.provider === 'laozhang') {
-      console.log('[API] Using video provider for model:', model);
+      console.log('[API] Using LaoZhang provider for model:', model);
       
       try {
         const { getLaoZhangClient, getLaoZhangVideoModelId } = await import("@/lib/api/laozhang-client");
@@ -946,18 +842,22 @@ export async function POST(request: NextRequest) {
           mode,
           hasStartImage: !!startImageUrlForVideo,
           hasEndImage: !!endImageUrlForVideo,
+          hasReferenceImages: !!referenceImageBase64s,
+          referenceImagesCount: referenceImageBase64s?.length || 0,
+          referenceImagesFormat: referenceImageBase64s ? 'base64 data URLs' : 'none',
           prompt: fullPrompt.substring(0, 50),
           userId,
           generationId: generation?.id,
         });
         
         // Generate video (sync - returns URL directly)
-        // Supports t2v, i2v (with startImageUrl), start_end (with both images)
+        // Supports t2v, i2v (with startImageUrl), start_end (with both images), ref2v (with referenceImages)
         const videoGenResponse = await videoClient.generateVideo({
           model: videoModelId,
           prompt: fullPrompt,
           startImageUrl: startImageUrlForVideo,
           endImageUrl: endImageUrlForVideo,
+          referenceImages: referenceImageBase64s, // Pass reference images as Base64 data URLs
         });
         
         // Upload video to Supabase Storage for permanent storage
@@ -1006,7 +906,7 @@ export async function POST(request: NextRequest) {
           resultUrl: finalVideoUrl.substring(0, 100),
         });
         
-        await supabase
+        const { error: updateError } = await supabase
           .from('generations')
           .update({
             status: 'success',
@@ -1014,6 +914,20 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', generation?.id);
+        
+        if (updateError) {
+          console.error('[API] ❌ CRITICAL: Failed to update generation to success:', {
+            generationId: generation?.id,
+            error: updateError,
+            errorCode: updateError.code,
+            errorMessage: updateError.message,
+            errorDetails: updateError.details,
+          });
+          // Don't fail the request - video was generated successfully
+          // But log prominently so we can debug RLS/permissions
+        } else {
+          console.log('[API] ✅ Generation record updated successfully:', generation?.id);
+        }
         
         // Log generation run
         try {

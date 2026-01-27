@@ -254,7 +254,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     name: 'Nano Banana',
     apiId: 'nano-banana', // GenAIPro API model
     type: 'photo',
-    provider: 'genaipro', // Using GenAIPro API
+    provider: 'laozhang', // Using LaoZhang API
     shortDescription: 'Фотореализм и "вкусная" картинка за секунды.',
     description: 'Лучший универсал на каждый день: стабильный реализм, хорошие лица, одежда, предметка. Подходит для быстрых тестов идей и массового контента.',
     rank: 1,
@@ -277,7 +277,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     name: 'Nano Banana Pro',
     apiId: 'nano-banana-pro', // GenAIPro API model
     type: 'photo',
-    provider: 'genaipro', // Using GenAIPro API
+    provider: 'laozhang', // Using LaoZhang API
     shortDescription: 'Максимум качества: детали, кожа, свет, чистые текстуры.',
     description: 'Премиальная версия для коммерции: более точные материалы, лучше мелкие детали, меньше артефактов. Выбирай, когда картинка "должна продавать".',
     rank: 2,
@@ -525,7 +525,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     name: 'Veo 3.1 Fast',
     apiId: 'veo-3.1-fast',
     type: 'video',
-    provider: 'genaipro', // Using GenAIPro API
+    provider: 'laozhang', // Using LaoZhang API (老张)
     description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений, start/end frames.',
     rank: 1,
     featured: true,
