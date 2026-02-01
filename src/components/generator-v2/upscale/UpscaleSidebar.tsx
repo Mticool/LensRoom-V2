@@ -36,7 +36,7 @@ export function UpscaleSidebar({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-[#27272A]">
         <div className="flex items-center gap-2">
-          <ArrowUpFromLine className="w-5 h-5 text-[#CDFF00]" />
+          <ArrowUpFromLine className="w-5 h-5 text-[#f59e0b]" />
           <span className="font-semibold text-white">Upscale</span>
         </div>
         <button
@@ -65,7 +65,7 @@ export function UpscaleSidebar({
                 className={`
                   flex-1 px-4 py-3 rounded-xl border text-sm font-semibold transition-all
                   ${scale === option.value
-                    ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]'
+                    ? 'bg-[#f59e0b]/15 border-[#f59e0b]/30 text-[#f59e0b]'
                     : 'bg-[#1E1E20] border-[#3A3A3C] text-[#A1A1AA] hover:bg-[#27272A] hover:text-white'
                   }
                   disabled:opacity-50 disabled:cursor-not-allowed
@@ -87,11 +87,11 @@ export function UpscaleSidebar({
           </label>
           <div className="flex items-center justify-between p-4 bg-[#1E1E20] border border-[#3A3A3C] rounded-xl">
             <div className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-[#CDFF00]" />
+              <Star className="w-5 h-5 text-[#f59e0b]" />
               <span className="text-xl font-bold text-white">{estimatedCost}</span>
             </div>
             <div className="text-sm text-[#6B6B6E]">
-              Баланс: <span className={hasEnoughCredits ? 'text-[#CDFF00]' : 'text-red-400'}>{credits}⭐</span>
+              Баланс: <span className={hasEnoughCredits ? 'text-[#f59e0b]' : 'text-red-400'}>{credits}⭐</span>
             </div>
           </div>
         </div>
@@ -105,7 +105,7 @@ export function UpscaleSidebar({
           className={`
             w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-base transition-all
             ${canUpscale
-              ? 'bg-[#CDFF00] text-black hover:bg-[#B8E600] shadow-lg shadow-[#CDFF00]/20'
+              ? 'bg-[#f59e0b] text-black hover:bg-[#fbbf24] shadow-lg shadow-[#f59e0b]/20'
               : 'bg-[#27272A] text-[#6B6B6E] cursor-not-allowed'
             }
           `}

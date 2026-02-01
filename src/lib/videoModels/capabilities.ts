@@ -18,19 +18,18 @@ export const VIDEO_MODELS: ModelCapability[] = [
   {
     id: 'veo-3.1-fast',
     label: 'Veo 3.1 Fast',
-    provider: 'laozhang',
-    description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества с поддержкой референсов',
+    provider: 'kie',
+    description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества с поддержкой референсов и продления',
     apiId: 'veo-3.1-fast',
     
-    supportedModes: ['t2v', 'i2v', 'ref2v'],
+    supportedModes: ['t2v', 'i2v', 'start_end', 'extend'],
     supportedAspectRatios: ['auto', '16:9', '9:16'],
     supportedDurationsSec: [8],
     fixedDuration: 8,
     
     supportsSound: false,
-    supportsReferenceVideo: true,
-    supportsReferenceImages: true,
-    maxReferenceImages: 3,
+    supportsReferenceVideo: false,
+    supportsReferenceImages: false,
     supportsStartEndFrames: true,
     
     constraints: undefined,
@@ -241,9 +240,11 @@ export function getCapabilitySummary(modelId: string): string {
   const modeLabels = {
     t2v: 'T2V',
     i2v: 'I2V',
+    start_end: 'Frames',
     ref2v: 'Ref2V',
     v2v: 'V2V',
     motion_control: 'Motion',
+    extend: 'Extend',
   };
   parts.push(capability.supportedModes.map(m => modeLabels[m] || m).join('/'));
   

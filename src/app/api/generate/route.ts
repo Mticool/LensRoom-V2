@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
-import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { computePrice } from '@/lib/pricing/compute-price';
 import { VIDEO_MODELS } from '@/config/models';
 
@@ -53,8 +52,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseAdmin();
-
     // Calculate cost
     let costStars = 0;
     if (body.type === 'video') {
@@ -98,57 +95,8 @@ export async function POST(request: NextRequest) {
       costStars = costMap[body.model] || 10;
     }
 
-    // Check balance
-    const { data: creditsData } = await supabase
-      .from('credits')
-      .select('amount')
-      .eq('user_id', userId)
-      .single();
-
-    const currentBalance = creditsData?.amount || 0;
-    if (currentBalance < costStars) {
-      return NextResponse.json(
-        { 
-          error: 'Insufficient credits',
-          required: costStars,
-          balance: currentBalance,
-        },
-        { status: 402 }
-      );
-    }
-
-    // Create generation record
-    const { data: generation, error: genError } = await supabase
-      .from('generations')
-      .insert({
-        user_id: userId,
-        type: body.type === 'image' ? 'photo' : body.type,
-        model_id: body.model,
-        model_name: body.model,
-        prompt: body.prompt,
-        status: 'pending',
-        credits_used: costStars,
-      })
-      .select()
-      .single();
-
-    if (genError) {
-      console.error('[Generate API] Error creating generation:', genError);
-      return NextResponse.json({ error: genError.message }, { status: 500 });
-    }
-
-    // Deduct credits
-    const { error: deductError } = await supabase
-      .from('credits')
-      .update({ amount: currentBalance - costStars })
-      .eq('user_id', userId);
-
-    if (deductError) {
-      console.error('[Generate API] Error deducting credits:', deductError);
-      // Rollback generation
-      await supabase.from('generations').delete().eq('id', generation.id);
-      return NextResponse.json({ error: 'Failed to deduct credits' }, { status: 500 });
-    }
+    // NOTE: Do NOT deduct credits here. Specific generators handle billing.
+    // This avoids double-deduction when delegating to /api/generate/photo|video|audio.
 
     // Route to appropriate generation service
     let jobId: string | null = null;
@@ -164,7 +112,6 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...body,
-              generationId: generation.id,
               userId,
             }),
           });
@@ -183,7 +130,6 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...body,
-              generationId: generation.id,
               userId,
             }),
           });
@@ -199,13 +145,7 @@ export async function POST(request: NextRequest) {
           // Mock text generation (implement actual API call)
           status = 'completed';
           resultUrl = 'mock-text-result';
-          await supabase
-            .from('generations')
-            .update({
-              status: 'completed',
-              asset_url: resultUrl,
-            })
-            .eq('id', generation.id);
+          // No DB write here; use specific generator endpoints for persistence.
           break;
 
         case 'audio':
@@ -216,29 +156,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Update generation with job ID
-      if (jobId) {
-        await supabase
-          .from('generations')
-          .update({
-            task_id: jobId,
-            status,
-          })
-          .eq('id', generation.id);
-      }
+      // Specific generators manage their own persistence.
 
     } catch (serviceError) {
       console.error('[Generate API] Service error:', serviceError);
-      await supabase
-        .from('generations')
-        .update({
-          status: 'failed',
-          error: serviceError instanceof Error ? serviceError.message : 'Generation service error',
-        })
-        .eq('id', generation.id);
-
       return NextResponse.json(
         {
-          generationId: generation.id,
           status: 'failed' as const,
           error: 'Generation service unavailable',
           costStars,
@@ -248,7 +171,6 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      generationId: generation.id,
       status,
       jobId,
       resultUrl,

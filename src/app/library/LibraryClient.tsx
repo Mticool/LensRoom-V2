@@ -77,7 +77,8 @@ export function LibraryClient() {
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<number>(0);
   const isWebView = useMemo(() => detectWebView(), []);
-  const LIMIT = 24;
+  const LIMIT = 30; // Increased for better scrolling experience
+  const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -237,9 +238,38 @@ export function LibraryClient() {
     fetchGenerations(0, false);
   };
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore) fetchGenerations(items.length, true);
-  };
+  }, [loadingMore, hasMore, items.length, fetchGenerations]);
+  
+  // Optimized infinite scroll with Intersection Observer
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      {
+        rootMargin: '400px', // Start loading well before user reaches bottom
+        threshold: 0,
+      }
+    );
+    
+    const trigger = loadMoreTriggerRef.current;
+    if (trigger) {
+      observer.observe(trigger);
+    }
+    
+    return () => {
+      if (trigger) {
+        observer.unobserve(trigger);
+      }
+    };
+  }, [hasMore, loadingMore, handleLoadMore]);
 
   const handleToggleFavorite = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -588,13 +618,19 @@ export function LibraryClient() {
               })}
             </motion.div>
 
-            {/* Load more */}
+            {/* Infinite scroll trigger */}
             {hasMore && (
-              <div className="mt-8 flex justify-center">
-                <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore}>
-                  {loadingMore ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  {loadingMore ? "Загрузка..." : "Загрузить ещё"}
-                </Button>
+              <div ref={loadMoreTriggerRef} className="mt-8 flex justify-center py-4">
+                {loadingMore ? (
+                  <div className="flex items-center gap-2 text-[var(--muted)]">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Загрузка...</span>
+                  </div>
+                ) : (
+                  <Button variant="outline" onClick={handleLoadMore} className="border-[var(--border)]">
+                    Загрузить ещё
+                  </Button>
+                )}
               </div>
             )}
           </>

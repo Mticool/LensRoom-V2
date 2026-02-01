@@ -13,7 +13,20 @@
  */
 
 import { computePrice, PriceOptions } from './compute-price';
-import { STAR_PACKS, REFERENCE_PRICES, calculateEquivalents } from '@/config/pricing';
+import { STAR_PACKS } from '@/config/pricing';
+
+// Reference prices for equivalents calculation (deprecated, use pricing.ts)
+const REFERENCE_PRICES = {
+  'nano-banana': 9,
+  'veo-fast': 50,
+} as const;
+
+function calculateEquivalents(stars: number) {
+  return {
+    banana: Math.floor(stars / REFERENCE_PRICES['nano-banana']),
+    veoFast: Math.floor(stars / REFERENCE_PRICES['veo-fast']),
+  };
+}
 
 // Ожидаемые цены по юнит-экономике
 const EXPECTED_PRICES = {
@@ -181,7 +194,7 @@ export function logAllPrices(): void {
   for (const pack of STAR_PACKS) {
     const eq = calculateEquivalents(pack.stars);
     console.log(`Pack ${pack.id} (${pack.stars}⭐):`);
-    console.log(`  ~${eq.banana} Banana | ~${eq.veoFast} Veo Fast | ~${eq.klingTurbo5s} Kling 5s`);
+    console.log(`  ~${eq.banana} Banana | ~${eq.veoFast} Veo Fast`);
   }
   
   // Итоговый статус

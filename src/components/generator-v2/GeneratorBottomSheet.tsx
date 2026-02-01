@@ -238,7 +238,7 @@ export function GeneratorBottomSheet({
                   style={{ touchAction: 'manipulation' }}
                   className={`w-full min-w-[120px] px-4 py-3.5 text-left text-sm flex items-center gap-3 rounded-xl transition-colors ${
                     opt === aspectRatio 
-                      ? 'bg-[#CDFF00] text-black font-semibold' 
+                      ? 'bg-[#f59e0b] text-black font-semibold' 
                       : 'text-white active:bg-white/10 hover:bg-white/5'
                   }`}
                 >
@@ -275,7 +275,7 @@ export function GeneratorBottomSheet({
                   style={{ touchAction: 'manipulation' }}
                   className={`w-full min-w-[120px] px-4 py-3.5 text-left text-sm rounded-xl transition-colors ${
                     opt === quality 
-                      ? 'bg-[#CDFF00] text-black font-semibold' 
+                      ? 'bg-[#f59e0b] text-black font-semibold' 
                       : 'text-white active:bg-white/10 hover:bg-white/5'
                   }`}
                 >
@@ -311,7 +311,7 @@ export function GeneratorBottomSheet({
                   style={{ touchAction: 'manipulation' }}
                   className={`w-12 h-12 text-base font-bold rounded-xl transition-colors ${
                     n === quantity 
-                      ? 'bg-[#CDFF00] text-black' 
+                      ? 'bg-[#f59e0b] text-black' 
                       : 'text-white active:bg-white/10 hover:bg-white/5'
                   }`}
                 >
@@ -358,7 +358,7 @@ export function GeneratorBottomSheet({
                     style={{ touchAction: 'manipulation', pointerEvents: 'auto' }}
                     className={`w-full px-4 py-3.5 text-left text-sm transition-colors rounded-xl ${
                       isSelected
-                        ? 'bg-[#CDFF00] text-black font-semibold' 
+                        ? 'bg-[#f59e0b] text-black font-semibold' 
                         : 'text-white active:bg-white/10 hover:bg-white/5'
                     }`}
                   >
@@ -543,7 +543,7 @@ export function GeneratorBottomSheet({
             className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors min-w-[60px] justify-center
               ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
               ${activeMenu === 'aspect' 
-                ? 'bg-[#CDFF00] text-black shadow-sm' 
+                ? 'bg-[#f59e0b] text-black shadow-sm' 
                 : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
               }`}
           >
@@ -560,7 +560,7 @@ export function GeneratorBottomSheet({
             className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors min-w-[50px] justify-center
               ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
               ${activeMenu === 'quality' 
-                ? 'bg-[#CDFF00] text-black shadow-sm' 
+                ? 'bg-[#f59e0b] text-black shadow-sm' 
                 : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
               }`}
           >
@@ -578,7 +578,7 @@ export function GeneratorBottomSheet({
               className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-colors min-w-[45px] justify-center
                 ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
                 ${activeMenu === 'quantity' 
-                  ? 'bg-[#CDFF00] text-black shadow-sm' 
+                  ? 'bg-[#f59e0b] text-black shadow-sm' 
                   : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
                 }`}
             >
@@ -606,7 +606,7 @@ export function GeneratorBottomSheet({
                 className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors min-w-[45px] justify-center
                   ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
                   ${referenceImages.length > 0 
-                    ? 'bg-[#CDFF00] text-black shadow-sm' 
+                    ? 'bg-[#f59e0b] text-black shadow-sm' 
                     : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
                   }`}
               >
@@ -621,7 +621,7 @@ export function GeneratorBottomSheet({
 
           {/* Cost badge */}
           <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <span className="text-xs font-bold text-[#CDFF00]">
+            <span className="text-xs font-bold text-[#f59e0b]">
               {totalCost}⭐
             </span>
           </div>
@@ -644,7 +644,7 @@ export function GeneratorBottomSheet({
             style={{ touchAction: 'manipulation' }}
             className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0
               ${showAdvanced || modelMenuOpen
-                ? 'bg-[#CDFF00] text-black shadow-sm' 
+                ? 'bg-[#f59e0b] text-black shadow-sm' 
                 : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/15'
               }
               ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}`}
@@ -661,7 +661,7 @@ export function GeneratorBottomSheet({
               disabled={isGenerating}
               placeholder="Опишите изображение..."
               rows={1}
-              className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#CDFF00]/50 focus:ring-2 focus:ring-[#CDFF00]/20 transition-all disabled:opacity-50 leading-tight"
+              className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#f59e0b]/50 focus:ring-2 focus:ring-[#f59e0b]/20 transition-all disabled:opacity-50 leading-tight"
               style={{ 
                 minHeight: '44px', 
                 maxHeight: '88px',
@@ -689,7 +689,7 @@ export function GeneratorBottomSheet({
               ${isGenerating
                 ? 'bg-white/10 text-white/50 cursor-not-allowed'
                 : canGenerate
-                  ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/30 active:opacity-80 active:scale-95'
+                  ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/30 active:opacity-80 active:scale-95'
                   : 'bg-white/10 text-white/30 border border-white/10 cursor-not-allowed'
               }`}
           >

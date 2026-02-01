@@ -177,7 +177,7 @@ type CharacterOrientation = 'image' | 'video';
 type Resolution = '720p' | '1080p';
 type GenerationStatus = 'idle' | 'queued' | 'processing' | 'success' | 'error';
 
-// Limits from Kie.ai documentation
+// Limits from API documentation
 const LIMITS = {
   PROMPT_MAX_LENGTH: 2500,
   IMAGE_MAX_SIZE_MB: 10,
@@ -631,7 +631,7 @@ export function MotionControlGenerator() {
             <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-purple-400" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold">Kling 2.6 Motion Control</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">Motion Control 2.6</h1>
           </div>
           <p className="text-[var(--muted)] text-base max-w-3xl">
             Image-to-video модель, которая переносит движение, жесты и мимику из референс-видео на персонажа с изображения, сохраняя тайминг и естественность.

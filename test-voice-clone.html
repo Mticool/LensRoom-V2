@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Voice Clone API</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #0a0a0a;
+      color: #fff;
+    }
+    .section {
+      background: #1a1a1a;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    h2 {
+      margin-top: 0;
+      color: #fff;
+    }
+    button {
+      background: #0066ff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 10px 5px 0 0;
+    }
+    button:hover {
+      background: #0052cc;
+    }
+    button:disabled {
+      background: #333;
+      cursor: not-allowed;
+    }
+    input[type="file"] {
+      margin: 10px 0;
+      padding: 10px;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+    }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 10px;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log {
+      background: #0a0a0a;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+      border: 1px solid #333;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .success { color: #00ff00; }
+    .error { color: #ff0000; }
+    .info { color: #00bfff; }
+    select {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+    }
+    audio {
+      width: 100%;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎤 Test Voice Clone API</h1>
+  
+  <div class="section">
+    <h2>1️⃣ Upload Audio File</h2>
+    <input type="file" id="audioFile" accept="audio/mp3,audio/wav,audio/m4a">
+    <br>
+    <button id="uploadBtn">Upload to MiniMax</button>
+    <div class="log" id="uploadLog">Waiting for file...</div>
+  </div>
+
+  <div class="section">
+    <h2>2️⃣ Clone Voice</h2>
+    <label>Language:</label>
+    <select id="language">
+      <option value="ru">Русский</option>
+      <option value="en">English</option>
+    </select>
+    <button id="cloneBtn" disabled>Clone Voice</button>
+    <div class="log" id="cloneLog">Upload audio file first...</div>
+  </div>
+
+  <div class="section">
+    <h2>3️⃣ Generate TTS</h2>
+    <label>Cloned Voices:</label>
+    <select id="voiceSelect">
+      <option value="">Select voice...</option>
+    </select>
+    <br>
+    <label>Text to speak:</label>
+    <textarea id="ttsText" placeholder="Введите текст для озвучки...">Привет! Это тестовая озвучка клонированным голосом.</textarea>
+    <button id="generateBtn" disabled>Generate Audio</button>
+    <div class="log" id="generateLog">Clone a voice first...</div>
+    <audio id="audioPlayer" controls style="display:none;"></audio>
+  </div>
+
+  <script>
+    let fileId = null;
+    let currentVoice = null;
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cloneBtn = document.getElementById('cloneBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    const audioFile = document.getElementById('audioFile');
+    const uploadLog = document.getElementById('uploadLog');
+    const cloneLog = document.getElementById('cloneLog');
+    const generateLog = document.getElementById('generateLog');
+    const language = document.getElementById('language');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const ttsText = document.getElementById('ttsText');
+    const audioPlayer = document.getElementById('audioPlayer');
+
+    function log(element, message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+      element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+      element.scrollTop = element.scrollHeight;
+    }
+
+    // Step 1: Upload Audio
+    uploadBtn.addEventListener('click', async () => {
+      const file = audioFile.files[0];
+      if (!file) {
+        log(uploadLog, 'Please select an audio file!', 'error');
+        return;
+      }
+
+      uploadLog.innerHTML = '';
+      log(uploadLog, `Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
+      
+      uploadBtn.disabled = true;
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/tts/upload-audio', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+        
+        log(uploadLog, `Response: ${JSON.stringify(data, null, 2)}`);
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Upload failed');
+        }
+
+        fileId = data.file_id;
+        log(uploadLog, `✅ SUCCESS! file_id: ${fileId} (type: ${typeof fileId})`, 'success');
+        
+        cloneBtn.disabled = false;
+        cloneLog.innerHTML = '';
+        log(cloneLog, 'Ready to clone voice!', 'success');
+        
+      } catch (error) {
+        log(uploadLog, `❌ ERROR: ${error.message}`, 'error');
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    });
+
+    // Step 2: Clone Voice
+    cloneBtn.addEventListener('click', async () => {
+      if (!fileId) {
+        log(cloneLog, 'No file_id available!', 'error');
+        return;
+      }
+
+      cloneLog.innerHTML = '';
+      log(cloneLog, `Cloning voice with file_id: ${fileId} (type: ${typeof fileId})...`);
+      
+      cloneBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/api/tts/clone-voice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file_id: fileId,
+            language: language.value,
+          }),
+        });
+
+        const data = await response.json();
+        
+        log(cloneLog, `Response: ${JSON.stringify(data, null, 2)}`);
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Clone failed');
+        }
+
+        currentVoice = data;
+        log(cloneLog, `✅ SUCCESS! voice_id: ${data.voice_id}`, 'success');
+        log(cloneLog, `minimax_voice_id: ${data.minimax_voice_id}`, 'success');
+        
+        // Add to voice select
+        const option = document.createElement('option');
+        option.value = data.minimax_voice_id;
+        option.textContent = `Voice ${data.voice_id.slice(0, 8)}... (${data.minimax_voice_id})`;
+        option.dataset.dbId = data.voice_id;
+        voiceSelect.appendChild(option);
+        voiceSelect.value = data.minimax_voice_id;
+        
+        generateBtn.disabled = false;
+        generateLog.innerHTML = '';
+        log(generateLog, 'Ready to generate TTS!', 'success');
+        
+      } catch (error) {
+        log(cloneLog, `❌ ERROR: ${error.message}`, 'error');
+      } finally {
+        cloneBtn.disabled = false;
+      }
+    });
+
+    // Step 3: Generate TTS
+    generateBtn.addEventListener('click', async () => {
+      const voiceId = voiceSelect.value;
+      const text = ttsText.value.trim();
+      
+      if (!voiceId) {
+        log(generateLog, 'Please select a voice!', 'error');
+        return;
+      }
+      
+      if (!text) {
+        log(generateLog, 'Please enter text!', 'error');
+        return;
+      }
+
+      generateLog.innerHTML = '';
+      log(generateLog, `Generating TTS with voice: ${voiceId}...`);
+      
+      generateBtn.disabled = true;
+      
+      try {
+        const selectedOption = voiceSelect.options[voiceSelect.selectedIndex];
+        const voiceDbId = selectedOption.dataset.dbId;
+        
+        const response = await fetch('/api/tts/generate-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text,
+            voice_id: voiceId,
+            voice_db_id: voiceDbId,
+          }),
+        });
+
+        const data = await response.json();
+        
+        log(generateLog, `Response: ${JSON.stringify(data, null, 2)}`);
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Generation failed');
+        }
+
+        log(generateLog, `✅ SUCCESS!`, 'success');
+        
+        if (data.audio_url) {
+          log(generateLog, `Audio URL: ${data.audio_url}`, 'success');
+          audioPlayer.src = data.audio_url;
+          audioPlayer.style.display = 'block';
+          audioPlayer.play();
+        }
+        
+      } catch (error) {
+        log(generateLog, `❌ ERROR: ${error.message}`, 'error');
+      } finally {
+        generateBtn.disabled = false;
+      }
+    });
+
+    // Load existing voices on page load
+    window.addEventListener('load', async () => {
+      try {
+        const response = await fetch('/api/tts/voices');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.voices && data.voices.length > 0) {
+            data.voices.forEach(voice => {
+              const option = document.createElement('option');
+              option.value = voice.minimax_voice_id;
+              option.textContent = `Voice ${voice.id.slice(0, 8)}... (${voice.minimax_voice_id})`;
+              option.dataset.dbId = voice.id;
+              voiceSelect.appendChild(option);
+            });
+            
+            if (data.voices.length > 0) {
+              generateBtn.disabled = false;
+              log(generateLog, `Loaded ${data.voices.length} existing voices`, 'success');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load voices:', error);
+      }
+    });
+  </script>
+</body>
+</html>

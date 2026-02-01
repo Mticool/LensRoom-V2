@@ -1,6 +1,13 @@
 /**
  * Price computation: credits -> stars
- * Single source of truth for pricing calculations
+ * 
+ * ⚠️ DEPRECATED (2026-01-27): This file is kept for backwards compatibility only.
+ * All new code should use src/lib/pricing/pricing.ts with SKU-based pricing.
+ * 
+ * Use:
+ * - getSkuFromRequest(modelId, options) to get SKU
+ * - getPriceStars(sku) to get price in stars
+ * - calculateTotalStars(sku, duration) for total price
  */
 
 import { ModelConfig, PhotoModelConfig, VideoModelConfig, getModelById } from '@/config/models';

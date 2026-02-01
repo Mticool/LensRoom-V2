@@ -75,7 +75,7 @@ export async function sendPushToUser(
         }
       );
       sent++;
-      console.log('[Push] Sent to:', sub.endpoint.substring(0, 50));
+      console.log('[Push] Sent to subscription');
     } catch (err: any) {
       failed++;
       console.error('[Push] Failed to send:', err.statusCode || err.message);

@@ -1,11 +1,11 @@
 /**
- * KIE.AI API Settings Configuration
+ * API Settings Configuration
  * 
- * Этот файл содержит ТОЧНЫЕ настройки для каждой модели,
- * которые поддерживаются KIE.ai API.
+ * Этот файл содержит точные настройки для каждой модели,
+ * которые поддерживаются внешним API.
  * 
- * Документация: https://docs.kie.ai
- * Модели: https://kie.ai/market
+ * Документация: https://docs.example.ai
+ * Модели: https://example.ai/market
  */
 
 // ===== ТИПЫ =====
@@ -75,7 +75,7 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Nano Banana - Google
+  // Nano Banana
   "nano-banana": {
     name: "Nano Banana",
     apiModel: "google/nano-banana",
@@ -282,8 +282,8 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
   },
 
   // GPT Image - поддерживает генерацию и редактирование
-  // GPT Image 1.5 - OpenAI (Улучшенная версия)
-  // Документация: https://kie.ai/gpt-image-1.5
+  // GPT Image 1.5
+  // Документация: https://docs.example.ai/gpt-image-1.5
   "gpt-image": {
     name: "GPT Image 1.5",
     apiModel: "gpt-image/1.5-text-to-image",
@@ -359,7 +359,7 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Grok Imagine - xAI (Text-to-Image + Upscale)
+  // Grok Imagine (Text-to-Image + Upscale)
   "grok-imagine": {
     name: "Grok Imagine",
     apiModel: "grok-imagine/text-to-image",
@@ -399,8 +399,8 @@ export const KIE_IMAGE_MODELS: Record<string, KieModelSettings> = {
 // ===== ВИДЕО МОДЕЛИ =====
 
 export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
-  // Kling O1 - FAL.ai (First Frame Last Frame)
-  // Документация: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video
+  // Kling O1 (First Frame Last Frame)
+  // Документация: https://docs.example.ai/kling-video/o1
   "kling-o1": {
     name: "Kling O1",
     apiModel: "fal-ai/kling-video/o1/standard/image-to-video",
@@ -425,7 +425,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
           { value: "10", label: "10 сек • 240⭐" }
         ],
         default: "5",
-        description: "First Frame → Last Frame анимация (fal.ai)",
+        description: "First Frame → Last Frame анимация",
         required: true,
         order: 1
       },
@@ -444,7 +444,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Veo 3.1 - Google
+  // Veo 3.1
   // Поддерживает: text-to-video, image-to-video, reference-to-video
   "veo-3.1": {
     name: "Veo 3.1",
@@ -567,7 +567,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         label: "Звук (+30⭐)",
         type: "checkbox",
         default: false,
-        description: "Добавить звук (только Kling 2.6, +30⭐ к цене)",
+        description: "Добавить звук (только версия 2.6, +30⭐ к цене)",
         optional: true,
         order: 5
       },
@@ -643,7 +643,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         label: "Убрать водяной знак",
         type: "checkbox",
         default: true,
-        description: "Удалить водяной знак OpenAI",
+        description: "Удалить водяной знак",
         optional: true,
         order: 5,
         apiKey: "removeWatermark"
@@ -712,7 +712,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
         label: "Убрать водяной знак",
         type: "checkbox",
         default: true,
-        description: "Удалить водяной знак OpenAI",
+        description: "Удалить водяной знак",
         optional: true,
         order: 5,
         apiKey: "removeWatermark"
@@ -853,8 +853,8 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Grok Video - xAI (Text-to-Video + Image-to-Video + Audio)
-  // Документация: https://kie.ai/grok-imagine
+  // Grok Video (Text-to-Video + Image-to-Video + Audio)
+  // Документация: https://docs.example.ai/grok-video
   "grok-video": {
     name: "Grok Video",
     apiModel: "grok-imagine/text-to-video",
@@ -902,7 +902,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
   },
 
   // Kling 2.6 Motion Control - Перенос движений с референсного видео
-  // Документация: https://kie.ai/kling-2.6-motion-control
+  // Документация: https://docs.example.ai/kling-2.6-motion-control
   // 
   // ДИНАМИЧЕСКОЕ ЦЕНООБРАЗОВАНИЕ (per-second):
   // - 720p: 16⭐/сек
@@ -1120,7 +1120,7 @@ export function requiresVideoUpload(generationType: string): boolean {
 // ===== АУДИО МОДЕЛИ (SUNO) =====
 
 export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
-  // Suno AI Music - Generate
+  // Music - Generate
   "suno": {
     name: "Suno AI",
     apiModel: "ai-music-api/generate",
@@ -1250,7 +1250,7 @@ export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Suno Extend - для продления
+  // Extend - для продления
   "suno-extend": {
     name: "Suno Extend",
     apiModel: "ai-music-api/extend",
@@ -1284,7 +1284,7 @@ export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Suno Cover - для каверов
+  // Cover - для каверов
   "suno-cover": {
     name: "Suno Cover",
     apiModel: "ai-music-api/upload-and-cover-audio",
@@ -1367,7 +1367,7 @@ export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Suno Add Vocals - добавление вокала
+  // Add Vocals - добавление вокала
   "suno-vocals": {
     name: "Suno Add Vocals",
     apiModel: "ai-music-api/add-vocals",
@@ -1417,7 +1417,7 @@ export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // Suno Separate - разделение вокала и инструментов
+  // Separate - разделение вокала и инструментов
   "suno-separate": {
     name: "Suno Separate",
     apiModel: "ai-music-api/separate-vocals",
@@ -1439,11 +1439,11 @@ export const KIE_AUDIO_MODELS: Record<string, KieModelSettings> = {
     }
   },
 
-  // ===== ELEVENLABS V3 - Text to Dialogue =====
-  // Документация: https://kie.ai/elevenlabs/text-to-dialogue-v3
+  // ===== DIALOGUE V3 - Text to Dialogue =====
+  // Документация: https://docs.example.ai/text-to-dialogue-v3
   // Expressive multilingual Text to Dialogue with audio tags, multi-speaker support
   "elevenlabs-v3": {
-    name: "ElevenLabs V3",
+    name: "Dialogue V3",
     apiModel: "elevenlabs/text-to-dialogue-v3",
     settings: {
       dialogue: {
@@ -1522,7 +1522,7 @@ export function calculateAudioPrice(modelId: string, settings: Record<string, an
     'suno-cover': 12,     // Cover
     'suno-vocals': 12,    // Add Vocals
     'suno-separate': 1,   // Separate (дёшево)
-    'elevenlabs-v3': 8,   // ElevenLabs V3 Text-to-Dialogue
+    'elevenlabs-v3': 8,   // Dialogue V3 Text-to-Dialogue
   };
   
   const kieCredits = basePrices[modelId] || 12;

@@ -5,6 +5,7 @@ import { getKieClient } from '@/lib/api/kie-client';
 import { getFalClient } from '@/lib/api/fal-client';
 import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
+import { getSkuFromRequest, getPriceStars, calculateTotalStars, isPerSecondSku, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { 
   calcMotionControlStars, 
@@ -69,6 +70,9 @@ export async function POST(request: NextRequest) {
       motionStrength, // WAN 2.6: 0-100
       qualityTier, // Kling: 'standard' | 'pro' | 'master'
       referenceImages, // Veo 3.1: array of up to 3 reference images
+      // Extend mode
+      sourceGenerationId, // ID записи generation для продления
+      taskId, // Прямой taskId для extend (если фронт шлёт напрямую)
     } = body;
     
     // === NEW: STRICT ZOD + CAPABILITY VALIDATION ===    
@@ -328,12 +332,13 @@ export async function POST(request: NextRequest) {
 
     // === END: Extended model capabilities validation ===
 
-    // Special pricing for Motion Control (per-second dynamic pricing)
+    // === NEW PRICING SYSTEM (2026-01-27) ===
     let creditCost: number;
     let effectiveDuration: number | undefined;
+    let sku: string;
     
     if (model === 'kling-motion-control') {
-      // Motion Control uses dynamic per-second pricing
+      // Motion Control uses per-second pricing
       const mcResolution = (resolution || '720p') as MotionControlResolution;
       const mcDuration = videoDuration || 0;
       
@@ -366,17 +371,24 @@ export async function POST(request: NextRequest) {
       
       effectiveDuration = validation.effectiveDuration ?? mcDuration;
       
-      const mcPrice = calcMotionControlStars(effectiveDuration as number, mcResolution, true);
-      if (mcPrice === null) {
+      // Use new pricing system
+      try {
+        const pricingOptions: PricingOptions = {
+          videoQuality: mcResolution,
+          duration: effectiveDuration,
+          isMotionControl: true,
+        };
+        sku = getSkuFromRequest('kling-motion-control', pricingOptions);
+        creditCost = calculateTotalStars(sku, effectiveDuration);
+      } catch (error) {
+        console.error('[API] Motion Control pricing error:', error);
         return NextResponse.json(
           { error: 'Invalid parameters for Motion Control pricing' },
           { status: 400 }
         );
       }
       
-      creditCost = mcPrice;
-      
-      console.log('[API] Motion Control pricing:', {
+      console.log('[API] Motion Control pricing (NEW):', {
         modelId: 'kling-motion-control',
         videoDuration: mcDuration,
         autoTrim,
@@ -384,21 +396,48 @@ export async function POST(request: NextRequest) {
         resolution: mcResolution,
         characterOrientation: orientation,
         maxDurationForOrientation,
+        sku,
         priceStars: creditCost,
-        rate: mcResolution === '720p' ? MOTION_CONTROL_CONFIG.RATE_720P : MOTION_CONTROL_CONFIG.RATE_1080P,
+        pricingVersion: PRICING_VERSION,
       });
     } else {
-      // Standard pricing for other models
-      const price = computePrice(model, {
-        mode,
-        duration: duration || modelInfo.fixedDuration || 5,
-        videoQuality: quality,
-        resolution: resolution || undefined, // For WAN per-second pricing
-        audio: model === 'wan' ? !!wanSoundPreset : soundEnabled,
-        modelVariant: modelVariant || undefined,
-        variants,
-      });
-      creditCost = price.stars;
+      // Standard video pricing using new SKU-based system
+      try {
+        const pricingOptions: PricingOptions = {
+          mode: mode as any,
+          duration: duration || modelInfo.fixedDuration || 5,
+          videoQuality: quality || resolution,
+          resolution: resolution || undefined,
+          audio: model === 'wan' ? !!wanSoundPreset : soundEnabled,
+          modelVariant: modelVariant || undefined,
+          qualityTier: qualityTier as any,
+        };
+        
+        sku = getSkuFromRequest(model, pricingOptions);
+        creditCost = calculateTotalStars(sku, pricingOptions.duration);
+        
+        // For variants > 1, multiply the price
+        if (variants && variants > 1) {
+          creditCost = creditCost * variants;
+        }
+      } catch (error) {
+        console.error('[API] Video pricing error:', {
+          model,
+          duration,
+          quality,
+          resolution,
+          modelVariant,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return NextResponse.json(
+          { 
+            error: 'Pricing error: No price defined for this model/variant combination',
+            details: `Model: ${model}, Duration: ${duration || 'default'}, Quality: ${quality || resolution || 'default'}`,
+            modelId: model,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Check auth and get user role
@@ -476,21 +515,17 @@ export async function POST(request: NextRequest) {
       // Deduct credits (subscription first, then package)
       const deductResult = await deductCredits(supabase, userId, creditCost);
       
-      // 🔍 AUDIT LOG: Star deduction (dev-only)
+      // 🔍 AUDIT LOG: Star deduction with SKU tracking (2026-01-27)
       if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
         const durationSec = model === 'kling-motion-control' 
           ? effectiveDuration 
           : (duration || modelInfo.fixedDuration || 5);
-        const variantKey = model === 'kling-motion-control' 
-          ? `kling-motion-control_${resolution || '720p'}`
-          : model === 'kling-o1' 
-            ? `kling_o1_${durationSec}s` 
-            : (modelVariant || 'default');
         
         console.log('[⭐ AUDIT] Video generation:', JSON.stringify({
           userId,
           modelId: model,
-          variantKey,
+          sku,
+          pricingVersion: PRICING_VERSION,
           provider: modelInfo.provider,
           mode,
           durationSec,
@@ -544,6 +579,9 @@ export async function POST(request: NextRequest) {
           aspect_ratio: aspectRatio,
           thread_id: threadId || null,
           credits_used: creditCost,
+          charged_stars: creditCost, // Actual stars charged
+          sku: sku, // SKU for pricing tracking
+          pricing_version: PRICING_VERSION, // Pricing version for audit
           status: "queued",
         })
         .select()
@@ -578,6 +616,170 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ===== EXTEND MODE (Veo 3.1 продление видео) =====
+    if (mode === 'extend') {
+      console.log('[API] Extend mode: начало обработки');
+      
+      // Валидация: модель должна поддерживать extend
+      if (model !== 'veo-3.1-fast') {
+        return NextResponse.json(
+          { error: 'Extend mode is only supported for veo-3.1-fast model' },
+          { status: 400 }
+        );
+      }
+      
+      // Валидация: наличие sourceGenerationId или taskId
+      if (!sourceGenerationId && !taskId) {
+        return NextResponse.json(
+          { error: 'sourceGenerationId or taskId is required for extend mode' },
+          { status: 400 }
+        );
+      }
+      
+      // Загрузка исходной generation
+      let sourceTaskId: string;
+      if (sourceGenerationId) {
+        const { data: sourceGen, error: sourceGenError } = await supabase
+          .from('generations')
+          .select('task_id, status')
+          .eq('id', sourceGenerationId)
+          .single();
+        
+        if (sourceGenError || !sourceGen) {
+          console.error('[API] Failed to load source generation:', sourceGenError);
+          return NextResponse.json(
+            { error: 'Source generation not found' },
+            { status: 404 }
+          );
+        }
+        
+        if (!sourceGen.task_id) {
+          return NextResponse.json(
+            { 
+              error: 'This video cannot be extended (missing task_id). Only videos generated via Veo 3.1 (KIE) can be extended.',
+              hint: 'Try generating a new video with Veo 3.1 Fast first'
+            },
+            { status: 400 }
+          );
+        }
+        
+        sourceTaskId = sourceGen.task_id;
+        console.log('[API] Extend: source task_id:', sourceTaskId);
+      } else {
+        sourceTaskId = taskId!;
+        console.log('[API] Extend: using provided taskId:', sourceTaskId);
+      }
+      
+      // Вызов KIE veoExtend
+      try {
+        const kieClient = getKieClient();
+        
+        // Подготовка callback URL (опционально)
+        const callbackSecret = process.env.VEO_WEBHOOK_SECRET || process.env.KIE_CALLBACK_SECRET;
+        const callbackBase = process.env.KIE_CALLBACK_URL || process.env.NEXT_PUBLIC_BASE_URL;
+        let callBackUrl: string | undefined;
+        if (callbackBase && callbackSecret) {
+          callBackUrl = `${callbackBase}/api/webhooks/veo?secret=${encodeURIComponent(callbackSecret)}`;
+        }
+        
+        console.log('[API] Calling veoExtend:', {
+          sourceTaskId,
+          prompt: prompt.substring(0, 50),
+          hasCallback: !!callBackUrl,
+        });
+        
+        const extendResponse = await kieClient.veoExtend({
+          taskId: sourceTaskId,
+          prompt: prompt,
+          callBackUrl,
+        });
+        
+        const newTaskId = extendResponse.data?.taskId;
+        if (!newTaskId) {
+          throw new Error('KIE extend response missing taskId');
+        }
+        
+        console.log('[API] Extend successful, new taskId:', newTaskId);
+        
+        // Обновить generation с новым task_id
+        const { error: updateError } = await supabase
+          .from('generations')
+          .update({ 
+            task_id: newTaskId,
+            status: 'generating',
+            metadata: {
+              extend_from: sourceTaskId,
+              extend_source_generation_id: sourceGenerationId,
+            }
+          })
+          .eq('id', generation?.id);
+        
+        if (updateError) {
+          console.error('[API] Failed to update generation with taskId:', updateError);
+        }
+        
+        // Логирование generation run
+        try {
+          await supabase.from('generation_runs').insert({
+            generation_id: generation?.id,
+            user_id: userId,
+            provider: 'video',
+            provider_model: 'veo-3.1-fast-extend',
+            variant_key: 'extend',
+            stars_charged: creditCost,
+            status: 'queued',
+          });
+        } catch (logError) {
+          console.error('[API] Failed to log generation run:', logError);
+        }
+        
+        // Возврат jobId для polling
+        return NextResponse.json({
+          success: true,
+          jobId: newTaskId,
+          status: 'queued',
+          estimatedTime: 180, // Veo extend takes similar time as generation
+          creditCost: creditCost,
+          generationId: generation?.id,
+          provider: 'kie_veo',
+          kind: 'video',
+          mode: 'extend',
+        });
+      } catch (extendError: any) {
+        console.error('[API] Veo extend error:', extendError);
+        
+        // Refund credits
+        if (!skipCredits) {
+          await refundCredits(
+            supabase,
+            userId,
+            generation?.id,
+            creditCost,
+            'extend_error',
+            { error: extendError?.message || String(extendError) }
+          );
+        }
+        
+        // Update generation status
+        await supabase
+          .from('generations')
+          .update({ 
+            status: 'failed',
+            error_message: extendError?.message || String(extendError),
+          })
+          .eq('id', generation?.id);
+        
+        return NextResponse.json(
+          { 
+            error: 'Failed to extend video',
+            details: extendError?.message || String(extendError),
+          },
+          { status: 500 }
+        );
+      }
+    }
+    // ===== END EXTEND MODE =====
+
     // Record credit transaction (only for regular users, not managers/admins)
     if (!skipCredits) {
       try {
@@ -585,6 +787,8 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           amount: -creditCost,
           type: 'deduction',
+          sku: sku, // Track SKU in transaction
+          pricing_version: PRICING_VERSION, // Track pricing version
           description: `Генерация видео: ${modelInfo.name} (${duration || modelInfo.fixedDuration || 5}с)`,
           generation_id: generation?.id,
         });
@@ -632,7 +836,7 @@ export async function POST(request: NextRequest) {
       return pub.publicUrl;
     };
 
-    if ((mode === 'i2v' || mode === 'ref') && referenceImage) {
+    if (mode === 'i2v' && referenceImage) {
       imageUrl = await uploadDataUrlToStorage(referenceImage, 'i2v');
     } else if (mode === 'start_end') {
       if (startImage) imageUrl = await uploadDataUrlToStorage(startImage, 'start');
@@ -738,7 +942,7 @@ export async function POST(request: NextRequest) {
       referenceImagesFormat: referenceImageBase64s ? 'base64 data URLs' : 'none',
       hasStartImage: !!imageUrl && mode === 'start_end',
       hasEndImage: !!lastFrameUrl,
-      hasReferenceVideo: !!videoUrl && (mode === 'ref2v' || model === 'kling-motion-control'),
+      hasReferenceVideo: !!videoUrl && (mode === 'start_end' || model === 'kling-motion-control'),
       // Advanced settings
       style: style || 'not set',
       cameraMotion: cameraMotion || 'not set',
@@ -1126,6 +1330,7 @@ export async function POST(request: NextRequest) {
           quality: quality,
           shots: shots, // For storyboard mode
           characterOrientation: model === 'kling-motion-control' ? (characterOrientation || 'image') : undefined,
+          referenceImages: referenceImageBase64s, // Veo 3.1 reference images
         });
       } catch (error: any) {
       // Обработка ошибки политики контента Google Veo

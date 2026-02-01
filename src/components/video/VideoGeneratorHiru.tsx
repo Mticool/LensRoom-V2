@@ -101,17 +101,12 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   const [selectedModel, setSelectedModel] = useState(STANDARD_MODELS[0]?.id || 'veo-3.1-fast');
   const [showModelSelector, setShowModelSelector] = useState(false);
   
-  // Content tabs for Create Video (Frames/Ingredients)
-  const [contentTab, setContentTab] = useState<'frames' | 'ingredients'>('frames');
-  
   // Files
   const [startFrame, setStartFrame] = useState<File | null>(null);
   const [endFrame, setEndFrame] = useState<File | null>(null);
-  const [referenceImages, setReferenceImages] = useState<File[]>([]);
   const [referenceImage, setReferenceImage] = useState<File | null>(null); // Simple I2V input (Grok, Sora)
   const [motionVideo, setMotionVideo] = useState<File | null>(null);
   const [characterImage, setCharacterImage] = useState<File | null>(null);
-  const [referenceVideo, setReferenceVideo] = useState<File | null>(null); // For ref2v mode
   const [v2vVideo, setV2vVideo] = useState<File | null>(null); // For v2v mode
   
   // Audio generation toggle (Kling 2.6, Grok)
@@ -123,8 +118,12 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [duration, setDuration] = useState(8);
   const [sceneControlMode, setSceneControlMode] = useState<'video' | 'image'>('video');
-  const [mode, setMode] = useState<'t2v' | 'i2v' | 'v2v' | 'ref2v'>('t2v');
+  const [mode, setMode] = useState<'t2v' | 'i2v' | 'v2v' | 'start_end' | 'extend'>('t2v');
   const [style, setStyle] = useState<string>('');
+  
+  // Extend mode state
+  const [sourceGenerationId, setSourceGenerationId] = useState<string | null>(null);
+  const [extendableGenerations, setExtendableGenerations] = useState<any[]>([]);
   const [cameraMotion, setCameraMotion] = useState<string>('static');
   const [stylePreset, setStylePreset] = useState<string>('');
   const [motionStrength, setMotionStrength] = useState(50);
@@ -151,9 +150,10 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
         setAspectRatio(defaults.aspectRatio);
         setAudioEnabled(false);
         
-        // Reset mode to first supported
-        if (capability.supportedModes && capability.supportedModes.length > 0) {
-          setMode(capability.supportedModes[0] as any);
+        // Reset mode to first supported (exclude motion_control in create tab)
+        const modelModes = (capability.supportedModes || []).filter(m => m !== 'motion_control');
+        if (modelModes.length > 0) {
+          setMode(modelModes[0] as any);
         }
         
         // Reset advanced settings
@@ -166,8 +166,6 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
         setReferenceImage(null);
         setStartFrame(null);
         setEndFrame(null);
-        setReferenceImages([]);
-        setReferenceVideo(null);
         setV2vVideo(null);
       }
     } else if (modelConfig) {
@@ -177,6 +175,93 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       if (defaults.aspect_ratio) setAspectRatio(defaults.aspect_ratio);
     }
   }, [selectedModel, modelConfig, capability]);
+
+  // Check what features current model supports (STRICT: capability-driven only)
+  const supportedModes = (capability?.supportedModes || []).filter(m => m !== 'motion_control');
+  const supportsStartEndFrames = capability?.supportsStartEndFrames || false;
+  const supportsReferenceImages = capability?.supportsReferenceImages || false;
+  const supportsI2v = supportedModes.includes('i2v');
+  const hasResolutionOptions = (capability?.supportedQualities?.length || 0) > 0;
+  const supportsAudioGeneration = capability?.supportsSound || false;
+  
+  // Simple I2V input (no tabs): Grok, Sora
+  const useSimpleImageInput = ['grok-video', 'sora-2'].includes(selectedModel) && supportsI2v;
+
+  const isT2vMode = mode === 't2v';
+  const isI2vMode = mode === 'i2v';
+  const isStartEndMode = mode === 'start_end';
+  const isV2vMode = mode === 'v2v';
+  const isExtendMode = mode === 'extend';
+
+  const showStartEndInputs = isStartEndMode && supportsStartEndFrames;
+  const showV2vInput = isV2vMode && supportedModes.includes('v2v');
+  const showI2vInput = isI2vMode && supportsI2v;
+
+  // Reset incompatible inputs when mode changes
+  useEffect(() => {
+    if (isT2vMode) {
+      setReferenceImage(null);
+      setStartFrame(null);
+      setEndFrame(null);
+      setV2vVideo(null);
+    }
+
+    if (isI2vMode) {
+      setStartFrame(null);
+      setEndFrame(null);
+      setV2vVideo(null);
+    }
+
+    if (isStartEndMode) {
+      setReferenceImage(null);
+      setV2vVideo(null);
+    }
+
+    if (isV2vMode) {
+      setReferenceImage(null);
+      setStartFrame(null);
+    }
+
+    if (isExtendMode) {
+      setReferenceImage(null);
+      setStartFrame(null);
+      setEndFrame(null);
+      setV2vVideo(null);
+    }
+  }, [isT2vMode, isI2vMode, isStartEndMode, isV2vMode, isExtendMode]);
+
+  // Load extendable generations when extend mode is active
+  useEffect(() => {
+    if (isExtendMode && selectedModel === 'veo-3.1-fast') {
+      loadExtendableGenerations();
+    }
+  }, [isExtendMode, selectedModel]);
+
+  const loadExtendableGenerations = async () => {
+    try {
+      const response = await fetch('/api/generations?type=video&model=veo-3.1-fast&limit=50', {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        console.error('[VideoGeneratorHiru] Failed to load generations');
+        return;
+      }
+
+      const data = await response.json();
+      const generations = Array.isArray(data?.generations) ? data.generations : [];
+
+      // Фильтруем только генерации с task_id (сгенерированные через API)
+      const extendable = generations.filter((g: any) => 
+        g.task_id && 
+        ['success', 'completed'].includes(String(g.status || '').toLowerCase())
+      );
+
+      setExtendableGenerations(extendable);
+    } catch (error) {
+      console.error('[VideoGeneratorHiru] Failed to load extendable generations:', error);
+    }
+  };
   
   // Get available options for current model (STRICT: capability-driven only)
   const getQualityOptions = () => {
@@ -185,7 +270,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   };
 
   const getAspectRatioOptions = () => {
-    if (!capability) return [];
+    if (!capability?.supportedAspectRatios?.length) return [];
     return capability.supportedAspectRatios.map(ar => ({ value: ar, label: ar }));
   };
 
@@ -195,32 +280,35 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   };
 
   const getDurationOptions = () => {
-    if (!capability) return [];
+    if (!capability?.supportedDurationsSec?.length) return [];
     return capability.supportedDurationsSec.map(dur => ({ value: dur, label: `${dur}s` }));
   };
-  
-  // Check what features current model supports (STRICT: capability-driven only)
-  const supportsStartEndFrames = capability?.supportsStartEndFrames || false;
-  const supportsReferenceImages = capability?.supportsReferenceImages || false;
-  const supportsI2v = capability?.supportedModes.includes('i2v') || false;
-  const hasResolutionOptions = (capability?.supportedQualities?.length || 0) > 0;
-  const supportsAudioGeneration = capability?.supportsSound || false;
-  
-  // Simple I2V input (no tabs): Grok, Sora
-  // Veo uses tabs but needs i2v logic for first frame
-  const useSimpleImageInput = ['grok-video', 'sora-2'].includes(selectedModel) && supportsI2v;
+
+  const aspectRatioOptions = getAspectRatioOptions();
+  const durationOptions = getDurationOptions();
   
   // Calculate cost using centralized pricing
   const calculateCost = () => {
     try {
       // Determine if quality is a tier (for Kling 2.1) or resolution
       const isTier = ['standard', 'pro', 'master'].includes(quality);
+      
+      // Map UI mode to API mode for pricing
+      // Note: All veo modes (t2v, i2v, ref2v) use same base price, so map to t2v
+      let pricingMode: 't2v' | 'i2v' | 'start_end' | 'storyboard' | undefined;
+      if (mode === 't2v') pricingMode = 't2v';
+      else if (mode === 'i2v') pricingMode = 't2v'; // Same price as t2v
+      else if (mode === 'start_end') pricingMode = 't2v'; // Same price as t2v
+      // For extend mode, use t2v as base (extend pricing handled in route via SKU)
+      else if (mode === 'extend') pricingMode = 't2v';
+      
       const result = computePrice(selectedModel, {
         duration,
         resolution: isTier ? undefined : quality,
         audio: audioEnabled,
         qualityTier: isTier ? (quality as 'standard' | 'pro' | 'master') : undefined,
         variants: 1,
+        mode: pricingMode,
       });
       return result.stars;
     } catch (error) {
@@ -237,22 +325,35 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       toast.error('Пожалуйста, введите описание');
       return;
     }
+
+    // Extend mode validation
+    if (mode === 'extend' && !sourceGenerationId) {
+      toast.error('Выберите исходное видео для продления');
+      return;
+    }
     
     try {
-      // For Veo i2v mode: use first image from referenceImages as startFrame
-      const effectiveStartFrame = mode === 'i2v' && selectedModel === 'veo-3.1-fast' && referenceImages.length > 0
-        ? referenceImages[0]
-        : startFrame;
-      
-      // For ref2v mode: use referenceImages array
-      const effectiveReferenceImages = mode === 'ref2v' ? referenceImages : [];
+      const effectiveMode = supportedModes.includes(mode) ? mode : (supportedModes[0] || 't2v');
+
+      // i2v: use single reference image
+      const effectiveReferenceImage = effectiveMode === 'i2v' && supportsI2v
+        ? referenceImage
+        : null;
+
+      // start_end: first/last frame control
+      const effectiveStartFrame = effectiveMode === 'start_end' && supportsStartEndFrames ? startFrame : null;
+      const effectiveEndFrame = effectiveMode === 'start_end' && supportsStartEndFrames ? endFrame : null;
+      const effectiveV2vVideo = effectiveMode === 'v2v' && supportedModes.includes('v2v') ? v2vVideo : null;
       
       console.log('[VideoGeneratorHiru] Calling onGenerate with:', {
         mode,
         model: selectedModel,
         hasStartFrame: !!effectiveStartFrame,
-        hasReferenceImages: effectiveReferenceImages.length,
-        hasReferenceImage: !!referenceImage,
+        hasEndFrame: !!effectiveEndFrame,
+        hasReferenceImages: 0,
+        hasReferenceImage: !!effectiveReferenceImage,
+        hasReferenceVideo: false,
+        hasV2vVideo: !!effectiveV2vVideo,
       });
       
       // Call API
@@ -264,20 +365,19 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
           quality,
           aspectRatio,
           startFrame: effectiveStartFrame,
-          endFrame,
-          referenceImages: effectiveReferenceImages,
-          referenceImage, // Simple I2V (Grok, Sora)
+          endFrame: effectiveEndFrame,
+          referenceImage: effectiveReferenceImage, // I2V single image
           motionVideo,
           characterImage,
           sceneControlMode,
           audioEnabled,
-          mode,
+          mode: effectiveMode,
           style,
           cameraMotion,
           stylePreset,
           motionStrength,
-          referenceVideo, // For ref2v
-          v2vVideo, // For v2v
+          v2vVideo: effectiveV2vVideo, // For v2v
+          sourceGenerationId: effectiveMode === 'extend' ? sourceGenerationId : null, // For extend
         });
       }
     } catch (error) {
@@ -348,8 +448,87 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
               </div>
             </div>
             
+            {/* Mode Selector (if model supports multiple modes) */}
+            {supportedModes.length > 1 && (
+              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Режим</div>
+                <div className="flex gap-2 flex-wrap">
+                  {supportedModes.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setMode(m as any)}
+                      className={`px-4 py-2 min-w-[90px] rounded-lg text-[13px] font-medium transition-all ${
+                        mode === m
+                          ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/20'
+                          : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 't2v'
+                        ? 'Описание'
+                        : m === 'i2v'
+                          ? 'Изображение'
+                          : m === 'v2v'
+                            ? 'Видео'
+                            : m === 'start_end'
+                              ? 'Кадры'
+                              : m === 'extend'
+                                ? 'Продлить'
+                                : m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Extend Mode - Select Source Generation */}
+            {isExtendMode && (
+              <div className="p-4 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-3">Исходное видео для продления</div>
+                
+                {extendableGenerations.length === 0 ? (
+                  <div className="p-4 bg-zinc-900/50 rounded-lg border border-zinc-800/50 text-center">
+                    <p className="text-sm text-zinc-400 mb-2">Нет доступных видео для продления</p>
+                    <p className="text-xs text-zinc-500">
+                      Сначала сгенерируйте видео с помощью Veo 3.1 Fast
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {extendableGenerations.map((gen) => (
+                      <button
+                        key={gen.id}
+                        onClick={() => setSourceGenerationId(gen.id)}
+                        className={`w-full p-3 rounded-lg text-left transition-all ${
+                          sourceGenerationId === gen.id
+                            ? 'bg-[#D4FF00]/10 border-2 border-[#D4FF00]'
+                            : 'bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-zinc-400">
+                            {new Date(gen.created_at).toLocaleDateString('ru-RU', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                          {sourceGenerationId === gen.id && (
+                            <Check className="w-4 h-4 text-[#D4FF00]" />
+                          )}
+                        </div>
+                        <p className="text-sm text-white line-clamp-2">
+                          {gen.prompt || 'Без описания'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Simple Image Input for I2V (Grok, Sora) */}
-            {useSimpleImageInput && mode === 'i2v' && (
+            {useSimpleImageInput && showI2vInput && (
               <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                 <input
                   type="file"
@@ -380,28 +559,28 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
                 </div>
               </label>
             )}
-            
-            {/* Reference Video Input for Ref2V (Veo) */}
-            {mode === 'ref2v' && capability?.supportedModes?.includes('ref2v') && (
+
+            {/* I2V Image Input for other models */}
+            {!useSimpleImageInput && showI2vInput && (
               <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                 <input
                   type="file"
-                  accept="video/*"
+                  accept="image/*"
                   className="hidden"
-                  onChange={(e) => setReferenceVideo(e.target.files?.[0] || null)}
+                  onChange={(e) => setReferenceImage(e.target.files?.[0] || null)}
                 />
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-cyan-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
                 <div className="relative border-2 border-dashed border-zinc-700/50 bg-gradient-to-br from-zinc-900/50 to-zinc-800/30 backdrop-blur-sm rounded-xl p-6 flex flex-col items-center justify-center group-hover:border-zinc-600 transition-colors">
                   <div className="relative mb-3">
-                    <div className="absolute inset-0 bg-blue-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <VideoIcon className="w-8 h-8 text-zinc-600 group-hover:text-blue-400 transition-colors relative z-10" />
+                    <div className="absolute inset-0 bg-cyan-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ImageIcon className="w-8 h-8 text-zinc-600 group-hover:text-cyan-400 transition-colors relative z-10" />
                   </div>
-                  
-                  <p className="text-sm text-white font-semibold mb-1">Референсное видео</p>
-                  <p className="text-xs text-zinc-500">MP4 • Для ref2v режима</p>
-                  
-                  {referenceVideo && (
+
+                  <p className="text-sm text-white font-semibold mb-1">Референсное изображение</p>
+                  <p className="text-xs text-zinc-500">PNG, JPG • Для режима изображение→видео</p>
+
+                  {referenceImage && (
                     <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
                       <Check className="w-3 h-3" />
                       <span>Загружено</span>
@@ -412,7 +591,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
             )}
             
             {/* V2V Video Input (WAN) */}
-            {mode === 'v2v' && capability?.supportedModes?.includes('v2v') && (
+            {showV2vInput && (
               <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                 <input
                   type="file"
@@ -441,38 +620,8 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
               </label>
             )}
             
-            {/* Frames / Ingredients Toggle (only if model supports AND not using simple input) */}
-            {!useSimpleImageInput && (supportsStartEndFrames || supportsReferenceImages) && (
-              <div className="flex gap-1 p-1 bg-zinc-900/50 rounded-lg">
-                {supportsStartEndFrames && (
-                  <button
-                    onClick={() => setContentTab('frames')}
-                    className={`flex-1 px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all duration-200 ${
-                      contentTab === 'frames'
-                        ? 'bg-white/10 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    Кадры
-                  </button>
-                )}
-                {supportsReferenceImages && !useSimpleImageInput && (
-                  <button
-                    onClick={() => setContentTab('ingredients')}
-                    className={`flex-1 px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all duration-200 ${
-                      contentTab === 'ingredients'
-                        ? 'bg-white/10 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    Референсы
-                  </button>
-                )}
-              </div>
-            )}
-            
             {/* Frames Content */}
-            {!useSimpleImageInput && supportsStartEndFrames && contentTab === 'frames' && (
+            {!useSimpleImageInput && showStartEndInputs && (
               <div className="grid grid-cols-2 gap-2">
                 {/* Start Frame */}
                 <label className="group cursor-pointer">
@@ -518,41 +667,6 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
               </div>
             )}
             
-            {/* Ingredients Content */}
-            {!useSimpleImageInput && supportsReferenceImages && contentTab === 'ingredients' && (
-              <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => setReferenceImages(Array.from(e.target.files || []))}
-                />
-                {/* Animated Gradient Border */}
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {/* Content */}
-                <div className="relative border-2 border-dashed border-zinc-700/50 bg-gradient-to-br from-zinc-900/50 via-zinc-800/30 to-zinc-900/50 backdrop-blur-sm rounded-xl p-8 flex flex-col items-center justify-center group-hover:border-zinc-600 transition-colors">
-                  {/* Icon with glow */}
-                  <div className="relative mb-4">
-                    <div className="absolute inset-0 bg-cyan-500/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative z-10 p-3 rounded-xl bg-zinc-800/50 group-hover:bg-zinc-800 transition-colors">
-                      <Upload className="w-8 h-8 text-zinc-600 group-hover:text-cyan-400 transition-colors" />
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm text-white font-semibold mb-1">Загрузите до {currentModel?.maxReferenceImages || 3} изображений</p>
-                  <p className="text-xs text-zinc-500">PNG, JPG или вставить из буфера</p>
-                  
-                  {referenceImages.length > 0 && (
-                    <div className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-[#D4FF00]/10 border border-[#D4FF00]/20 rounded-lg">
-                      <Check className="w-4 h-4 text-[#D4FF00]" />
-                      <span className="text-xs text-[#D4FF00] font-semibold">{referenceImages.length} загружено</span>
-                    </div>
-                  )}
-                </div>
-              </label>
-            )}
             
             {/* Prompt */}
             <div className="space-y-2">
@@ -590,28 +704,6 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
                     }`}
                   />
                 </button>
-              </div>
-            )}
-            
-            {/* Mode Selector (if model supports multiple modes) */}
-            {capability?.supportedModes && capability.supportedModes.length > 1 && (
-              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Режим</div>
-                <div className="flex gap-2">
-                  {capability.supportedModes.map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setMode(m as any)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                        mode === m
-                          ? 'bg-[#D4FF00] text-black'
-                          : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      {m === 't2v' ? 'Text→Video' : m === 'i2v' ? 'Image→Video' : m === 'v2v' ? 'Video→Video' : m === 'ref2v' ? 'Ref→Video' : m}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
             
@@ -694,18 +786,6 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
               </div>
             )}
             
-            {/* Model Selector Dropdown - Active */}
-            <button 
-              onClick={() => setShowModelSelector(true)}
-              className="w-full flex items-center justify-between p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08] hover:border-white/20 transition-all duration-200 cursor-pointer"
-            >
-              <div>
-                <div className="text-[11px] text-zinc-500 uppercase tracking-wide">Модель</div>
-                <div className="text-[13px] font-medium text-white">{currentModel?.name}</div>
-              </div>
-              <ChevronDown className="w-4 h-4 text-zinc-400" />
-            </button>
-            
             {/* Settings Row (Quality, Ratio, Duration) - Apple Style */}
             <div className="flex gap-2">
               {/* Quality - only if model has resolution options */}
@@ -719,27 +799,29 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
               )}
               
               {/* Ratio */}
-              <Dropdown
-                label="Формат"
-                value={aspectRatio}
-                options={getAspectRatioOptions()}
-                onChange={handleAspectRatioChange}
-              />
+              {aspectRatioOptions.length > 0 && (
+                <Dropdown
+                  label="Формат"
+                  value={aspectRatio}
+                  options={aspectRatioOptions}
+                  onChange={handleAspectRatioChange}
+                />
+              )}
               
               {/* Duration - locked if only one option, dropdown otherwise */}
-              {capability?.fixedDuration || getDurationOptions().length === 1 ? (
+              {capability?.fixedDuration || durationOptions.length === 1 ? (
                 <div className="flex-1 p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
                   <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Длина</div>
                   <div className="text-[13px] font-medium text-white">{duration}s (фиксировано)</div>
                 </div>
-              ) : (
+              ) : durationOptions.length > 0 ? (
                 <Dropdown
                   label="Длина"
                   value={duration}
-                  options={getDurationOptions()}
+                  options={durationOptions}
                   onChange={setDuration}
                 />
-              )}
+              ) : null}
             </div>
           </>
         )}
@@ -901,8 +983,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="w-full py-4 bg-gradient-to-r from-[#D4FF00] via-[#c4ef00] to-[#D4FF00] bg-size-200 bg-pos-0 hover:bg-pos-100 text-black font-bold text-base rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-500 flex items-center justify-center gap-3 relative overflow-hidden group shadow-lg shadow-[#D4FF00]/20 hover:shadow-[#D4FF00]/40"
-          style={{ backgroundSize: '200% 100%' }}
+          className="w-full py-4 bg-[#f59e0b] hover:bg-[#fbbf24] text-black font-bold text-base rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden group shadow-lg shadow-[#f59e0b]/30 hover:shadow-[#f59e0b]/50"
         >
           {isGenerating ? (
             <>
@@ -967,7 +1048,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
                     : model.fixedDuration ? `${model.fixedDuration}с` : null;
                   
                   const modesText = cap?.supportedModes?.length
-                    ? cap.supportedModes.join(' • ').toUpperCase()
+                    ? cap.supportedModes.filter((m) => m !== 'motion_control').join(' • ').toUpperCase()
                     : null;
                   
                   const qualityText = cap?.supportedQualities?.length

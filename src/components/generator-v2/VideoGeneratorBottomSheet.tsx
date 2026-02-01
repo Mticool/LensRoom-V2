@@ -204,7 +204,7 @@ export function VideoGeneratorBottomSheet({
                   }}
                   className={`w-full min-w-[140px] px-4 py-3 text-left text-sm rounded-xl ${
                     opt === mode 
-                      ? 'bg-[#CDFF00] text-black font-semibold' 
+                      ? 'bg-[#f59e0b] text-black font-semibold' 
                       : 'text-white active:bg-white/10'
                   }`}
                 >
@@ -235,7 +235,7 @@ export function VideoGeneratorBottomSheet({
                   }}
                   className={`w-16 h-12 text-sm font-bold rounded-xl ${
                     dur === duration 
-                      ? 'bg-[#CDFF00] text-black' 
+                      ? 'bg-[#f59e0b] text-black' 
                       : 'text-white active:bg-white/10'
                   }`}
                 >
@@ -266,7 +266,7 @@ export function VideoGeneratorBottomSheet({
                   }}
                   className={`w-full min-w-[100px] px-4 py-3 text-left text-sm rounded-xl ${
                     opt === quality 
-                      ? 'bg-[#CDFF00] text-black font-semibold' 
+                      ? 'bg-[#f59e0b] text-black font-semibold' 
                       : 'text-white active:bg-white/10'
                   }`}
                 >
@@ -297,7 +297,7 @@ export function VideoGeneratorBottomSheet({
                   }}
                   className={`w-full min-w-[100px] px-4 py-3 text-left text-sm rounded-xl ${
                     opt === aspectRatio
-                      ? 'bg-[#CDFF00] text-black font-semibold'
+                      ? 'bg-[#f59e0b] text-black font-semibold'
                       : 'text-white active:bg-white/10'
                   }`}
                 >
@@ -379,7 +379,7 @@ export function VideoGeneratorBottomSheet({
             className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap
               ${isGenerating ? 'opacity-50' : 'active:scale-95'}
               ${activeMenu === 'mode' 
-                ? 'bg-[#CDFF00] text-black' 
+                ? 'bg-[#f59e0b] text-black' 
                 : 'bg-white/10 text-white/80 border border-white/10'
               }`}
           >
@@ -395,7 +395,7 @@ export function VideoGeneratorBottomSheet({
             className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
               ${isGenerating ? 'opacity-50' : 'active:scale-95'}
               ${activeMenu === 'duration' 
-                ? 'bg-[#CDFF00] text-black' 
+                ? 'bg-[#f59e0b] text-black' 
                 : 'bg-white/10 text-white/80 border border-white/10'
               }`}
           >
@@ -412,7 +412,7 @@ export function VideoGeneratorBottomSheet({
               className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
                 ${isGenerating ? 'opacity-50' : 'active:scale-95'}
                 ${activeMenu === 'aspect'
-                  ? 'bg-[#CDFF00] text-black'
+                  ? 'bg-[#f59e0b] text-black'
                   : 'bg-white/10 text-white/80 border border-white/10'
                 }`}
             >
@@ -429,7 +429,7 @@ export function VideoGeneratorBottomSheet({
               className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
                 ${isGenerating ? 'opacity-50' : 'active:scale-95'}
                 ${activeMenu === 'quality' 
-                  ? 'bg-[#CDFF00] text-black' 
+                  ? 'bg-[#f59e0b] text-black' 
                   : 'bg-white/10 text-white/80 border border-white/10'
                 }`}
             >
@@ -456,7 +456,7 @@ export function VideoGeneratorBottomSheet({
                 className={`h-8 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
                   ${isGenerating ? 'opacity-50' : 'active:scale-95'}
                   ${referenceImage 
-                    ? 'bg-[#CDFF00] text-black' 
+                    ? 'bg-[#f59e0b] text-black' 
                     : 'bg-white/10 text-white/80 border border-white/10'
                   }`}
               >
@@ -470,7 +470,7 @@ export function VideoGeneratorBottomSheet({
           <div className="flex-1" />
 
           {/* Cost badge */}
-          <span className="text-xs font-bold text-[#CDFF00] pr-1">
+          <span className="text-xs font-bold text-[#f59e0b] pr-1">
             {estimatedCost}⭐
           </span>
         </div>
@@ -484,7 +484,7 @@ export function VideoGeneratorBottomSheet({
             disabled={isGenerating}
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 active:scale-95
               ${showAdvanced 
-                ? 'bg-[#CDFF00] text-black' 
+                ? 'bg-[#f59e0b] text-black' 
                 : 'bg-white/10 text-white/60 border border-white/10'
               }
               ${isGenerating ? 'opacity-50' : ''}`}
@@ -501,7 +501,7 @@ export function VideoGeneratorBottomSheet({
               disabled={isGenerating}
               placeholder={needsReference ? "Опишите желаемое видео (опционально)..." : "Опишите видео..."}
               rows={1}
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#CDFF00]/40 transition-all disabled:opacity-50 leading-tight"
+              className="w-full px-4 py-2.5 bg-white/10 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#f59e0b]/40 transition-all disabled:opacity-50 leading-tight"
               style={{ minHeight: '40px', maxHeight: '80px' }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -521,7 +521,7 @@ export function VideoGeneratorBottomSheet({
               ${isGenerating
                 ? 'bg-white/10 text-white/50'
                 : canGenerate
-                  ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/30'
+                  ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/30'
                   : 'bg-white/10 text-white/30 border border-white/10'
               }`}
           >

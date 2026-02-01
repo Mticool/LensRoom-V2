@@ -23,7 +23,7 @@ type CharacterOrientation = 'image' | 'video';
 type Resolution = '720p' | '1080p';
 type GenerationStatus = 'idle' | 'queued' | 'processing' | 'success' | 'error';
 
-// Limits from Kie.ai documentation
+// Limits from API documentation
 const LIMITS = {
   PROMPT_MAX_LENGTH: 2500,
   IMAGE_MAX_SIZE_MB: 10,
@@ -398,7 +398,7 @@ export function MotionTabContent({
       {/* Header */}
       <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
         <p className="text-sm text-purple-300">
-          <strong>Kling 2.6 Motion Control</strong> — перенос движений, жестов и мимики из видео на персонажа с изображения.
+          <strong>Motion Control 2.6</strong> — перенос движений, жестов и мимики из видео на персонажа с изображения.
         </p>
       </div>
 

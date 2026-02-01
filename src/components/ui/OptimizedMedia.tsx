@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, memo } from 'react';
+import { getOptimalImageQuality, isMobileDevice, prefersReducedMotion } from '@/lib/utils/mobile-optimization';
 // Note: Using native img instead of next/image for better reliability with external URLs
 
 // ===== OPTIMIZED IMAGE =====
@@ -14,6 +15,18 @@ interface OptimizedImageProps {
   height?: number;
   sizes?: string;
   onLoad?: () => void;
+  quality?: 'low' | 'medium' | 'high';
+}
+
+// Generate srcset for responsive images with different quality levels
+function generateSrcSet(url: string, quality: 'low' | 'medium' | 'high' = 'medium'): string {
+  if (!url || url.includes('?')) return ''; // Skip if URL has params
+  
+  const widths = quality === 'low' ? [320, 640] : 
+                 quality === 'high' ? [640, 1024, 1920] : 
+                 [640, 1024];
+  
+  return widths.map(w => `${url}?w=${w} ${w}w`).join(', ');
 }
 
 export const OptimizedImage = memo(function OptimizedImage({
@@ -26,10 +39,17 @@ export const OptimizedImage = memo(function OptimizedImage({
   height,
   sizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw',
   onLoad,
+  quality,
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [retryUrl, setRetryUrl] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  
+  // Auto-detect optimal quality if not specified
+  const optimalQuality = quality || getOptimalImageQuality();
+  const reducedMotion = prefersReducedMotion();
+  const isMobile = isMobileDevice();
   
   const handleLoad = () => {
     setIsLoaded(true);
@@ -79,22 +99,73 @@ export const OptimizedImage = memo(function OptimizedImage({
   // Use retry URL if available, otherwise use original src
   const imageSrc = retryUrl || src;
   
+  // Intersection Observer for lazy loading (only for non-priority images)
+  useEffect(() => {
+    if (priority || !imgRef.current) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && imgRef.current) {
+            // Start loading when visible
+            const img = imgRef.current;
+            if (img.dataset.src) {
+              img.src = img.dataset.src;
+              img.removeAttribute('data-src');
+            }
+          }
+        });
+      },
+      {
+        rootMargin: '50px', // Start loading slightly before visible
+        threshold: 0.01,
+      }
+    );
+    
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, [priority]);
+  
+  // Generate srcset for responsive loading
+  const srcSet = generateSrcSet(imageSrc, optimalQuality);
+  
+  // Adjust transition duration based on reduced motion preference
+  const transitionDuration = reducedMotion ? 'duration-200' : 'duration-500';
+  
   // Always use simple img tag for reliability (Next.js Image has issues with external URLs)
   return (
     <>
-      {/* Blur placeholder while loading */}
+      {/* Enhanced blur placeholder while loading */}
       {!isLoaded && (
-        <div className="absolute inset-0 bg-[var(--surface2)] animate-pulse" />
+        <div className={`absolute inset-0 bg-gradient-to-br from-[var(--surface2)] via-[var(--surface)] to-[var(--surface2)] ${reducedMotion ? '' : 'animate-pulse'}`}>
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvc3ZnPg==')] opacity-50"></div>
+        </div>
       )}
       <img
-        src={imageSrc}
+        ref={imgRef}
+        src={priority ? imageSrc : undefined}
+        data-src={priority ? undefined : imageSrc}
+        srcSet={priority && srcSet ? srcSet : undefined}
+        sizes={sizes}
         alt={alt}
-        className={`w-full h-full object-cover ${className} transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`w-full h-full object-cover ${className} transition-opacity ${transitionDuration} ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
+        fetchPriority={priority ? 'high' : 'low'}
         onLoad={handleLoad}
         onError={handleError}
-        style={{ objectFit: 'cover' }}
+        style={{ 
+          objectFit: 'cover',
+          // Optimize rendering on mobile
+          ...(isMobile && {
+            willChange: 'opacity',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+          })
+        }}
         key={imageSrc} // Force re-render when URL changes
       />
     </>
@@ -109,6 +180,7 @@ interface LazyVideoProps {
   muted?: boolean;
   loop?: boolean;
   playsInline?: boolean;
+  preload?: 'none' | 'metadata' | 'auto';
 }
 
 export const LazyVideo = memo(function LazyVideo({
@@ -118,13 +190,15 @@ export const LazyVideo = memo(function LazyVideo({
   muted = true,
   loop = true,
   playsInline = true,
+  preload = 'none',
 }: LazyVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [hasLoadedSrc, setHasLoadedSrc] = useState(false);
   
-  // Intersection Observer - play only when visible
+  // Intersection Observer - load and play only when visible
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -135,18 +209,24 @@ export const LazyVideo = memo(function LazyVideo({
           setIsVisible(entry.isIntersecting);
           
           if (entry.isIntersecting) {
+            // Load src if not loaded yet
+            if (!hasLoadedSrc && src) {
+              video.src = src;
+              setHasLoadedSrc(true);
+            }
+            
             // Play when visible
             video.play().catch(() => {
               // Autoplay blocked, that's ok
             });
           } else {
-            // Pause when not visible to save resources
+            // Pause when not visible to save resources and bandwidth
             video.pause();
           }
         });
       },
       {
-        rootMargin: '50px', // Start loading a bit before visible
+        rootMargin: '100px', // Start loading earlier for smoother experience
         threshold: 0.1,
       }
     );
@@ -154,7 +234,7 @@ export const LazyVideo = memo(function LazyVideo({
     observer.observe(video);
     
     return () => observer.disconnect();
-  }, []);
+  }, [src, hasLoadedSrc]);
   
   const handleLoadedData = () => {
     setIsLoaded(true);
@@ -178,7 +258,7 @@ export const LazyVideo = memo(function LazyVideo({
   
   return (
     <>
-      {/* Poster/placeholder while loading */}
+      {/* Enhanced poster/placeholder while loading */}
       {!isLoaded && poster && (
         <img 
           src={poster} 
@@ -188,17 +268,24 @@ export const LazyVideo = memo(function LazyVideo({
         />
       )}
       {!isLoaded && !poster && (
-        <div className={`absolute inset-0 bg-[var(--surface2)] animate-pulse ${className}`} />
+        <div className={`absolute inset-0 bg-gradient-to-br from-[var(--surface2)] via-[var(--surface)] to-[var(--surface2)] animate-pulse ${className}`}>
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvc3ZnPg==')] opacity-50"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <svg className="w-12 h-12 text-[var(--muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
       )}
       <video
         ref={videoRef}
-        src={isVisible ? src : undefined} // Only load src when visible
         poster={poster}
-        className={`${className} transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`${className} transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         muted={muted}
         loop={loop}
         playsInline={playsInline}
-        preload="none" // Don't preload until visible
+        preload={preload}
         onLoadedData={handleLoadedData}
         onError={handleError}
       />

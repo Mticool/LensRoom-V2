@@ -5,8 +5,8 @@
 
 /* CSS Variables */
 :root {
-  --higgs-primary: #CDFF00;
-  --higgs-primary-hover: #B8E600;
+  --higgs-primary: #f59e0b;
+  --higgs-primary-hover: #fbbf24;
   --higgs-primary-muted: rgba(205, 255, 0, 0.15);
   
   --higgs-bg: #0A0A0A;

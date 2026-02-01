@@ -124,7 +124,7 @@ export function QualitySelector({ value, onChange, disabled, options }: QualityS
                     `}
                   >
                     <div className="w-5 h-5 flex-shrink-0 mt-0.5">
-                      {isSelected && <Check className="w-5 h-5 text-[#CDFF00]" />}
+                      {isSelected && <Check className="w-5 h-5 text-[#f59e0b]" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -132,7 +132,7 @@ export function QualitySelector({ value, onChange, disabled, options }: QualityS
                           {info.label}
                         </span>
                         {info.badge && (
-                          <span className="px-1.5 py-0.5 bg-[#CDFF00] text-black text-[10px] font-bold rounded">
+                          <span className="px-1.5 py-0.5 bg-[#f59e0b] text-black text-[10px] font-bold rounded">
                             {info.badge}
                           </span>
                         )}

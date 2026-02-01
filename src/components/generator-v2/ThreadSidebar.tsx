@@ -101,7 +101,7 @@ export function ThreadSidebar({
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={onCreateThread}
-                  className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-[#CDFF00] text-black font-semibold text-sm hover:bg-[#B8E600] transition-colors relative z-10 w-full justify-center"
+                  className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-[#f59e0b] text-black font-semibold text-sm hover:bg-[#fbbf24] transition-colors relative z-10 w-full justify-center"
                   title="Новый проект"
                   type="button"
                 >
@@ -138,19 +138,19 @@ export function ThreadSidebar({
                           active ? "bg-[#27272A] text-white" : "text-[#E4E4E7] hover:bg-[#18181B]"
                         )}
                       >
-                        <MessageSquare className={cn("w-4 h-4", active ? "text-[#CDFF00]" : "text-[#71717A]")} />
+                        <MessageSquare className={cn("w-4 h-4", active ? "text-[#f59e0b]" : "text-[#71717A]")} />
                         {isEditing ? (
                           <div className="flex-1 min-w-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <input
                               value={draftTitle}
                               onChange={(e) => setDraftTitle(e.target.value)}
-                              className="flex-1 min-w-0 bg-[#0F0F10] border border-[#3A3A3C] rounded-md px-2 py-1 text-sm text-white outline-none focus:border-[#CDFF00]"
+                              className="flex-1 min-w-0 bg-[#0F0F10] border border-[#3A3A3C] rounded-md px-2 py-1 text-sm text-white outline-none focus:border-[#f59e0b]"
                               maxLength={80}
                               autoFocus
                             />
                             <button
                               type="button"
-                              className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-[#CDFF00] text-black hover:bg-[#B8E600] transition-colors disabled:opacity-60"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-[#f59e0b] text-black hover:bg-[#fbbf24] transition-colors disabled:opacity-60"
                               onClick={saveEdit}
                               disabled={savingId === t.id || draftTitle.trim().length === 0}
                               title="Сохранить"

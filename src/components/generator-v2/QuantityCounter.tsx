@@ -34,7 +34,7 @@ export function QuantityCounter({
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={!canDecrement}
-        className="w-7 h-7 rounded-md bg-white/10 text-white hover:bg-[#CDFF00]/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
+        className="w-7 h-7 rounded-md bg-white/10 text-white hover:bg-[#f59e0b]/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
         aria-label="Уменьшить количество"
       >
         −
@@ -48,7 +48,7 @@ export function QuantityCounter({
         type="button"
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={!canIncrement}
-        className="w-7 h-7 rounded-md bg-white/10 text-white hover:bg-[#CDFF00]/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
+        className="w-7 h-7 rounded-md bg-white/10 text-white hover:bg-[#f59e0b]/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
         aria-label="Увеличить количество"
       >
         +

@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Sparkles, RefreshCw, Copy, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
+import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 
 // ===== CONSTANTS =====
-const INITIAL_LOAD = 12;
-const LOAD_MORE = 9;
+const INITIAL_LOAD = 15; // Increased for better initial experience
+const LOAD_MORE = 12; // Increased for smoother scrolling
+const PREFETCH_THRESHOLD = 3; // Start loading when 3 items from bottom
 
 // ===== TYPES =====
 interface ContentCard {
@@ -49,7 +51,15 @@ interface ContentCardProps {
   priority?: boolean;
 }
 
-const ContentCardComponent = memo(function ContentCardComponent({ card, onRepeat, onCopyPrompt, priority = false }: ContentCardProps) {
+// Memoized component needs access to mobile optimization
+const ContentCardComponent = memo(function ContentCardComponent({ 
+  card, 
+  onRepeat, 
+  onCopyPrompt, 
+  priority = false,
+  quality = 'medium',
+  reducedMotion = false,
+}: ContentCardProps & { quality?: 'low' | 'medium' | 'high'; reducedMotion?: boolean }) {
   const isVideo = card.content_type === 'video';
   
   // For videos: prioritize animated preview (WebM) > poster > asset
@@ -63,15 +73,19 @@ const ContentCardComponent = memo(function ContentCardComponent({ card, onRepeat
   
   const posterSrc = isVideo ? (card.poster_url || '').trim() : '';
   
+  // Transition duration based on reduced motion
+  const transitionDuration = reducedMotion ? 'duration-200' : 'duration-500';
+  const hoverTransform = reducedMotion ? '' : 'group-hover:scale-105';
+  
   return (
     <div className="break-inside-avoid mb-3">
       <div
-        className="group relative w-full overflow-hidden rounded-xl bg-[var(--surface)] 
+        className={`group relative w-full overflow-hidden rounded-xl bg-[var(--surface)] 
                    border border-[var(--border)]
-                   transition-all duration-300 ease-out
-                   hover:translate-y-[-2px]
+                   transition-all ${transitionDuration} ease-out
+                   ${reducedMotion ? '' : 'hover:translate-y-[-2px]'}
                    hover:border-white/50
-                   hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]"
+                   hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]`}
       >
         {/* Image with aspect ratio */}
         <div className={`relative w-full ${getAspectClass(card.aspect || card.tile_ratio)} overflow-hidden`}>
@@ -80,14 +94,15 @@ const ContentCardComponent = memo(function ContentCardComponent({ card, onRepeat
               <LazyVideo
                 src={src}
                 poster={posterSrc || undefined}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className={`w-full h-full object-cover transition-transform ${transitionDuration} ${hoverTransform}`}
               />
             ) : (
               <OptimizedImage
                 src={src}
                 alt={card.title}
-                className="transition-transform duration-500 group-hover:scale-105"
+                className={`transition-transform ${transitionDuration} ${hoverTransform}`}
                 priority={priority}
+                quality={quality}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               />
             )
@@ -214,6 +229,9 @@ export function InspirationGallery() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const cacheRef = useRef<ContentCard[] | null>(null);
+  
+  // Mobile optimization
+  const { isMobile, isTouch, imageQuality, itemsPerPage, reducedMotion } = useMobileOptimization();
 
   // Load content from API with caching
   useEffect(() => {
@@ -267,41 +285,6 @@ export function InspirationGallery() {
     loadContent();
   }, []);
 
-  // Infinite scroll - load more when reaching bottom
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && !loadingMore) {
-          setLoadingMore(true);
-          if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => {
-              setDisplayCount(prev => prev + LOAD_MORE);
-              setLoadingMore(false);
-            });
-          } else {
-            setTimeout(() => {
-              setDisplayCount(prev => prev + LOAD_MORE);
-              setLoadingMore(false);
-            }, 100);
-          }
-        }
-      },
-      { rootMargin: '200px' }
-    );
-    
-    const current = loadMoreRef.current;
-    if (current) {
-      observer.observe(current);
-    }
-    
-    return () => {
-      if (current) {
-        observer.unobserve(current);
-      }
-    };
-  }, [loadingMore]);
-
   // Reset display count when filter changes
   useEffect(() => {
     setDisplayCount(INITIAL_LOAD);
@@ -319,6 +302,47 @@ export function InspirationGallery() {
   // Only show displayCount items
   const visibleContent = filteredContent.slice(0, displayCount);
   const hasMore = filteredContent.length > displayCount;
+
+  // Optimized infinite scroll - load more when reaching bottom
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !loadingMore && hasMore) {
+          setLoadingMore(true);
+          
+          // Use requestIdleCallback for non-blocking UI updates
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+              setDisplayCount(prev => Math.min(prev + LOAD_MORE, filteredContent.length));
+              setLoadingMore(false);
+            }, { timeout: 2000 });
+          } else {
+            // Fallback for browsers without requestIdleCallback
+            setTimeout(() => {
+              setDisplayCount(prev => Math.min(prev + LOAD_MORE, filteredContent.length));
+              setLoadingMore(false);
+            }, 50);
+          }
+        }
+      },
+      { 
+        rootMargin: '300px', // Increased for better prefetching
+        threshold: 0 
+      }
+    );
+    
+    const current = loadMoreRef.current;
+    if (current) {
+      observer.observe(current);
+    }
+    
+    return () => {
+      if (current) {
+        observer.unobserve(current);
+      }
+    };
+  }, [loadingMore, hasMore, filteredContent.length]);
 
   // Handle copy prompt
   const handleCopyPrompt = useCallback(async (card: ContentCard) => {
@@ -392,15 +416,17 @@ export function InspirationGallery() {
         <span>Featured: {allContent.filter(c => c.featured).length}</span>
       </div>
 
-      {/* Masonry Grid */}
-      <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3">
+      {/* Masonry Grid - Optimized for mobile */}
+      <div className={`columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3 ${isMobile ? 'gap-2' : 'gap-3'}`}>
         {visibleContent.map((card, index) => (
           <ContentCardComponent
             key={card.id}
             card={card}
             onRepeat={() => handleRepeat(card)}
             onCopyPrompt={() => handleCopyPrompt(card)}
-            priority={index < 8}
+            priority={index < (isMobile ? 6 : 8)}
+            quality={imageQuality}
+            reducedMotion={reducedMotion}
           />
         ))}
       </div>

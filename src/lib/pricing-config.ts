@@ -20,26 +20,26 @@ export const REGISTRATION_BONUS = 50; // Updated to match actual bonus
 export const SUBSCRIPTIONS: SubscriptionPlan[] = SUBSCRIPTION_TIERS.map((tier) => {
   // Generate user-friendly descriptions
   const descriptions: Record<string, string> = {
-    star: `${tier.stars}⭐ в месяц + ${REGISTRATION_BONUS}⭐ при регистрации. Для старта и теста моделей: фото, первые ролики, обложки и эффекты.`,
-    pro: `${tier.stars}⭐ в месяц. Оптимальный тариф для регулярного контента и задач каждый день.`,
-    business: `${tier.stars}⭐ в месяц. Для бизнеса, e-commerce и производства контента потоком.`,
+    start: `+${tier.stars}⭐ каждый месяц. Все модели доступны.`,
+    pro: `+${tier.stars}⭐ каждый месяц. NanoBanana Pro 2K бесплатно + приоритет.`,
+    max: `+${tier.stars}⭐ каждый месяц. NanoBanana Pro 4K бесплатно + максимальный приоритет.`,
   };
 
   const badges: Record<string, string> = {
-    star: 'Попробовать',
+    start: 'Старт',
     pro: 'Лучший выбор',
-    business: 'Для объёма',
+    max: 'Максимум',
   };
 
   return {
     id: tier.id,
     name: tier.name,
     price: tier.price,
-    credits: tier.stars, // stars = credits in our system
-    description: descriptions[tier.id] || tier.features.join('. '),
+    credits: tier.stars,
+    description: descriptions[tier.id] || tier.highlights.join('. '),
     badge: badges[tier.id],
     popular: tier.popular,
-    features: tier.features.slice(0, 4), // Show first 4 features
+    features: tier.highlights.slice(0, 4),
   };
 });
 

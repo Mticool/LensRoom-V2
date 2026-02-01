@@ -97,7 +97,7 @@ export default function HomePage() {
               scale: [1, 1.2, 1],
             }}
             transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[20%] left-[10%] w-[500px] h-[500px] bg-[#CDFF00]/10 rounded-full blur-[150px]" 
+            className="absolute top-[20%] left-[10%] w-[500px] h-[500px] bg-[#f59e0b]/10 rounded-full blur-[150px]" 
           />
           <motion.div 
             animate={{ 
@@ -211,8 +211,8 @@ export default function HomePage() {
             className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 mb-8"
           >
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute h-full w-full rounded-full bg-[#CDFF00] opacity-75"></span>
-              <span className="relative rounded-full h-2.5 w-2.5 bg-[#CDFF00]"></span>
+              <span className="animate-ping absolute h-full w-full rounded-full bg-[#f59e0b] opacity-75"></span>
+              <span className="relative rounded-full h-2.5 w-2.5 bg-[#f59e0b]"></span>
             </span>
             <span className="text-sm md:text-base text-white/70">25+ нейросетей • Без карты • 50⭐ бесплатно</span>
           </motion.div>
@@ -226,7 +226,7 @@ export default function HomePage() {
           >
             <span className="text-white">Создай свой</span>
             <br />
-            <span className="bg-gradient-to-r from-[#CDFF00] via-[#00D9FF] to-[#CDFF00] bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
+            <span className="bg-gradient-to-r from-[#f59e0b] via-[#00D9FF] to-[#f59e0b] bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
               AI шедевр
             </span>
           </motion.h1>
@@ -251,7 +251,7 @@ export default function HomePage() {
             className="flex flex-wrap items-center justify-center gap-4 md:gap-8 mb-10 text-sm md:text-base text-white/40"
           >
             <span className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-[#CDFF00]" />
+              <ImageIcon className="w-4 h-4 text-[#f59e0b]" />
               Фото до 4K
             </span>
             <span className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export default function HomePage() {
               <motion.button
                 whileHover={{ scale: 1.03, y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                className="group relative px-10 py-5 rounded-2xl bg-[#CDFF00] text-black font-bold text-lg overflow-hidden shadow-[0_0_60px_rgba(205,255,0,0.3)]"
+                className="group relative px-10 py-5 rounded-2xl bg-[#f59e0b] text-black font-bold text-lg overflow-hidden shadow-[0_0_60px_rgba(205,255,0,0.3)]"
               >
                 <span className="relative z-10 flex items-center gap-3">
                   Начать создавать
@@ -330,56 +330,80 @@ export default function HomePage() {
           viewport={{ once: true }}
           className="max-w-5xl mx-auto"
         >
-          <Link href="/pricing">
-            <motion.div
-              whileHover={{ scale: 1.02, y: -4 }}
-              whileTap={{ scale: 0.99 }}
-              className="relative overflow-hidden rounded-3xl border-2 border-[#CDFF00]/50 bg-gradient-to-br from-[#CDFF00]/15 via-[#0d0d0e] to-[#CDFF00]/10 p-8 md:p-10 cursor-pointer group shadow-[0_0_60px_rgba(205,255,0,0.15)]"
-            >
-              {/* Animated glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#CDFF00]/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              
-              {/* Pulse effect */}
-              <div className="absolute top-4 right-4">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#CDFF00] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-[#CDFF00]"></span>
-                </span>
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm p-8 md:p-10">
+            {/* Subtle gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-violet-500/5" />
+            
+            <div className="relative">
+              {/* Eyebrow + Pills */}
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <span className="text-amber-400 text-sm font-medium uppercase tracking-wider">Встречай</span>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">NanoBanana Pro</span>
+                  <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">Motion Control</span>
+                  <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">Еженедельные обновления</span>
+                </div>
               </div>
               
-              <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-5">
-                  {/* Infinity Icon */}
-                  <motion.div 
-                    animate={{ rotate: [0, 5, -5, 0] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    className="flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#CDFF00]/30 to-[#CDFF00]/10 border border-[#CDFF00]/40 shadow-lg shadow-[#CDFF00]/20"
-                  >
-                    <span className="text-5xl text-[#CDFF00]">∞</span>
-                  </motion.div>
-                  <div className="text-center md:text-left">
-                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2">
-                      <span className="px-3 py-1 text-xs font-black rounded-full bg-[#CDFF00] text-black uppercase tracking-wide animate-pulse">Новинка</span>
-                      <span className="text-2xl md:text-3xl font-black text-white">Nano Banana Pro</span>
-                    </div>
-                    <p className="text-lg md:text-xl text-[#CDFF00] font-bold mb-1">
-                      БЕЗЛИМИТ в тарифах Creator+ и Business
-                    </p>
-                    <p className="text-sm md:text-base text-white/50">
-                      Генерируй Pro 1–2K сколько хочешь • Без списания звёзд • Уже доступно
-                    </p>
+              {/* Headline */}
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                NanoBanana Pro и Motion Control — уже в сервисе
+              </h3>
+              
+              {/* Benefits */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-800/50">
+                  <Star className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-white">⭐ каждый месяц</p>
+                    <p className="text-xs text-zinc-400">1100⭐ / 2400⭐ / 4000⭐</p>
                   </div>
                 </div>
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-[#CDFF00] text-black font-bold text-base shadow-lg shadow-[#CDFF00]/30 group-hover:shadow-[#CDFF00]/50 transition-all"
-                >
-                  Смотреть тарифы
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </motion.div>
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-800/50">
+                  <Zap className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-white">Motion Control</p>
+                    <p className="text-xs text-zinc-400">Доступен во всех тарифах</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-800/50">
+                  <Sparkles className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-white">NanoBanana Pro</p>
+                    <p className="text-xs text-zinc-400">2K включено, 4K — в MAX</p>
+                  </div>
+                </div>
               </div>
-            </motion.div>
-          </Link>
+              
+              {/* CTAs */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <Link href="/pricing" className="flex-1 sm:flex-none">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 text-black font-semibold text-sm"
+                  >
+                    Смотреть тарифы
+                    <ArrowRight className="w-4 h-4" />
+                  </motion.button>
+                </Link>
+                <Link href="/create/studio" className="flex-1 sm:flex-none">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-zinc-800 text-white font-medium text-sm border border-zinc-700 hover:bg-zinc-700 transition-colors"
+                  >
+                    Открыть генератор
+                  </motion.button>
+                </Link>
+              </div>
+              
+              {/* Footnote */}
+              <p className="mt-4 text-xs text-zinc-500">
+                *Бесплатно = включено в тариф (fair-use защита от злоупотреблений)
+              </p>
+            </div>
+          </div>
         </motion.div>
       </section>
 
@@ -394,7 +418,7 @@ export default function HomePage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Создано с <span className="text-[#CDFF00]">LensRoom</span>
+              Создано с <span className="text-[#f59e0b]">LensRoom</span>
             </h2>
             <p className="text-lg text-white/50 max-w-xl mx-auto">
               Нажми на любую работу — откроется генератор с похожими настройками
@@ -453,7 +477,7 @@ export default function HomePage() {
                           {work.label}
                         </span>
                         {work.hot && (
-                          <span className="px-2 py-1 rounded-full bg-[#CDFF00] text-black text-xs font-bold">
+                          <span className="px-2 py-1 rounded-full bg-[#f59e0b] text-black text-xs font-bold">
                             HOT
                           </span>
                         )}
@@ -472,7 +496,7 @@ export default function HomePage() {
                       animate={{ opacity: hoveredWork === work.id ? 1 : 0, y: hoveredWork === work.id ? 0 : 20 }}
                       className="absolute inset-0 flex items-center justify-center"
                     >
-                      <div className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black font-bold flex items-center gap-2 shadow-2xl">
+                      <div className="px-6 py-3 rounded-2xl bg-[#f59e0b] text-black font-bold flex items-center gap-2 shadow-2xl">
                         <Sparkles className="w-5 h-5" />
                         Создать похожее
                       </div>
@@ -508,7 +532,7 @@ export default function HomePage() {
               </div>
               
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Kling 2.6 Motion Control
+                Motion Control 2.6
               </h2>
               
               <p className="text-lg text-white/60 mb-8 leading-relaxed">
@@ -558,12 +582,12 @@ export default function HomePage() {
               <div className="relative aspect-video rounded-[20px] overflow-hidden border border-white/10 bg-[#0a0a0b] shadow-2xl">
                 <img
                   src="/motion-control/poster.jpg"
-                  alt="Kling Motion Control"
+                  alt="Motion Control"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                 <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10">
-                  <span className="text-xs font-semibold text-white">Kling AI</span>
+                  <span className="text-xs font-semibold text-white">Motion Control</span>
                 </div>
                 <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm">
                   <span className="text-xs font-medium text-white">от 80⭐</span>
@@ -612,7 +636,7 @@ export default function HomePage() {
       {/* ===== QUICK STYLES - One Click Start ===== */}
       <section className="py-24 px-6 relative overflow-hidden">
         {/* Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#CDFF00]/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#f59e0b]/5 to-transparent" />
         
         <div className="max-w-6xl mx-auto relative">
           <motion.div
@@ -662,7 +686,7 @@ export default function HomePage() {
                     
                     {/* Arrow indicator */}
                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ArrowRight className="w-4 h-4 text-[#CDFF00]" />
+                      <ArrowRight className="w-4 h-4 text-[#f59e0b]" />
                     </div>
                   </motion.div>
                 </Link>
@@ -691,8 +715,8 @@ export default function HomePage() {
               {
                 icon: Zap,
                 title: '25+ нейросетей',
-                desc: 'GPT, Sora, Kling, Veo, FLUX и другие топовые модели в одном месте',
-                color: '#CDFF00'
+                desc: 'Топовые фото- и видео-модели в одном месте',
+                color: '#f59e0b'
               },
               {
                 icon: Star,
@@ -736,8 +760,8 @@ export default function HomePage() {
       <section className="py-32 px-6 relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-t from-[#CDFF00]/10 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#CDFF00]/20 rounded-full blur-[150px]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#f59e0b]/10 via-transparent to-transparent" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#f59e0b]/20 rounded-full blur-[150px]" />
         </div>
 
         <motion.div
@@ -757,7 +781,7 @@ export default function HomePage() {
             <motion.button
               whileHover={{ scale: 1.03, y: -3 }}
               whileTap={{ scale: 0.98 }}
-              className="group relative px-12 py-6 rounded-2xl bg-[#CDFF00] text-black font-bold text-xl overflow-hidden shadow-[0_0_80px_rgba(205,255,0,0.4)]"
+              className="group relative px-12 py-6 rounded-2xl bg-[#f59e0b] text-black font-bold text-xl overflow-hidden shadow-[0_0_80px_rgba(205,255,0,0.4)]"
             >
               <span className="relative z-10 flex items-center gap-3">
                 Начать бесплатно

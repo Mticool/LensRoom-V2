@@ -1,36 +1,31 @@
 /**
  * Единый источник правды для тарифов LensRoom
- * Используется на главной, /pricing, и везде где показываются тарифы
+ * Обновлено: 2026-01-27
  */
 
 export interface PricingTier {
   id: string;
   name: string;
   price: number;
-  stars: number; // звёздочек в месяц
+  stars: number;
   period: 'month';
   popular?: boolean;
-  subtitle?: string; // Краткое описание для кого подходит
-  features: string[];
-  benefits?: string[]; // "Что вы выигрываете" - польза для пользователя
-  capacity?: string[]; // "Хватит примерно на" - конкретные примеры
-  targetAudience?: string; // "Кому подходит" - целевая аудитория
-  limits: {
-    credits: number; // кредитов в месяц
-    starsPerMonth: number; // звёзд в месяц
-    models: string; // какие модели доступны
-    support: string;
-  };
+  highlights: string[];
+  nanoBananaPro2k: string; // "120/мес" | "Бесплатно*" | "✓"
+  nanoBananaPro4k: string; // "—" | "Бесплатно*"
+  hasPriority: boolean;
+  hasMaxPriority: boolean;
+  hasExtendedLibrary: boolean;
 }
 
 export interface StarPack {
   id: string;
   stars: number;
   price: number;
-  bonus?: number; // бонусных звёзд
+  bonus?: number;
   popular?: boolean;
-  description?: string; // Для чего подходит
-  capacity?: string; // Хватит примерно на
+  description?: string;
+  capacity?: string;
 }
 
 export function packTotalStars(pack: StarPack): number {
@@ -42,252 +37,145 @@ export function packBonusPercent(pack: StarPack): number {
   return Math.round((pack.bonus / pack.stars) * 100);
 }
 
-// === ПОДПИСКИ ===
+// === НОВЫЕ ТАРИФЫ (2026-01-27) ===
 export const SUBSCRIPTION_TIERS: PricingTier[] = [
   {
-    id: 'creator',
-    name: 'Creator',
+    id: 'start',
+    name: 'START',
     price: 990,
-    stars: 1200,
+    stars: 1100,
     period: 'month',
-    subtitle: 'Уверенный старт для ежедневного контента. Быстро делайте качественные изображения для карточек товара, постов, обложек и рекламных креативов — без переплат.',
-    features: [
-      '✅ Nano Banana включён — быстрый фотореализм для рабочих задач',
-      '✅ Базовые фото-модели: FLUX, Seedream, Ideogram, Z-image',
-      '✅ Удаление фона и апскейл — по ⭐',
-      '✅ Видео-модели — по ⭐, когда нужно оживить контент',
+    highlights: [
+      '+1100⭐ каждый месяц',
+      'Все видео и фото модели доступны',
+      'NanoBanana Pro 2K: 120 генераций/мес включено',
+      'Motion Control: доступен',
+      'История и «Мои работы»',
     ],
-    benefits: [
-      '80% фото-задач закрываете "на автомате"',
-      '⭐ тратите только на премиум: видео, 4K, апскейл',
-      'Быстро тестируете идеи и масштабируете лучшие',
-    ],
-    capacity: [
-      'до 171 Nano Banana (7⭐)',
-      'или до 109 Seedream (11⭐)',
-      'или до 24 Sora 2 (50⭐)',
-    ],
-    targetAudience: 'E-Com, соцсети, тесты креативов, регулярные публикации',
-    limits: {
-      credits: 1200,
-      starsPerMonth: 1200,
-      models: 'Nano Banana + базовые фото',
-      support: 'Email',
-    },
+    nanoBananaPro2k: '120/мес',
+    nanoBananaPro4k: '—',
+    hasPriority: false,
+    hasMaxPriority: false,
+    hasExtendedLibrary: false,
   },
   {
-    id: 'creator_plus',
-    name: 'Creator+',
+    id: 'pro',
+    name: 'PRO',
     price: 1990,
-    stars: 2550,
+    stars: 2400,
     period: 'month',
     popular: true,
-    subtitle: 'Тариф "делаю контент системно". Много вариантов, стабильное качество и возможность делать контент "пачками".',
-    features: [
-      '✅ Всё из Creator',
-      '🎁 Nano Banana Pro 1–2K — БЕЗЛИМИТ',
-      '💎 Nano Banana Pro 4K — премиум-качество за ⭐',
-      '⭐ 2550⭐ на видео, 4K, апскейл и тяжёлые генерации',
+    highlights: [
+      '+2400⭐ каждый месяц',
+      'NanoBanana Pro 2K: Бесплатно*',
+      'Приоритет в очереди',
+      'Motion Control: доступен',
+      'Расширенная библиотека «Мои работы»',
     ],
-    benefits: [
-      'Pro 1–2K — безлимит, генерируй сколько хочешь',
-      '⭐ остаются на усиление: видео, 4K, максимум результата',
-      'Контент "пачками" без ощущения экономии',
-    ],
-    capacity: [
-      '∞ Pro 1–2K: безлимит (0⭐)',
-      'до 364 Nano Banana (7⭐)',
-      'или до 51 Sora 2 (50⭐)',
-      'или до 25 Veo Fast (100⭐)',
-    ],
-    targetAudience: 'Контент ежедневно, запуск рекламы, много вариантов под проект',
-    limits: {
-      credits: 2550,
-      starsPerMonth: 2550,
-      models: 'Все фото + видео + Pro безлимит',
-      support: 'Telegram (2ч)',
-    },
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: 2990,
-    stars: 3500,
-    period: 'month',
-    subtitle: 'Максимум свободы для потока и масштаба. Много товаров, активная реклама, серии креативов — без остановок.',
-    features: [
-      '✅ Всё из Creator+',
-      '🎁 Nano Banana Pro 1–2K — БЕЗЛИМИТ',
-      '💎 Nano Banana Pro 4K — премиум-качество за ⭐',
-      '⭐ 3500⭐ — большой запас для видео и премиум-режимов',
-    ],
-    benefits: [
-      'Pro 1–2K — безлимит, работай в продакшн-режиме',
-      'Быстро генерируете, тестируете, выбираете лучшее',
-      'Масштабируете без ощущения, что каждый шаг надо экономить',
-    ],
-    capacity: [
-      '∞ Pro 1–2K: безлимит (0⭐)',
-      'до 500 Nano Banana (7⭐)',
-      'или до 70 Sora 2 (50⭐)',
-      'или до 35 Veo Fast (100⭐)',
-    ],
-    targetAudience: 'Команды, агентства, магазины с большим ассортиментом, продакшн-режим',
-    limits: {
-      credits: 3500,
-      starsPerMonth: 3500,
-      models: 'Все модели + Pro безлимит',
-      support: 'VIP 24/7 + менеджер',
-    },
-  },
-];
-
-// === ПАКЕТЫ ЗВЁЗД (разовая покупка) ===
-// Обновлено: 2025-01-03 по юнит-экономике
-export const STAR_PACKS: StarPack[] = [
-  {
-    id: 'mini',
-    stars: 1400,
-    price: 990,
-    bonus: 0,
-    description: '"Догнать дедлайн": закончились ⭐ — докупили и продолжили работать.',
-    capacity: 'Хватит на ~200 Nano Banana или ~14 Veo Fast',
-  },
-  {
-    id: 'plus',
-    stars: 2200,
-    price: 1490,
-    bonus: 0,
-    description: 'Комфортный запас на неделю/две активной работы.',
-    capacity: 'Хватит на ~314 Nano Banana или ~22 Veo Fast',
+    nanoBananaPro2k: 'Бесплатно*',
+    nanoBananaPro4k: '—',
+    hasPriority: true,
+    hasMaxPriority: false,
+    hasExtendedLibrary: true,
   },
   {
     id: 'max',
-    stars: 3000,
-    price: 1990,
-    bonus: 0,
-    popular: true,
-    description: 'Пакет для тестов рекламы и масштабирования.',
-    capacity: 'Хватит на ~428 Nano Banana или ~30 Veo Fast',
+    name: 'MAX',
+    price: 2990,
+    stars: 4000,
+    period: 'month',
+    highlights: [
+      '+4000⭐ каждый месяц',
+      'NanoBanana Pro 4K: Бесплатно*',
+      'Максимальный приоритет',
+      'Motion Control: доступен',
+      'Максимум контроля и скорости',
+    ],
+    nanoBananaPro2k: '✓',
+    nanoBananaPro4k: 'Бесплатно*',
+    hasPriority: true,
+    hasMaxPriority: true,
+    hasExtendedLibrary: true,
   },
-  {
-    id: 'ultra',
-    stars: 7600,
-    price: 4990,
-    bonus: 0,
-    description: 'Максимальная выгода: самая низкая цена за ⭐. Если генерите много — это выгоднее.',
-    capacity: 'Хватит на ~1085 Nano Banana или ~76 Veo Fast',
-  },
+];
+
+// === ПАКЕТЫ ЗВЁЗД (скрыты, но оставлены для совместимости) ===
+export const STAR_PACKS: StarPack[] = [
+  { id: 'mini', stars: 1400, price: 990, capacity: '~200 Nano Banana' },
+  { id: 'plus', stars: 2200, price: 1490, capacity: '~314 Nano Banana' },
+  { id: 'max', stars: 3000, price: 1990, popular: true, capacity: '~428 Nano Banana' },
+  { id: 'ultra', stars: 7600, price: 4990, capacity: '~1085 Nano Banana' },
+];
+
+// === ТАБЛИЦА СРАВНЕНИЯ ===
+export interface ComparisonRow {
+  label: string;
+  category: 'general' | 'video' | 'image';
+  start: string;
+  pro: string;
+  max: string;
+}
+
+export const COMPARISON_TABLE: ComparisonRow[] = [
+  // GENERAL
+  { label: '⭐ Начисление каждый месяц', category: 'general', start: '1100⭐', pro: '2400⭐', max: '4000⭐' },
+  { label: '⭐ можно тратить на любые модели', category: 'general', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Еженедельные обновления моделей', category: 'general', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Библиотека «Мои работы»', category: 'general', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Расширенная библиотека', category: 'general', start: '—', pro: '✓', max: '✓' },
+  { label: 'Приоритет в очереди', category: 'general', start: '—', pro: '✓', max: '✓' },
+  { label: 'Максимальный приоритет', category: 'general', start: '—', pro: '—', max: '✓' },
+  
+  // VIDEO
+  { label: 'Veo 3.1 Fast', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Sora 2', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Kling 2.6', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Kling 2.5', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Kling 2.1', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  { label: 'WAN 2.6', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Grok Video', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Kling 2.6 Motion Control', category: 'video', start: '✓', pro: '✓', max: '✓' },
+  
+  // IMAGE
+  { label: 'Nano Banana', category: 'image', start: '✓', pro: '✓', max: '✓' },
+  { label: 'NanoBanana Pro 2K', category: 'image', start: '120/мес', pro: 'Бесплатно*', max: '✓' },
+  { label: 'NanoBanana Pro 4K', category: 'image', start: '—', pro: '—', max: 'Бесплатно*' },
+  { label: 'Seedream 4.5', category: 'image', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Z-image', category: 'image', start: '✓', pro: '✓', max: '✓' },
+  { label: 'GPT Image 1.5', category: 'image', start: '✓', pro: '✓', max: '✓' },
+  { label: 'FLUX.2 Pro', category: 'image', start: '✓', pro: '✓', max: '✓' },
+  { label: 'Grok Imagine', category: 'image', start: '✓', pro: '✓', max: '✓' },
 ];
 
 // === УТИЛИТЫ ===
 
-/**
- * Получить тариф по ID
- */
 export function getTierById(id: string): PricingTier | undefined {
   return SUBSCRIPTION_TIERS.find((tier) => tier.id === id);
 }
 
-/**
- * Получить пакет звёзд по ID
- */
 export function getStarPackById(id: string): StarPack | undefined {
   return STAR_PACKS.find((pack) => pack.id === id);
 }
 
-/**
- * Получить популярный тариф
- */
 export function getPopularTier(): PricingTier {
   return SUBSCRIPTION_TIERS.find((tier) => tier.popular) || SUBSCRIPTION_TIERS[1];
 }
 
-/**
- * Получить популярный пакет звёзд
- */
-export function getPopularStarPack(): StarPack {
-  return STAR_PACKS.find((pack) => pack.popular) || STAR_PACKS[2];
-}
-
-/**
- * Форматировать цену
- */
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(price);
 }
 
-/**
- * Форматировать звёзды
- */
 export function formatStars(stars: number): string {
   return `${stars}⭐`;
 }
 
-/**
- * Рассчитать экономию для пакета
- */
-export function calculateSavings(pack: StarPack): number {
-  // "Выгода" в ⭐ относительно базового объёма (без бонуса)
-  return packTotalStars(pack) - pack.stars;
-}
-
-// === ЭКВИВАЛЕНТЫ ГЕНЕРАЦИЙ ===
-// Закреплённые цены для расчёта эквивалентов
-export const REFERENCE_PRICES = {
-  'nano-banana': 7,      // Nano Banana T2I
-  'veo-fast': 99,        // Veo 3.1 Fast 8s
-  'veo-quality': 490,    // Veo 3.1 Quality 8s
-  'kling-turbo-5s': 105, // Kling 2.5 Turbo 5s
-  'kling-turbo-10s': 210,// Kling 2.5 Turbo 10s
-  'kling-audio-5s': 135, // Kling 2.6 Audio 5s
-  'kling-audio-10s': 270,// Kling 2.6 Audio 10s
-  'kling-pro-5s': 200,   // Kling 2.1 Pro 5s
-  'kling-pro-10s': 400,  // Kling 2.1 Pro 10s
-} as const;
-
-/**
- * Рассчитать эквиваленты генераций для пакета/подписки
- */
-export function calculateEquivalents(stars: number): {
-  banana: number;
-  veoFast: number;
-  veoQuality: number;
-  klingTurbo5s: number;
-  klingTurbo10s: number;
-  klingAudio5s: number;
-  klingPro5s: number;
-} {
-  return {
-    banana: Math.floor(stars / REFERENCE_PRICES['nano-banana']),
-    veoFast: Math.floor(stars / REFERENCE_PRICES['veo-fast']),
-    veoQuality: Math.floor(stars / REFERENCE_PRICES['veo-quality']),
-    klingTurbo5s: Math.floor(stars / REFERENCE_PRICES['kling-turbo-5s']),
-    klingTurbo10s: Math.floor(stars / REFERENCE_PRICES['kling-turbo-10s']),
-    klingAudio5s: Math.floor(stars / REFERENCE_PRICES['kling-audio-5s']),
-    klingPro5s: Math.floor(stars / REFERENCE_PRICES['kling-pro-5s']),
-  };
-}
-
-/**
- * Форматировать эквиваленты для отображения
- */
-export function formatEquivalents(stars: number): string[] {
-  const eq = calculateEquivalents(stars);
-  return [
-    `~${eq.banana} Nano Banana`,
-    `~${eq.veoFast} Veo Fast`,
-    `~${eq.klingTurbo5s} Kling 5s`,
-  ];
-}
-
-// === ENTITLEMENTS: Nano Banana Pro ===
+// === ENTITLEMENTS ===
 
 export interface PlanEntitlement {
   modelId: string;
   variantKey: string;
-  includedMonthlyLimit: number; // 0 = not included, -1 = truly unlimited
-  priceWhenNotIncluded: number; // stars to charge when quota exhausted or not included
+  includedMonthlyLimit: number;
+  priceWhenNotIncluded: number;
 }
 
 export interface PlanEntitlements {
@@ -295,39 +183,30 @@ export interface PlanEntitlements {
   entitlements: PlanEntitlement[];
 }
 
-// Nano Banana Pro entitlements by plan
-// Internal limits - NOT displayed on pricing page
 export const PLAN_ENTITLEMENTS: PlanEntitlements[] = [
   {
-    planId: 'creator',
+    planId: 'start',
     entitlements: [
-      // Creator: Nano Banana Pro NOT included
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 0, priceWhenNotIncluded: 30 },
-      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 120, priceWhenNotIncluded: 17 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 25 },
     ],
   },
   {
-    planId: 'creator_plus',
+    planId: 'pro',
     entitlements: [
-      // Creator+: Pro 1-2K UNLIMITED (fair use)
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 30 },
-      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 40 },
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 17 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 25 },
     ],
   },
   {
-    planId: 'business',
+    planId: 'max',
     entitlements: [
-      // Business: Pro 1-2K UNLIMITED (fair use)
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 30 },
-      // Business: Pro 4K UNLIMITED (fair use) — бесплатно
-      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: -1, priceWhenNotIncluded: 40 },
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 17 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: -1, priceWhenNotIncluded: 25 },
     ],
   },
 ];
 
-/**
- * Get entitlement for a specific model variant and plan
- */
 export function getEntitlement(
   planId: string | null,
   modelId: string,
@@ -341,21 +220,15 @@ export function getEntitlement(
   ) || null;
 }
 
-/**
- * Check if a variant is included in plan (has quota > 0)
- */
 export function isVariantIncludedInPlan(
   planId: string | null,
   modelId: string,
   variantKey: string
 ): boolean {
   const ent = getEntitlement(planId, modelId, variantKey);
-  return ent ? ent.includedMonthlyLimit > 0 : false;
+  return ent ? ent.includedMonthlyLimit > 0 || ent.includedMonthlyLimit === -1 : false;
 }
 
-/**
- * Get the price for a variant (either included or paid)
- */
 export function getVariantPrice(
   planId: string | null,
   modelId: string,
@@ -365,22 +238,24 @@ export function getVariantPrice(
   const ent = getEntitlement(planId, modelId, variantKey);
   
   if (!ent) {
-    // No entitlement found - use default pricing from models
-    // Nano Banana Pro defaults
     if (modelId === 'nano-banana-pro') {
-      return { stars: variantKey === '4k' ? 40 : 30, isIncluded: false };
+      return { stars: variantKey === '4k' ? 25 : 17, isIncluded: false };
     }
     return { stars: 0, isIncluded: false };
   }
 
-  // Check if within included quota (-1 = unlimited)
   if (ent.includedMonthlyLimit === -1 || (ent.includedMonthlyLimit > 0 && usedThisMonth < ent.includedMonthlyLimit)) {
     return { stars: 0, isIncluded: true };
   }
   
-  // Quota exhausted or not included
   return { stars: ent.priceWhenNotIncluded, isIncluded: false };
 }
 
-
-
+// Footnotes для страницы pricing
+export const PRICING_FOOTNOTES = [
+  '⭐ начисляются каждый месяц.',
+  '⭐ можно тратить на любые модели.',
+  'Все генерации, кроме включённых NanoBanana Pro, списываются в ⭐ по прайсу.',
+  '*Бесплатно = включено в тариф (fair-use защита от злоупотреблений).',
+  'Модели и режимы пополняются: обновления каждую неделю.',
+];

@@ -7,6 +7,7 @@ import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 import { AudioStudio } from "@/components/audio";
 import { StudioRuntime } from "@/components/studio/StudioRuntime";
 import { VideoGeneratorLight } from "@/components/video/VideoGeneratorLight";
+import { VoiceSection } from "@/components/voice/VoiceSection";
 
 // Loading fallback matching the existing loading.tsx style
 function LoadingFallback() {
@@ -57,6 +58,10 @@ function StudioContent() {
       {section === "music" ? (
         <Suspense fallback={<LoadingFallback />}>
           <AudioStudio />
+        </Suspense>
+      ) : section === "voice" ? (
+        <Suspense fallback={<LoadingFallback />}>
+          <VoiceSection />
         </Suspense>
       ) : section === "video" ? (
         <VideoGeneratorLight />

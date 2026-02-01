@@ -29,19 +29,19 @@ export interface CreditPackage {
 // Convert unified config to page format
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = SUBSCRIPTION_TIERS.map((tier) => {
   const descriptions: Record<string, string> = {
-    star: `${tier.stars}⭐ в месяц + 50⭐ при регистрации. Для старта и теста моделей: фото, первые ролики, обложки и эффекты.`,
-    pro: `${tier.stars}⭐ в месяц. Оптимальный тариф для регулярного контента и задач каждый день.`,
-    business: `${tier.stars}⭐ в месяц. Для бизнеса, e-commerce и производства контента потоком.`,
+    start: `+${tier.stars}⭐ каждый месяц. Все модели доступны.`,
+    pro: `+${tier.stars}⭐ каждый месяц. NanoBanana Pro 2K бесплатно + приоритет.`,
+    max: `+${tier.stars}⭐ каждый месяц. NanoBanana Pro 4K бесплатно + максимальный приоритет.`,
+    // Legacy
+    creator: `${tier.stars}⭐ в месяц`,
+    creator_plus: `${tier.stars}⭐ в месяц`,
+    business: `${tier.stars}⭐ в месяц`,
   };
 
   const badges: Record<string, string> = {
-    star: 'Попробовать',
+    start: 'Старт',
     pro: 'Лучший выбор',
-    business: 'Для объёма',
-  };
-
-  const subtitles: Record<string, string> = {
-    star: 'Акция до конца декабря',
+    max: 'Максимум',
   };
 
   return {
@@ -49,10 +49,9 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = SUBSCRIPTION_TIERS.map((ti
     name: tier.name,
     price: tier.price,
     credits: tier.stars,
-    subtitle: subtitles[tier.id],
     badge: badges[tier.id],
-    description: descriptions[tier.id] || tier.features.join('. '),
-    features: tier.features,
+    description: descriptions[tier.id] || tier.highlights?.join('. ') || '',
+    features: tier.highlights || [],
     popular: tier.popular,
     recurring: true,
   };

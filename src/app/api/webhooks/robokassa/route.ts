@@ -6,9 +6,9 @@ import { processAffiliateCommission } from '@/lib/referrals/process-affiliate-co
 import crypto from 'crypto';
 
 /**
- * Robokassa Result URL Webhook
+ * Payment Result URL Webhook
  * 
- * Robokassa отправляет POST запрос с параметрами:
+ * Платёжный сервис отправляет POST запрос с параметрами:
  * - OutSum: сумма платежа
  * - InvId: номер счёта
  * - SignatureValue: подпись
@@ -17,7 +17,7 @@ import crypto from 'crypto';
  * Для рекуррентных подписок также приходят уведомления.
  */
 export async function POST(request: NextRequest) {
-  console.log('[Robokassa Webhook] Received request');
+  console.log('[Payment Webhook] Received request');
   
   try {
     // Получаем данные - может быть formData или urlencoded
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     const email = params['Email'] || params['email'] || '';
     const state = params['State'] || params['state'] || ''; // active, cancelled, etc.
     
-    console.log('[Robokassa Webhook] Payment data:', {
+    console.log('[Payment Webhook] Payment data:', {
       outSum,
       invId,
       credits: shpCredits,
@@ -83,8 +83,19 @@ export async function POST(request: NextRequest) {
     
     // Для рекуррентных подписок обработка особая
     if (subscriptionId && !shpUserId) {
+      // Verify signature if provided by Robokassa
+      const signString = `${outSum}:${invId}:${password2}`;
+      const expectedSignature = crypto.createHash('md5').update(signString).digest('hex').toUpperCase();
+      if (signatureValue && expectedSignature !== signatureValue.toUpperCase()) {
+        console.error('[Payment Webhook] Invalid subscription signature', {
+          expected: expectedSignature,
+          received: signatureValue,
+          signString: signString.replace(password2, '***'),
+        });
+        return new NextResponse('Invalid signature', { status: 400 });
+      }
       // Это уведомление от рекуррентной подписки
-      console.log('[Robokassa Webhook] Recurring subscription notification:', {
+      console.log('[Payment Webhook] Recurring subscription notification:', {
         subscriptionId,
         email,
         state,
@@ -113,7 +124,7 @@ export async function POST(request: NextRequest) {
       
       const planInfo = subscriptionMap[subscriptionId];
       if (!planInfo) {
-        console.error('[Robokassa Webhook] Unknown subscription ID:', subscriptionId);
+        console.error('[Payment Webhook] Unknown subscription ID:', subscriptionId);
         return new NextResponse('Unknown subscription', { status: 400 });
       }
       
@@ -145,7 +156,7 @@ export async function POST(request: NextRequest) {
       }
       
       if (!userId) {
-        console.error('[Robokassa Webhook] User not found for email:', email);
+        console.error('[Payment Webhook] User not found for email:', email);
         // Сохраняем платёж без user_id для последующей обработки
         await supabase.from('payments').insert({
           user_id: '00000000-0000-0000-0000-000000000000', // Placeholder
@@ -181,7 +192,7 @@ export async function POST(request: NextRequest) {
     
     // Обычный платёж (пакеты звёзд)
     if (!shpUserId) {
-      console.error('[Robokassa Webhook] Missing user ID');
+      console.error('[Payment Webhook] Missing user ID');
       return new NextResponse('Missing user ID', { status: 400 });
     }
     
@@ -199,7 +210,7 @@ export async function POST(request: NextRequest) {
     const expectedSignature = crypto.createHash('md5').update(signString).digest('hex').toUpperCase();
     
     if (signatureValue && expectedSignature !== signatureValue.toUpperCase()) {
-      console.error('[Robokassa Webhook] Invalid signature', {
+      console.error('[Payment Webhook] Invalid signature', {
         expected: expectedSignature,
         received: signatureValue,
         signString: signString.replace(password2, '***'),
@@ -207,7 +218,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Invalid signature', { status: 400 });
     }
     
-    console.log('[Robokassa Webhook] Signature verified');
+    console.log('[Payment Webhook] Signature verified');
     
     const supabase = getSupabaseAdmin();
     const credits = parseInt(shpCredits, 10);
@@ -223,7 +234,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('[Robokassa Webhook] Error:', error);
+    console.error('[Payment Webhook] Error:', error);
     return new NextResponse('Internal error', { status: 500 });
   }
 }
@@ -248,7 +259,7 @@ async function addCreditsToUser(
     .maybeSingle();
   
   if (existingPayment?.status === 'completed') {
-    console.log('[Robokassa Webhook] Payment already processed:', invId);
+    console.log('[Payment Webhook] Payment already processed:', invId);
     return;
   }
   
@@ -280,7 +291,7 @@ async function addCreditsToUser(
       .insert(paymentData);
   }
   
-  console.log('[Robokassa Webhook] Payment recorded');
+  console.log('[Payment Webhook] Payment recorded');
   
   // Используем раздельную систему: subscription_stars vs package_stars
   let newBalance;
@@ -290,11 +301,11 @@ async function addCreditsToUser(
     // Подписка: звёзды сгорают в конце месяца
     // При продлении: старые subscription_stars сбрасываются, новые начисляются
     newBalance = await renewSubscription(supabase, userId, credits);
-    console.log(`[Robokassa Webhook] Subscription stars renewed: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
+    console.log(`[Payment Webhook] Subscription stars renewed: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
   } else {
     // Пакет: звёзды остаются навсегда
     newBalance = await addPackageStars(supabase, userId, credits);
-    console.log(`[Robokassa Webhook] Package stars added: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
+    console.log(`[Payment Webhook] Package stars added: ${credits}. Balance: ${newBalance.totalBalance} (sub: ${newBalance.subscriptionStars}, pkg: ${newBalance.packageStars})`);
   }
   
   // Записываем транзакцию
@@ -313,7 +324,7 @@ async function addCreditsToUser(
     },
   });
   
-  console.log('[Robokassa Webhook] Credits added:', {
+  console.log('[Payment Webhook] Credits added:', {
     userId,
     credits,
     creditType,
@@ -358,7 +369,7 @@ async function addCreditsToUser(
     amountRub: Number(amount.toFixed(2)),
     tariffName: packageName,
   }).catch((err) => {
-    console.error('[Robokassa Webhook] Affiliate commission failed (ignored):', err);
+    console.error('[Payment Webhook] Affiliate commission failed (ignored):', err);
   });
 }
 

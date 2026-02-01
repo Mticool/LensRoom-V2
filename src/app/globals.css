@@ -27,7 +27,7 @@
   /* Borders - subtle but visible */
   --border: rgba(240, 246, 252, 0.10);
   --border-hover: rgba(240, 246, 252, 0.18);
-  --border-strong: rgba(205, 255, 0, 0.35);
+  --border-strong: rgba(245, 158, 11, 0.35);
   
   /* Text - high contrast for readability */
   --text: #F0F6FC;            /* Primary text - off-white */
@@ -39,7 +39,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 60px rgba(205, 255, 0, 0.15);
+  --shadow-glow: 0 0 60px rgba(245, 158, 11, 0.15);
   
   /* Border radius - modern rounded */
   --radius-xs: 6px;
@@ -50,31 +50,31 @@
   --radius-2xl: 32px;
   
   /* Drag and drop zone */
-  --drag-over-border: rgba(205, 255, 0, 0.5);
-  --drag-over-bg: rgba(205, 255, 0, 0.05);
+  --drag-over-border: rgba(245, 158, 11, 0.5);
+  --drag-over-bg: rgba(245, 158, 11, 0.05);
   
   /* Glass effect */
   --glass-bg: rgba(13, 17, 23, 0.85);
   
-  /* ========== ACCENT COLORS (Higgsfield.ai lime style) ========== */
-  /* Primary: Bright lime/neon yellow-green */
-  --accent-primary: #CDFF00;
-  --accent-primary-hover: #D8FF33;
-  --accent-primary-muted: #A3CC00;
-  --accent-primary-dim: rgba(205, 255, 0, 0.70);
+  /* ========== ACCENT COLORS (Amber/Gold style) ========== */
+  /* Primary: Amber/Orange-gold */
+  --accent-primary: #f59e0b;
+  --accent-primary-hover: #fbbf24;
+  --accent-primary-muted: #d97706;
+  --accent-primary-dim: rgba(245, 158, 11, 0.70);
   
   /* Secondary: Cyan for variety */
   --accent-secondary: #00D9FF;
   --accent-secondary-hover: #33E1FF;
   
-  /* Tertiary: Teal */
-  --accent-tertiary: #06B6D4;
+  /* Tertiary: Violet */
+  --accent-tertiary: #8b5cf6;
   
-  /* Gradient - lime-dominant, Higgsfield style */
-  --accent-gradient: linear-gradient(135deg, #CDFF00 0%, #A3CC00 100%);
-  --accent-gradient-vibrant: linear-gradient(135deg, #CDFF00 0%, #D8FF33 50%, #A3CC00 100%);
-  --accent-gradient-glow: linear-gradient(135deg, #CDFF00 0%, #00D9FF 100%);
-  --accent-subtle: rgba(205, 255, 0, 0.12);
+  /* Gradient - amber-dominant */
+  --accent-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --accent-gradient-vibrant: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #d97706 100%);
+  --accent-gradient-glow: linear-gradient(135deg, #f59e0b 0%, #8b5cf6 100%);
+  --accent-subtle: rgba(245, 158, 11, 0.12);
   
   /* Legacy support */
   --gold: var(--accent-primary);
@@ -84,9 +84,9 @@
   --btn-primary-bg: var(--accent-primary);
   --btn-primary-bg-hover: var(--accent-primary-hover);
   --btn-primary-text: #0D1117;
-  --btn-secondary-bg: rgba(205, 255, 0, 0.08);
+  --btn-secondary-bg: rgba(245, 158, 11, 0.08);
   --btn-secondary-text: var(--accent-primary);
-  --btn-secondary-border: rgba(205, 255, 0, 0.20);
+  --btn-secondary-border: rgba(245, 158, 11, 0.20);
   
   /* ========== SEMANTIC COLORS ========== */
   --success: #2EA043;
@@ -118,7 +118,7 @@ html[data-theme="dark"] {
   
   --border: rgba(240, 246, 252, 0.10);
   --border-hover: rgba(240, 246, 252, 0.18);
-  --border-strong: rgba(205, 255, 0, 0.35);
+  --border-strong: rgba(245, 158, 11, 0.35);
   
   --text: #F0F6FC;
   --text2: #E6EDF3;
@@ -128,23 +128,23 @@ html[data-theme="dark"] {
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 60px rgba(205, 255, 0, 0.15);
+  --shadow-glow: 0 0 60px rgba(245, 158, 11, 0.15);
   
   --glass-bg: rgba(13, 17, 23, 0.85);
   
-  --accent-primary: #CDFF00;
-  --accent-primary-hover: #D8FF33;
+  --accent-primary: #f59e0b;
+  --accent-primary-hover: #fbbf24;
   --accent-secondary: #00D9FF;
-  --accent-tertiary: #06B6D4;
-  --accent-gradient: linear-gradient(135deg, #CDFF00 0%, #A3CC00 100%);
-  --accent-subtle: rgba(205, 255, 0, 0.12);
+  --accent-tertiary: #8b5cf6;
+  --accent-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --accent-subtle: rgba(245, 158, 11, 0.12);
   
   --gold: var(--accent-primary);
   --gold-hover: var(--accent-primary-hover);
   
   --btn-primary-bg: var(--accent-primary);
   --btn-primary-text: #0D1117;
-  --btn-secondary-bg: rgba(205, 255, 0, 0.08);
+  --btn-secondary-bg: rgba(245, 158, 11, 0.08);
   --btn-secondary-text: var(--accent-primary);
   
   color-scheme: dark;
@@ -183,7 +183,7 @@ html[data-theme="light"] {
   
   /* Accent colors - Higgsfield lime (slightly darker for light bg) */
   --accent-primary: #B8E600;
-  --accent-primary-hover: #CDFF00;
+  --accent-primary-hover: #f59e0b;
   --accent-secondary: #00B4D8;
   --accent-tertiary: #0891B2;
   --accent-gradient: linear-gradient(135deg, #B8E600 0%, #8FB800 100%);
@@ -226,14 +226,14 @@ html[data-theme="light"] {
   --color-text-tertiary: #8B949E;
   
   /* Brand accent - Higgsfield lime */
-  --color-gold: #CDFF00;
-  --color-gold-hover: #D8FF33;
-  --color-gold-muted: #A3CC00;
+  --color-gold: #f59e0b;
+  --color-gold-hover: #fbbf24;
+  --color-gold-muted: #d97706;
   
   /* Lime palette */
-  --color-lime-400: #D8FF33;
-  --color-lime-500: #CDFF00;
-  --color-lime-600: #A3CC00;
+  --color-lime-400: #fbbf24;
+  --color-lime-500: #f59e0b;
+  --color-lime-600: #d97706;
   
   /* Cyan palette (secondary) */
   --color-cyan-400: #22D3EE;
@@ -709,12 +709,12 @@ html.tg-webview body {
   
   /* Drag and drop zone styles */
   .drag-drop-zone.drag-over {
-    border-color: rgba(205, 255, 0, 0.5) !important;
-    background-color: rgba(205, 255, 0, 0.05) !important;
+    border-color: rgba(245, 158, 11, 0.5) !important;
+    background-color: rgba(245, 158, 11, 0.05) !important;
   }
   
   .drag-drop-zone.drag-over > div {
-    color: rgba(205, 255, 0, 0.8) !important;
+    color: rgba(245, 158, 11, 0.8) !important;
   }
 }
 

@@ -30,7 +30,6 @@ type RuntimeStatus = "idle" | "queued" | "generating" | "success" | "failed";
 type ActiveJob = {
   jobId: string;
   kind: "image" | "video";
-  provider?: string;
   modelName: string;
   createdAt: number;
   status: RuntimeStatus;
@@ -339,7 +338,7 @@ export function StudioRuntime({
     if (!modelInfo || modelInfo.type !== "photo") return ["png", "jpg"] as const;
     // Some tools should remain PNG-only (alpha channel).
     if (modelInfo.id === "recraft-remove-background") return ["png"] as const;
-    // OpenAI gpt-image supports webp, but most paths use KIE or LaoZhang and may not.
+    // Some models support WebP; keep to PNG/JPG for maximum compatibility when unsure.
     if (modelInfo.provider === "openai") return ["png", "jpg", "webp"] as const;
     return ["png", "jpg"] as const;
   }, [modelInfo]);
@@ -535,12 +534,11 @@ export function StudioRuntime({
     motionReferenceVideoDurationSec,
   ]);
 
-  const pollJob = useCallback(async (jobId: string, kind: "image" | "video", provider?: string) => {
+  const pollJob = useCallback(async (jobId: string, kind: "image" | "video") => {
     const maxAttempts = 180;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const qs = new URLSearchParams();
       qs.set("kind", kind);
-      if (provider) qs.set("provider", provider);
 
       const res = await fetch(`/api/jobs/${jobId}?${qs.toString()}`);
       const data = await safeReadJson(res);
@@ -585,8 +583,6 @@ export function StudioRuntime({
           for (let attempt = 0; attempt < maxAttempts; attempt++) {
             const qs = new URLSearchParams();
             qs.set("kind", job.kind);
-            if (job.provider) qs.set("provider", job.provider);
-
             const res = await fetch(`/api/jobs/${job.jobId}?${qs.toString()}`);
             const data = await safeReadJson(res);
             if (!res.ok) throw new Error(data?.error || `Job status error (${res.status})`);
@@ -776,13 +772,12 @@ export function StudioRuntime({
         invalidateCached("generations:");
         try { window.dispatchEvent(new CustomEvent("generations:refresh")); } catch {}
         
-        // Check if generation already completed (e.g., OpenAI sync response)
+        // Check if generation already completed (e.g., sync response)
         if (data.status === 'completed' && Array.isArray(data.results) && data.results[0]?.url) {
           const urls = data.results.map((r: any) => r.url).filter(Boolean);
           const job: ActiveJob = {
             jobId,
             kind: "image",
-            provider: data?.provider,
             modelName: activePhotoBase.title || modelInfo.name,
             createdAt: Date.now(),
             status: "success",
@@ -813,11 +808,10 @@ export function StudioRuntime({
           return;
         }
         
-        // Start polling for async providers (KIE etc.)
+        // Start polling for async providers
         const job: ActiveJob = {
           jobId,
           kind: "image",
-          provider: data?.provider,
           modelName: activePhotoBase.title || modelInfo.name,
           createdAt: Date.now(),
           status: "generating",
@@ -896,13 +890,12 @@ export function StudioRuntime({
       invalidateCached("generations:");
       try { window.dispatchEvent(new CustomEvent("generations:refresh")); } catch {}
 
-      // Check if video generation already completed (e.g., LaoZhang sync response)
+      // Check if video generation already completed (e.g., sync response)
       if (data.status === 'completed' && (data.resultUrl || data.videoUrl || data.results?.[0]?.url)) {
         const url = data.resultUrl || data.videoUrl || data.results?.[0]?.url;
         const job: ActiveJob = {
           jobId,
           kind: "video",
-          provider: data?.provider,
           modelName: modelInfo.name,
           createdAt: Date.now(),
           status: "success",
@@ -936,7 +929,6 @@ export function StudioRuntime({
       const job: ActiveJob = {
         jobId,
         kind: "video",
-        provider: data?.provider,
         modelName: modelInfo.name,
         createdAt: Date.now(),
         status: "generating",

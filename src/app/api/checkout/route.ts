@@ -98,13 +98,15 @@ export async function POST(request: NextRequest) {
       // Robokassa передаёт email в уведомлениях о рекуррентных платежах
       if (realEmail) {
         const subscriptionMap: Record<string, string> = {
-          // New plans
+          // New plans (2026-01-27)
+          'start': process.env.ROBOKASSA_SUBSCRIPTION_START || process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '',
+          'pro': process.env.ROBOKASSA_SUBSCRIPTION_PRO || process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '',
+          'max': process.env.ROBOKASSA_SUBSCRIPTION_MAX || process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '',
+          // Legacy mappings (keep for backwards compatibility)
           'creator': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '',
           'creator_plus': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '',
           'business': process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '',
-          // Legacy mappings
           'star': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR || '',
-          'pro': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || process.env.ROBOKASSA_SUBSCRIPTION_PRO || '',
         };
         
         await admin.from('subscription_emails').upsert({

@@ -1,7 +1,7 @@
 // Types for Video Generator
 
 // Video generation modes
-export type VideoMode = 'text' | 'image' | 'reference' | 'v2v' | 'motion' | 'edit';
+export type VideoMode = 'text' | 'image' | 'reference' | 'v2v' | 'motion' | 'edit' | 'extend';
 export type VideoQuality = '720p' | '1080p' | '4K';
 export type VideoStatus = 'idle' | 'queued' | 'processing' | 'success' | 'error';
 export type TabType = 'video' | 'motion' | 'edit' | 'music';
@@ -35,6 +35,10 @@ export interface VideoGenerationParams {
   editVideo?: string | null;
   editRefImage?: string | null;
   keepAudio?: boolean;
+
+  // Extend mode (Veo 3.1 продление видео)
+  sourceGenerationId?: string | null;
+  taskId?: string | null;
 
   // Advanced settings (Phase 2)
   negativePrompt?: string;

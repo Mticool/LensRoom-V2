@@ -1,12 +1,42 @@
 /**
- * Fal.ai Client for Kling O1
+ * Fal.ai Client for Kling O1 + ElevenLabs
  * 
  * APIs:
- * - Video-to-Video: fal-ai/kling-video/o1/video-to-video/edit
- * - Image-to-Video (Standard): fal-ai/kling-video/o1/standard/image-to-video
- * 
- * Docs: https://fal.ai/models/fal-ai/kling-video/o1/standard/image-to-video/api
+ * - Video: fal-ai/kling-video/o1/...
+ * - Audio: fal-ai/elevenlabs/tts/eleven-v3, fal-ai/elevenlabs/voice-cloning
  */
+
+// ===== ELEVENLABS TYPES =====
+
+export interface FalElevenLabsVoiceCloneRequest {
+  audio_urls: string[];
+  remove_background_noise?: boolean;
+}
+
+export interface FalElevenLabsVoiceCloneResponse {
+  voice_id: string;
+  voice_name?: string;
+}
+
+export interface FalElevenLabsTTSRequest {
+  text: string;
+  voice: string;
+  stability?: number;
+  similarity_boost?: number;
+  style?: number;
+  speed?: number;
+  language_code?: string;
+}
+
+export interface FalElevenLabsTTSResponse {
+  audio: {
+    url: string;
+    content_type: string;
+    file_name: string;
+    file_size: number;
+  };
+  duration_seconds?: number;
+}
 
 // ===== VIDEO-TO-VIDEO TYPES =====
 
@@ -286,6 +316,165 @@ export class FalAIClient {
     }
 
     throw new FalAPIError(`Job timed out after ${maxAttempts} attempts`, undefined, { requestId });
+  }
+
+  /**
+   * Clone voice via Qwen 3 TTS (fal.ai)
+   */
+  async cloneVoice(audioUrl: string, referenceText?: string): Promise<{ voice_embedding_url: string }> {
+    const { fal } = await import('@fal-ai/client');
+    
+    fal.config({
+      credentials: this.apiKey,
+    });
+
+    console.log('[Fal.ai] Cloning voice with audio_url:', audioUrl);
+
+    try {
+      const result = await fal.subscribe('fal-ai/qwen-3-tts/clone-voice/1.7b', {
+        input: {
+          audio_url: audioUrl,
+          // reference_text is optional
+          ...(referenceText ? { reference_text: referenceText } : {}),
+        },
+        logs: true,
+        onQueueUpdate: (update) => {
+          console.log('[Fal.ai] Queue update:', update.status);
+        },
+      });
+
+      console.log('[Fal.ai] Qwen3 Voice cloned result:', JSON.stringify(result.data));
+      
+      const data = result.data as any;
+      const embeddingUrl = data?.speaker_embedding?.url || data?.speaker_embedding_file_url || data?.voice_embedding_url;
+      if (!embeddingUrl) {
+        throw new FalAPIError('Missing speaker embedding url in response', undefined, data);
+      }
+      return { voice_embedding_url: embeddingUrl };
+    } catch (error: any) {
+      console.error('[Fal.ai] Clone voice error:', error?.message, error?.body);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate TTS via Qwen 3 or ElevenLabs
+   */
+  async generateTTS(params: {
+    text: string;
+    voice_id?: string;
+    language?: string;
+    speed?: number;
+    pitch?: number;
+    useElevenLabs?: boolean;
+  }): Promise<{ audio: { url: string }; duration_seconds?: number }> {
+    const { fal } = await import('@fal-ai/client');
+    
+    fal.config({
+      credentials: this.apiKey,
+    });
+
+    if (params.useElevenLabs) {
+      // Use ElevenLabs TTS Turbo v2.5 (preset voices only)
+      const result = await fal.subscribe('fal-ai/elevenlabs/tts/turbo-v2.5', {
+        input: {
+          text: params.text,
+          voice: params.voice_id || 'Liam',
+          language_code: params.language || 'ru',
+          ...(params.speed ? { speed: params.speed } : {}),
+        },
+      });
+      return result.data as any;
+    } else {
+      // Use Qwen 3 TTS (supports cloned voices via speaker_voice_embedding_file_url)
+      // Use queue for async processing
+      const { request_id } = await fal.queue.submit('fal-ai/qwen-3-tts/text-to-speech/1.7b', {
+        input: {
+          text: params.text,
+          speaker_voice_embedding_file_url: params.voice_id, // .safetensors URL from cloning
+          language: params.language === 'ru' ? 'Russian' : params.language === 'en' ? 'English' : 'Auto',
+          top_k: 50,
+          top_p: 1,
+          temperature: 0.9,
+          repetition_penalty: 1.05,
+          ...(params.speed ? { speed: params.speed } : {}),
+          ...(typeof params.pitch === 'number' ? { pitch: params.pitch } : {}),
+          subtalker_dosample: true,
+          subtalker_top_k: 50,
+          subtalker_top_p: 1,
+          subtalker_temperature: 0.9,
+          max_new_tokens: 200,
+        },
+      });
+      
+      // Poll until completed
+      let attempts = 0;
+      const maxAttempts = 120;
+      while (attempts < maxAttempts) {
+        const status = await fal.queue.status('fal-ai/qwen-3-tts/text-to-speech/1.7b', { requestId: request_id });
+        
+        // Type assertion for status - queue.status returns different types
+        const statusData = status as any;
+        
+        if (statusData.status === 'COMPLETED' || statusData.status === 'SUCCESS') {
+          const result = await fal.queue.result('fal-ai/qwen-3-tts/text-to-speech/1.7b', { requestId: request_id });
+          const data = result.data as any;
+          return {
+            audio: { url: data?.audio?.url },
+            duration_seconds: data?.audio?.duration,
+          };
+        }
+        
+        if (statusData.status === 'FAILED') {
+          throw new Error(statusData.error || 'TTS generation failed');
+        }
+        
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      }
+      
+      throw new Error('TTS generation timeout');
+    }
+  }
+
+  /**
+   * Query ElevenLabs job status
+   * Uses result endpoint, not status (Fal.ai difference)
+   */
+  async queryElevenLabsStatus(requestId: string, jobType: 'voice-cloning' | 'tts'): Promise<FalJobStatus> {
+    const path = jobType === 'voice-cloning' 
+      ? 'fal-ai/elevenlabs/voice-cloning'
+      : 'fal-ai/elevenlabs/tts/eleven-v3';
+    
+    // Try result endpoint first (fal.ai queue pattern)
+    const endpoint = `${this.baseUrl}/${path}/requests/${requestId}`;
+    
+    try {
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Fal.ai] Status check failed (${response.status}):`, errorText);
+        throw new FalAPIError(`Failed to query job: ${response.status}`, response.status);
+      }
+
+      const data = await response.json();
+      
+      // Map fal.ai response to our format
+      return {
+        status: data.status || 'IN_PROGRESS',
+        request_id: requestId,
+        ...data,
+      } as FalJobStatus;
+    } catch (error) {
+      console.error('[Fal.ai] queryElevenLabsStatus error:', error);
+      throw error;
+    }
   }
 
   /**

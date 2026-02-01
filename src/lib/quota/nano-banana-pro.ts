@@ -15,9 +15,12 @@ export const NBP_MODEL_KEY = 'nano-banana-pro';
 export const NBP_VARIANT_1K_2K = '1k_2k';
 export const NBP_VARIANT_4K = '4k';
 
-// Prices in stars
-export const NBP_PRICE_1K_2K = 30;
-export const NBP_PRICE_4K = 40;
+// Prices in stars (2026-01-27 pricing update)
+// These match the pricing.ts SKU prices:
+// - nano_banana_pro:2k = 17⭐
+// - nano_banana_pro:4k = 25⭐
+export const NBP_PRICE_1K_2K = 17; // Updated from 30 to 17
+export const NBP_PRICE_4K = 25; // Updated from 40 to 25
 
 /**
  * Get current month in YYYY-MM format

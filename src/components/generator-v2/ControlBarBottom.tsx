@@ -98,7 +98,7 @@ export function ControlBarBottom({
   const isToolModel = modelId === 'topaz-image-upscale' || modelId === 'recraft-remove-background';
   const isGrokImagine = modelId === "grok-imagine";
   // Most photo models in our UI allow up to 4 parallel generations per click.
-  // Grok Imagine returns 6 images per run on KIE (fixed output count).
+  // Grok Imagine returns 6 images per run on upstream (fixed output count).
   const quantityMax = isToolModel ? 1 : isGrokImagine ? 6 : 4;
   const uploadTitle = isToolModel ? 'Загрузить фото' : 'Загрузить референс';
   const uploadedTitle = isToolModel ? 'Фото загружено (клик для замены)' : 'Референс загружен (клик для замены)';
@@ -271,7 +271,7 @@ export function ControlBarBottom({
             className="flex items-center justify-between px-1 py-0.5 -mx-1 rounded-lg hover:bg-white/5 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#CDFF00]" />
+              <Sparkles className="w-3.5 h-3.5 text-[#f59e0b]" />
               <span className="text-xs font-medium text-white/80">{displayName}</span>
               <span className="text-[10px] text-white/40">•</span>
               <span className="text-[10px] text-white/50">{aspectRatio}</span>
@@ -279,8 +279,8 @@ export function ControlBarBottom({
               <span className="text-[10px] text-white/50">{quality}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-[#CDFF00]" />
-              <span className="text-xs font-semibold text-[#CDFF00]">{estimatedCost}</span>
+              <Star className="w-3 h-3 text-[#f59e0b]" />
+              <span className="text-xs font-semibold text-[#f59e0b]">{estimatedCost}</span>
             </div>
           </button>
           
@@ -319,7 +319,7 @@ export function ControlBarBottom({
               className={`
                 flex items-center justify-center w-14 h-14 rounded-full font-bold transition-all shrink-0
                 ${canSubmit
-                  ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/30 hover:bg-[#B8E600]'
+                  ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/30 hover:bg-[#fbbf24]'
                   : 'bg-[#2C2C2E] text-[#6B6B6E] cursor-not-allowed'
                 }
               `}
@@ -355,7 +355,7 @@ export function ControlBarBottom({
                     className={`
                       flex items-center justify-center w-10 h-10 rounded-lg border transition-colors cursor-pointer
                       ${hasAnyReference 
-                        ? 'border-[#CDFF00] bg-[#CDFF00]/10 hover:bg-[#CDFF00]/20' 
+                        ? 'border-[#f59e0b] bg-[#f59e0b]/10 hover:bg-[#f59e0b]/20' 
                         : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
                       }
                       ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
@@ -363,7 +363,7 @@ export function ControlBarBottom({
                     title={hasAnyReference ? uploadedTitle : uploadTitle}
                   >
                     {hasAnyReference ? (
-                      <svg className="w-5 h-5 text-[#CDFF00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-[#f59e0b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
@@ -391,7 +391,7 @@ export function ControlBarBottom({
                     {referenceList.slice(0, maxReferenceImages).map((src, idx) => (
                       <div
                         key={`${idx}`}
-                        className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#CDFF00] flex-shrink-0"
+                        className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#f59e0b] flex-shrink-0"
                         title={`Референс ${idx + 1}/${referenceList.length}`}
                       >
                         <img src={src} alt={`Reference ${idx + 1}`} className="w-full h-full object-cover" />
@@ -432,7 +432,7 @@ export function ControlBarBottom({
           <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible no-scrollbar pb-1">
             {/* Model Badge (слева) */}
             <div className="flex items-center gap-2 px-3 py-2 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg">
-              <Sparkles className="w-4 h-4 text-[#CDFF00]" />
+              <Sparkles className="w-4 h-4 text-[#f59e0b]" />
               <span className="text-sm font-medium text-white whitespace-nowrap">
                 {displayName}
               </span>
@@ -465,7 +465,7 @@ export function ControlBarBottom({
                     className={`
                       px-3 py-1.5 rounded-md text-xs font-semibold transition-colors
                       ${fmt === outputFormat
-                        ? 'bg-[#CDFF00] text-black'
+                        ? 'bg-[#f59e0b] text-black'
                         : 'bg-transparent text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white'
                       }
                       ${isGenerating ? 'opacity-60 cursor-not-allowed' : ''}
@@ -521,7 +521,7 @@ export function ControlBarBottom({
                 hidden sm:flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm
                 transition-all whitespace-nowrap min-w-[150px]
                 ${canSubmit
-                  ? 'bg-[#CDFF00] hover:bg-[#B8E600] text-black shadow-lg shadow-[#CDFF00]/20'
+                  ? 'bg-[#f59e0b] hover:bg-[#fbbf24] text-black shadow-lg shadow-[#f59e0b]/20'
                   : 'bg-[#2C2C2E] text-[#6B6B6E] cursor-not-allowed'
                 }
               `}
@@ -592,7 +592,7 @@ export function ControlBarBottom({
             <div className="space-y-2">
               <div className="text-xs text-[#A1A1AA] uppercase tracking-wider">Модель</div>
               <div className="flex items-center gap-2 px-4 py-3 bg-[#1E1E20] border border-[#3A3A3C] rounded-2xl">
-                <Sparkles className="w-4 h-4 text-[#CDFF00]" />
+                <Sparkles className="w-4 h-4 text-[#f59e0b]" />
                 <span className="text-base font-medium text-white">{displayName}</span>
               </div>
             </div>
@@ -611,7 +611,7 @@ export function ControlBarBottom({
                       className={`
                         h-10 px-4 rounded-xl border text-sm font-semibold transition-colors
                         ${aspectRatio === ar
-                          ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]'
+                          ? 'bg-[#f59e0b]/15 border-[#f59e0b]/30 text-[#f59e0b]'
                           : 'bg-[#1E1E20] border-[#3A3A3C] text-[#A1A1AA] hover:bg-[#2A2A2C]'
                         }
                       `}
@@ -637,7 +637,7 @@ export function ControlBarBottom({
                       className={`
                         h-10 px-4 rounded-xl border text-sm font-semibold transition-colors
                         ${quality === q
-                          ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]'
+                          ? 'bg-[#f59e0b]/15 border-[#f59e0b]/30 text-[#f59e0b]'
                           : 'bg-[#1E1E20] border-[#3A3A3C] text-[#A1A1AA] hover:bg-[#2A2A2C]'
                         }
                       `}
@@ -663,7 +663,7 @@ export function ControlBarBottom({
                       className={`
                         h-10 px-4 rounded-xl border text-sm font-semibold transition-colors
                         ${outputFormat === fmt
-                          ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30 text-[#CDFF00]'
+                          ? 'bg-[#f59e0b]/15 border-[#f59e0b]/30 text-[#f59e0b]'
                           : 'bg-[#1E1E20] border-[#3A3A3C] text-[#A1A1AA] hover:bg-[#2A2A2C]'
                         }
                       `}
@@ -722,7 +722,7 @@ export function ControlBarBottom({
                     className={`
                       flex items-center justify-center w-20 h-20 rounded-2xl border-2 border-dashed transition-colors cursor-pointer
                       ${hasAnyReference 
-                        ? 'border-[#CDFF00] bg-[#CDFF00]/10' 
+                        ? 'border-[#f59e0b] bg-[#f59e0b]/10' 
                         : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
                       }
                       ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
@@ -791,7 +791,7 @@ export function ControlBarBottom({
                       onChange={(e) => onNegativePromptChange(e.target.value)}
                       disabled={isGenerating}
                       placeholder="Что исключить..."
-                      className="w-full min-h-[60px] px-3 py-2 rounded-xl bg-[#1E1E20] border border-[#3A3A3C] text-sm text-white placeholder:text-[#6B6B6E] focus:outline-none focus:border-[#CDFF00] resize-none"
+                      className="w-full min-h-[60px] px-3 py-2 rounded-xl bg-[#1E1E20] border border-[#3A3A3C] text-sm text-white placeholder:text-[#6B6B6E] focus:outline-none focus:border-[#f59e0b] resize-none"
                     />
                   </div>
                   {onSeedChange && (
@@ -803,7 +803,7 @@ export function ControlBarBottom({
                         onChange={(e) => onSeedChange(e.target.value ? Number(e.target.value) : null)}
                         disabled={isGenerating}
                         placeholder="Случайный"
-                        className="w-full h-10 px-3 rounded-xl bg-[#1E1E20] border border-[#3A3A3C] text-sm text-white placeholder:text-[#6B6B6E] focus:outline-none focus:border-[#CDFF00]"
+                        className="w-full h-10 px-3 rounded-xl bg-[#1E1E20] border border-[#3A3A3C] text-sm text-white placeholder:text-[#6B6B6E] focus:outline-none focus:border-[#f59e0b]"
                       />
                     </div>
                   )}
@@ -815,7 +815,7 @@ export function ControlBarBottom({
             <div className="pt-4 border-t border-[#27272A]">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-[#A1A1AA]">Стоимость</div>
-                <div className="flex items-center gap-2 text-lg font-bold text-[#CDFF00]">
+                <div className="flex items-center gap-2 text-lg font-bold text-[#f59e0b]">
                   <Star className="w-5 h-5" />
                   {estimatedCost}
                 </div>
@@ -826,7 +826,7 @@ export function ControlBarBottom({
             <button
               type="button"
               onClick={() => setMobileSettingsOpen(false)}
-              className="w-full h-14 rounded-2xl bg-[#CDFF00] text-black font-bold text-base hover:bg-[#B8E600] transition-colors"
+              className="w-full h-14 rounded-2xl bg-[#f59e0b] text-black font-bold text-base hover:bg-[#fbbf24] transition-colors"
             >
               Готово
             </button>

@@ -172,10 +172,8 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
             apiMode = 'v2v';
             break;
           case 'reference':
-            // Detect type: ref2v (Veo refs), start_end (frames), or v2v (video)
-            if (params.referenceImages && params.referenceImages.length > 0) {
-              apiMode = 'ref2v'; // Veo multiple reference images
-            } else if (params.startFrame && params.endFrame) {
+            // Reference maps to start_end (frames) or v2v (video)
+            if (params.startFrame && params.endFrame) {
               apiMode = 'start_end'; // Start/end frames
             } else {
               apiMode = 'v2v'; // Reference video
@@ -186,6 +184,9 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
             break;
           case 'edit':
             apiMode = 'edit';
+            break;
+          case 'extend':
+            apiMode = 'extend';
             break;
           default:
             apiMode = 't2v';
@@ -214,11 +215,7 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
         }
 
         if (params.mode === 'reference') {
-          if (params.referenceImages && params.referenceImages.length > 0) {
-            // Veo multiple reference images (ref2v)
-            requestBody.referenceImages = params.referenceImages;
-            console.log('[useVideoGeneration] Adding reference images:', params.referenceImages.length);
-          } else if (params.startFrame && params.endFrame) {
+          if (params.startFrame && params.endFrame) {
             // Start/End Frame mode
             requestBody.startFrame = params.startFrame;
             requestBody.endFrame = params.endFrame;
@@ -253,6 +250,16 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
           }
           if (typeof params.keepAudio === 'boolean') {
             requestBody.keepAudio = params.keepAudio;
+          }
+        }
+
+        // Extend mode (Veo 3.1 продление видео)
+        if (params.mode === 'extend') {
+          if (params.sourceGenerationId) {
+            requestBody.sourceGenerationId = params.sourceGenerationId;
+          }
+          if (params.taskId) {
+            requestBody.taskId = params.taskId;
           }
         }
 

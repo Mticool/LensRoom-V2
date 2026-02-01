@@ -44,11 +44,11 @@ export function AdvancedSettingsCollapse({
           className={`
             w-full px-3 py-2 rounded-lg border resize-none
             text-sm text-white placeholder:text-[#6B6B6E]
-            focus:outline-none focus:ring-2 focus:ring-[#CDFF00]/20
+            focus:outline-none focus:ring-2 focus:ring-[#f59e0b]/20
             transition-colors
             ${disabled 
               ? 'bg-[#1C1C1E] border-[#2C2C2E] cursor-not-allowed opacity-50' 
-              : 'bg-[#1E1E20] border-[#3A3A3C] hover:border-[#4A4A4C] focus:border-[#CDFF00]'
+              : 'bg-[#1E1E20] border-[#3A3A3C] hover:border-[#4A4A4C] focus:border-[#f59e0b]'
             }
           `}
           rows={2}
@@ -76,11 +76,11 @@ export function AdvancedSettingsCollapse({
                 className={`
                   flex-1 px-3 py-2 rounded-lg border
                   text-sm text-white placeholder:text-[#6B6B6E]
-                  focus:outline-none focus:ring-2 focus:ring-[#CDFF00]/20
+                  focus:outline-none focus:ring-2 focus:ring-[#f59e0b]/20
                   transition-colors
                   ${disabled 
                     ? 'bg-[#1C1C1E] border-[#2C2C2E] cursor-not-allowed opacity-50' 
-                    : 'bg-[#1E1E20] border-[#3A3A3C] hover:border-[#4A4A4C] focus:border-[#CDFF00]'
+                    : 'bg-[#1E1E20] border-[#3A3A3C] hover:border-[#4A4A4C] focus:border-[#f59e0b]'
                   }
                 `}
               />
@@ -124,11 +124,11 @@ export function AdvancedSettingsCollapse({
               className={`
                 w-full px-3 py-2 rounded-lg border
                 text-sm text-white placeholder:text-[#6B6B6E]
-                focus:outline-none focus:ring-2 focus:ring-[#CDFF00]/20
+                focus:outline-none focus:ring-2 focus:ring-[#f59e0b]/20
                 transition-colors
                 ${disabled 
                   ? 'bg-[#1C1C1E] border-[#2C2C2E] cursor-not-allowed opacity-50' 
-                  : 'bg-[#1E1E20] border-[#3A3A3C] hover:border-[#4A4A4C] focus:border-[#CDFF00]'
+                  : 'bg-[#1E1E20] border-[#3A3A3C] hover:border-[#4A4A4C] focus:border-[#f59e0b]'
                 }
               `}
             />

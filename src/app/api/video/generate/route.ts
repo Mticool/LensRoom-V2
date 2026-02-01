@@ -4,7 +4,9 @@ import { requireAuth } from '@/lib/auth/requireRole';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getModelById, type VideoModelConfig } from '@/config/models';
 import { computePrice } from '@/lib/pricing/compute-price';
+import { getSkuFromRequest, calculateTotalStars, PRICING_VERSION } from '@/lib/pricing/pricing';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
+import { refundCredits } from '@/lib/credits/refund';
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 import { getKieClient } from '@/lib/api/kie-client';
 import { getOpenAIClient } from '@/lib/api/openai-client';
@@ -118,7 +120,12 @@ export async function POST(request: NextRequest) {
     };
 
     const priceResult = computePrice(model, costParams);
-    const cost = priceResult.stars;
+    const sku = getSkuFromRequest(model, {
+      duration: duration_seconds,
+      videoQuality: options.quality || resolution,
+      audio: options.generate_audio,
+    });
+    const cost = calculateTotalStars(sku, duration_seconds);
 
     if (balance.totalBalance < cost) {
       return NextResponse.json(
@@ -128,7 +135,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Deduct credits
-    await deductCredits(supabase, userId, cost);
+    const deductResult = await deductCredits(supabase, userId, cost);
+    if (!deductResult.success) {
+      return NextResponse.json(
+        { error: 'Failed to deduct credits' },
+        { status: 500 }
+      );
+    }
 
     // Create generation record
     const { data: generation, error: insertError } = await supabase
@@ -149,14 +162,36 @@ export async function POST(request: NextRequest) {
           input_video,
           ...options,
         },
-        cost,
+        credits_used: cost,
+        charged_stars: cost,
+        sku,
+        pricing_version: PRICING_VERSION,
       })
       .select()
       .single();
 
     if (insertError || !generation) {
       console.error('[VideoGenerate] Failed to create generation:', insertError);
+      // Refund credits on failed insert
+      await refundCredits(supabase, userId, 'video-generation-insert', cost, 'generation_insert_failed', {
+        model_id: model,
+      });
       return NextResponse.json({ error: 'Failed to create generation' }, { status: 500 });
+    }
+
+    // Record credit transaction for deduction
+    try {
+      await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: -cost,
+        type: 'deduction',
+        description: `Генерация видео: ${modelInfo.name}`,
+        generation_id: generation.id,
+        sku,
+        pricing_version: PRICING_VERSION,
+      });
+    } catch (e) {
+      console.error('[VideoGenerate] Failed to record transaction:', e);
     }
 
     // Queue job based on provider
@@ -233,16 +268,23 @@ export async function POST(request: NextRequest) {
         .eq('id', generation.id);
 
     } catch (providerError: any) {
-      console.error('[VideoGenerate] Provider API error:', providerError);
+      console.error('[VideoGenerate] Upstream API error:', providerError);
 
       // Update generation with error
       await supabase
         .from('generations')
         .update({
           status: 'failed',
-          error_message: providerError.message || 'Provider API error'
+          error_message: providerError.message || 'Upstream API error'
         })
         .eq('id', generation.id);
+
+      // Refund credits on provider failure
+      await refundCredits(supabase, userId, generation.id, cost, 'video_provider_failed', {
+        provider,
+        model_id: model,
+        error: providerError.message || 'Upstream API error',
+      });
 
       return NextResponse.json(
         {

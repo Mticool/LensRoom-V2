@@ -19,22 +19,22 @@ import logger from '@/lib/logger';
 // Модели для дропдаунов — стиль syntx.ai
 const MODELS = {
   design: [
-    { id: "grok-imagine", name: "Grok Imagine", badge: "xAI", hot: true, desc: "Креативные фото с юмором" },
-    { id: "gpt-image", name: "GPT Image 1.5", badge: "OpenAI", desc: "Точное следование промпту" },
+    { id: "grok-imagine", name: "Grok Imagine", badge: "Spicy", hot: true, desc: "Креативные фото с юмором" },
+    { id: "gpt-image", name: "GPT Image 1.5", badge: "v1.5", desc: "Точное следование промпту" },
     { id: "nano-banana-pro", name: "Nano Banana Pro", badge: "4K", new: true, desc: "Безлимит в подписке" },
-    { id: "flux-2-pro", name: "FLUX.2 Pro", badge: "BFL", desc: "Быстрая генерация" },
-    { id: "seedream-4.5", name: "Seedream 4.5", badge: "ByteDance", desc: "Фотореализм" },
+    { id: "flux-2-pro", name: "FLUX.2 Pro", badge: "Pro", desc: "Быстрая генерация" },
+    { id: "seedream-4.5", name: "Seedream 4.5", badge: "Ultra", desc: "Фотореализм" },
     { id: "nano-banana", name: "Nano Banana", desc: "Базовая модель" },
     { id: "z-image", name: "Z-image", badge: "Эконом", desc: "Самая дешёвая" },
   ],
   video: [
-    { id: "veo-3.1-fast", name: "Veo 3.1 Fast", badge: "Google", hot: true, desc: "Быстро • 4-8с • До 3 референсов" },
+    { id: "veo-3.1-fast", name: "Veo 3.1 Fast", badge: "Cinema", hot: true, desc: "Быстро • 4-8с • До 3 референсов" },
     { id: "kling-2.1", name: "Kling 2.1", badge: "Master", desc: "5-10с • Максимальное качество" },
     { id: "kling-2.5", name: "Kling 2.5", badge: "Turbo", desc: "5-10с • Скорость + качество" },
     { id: "kling-2.6", name: "Kling 2.6", badge: "Audio", new: true, desc: "5-10с • Генерация звука" },
     { id: "kling-motion-control", name: "Motion Control", badge: "Motion", desc: "Перенос движения на персонажа" },
-    { id: "grok-video", name: "Grok Video", badge: "xAI", hot: true, desc: "6-30с • 6 стилей • Аудио" },
-    { id: "sora-2", name: "Sora 2", badge: "OpenAI", desc: "10-15с • Универсальная" },
+    { id: "grok-video", name: "Grok Video", badge: "Audio", hot: true, desc: "6-30с • 6 стилей • Аудио" },
+    { id: "sora-2", name: "Sora 2", badge: "Pro", desc: "10-15с • Универсальная" },
     { id: "wan-2.6", name: "WAN 2.6", badge: "Ultra", desc: "5-15с • Управление камерой • V2V" },
   ],
   audio: [
@@ -111,6 +111,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
     { name: 'Фото', dropdown: 'design' as const },
     { name: 'Видео', dropdown: 'video' as const },
     { name: 'Музыка', href: '/create/studio?section=music' },
+    { name: 'Озвучка', href: '/create/studio?section=voice' },
     { name: 'Вдохновение', href: '/inspiration' },
     { name: 'Тарифы', href: '/pricing' },
   ], []);
@@ -522,7 +523,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-5 pb-24">
                 {/* Quick Actions */}
-                <div className="grid grid-cols-4 gap-2 mb-6">
+                <div className="grid grid-cols-5 gap-2 mb-6">
                   <Link
                     href="/create/studio?section=photo"
                     onClick={() => setMobileMenuOpen(false)}
@@ -554,6 +555,14 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                   >
                     <Music className="w-6 h-6 text-pink-500 mb-1" />
                     <p className="text-xs font-semibold text-[var(--text)]">Музыка</p>
+                  </Link>
+                  <Link
+                    href="/create/studio?section=voice"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-emerald-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
+                  >
+                    <User className="w-6 h-6 text-emerald-500 mb-1" />
+                    <p className="text-xs font-semibold text-[var(--text)]">Озвучка</p>
                   </Link>
                 </div>
 

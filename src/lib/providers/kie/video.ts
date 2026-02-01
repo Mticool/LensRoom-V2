@@ -36,8 +36,8 @@ export function mapRequestToKiePayload(
     payload.model = capability.apiIdI2v;
   } else if (request.mode === 'v2v' && capability.apiIdV2v) {
     payload.model = capability.apiIdV2v;
-  } else if (request.mode === 'ref2v' && capability.apiIdRef2v) {
-    payload.model = capability.apiIdRef2v;
+  } else if (request.mode === 'start_end' && capability.apiIdI2v) {
+    payload.model = capability.apiIdI2v;
   }
 
   // Image inputs

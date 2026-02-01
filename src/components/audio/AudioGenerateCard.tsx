@@ -6,25 +6,22 @@ import { cn } from '@/lib/utils';
 interface ClonedVoice {
   id: string;
   name: string;
+  is_cloned?: boolean;
+  is_default?: boolean;
+  created_at?: string;
 }
 
 interface AudioGenerateCardProps {
   clonedVoices: ClonedVoice[];
   selectedVoice: string;
-  mode: 'speech' | 'track';
   prompt: string;
-  duration: 10 | 30 | 60;
   language: 'ru' | 'en' | 'mix';
   onVoiceChange: (voiceId: string) => void;
-  onModeChange: (mode: 'speech' | 'track') => void;
   onPromptChange: (prompt: string) => void;
-  onDurationChange: (duration: 10 | 30 | 60) => void;
   onLanguageChange: (language: 'ru' | 'en' | 'mix') => void;
 }
 
-const DEFAULT_VOICES = [
-  { id: 'default', name: 'Голос по умолчанию' },
-];
+const DEFAULT_VOICES: ClonedVoice[] = [];
 
 const DURATION_OPTIONS = [
   { value: 10, label: '10 сек' },
@@ -41,14 +38,10 @@ const LANGUAGE_OPTIONS = [
 export function AudioGenerateCard({
   clonedVoices,
   selectedVoice,
-  mode,
   prompt,
-  duration,
   language,
   onVoiceChange,
-  onModeChange,
   onPromptChange,
-  onDurationChange,
   onLanguageChange,
 }: AudioGenerateCardProps) {
   const allVoices = [...DEFAULT_VOICES, ...clonedVoices];
@@ -81,7 +74,7 @@ export function AudioGenerateCard({
           >
             {allVoices.map((voice) => (
               <option key={voice.id} value={voice.id}>
-                {voice.name}
+                {voice.is_cloned ? '🧬 ' : ''}{voice.name}
               </option>
             ))}
           </select>
@@ -89,52 +82,15 @@ export function AudioGenerateCard({
         </div>
       </div>
 
-      {/* Mode Toggle */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-[var(--text)] mb-2">
-          Режим
-        </label>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onModeChange('speech')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all active:scale-95",
-              mode === 'speech'
-                ? "bg-[var(--gold)] text-black"
-                : "bg-[var(--bg)] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--text)]"
-            )}
-          >
-            <MessageSquare className="w-5 h-5" />
-            Речь
-          </button>
-          <button
-            onClick={() => onModeChange('track')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all active:scale-95",
-              mode === 'track'
-                ? "bg-[var(--gold)] text-black"
-                : "bg-[var(--bg)] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--text)]"
-            )}
-          >
-            <Music className="w-5 h-5" />
-            Трек
-          </button>
-        </div>
-      </div>
-
       {/* Prompt Input */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-[var(--text)] mb-2">
-          {mode === 'speech' ? 'Текст для озвучки' : 'Описание трека'}
+          Текст для озвучки
         </label>
         <textarea
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
-          placeholder={
-            mode === 'speech'
-              ? 'Напиши текст, который нужно озвучить...'
-              : 'Опиши стиль трека, настроение и содержание...'
-          }
+          placeholder="Напиши текст, который нужно озвучить..."
           rows={4}
           className="w-full px-4 py-3 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)] transition-colors resize-none"
         />
@@ -144,31 +100,8 @@ export function AudioGenerateCard({
       <div className="space-y-4">
         <h4 className="text-sm font-medium text-[var(--text)]">Параметры</h4>
         
-        <div className="grid grid-cols-2 gap-3">
-          {/* Duration */}
-          <div>
-            <label className="block text-xs text-[var(--muted)] mb-1.5">
-              Длительность
-            </label>
-            <div className="flex gap-1.5">
-              {DURATION_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => onDurationChange(opt.value as 10 | 30 | 60)}
-                  className={cn(
-                    "flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all active:scale-95",
-                    duration === opt.value
-                      ? "bg-[var(--gold)] text-black"
-                      : "bg-[var(--bg)] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--text)]"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Language */}
+        {/* Language selector */}
+        <div>
           <div>
             <label className="block text-xs text-[var(--muted)] mb-1.5">
               Язык/акцент
@@ -189,6 +122,9 @@ export function AudioGenerateCard({
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              💡 Стоимость: 1 секунда аудио = 1⭐ (списание после генерации)
+            </p>
           </div>
         </div>
       </div>

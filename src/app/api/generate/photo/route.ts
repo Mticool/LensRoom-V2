@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getKieClient } from "@/lib/api/kie-client";
 import { PHOTO_MODELS, getModelById } from "@/config/models";
 import { computePrice } from "@/lib/pricing/compute-price";
+import { getSkuFromRequest, getPriceStars, calculateTotalStars, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { getPhotoVariantByIds } from "@/config/photoVariantRegistry";
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate credit cost using new pricing system
+    // === NEW PRICING SYSTEM (2026-01-27) ===
     const { quality: legacyQuality, resolution: legacyResolution } = body;
     const quality =
       resolvedParams?.quality && resolvedParams.quality !== "default"
@@ -192,22 +193,56 @@ export async function POST(request: NextRequest) {
         ? String(resolvedParams.resolution)
         : legacyResolution || undefined;
 
-    // If variant payload was used, enforce stars from variant registry (server-side).
-    // Otherwise fall back to computePrice for legacy payload.
-    const priceOptions: any = { variants };
-    if (quality) priceOptions.quality = quality;
-    if (resolution) priceOptions.resolution = resolution;
+    // Build pricing options
+    const pricingOptions: PricingOptions = {
+      quality,
+      resolution,
+      mode: mode as any,
+    };
+
+    // Generate SKU and get price
+    let sku: string;
+    let creditCost: number;
     
-    const computedPrice = computePrice(effectiveModelId, priceOptions);
-    const creditCost = resolvedVariantStars !== null ? resolvedVariantStars : computedPrice.stars;
+    try {
+      // If variant payload was used with explicit stars, use that
+      if (resolvedVariantStars !== null && resolvedVariantStars > 0) {
+        // For variant-based pricing, we still need a SKU for tracking
+        sku = getSkuFromRequest(effectiveModelId, pricingOptions);
+        creditCost = resolvedVariantStars;
+      } else {
+        // Use new SKU-based pricing system
+        sku = getSkuFromRequest(effectiveModelId, pricingOptions);
+        creditCost = calculateTotalStars(sku);
+        
+        // For variants > 1, multiply the price
+        if (variants && variants > 1) {
+          creditCost = creditCost * variants;
+        }
+      }
+    } catch (error) {
+      console.error('[API] Pricing system error:', {
+        modelId: effectiveModelId,
+        quality,
+        resolution,
+        mode,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return NextResponse.json({ 
+        error: "Pricing error: No price defined for this model/variant combination",
+        details: `Model: ${effectiveModelId}, Quality: ${quality || 'default'}, Resolution: ${resolution || 'default'}`,
+        modelId: effectiveModelId,
+      }, { status: 500 });
+    }
     
     if (!Number.isFinite(creditCost) || creditCost <= 0) {
-      console.error('[API] Price computation failed:', {
+      console.error('[API] Invalid price computed:', {
         modelId: effectiveModelId,
         quality,
         resolution,
         variants,
-        computedPrice,
+        sku,
+        creditCost,
         resolvedVariantStars,
       });
       return NextResponse.json({ 
@@ -319,12 +354,14 @@ export async function POST(request: NextRequest) {
       if (!isIncludedByPlan && actualCreditCost > 0) {
         const deductResult = await deductCredits(supabase, userId, actualCreditCost);
         
-        // 🔍 AUDIT LOG: Star deduction (dev-only)
+        // 🔍 AUDIT LOG: Star deduction with SKU tracking (2026-01-27)
         if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
           console.log('[⭐ AUDIT] Photo generation:', JSON.stringify({
             userId,
             modelId: effectiveModelId,
             variantId: resolvedVariantId || 'default',
+            sku,
+            pricingVersion: PRICING_VERSION,
             quality: quality || 'default',
             resolution: resolution || 'default',
             priceStars: actualCreditCost,
@@ -332,6 +369,7 @@ export async function POST(request: NextRequest) {
             deductedFromPackage: deductResult.deductedFromPackage,
             balanceBefore: creditBalance.totalBalance,
             balanceAfter: deductResult.totalBalance,
+            isIncludedByPlan,
             timestamp: new Date().toISOString(),
           }));
         }
@@ -420,6 +458,9 @@ export async function POST(request: NextRequest) {
         prompt: prompt,
         negative_prompt: negativePrompt,
         credits_used: creditCost,
+        charged_stars: actualCreditCost, // Actual stars charged (may be 0 if included)
+        sku: sku, // SKU for pricing tracking
+        pricing_version: PRICING_VERSION, // Pricing version for audit
         status: "queued",
         aspect_ratio: finalAspectRatioForDb, // Now saving aspect_ratio (migration applied)
         thread_id: threadId || null,
@@ -478,6 +519,8 @@ export async function POST(request: NextRequest) {
           type: 'deduction',
           description: `Генерация фото: ${(baseTitle || modelInfo.name)}${resolvedVariantId ? ` • ${resolvedVariantId}` : ""}${nbpVariantKey ? ` (${nbpVariantKey})` : ""}`,
           generation_id: generation?.id,
+          sku: sku, // Track SKU in transaction
+          pricing_version: PRICING_VERSION, // Track pricing version
         });
       } catch (e) {
         console.error('[API] Failed to record transaction:', e);

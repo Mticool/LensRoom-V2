@@ -17,7 +17,7 @@ import type { GenerationResult } from './GeneratorV2';
 import './theme.css';
 
 const COST_PER_RUN = 15; // Fixed pricing per generation run (model returns multiple images)
-const GROK_RESULTS_PER_RUN = 6; // KIE Grok Imagine returns 6 images per task
+const GROK_RESULTS_PER_RUN = 6; // Upstream returns 6 images per task
 
 export function GrokImagineGenerator() {
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
@@ -212,7 +212,7 @@ export function GrokImagineGenerator() {
           <div className="flex items-center justify-center min-h-[60vh] px-8">
             <div className="text-center max-w-md">
               <p className="text-[#A1A1AA] text-lg mb-2">Ваши изображения появятся здесь</p>
-              <p className="text-[#6B6B6E] text-sm">Grok Imagine — креативные изображения с Spicy Mode 🌶️</p>
+              <p className="text-[#6B6B6E] text-sm">Grok Imagine — креативные изображения с режимом Spicy 🌶️</p>
             </div>
           </div>
         )}
@@ -274,7 +274,7 @@ export function GrokImagineGenerator() {
                     flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm
                     transition-all whitespace-nowrap min-w-[150px]
                     ${canGenerate
-                      ? 'bg-[#CDFF00] hover:bg-[#B8E600] text-black shadow-lg shadow-[#CDFF00]/20'
+                      ? 'bg-[#f59e0b] hover:bg-[#fbbf24] text-black shadow-lg shadow-[#f59e0b]/20'
                       : 'bg-[#2C2C2E] text-[#6B6B6E] cursor-not-allowed'
                     }
                   `}

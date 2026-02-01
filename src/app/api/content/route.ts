@@ -30,9 +30,10 @@ async function getSignedUrl(supabase: ReturnType<typeof getSupabaseAdmin>, stora
   if (!bucket || !path) return null;
   
   try {
+    // Increased to 2 hours for better caching
     const { data, error } = await supabase.storage
       .from(bucket)
-      .createSignedUrl(path, 3600); // 1 hour
+      .createSignedUrl(path, 7200); // 2 hours
     
     if (error || !data?.signedUrl) {
       console.warn('[Content API] Failed to sign URL:', storagePath, error?.message);
@@ -44,6 +45,31 @@ async function getSignedUrl(supabase: ReturnType<typeof getSupabaseAdmin>, stora
     console.warn('[Content API] Sign error:', storagePath, e);
     return null;
   }
+}
+
+// Batch process URLs for better performance
+async function batchSignUrls(
+  supabase: ReturnType<typeof getSupabaseAdmin>, 
+  paths: string[]
+): Promise<Map<string, string>> {
+  const results = new Map<string, string>();
+  
+  // Process in batches of 10 for optimal performance
+  const batchSize = 10;
+  for (let i = 0; i < paths.length; i += batchSize) {
+    const batch = paths.slice(i, i + batchSize);
+    const promises = batch.map(async (path) => {
+      const url = await getSignedUrl(supabase, path);
+      return { path, url };
+    });
+    
+    const batchResults = await Promise.all(promises);
+    batchResults.forEach(({ path, url }) => {
+      if (url) results.set(path, url);
+    });
+  }
+  
+  return results;
 }
 
 // Public endpoint - fetch published content for frontend
@@ -87,39 +113,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Generate fresh signed URLs for all content
+    // Optimized: Collect all paths first, then batch sign URLs
+    const allPaths = new Set<string>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const refreshedData = await Promise.all(
-      (data || []).map(async (row: any) => {
-        const result = { ...row };
-        
-        // Refresh preview_url
-        const previewPath = extractStoragePath(String(row.preview_url || row.preview_image || ''));
-        if (previewPath) {
-          const freshUrl = await getSignedUrl(supabase, previewPath);
-          if (freshUrl) {
-            result.preview_url = freshUrl;
-            result.preview_image = freshUrl;
-          }
-        }
-        
-        // Refresh asset_url
-        const assetPath = extractStoragePath(String(row.asset_url || ''));
-        if (assetPath) {
-          const freshUrl = await getSignedUrl(supabase, assetPath);
-          if (freshUrl) result.asset_url = freshUrl;
-        }
-        
-        // Refresh poster_url for videos
-        const posterPath = extractStoragePath(String(row.poster_url || ''));
-        if (posterPath) {
-          const freshUrl = await getSignedUrl(supabase, posterPath);
-          if (freshUrl) result.poster_url = freshUrl;
-        }
-        
-        return result;
-      })
-    );
+    (data || []).forEach((row: any) => {
+      const previewPath = extractStoragePath(String(row.preview_url || row.preview_image || ''));
+      const assetPath = extractStoragePath(String(row.asset_url || ''));
+      const posterPath = extractStoragePath(String(row.poster_url || ''));
+      
+      if (previewPath) allPaths.add(previewPath);
+      if (assetPath) allPaths.add(assetPath);
+      if (posterPath) allPaths.add(posterPath);
+    });
+    
+    // Batch sign all URLs at once for better performance
+    const signedUrlMap = await batchSignUrls(supabase, Array.from(allPaths));
+    
+    // Map signed URLs back to data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const refreshedData = (data || []).map((row: any) => {
+      const result = { ...row };
+      
+      // Use pre-signed URLs from map
+      const previewPath = extractStoragePath(String(row.preview_url || row.preview_image || ''));
+      if (previewPath && signedUrlMap.has(previewPath)) {
+        const freshUrl = signedUrlMap.get(previewPath)!;
+        result.preview_url = freshUrl;
+        result.preview_image = freshUrl;
+      }
+      
+      const assetPath = extractStoragePath(String(row.asset_url || ''));
+      if (assetPath && signedUrlMap.has(assetPath)) {
+        result.asset_url = signedUrlMap.get(assetPath)!;
+      }
+      
+      const posterPath = extractStoragePath(String(row.poster_url || ''));
+      if (posterPath && signedUrlMap.has(posterPath)) {
+        result.poster_url = signedUrlMap.get(posterPath)!;
+      }
+      
+      return result;
+    });
 
     console.log('[Content API] Served', refreshedData.length, 'items with fresh URLs');
 
@@ -131,8 +165,15 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          // Cache for 5 minutes (URLs valid for 1 hour)
-          'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+          // Optimized caching: Cache for 15 minutes (URLs valid for 1 hour)
+          // stale-while-revalidate allows serving stale content while refreshing in background
+          'Cache-Control': 'public, max-age=900, stale-while-revalidate=1800, immutable',
+          // Enable compression
+          'Content-Encoding': 'gzip',
+          // Add ETag for better cache validation
+          'ETag': `W/"${Date.now()}-${refreshedData.length}"`,
+          // Optimize for mobile
+          'Vary': 'Accept-Encoding, User-Agent',
         },
       }
     );

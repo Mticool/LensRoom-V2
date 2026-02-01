@@ -1,102 +1,46 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { 
-  Sparkles, Crown, Zap, Loader2, Star, CheckCircle2, Tag, X, Check, Gift,
-  ChevronLeft, ChevronRight, Infinity, Shield, Clock, Users
+  Star, Loader2, Check, ChevronDown, ChevronRight,
+  Zap, Crown, Rocket, Shield, Clock, Sparkles
 } from 'lucide-react';
-import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
-import { SUBSCRIPTION_TIERS, STAR_PACKS, packBonusPercent, packTotalStars } from '@/config/pricing';
+import { 
+  SUBSCRIPTION_TIERS, 
+  COMPARISON_TABLE,
+  PRICING_FOOTNOTES,
+  formatPrice,
+  type PricingTier,
+  type ComparisonRow
+} from '@/config/pricing';
 import { toast } from 'sonner';
 import { LoginDialog } from '@/components/auth/login-dialog';
-
-// Promocode types
-interface PromocodeResult {
-  valid: boolean;
-  error?: string;
-  promocode_id?: string;
-  bonus_type?: string;
-  bonus_value?: number;
-  description?: string;
-}
 
 export default function PricingPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [activePlanIndex, setActivePlanIndex] = useState(1); // Start with popular plan
+  const [activePlanIndex, setActivePlanIndex] = useState(1);
+  const [mobileAccordion, setMobileAccordion] = useState<string | null>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
-  
-  // Promocode state
-  const [promoCode, setPromoCode] = useState('');
-  const [promoValidating, setPromoValidating] = useState(false);
-  const [promoApplying, setPromoApplying] = useState(false);
-  const [promoResult, setPromoResult] = useState<PromocodeResult | null>(null);
-  const [faqOpen, setFaqOpen] = useState<number | null>(null);
+  const comparisonRef = useRef<HTMLDivElement>(null);
 
-  // Only monthly pricing
-  const getPrice = (monthlyPrice: number) => monthlyPrice;
-
-  const applyBonusStars = useCallback(async () => {
-    if (!promoCode.trim()) return;
-
-    setPromoApplying(true);
-
-    try {
-      const res = await fetch('/api/promocodes/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ code: promoCode.trim() }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Ошибка применения');
-      }
-
-      setPromoResult({ valid: true, ...data });
-      toast.success(data.message || `Получено +${data.bonus_value} ⭐`);
-      setPromoCode('');
-    } catch (error: any) {
-      toast.error(error.message || 'Ошибка применения промокода');
-    } finally {
-      setPromoApplying(false);
-    }
-  }, [promoCode]);
-
-  const clearPromocode = () => {
-    setPromoResult(null);
-    setPromoCode('');
+  const scrollToComparison = () => {
+    comparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const formatBonusValue = (type: string, value: number) => {
-    switch (type) {
-      case 'bonus_stars': return `+${value} ⭐`;
-      case 'percent_discount': return `-${value}%`;
-      case 'fixed_discount': return `-${value}`;
-      case 'multiplier': return `x${value}`;
-      default: return value;
-    }
-  };
-
-  const handlePurchase = async (type: 'subscription' | 'package', itemId: string) => {
-    setLoading(itemId);
+  const handlePurchase = async (planId: string) => {
+    setLoading(planId);
 
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          type, 
-          itemId
-        }),
+        body: JSON.stringify({ type: 'subscription', itemId: planId }),
       });
 
       const data = await response.json();
@@ -104,7 +48,7 @@ export default function PricingPage() {
       if (!response.ok || data.error) {
         if (response.status === 401) {
           setAuthDialogOpen(true);
-          toast.error(user ? 'Сессия истекла. Войдите снова.' : 'Войдите чтобы оформить покупку');
+          toast.error(user ? 'Сессия истекла. Войдите снова.' : 'Войдите чтобы оформить подписку');
           setLoading(null);
           return;
         }
@@ -119,199 +63,78 @@ export default function PricingPage() {
 
       if (data.url) {
         window.location.href = data.url;
-      } else {
-        throw new Error('Payment URL not received');
       }
-
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка при создании платежа';
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : 'Ошибка');
       setLoading(null);
     }
   };
 
-  // Mobile slider navigation
   const scrollToPlan = (index: number) => {
     if (sliderRef.current) {
       const planWidth = sliderRef.current.scrollWidth / SUBSCRIPTION_TIERS.length;
-      sliderRef.current.scrollTo({
-        left: planWidth * index,
-        behavior: 'smooth'
-      });
+      sliderRef.current.scrollTo({ left: planWidth * index, behavior: 'smooth' });
       setActivePlanIndex(index);
     }
   };
 
-  const planIcons = {
-    creator: Sparkles,
-    creator_plus: Crown,
-    business: Zap,
-  };
-
+  const planIcons = { start: Zap, pro: Crown, max: Rocket };
   const planColors = {
-    creator: { bg: 'from-emerald-500/20 to-emerald-500/5', border: 'border-emerald-500/30', accent: 'text-emerald-400' },
-    creator_plus: { bg: 'from-amber-500/20 to-amber-500/5', border: 'border-amber-500/50', accent: 'text-amber-400' },
-    business: { bg: 'from-violet-500/20 to-violet-500/5', border: 'border-violet-500/30', accent: 'text-violet-400' },
+    start: 'from-zinc-500/20 to-zinc-800/10',
+    pro: 'from-amber-500/20 to-amber-900/10',
+    max: 'from-violet-500/20 to-violet-900/10',
   };
-
-  const FAQ_ITEMS = [
-    {
-      q: 'Какие AI-модели доступны?',
-      a: 'Фото: Nano Banana (бесплатно), Nano Banana Pro (1-2K/4K), FLUX 2 Pro, GPT Image, Ideogram. Видео: Veo 3.1, Sora 2, Kling, WAN. Аудио: Suno AI. Все модели работают через единый интерфейс.',
-    },
-    {
-      q: 'Что такое Nano Banana?',
-      a: 'Nano Banana — быстрая нейросеть для генерации изображений. Базовая версия БЕСПЛАТНА во всех тарифах. Pro-версия даёт качество 1-2K и 4K.',
-    },
-    {
-      q: 'Что значит "безлимит" Pro 1-2K?',
-      a: 'В тарифах Creator+ и Business — Nano Banana Pro 1–2K входит БЕЗ ОГРАНИЧЕНИЙ. Генерируйте сколько хочешь за 0⭐. 4K-режим оплачивается звёздами.',
-    },
-    {
-      q: 'Чем отличается подписка от пакета ⭐?',
-      a: 'Подписка — ежемесячный план со звёздами и доступом к Pro-функциям. Звёзды из подписки НЕ переносятся на следующий месяц. Пакеты — разовая покупка, звёзды не сгорают.',
-    },
-    {
-      q: 'А если генерация не получилась — вернёте ⭐?',
-      a: 'Если произошла техническая ошибка на нашей стороне — да, ⭐ вернутся автоматически.',
-    },
-    {
-      q: 'Какие способы оплаты?',
-      a: 'Принимаем карты Visa, Mastercard, МИР, а также СБП и электронные кошельки через Robokassa.',
-    },
-  ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      {/* Hero Section */}
+    <div className="min-h-screen bg-[#09090B]">
+      {/* Hero */}
       <div className="relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[var(--gold)]/5 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent" />
         
-        <div className="container mx-auto px-4 sm:px-6 pt-24 pb-12 relative">
-          {/* Header */}
+        <div className="container mx-auto px-4 pt-20 pb-10 relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-10"
+            className="text-center mb-8"
           >
-            <Badge className="mb-4 px-4 py-1.5 bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20">
-              Простое ценообразование
-            </Badge>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text)] mb-4">
-              Выберите свой тариф
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
+              Выберите тариф
             </h1>
-            <p className="text-base sm:text-lg text-[var(--text2)] max-w-xl mx-auto">
-              Платите только за генерации. Без скрытых комиссий.
+            <p className="text-lg text-zinc-400 max-w-xl mx-auto">
+              Все нейросети. Одна подписка. Прозрачные цены.
             </p>
           </motion.div>
 
-          {/* Trust Signals */}
+          {/* Trust */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="flex flex-wrap justify-center gap-4 sm:gap-8 mb-10 text-sm text-[var(--muted)]"
+            className="flex flex-wrap justify-center gap-6 mb-10 text-sm text-zinc-500"
           >
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-emerald-400" />
+              <Shield className="w-4 h-4" />
               <span>Возврат 14 дней</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[var(--gold)]" />
+              <Clock className="w-4 h-4" />
               <span>Отмена в любой момент</span>
             </div>
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-violet-400" />
-              <span>5000+ пользователей</span>
+              <Sparkles className="w-4 h-4" />
+              <span>Обновления каждую неделю</span>
             </div>
           </motion.div>
 
-          {/* AI Models Overview */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="max-w-4xl mx-auto mb-12"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Photo Models */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                    <span className="text-lg">🖼️</span>
-                  </div>
-                  <h3 className="font-bold text-[var(--text)]">Фото</h3>
-                </div>
-                <ul className="space-y-1.5 text-sm text-[var(--text2)]">
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400 font-bold">FREE</span>
-                    <span>Nano Banana</span>
-                  </li>
-                  <li>• Nano Banana Pro (1-2K/4K)</li>
-                  <li>• FLUX 2 Pro</li>
-                  <li>• GPT Image</li>
-                  <li>• Ideogram v3</li>
-                </ul>
-              </div>
-
-              {/* Video Models */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                    <span className="text-lg">🎬</span>
-                  </div>
-                  <h3 className="font-bold text-[var(--text)]">Видео</h3>
-                </div>
-                <ul className="space-y-1.5 text-sm text-[var(--text2)]">
-                  <li>• Veo 3.1 (Google)</li>
-                  <li>• Sora 2 (OpenAI)</li>
-                  <li>• Kling 2.6</li>
-                  <li>• WAN</li>
-                  <li>• Grok Video</li>
-                </ul>
-              </div>
-
-              {/* Audio Models */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-pink-500/10 to-transparent border border-pink-500/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center">
-                    <span className="text-lg">🎵</span>
-                  </div>
-                  <h3 className="font-bold text-[var(--text)]">Аудио</h3>
-                </div>
-                <ul className="space-y-1.5 text-sm text-[var(--text2)]">
-                  <li>• Suno AI (музыка)</li>
-                  <li>• Генерация треков</li>
-                  <li>• Кавер-версии</li>
-                  <li>• Вокал + инструменты</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Free Banner */}
-            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-[var(--gold)]/10 to-emerald-500/10 border border-emerald-500/30 text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <Gift className="w-5 h-5 text-emerald-400" />
-                <span className="font-bold text-emerald-400">Nano Banana БЕСПЛАТНО во всех тарифах!</span>
-              </div>
-              <p className="text-sm text-[var(--text2)]">
-                А в Creator+ и Business — <span className="text-[var(--gold)] font-bold">Nano Banana Pro 1-2K тоже БЕЗЛИМИТ</span>
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Mobile Plan Navigation */}
+          {/* Mobile dots */}
           <div className="flex lg:hidden justify-center gap-2 mb-4">
             {SUBSCRIPTION_TIERS.map((_, index) => (
               <button
                 key={index}
                 onClick={() => scrollToPlan(index)}
                 className={cn(
-                  "w-2.5 h-2.5 rounded-full transition-all",
-                  activePlanIndex === index
-                    ? "bg-[var(--gold)] w-6"
-                    : "bg-[var(--border)] hover:bg-[var(--muted)]"
+                  "w-2 h-2 rounded-full transition-all",
+                  activePlanIndex === index ? "bg-white w-6" : "bg-zinc-700"
                 )}
               />
             ))}
@@ -319,13 +142,13 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Subscription Plans */}
-      <div className="container mx-auto px-4 sm:px-6 pb-16">
+      {/* Plans */}
+      <div className="container mx-auto px-4 pb-16">
         {/* Mobile Slider */}
         <div
           ref={sliderRef}
           className="lg:hidden flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          style={{ scrollbarWidth: 'none' }}
           onScroll={(e) => {
             const target = e.target as HTMLDivElement;
             const index = Math.round(target.scrollLeft / (target.scrollWidth / SUBSCRIPTION_TIERS.length));
@@ -342,12 +165,13 @@ export default function PricingPage() {
               planIcons={planIcons}
               planColors={planColors}
               isMobile={true}
+              onCompare={scrollToComparison}
             />
           ))}
         </div>
 
         {/* Desktop Grid */}
-        <div className="hidden lg:grid grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="hidden lg:grid grid-cols-3 gap-6 max-w-5xl mx-auto">
           {SUBSCRIPTION_TIERS.map((plan, index) => (
             <PlanCard
               key={plan.id}
@@ -358,351 +182,148 @@ export default function PricingPage() {
               planIcons={planIcons}
               planColors={planColors}
               isMobile={false}
+              onCompare={scrollToComparison}
             />
+          ))}
+        </div>
+
+        {/* Footnotes under plans */}
+        <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
+          {PRICING_FOOTNOTES.map((note, i) => (
+            <p key={i}>{note}</p>
           ))}
         </div>
       </div>
 
-      {/* Star Packs */}
-      <div className="border-t border-[var(--border)] bg-[var(--surface)]/30">
-        <div className="container mx-auto px-4 sm:px-6 py-16 sm:py-20">
+      {/* Comparison Table */}
+      <div ref={comparisonRef} className="border-t border-zinc-800/50 bg-zinc-900/30">
+        <div className="container mx-auto px-4 py-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-10"
           >
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)] mb-3">
-              Пакеты ⭐ без подписки
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              Сравнение тарифов
             </h2>
-            <p className="text-[var(--text2)]">
-              Разовая покупка — звёзды не сгорают
-            </p>
+            <p className="text-zinc-400">Полный список возможностей</p>
           </motion.div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
-            {STAR_PACKS.map((pkg, index) => {
-              const isLoading = loading === pkg.id;
-              const totalStars = packTotalStars(pkg);
-              const bonusPercent = packBonusPercent(pkg);
-              
-              return (
-                <motion.div
-                  key={pkg.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <div
-                    className={cn(
-                      "relative p-4 sm:p-5 rounded-2xl transition-all h-full flex flex-col text-center",
-                      pkg.popular
-                        ? 'bg-gradient-to-b from-[var(--gold)]/10 to-transparent border-2 border-[var(--gold)]/50 shadow-lg shadow-[var(--gold)]/10'
-                        : 'bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/30'
-                    )}
-                  >
-                    {bonusPercent > 0 && (
-                      <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-[var(--gold)] text-black text-[10px] sm:text-xs font-bold rounded-full">
-                        +{bonusPercent}%
-                      </div>
-                    )}
-                    
-                    <div className="mb-3">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <span className="text-2xl sm:text-3xl font-bold text-[var(--text)]">{totalStars}</span>
-                        <Star className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--gold)] fill-[var(--gold)]" />
-                      </div>
-                      <div className="text-[11px] sm:text-xs text-[var(--muted)]">
-                        Разовая покупка
-                      </div>
-                    </div>
-
-                    {pkg.capacity && (
-                      <p className="text-[10px] sm:text-xs text-[var(--muted)] mb-3 flex-1">
-                        {pkg.capacity}
-                      </p>
-                    )}
-                    
-                    <Button
-                      size="sm"
-                      className={cn(
-                        "w-full font-medium text-xs sm:text-sm",
-                        pkg.popular
-                          ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90'
-                          : 'bg-white/10 text-white hover:bg-white/20'
-                      )}
-                      onClick={() => handlePurchase('package', pkg.id)}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Купить'}
-                    </Button>
-                  </div>
-                </motion.div>
-              );
-            })}
+          {/* Desktop Table */}
+          <div className="hidden md:block max-w-4xl mx-auto">
+            <ComparisonTableDesktop rows={COMPARISON_TABLE} />
           </div>
-        </div>
-      </div>
 
-      {/* Promocode Section */}
-      <div className="container mx-auto px-4 sm:px-6 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="max-w-md mx-auto"
-        >
-          <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
-            <div className="flex items-center gap-2 mb-4">
-              <Gift className="w-5 h-5 text-[var(--gold)]" />
-              <h3 className="font-semibold text-[var(--text)]">Есть промокод?</h3>
-            </div>
-
-            {promoResult?.valid ? (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <Check className="w-5 h-5 text-emerald-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-emerald-400">{promoCode}</span>
-                    <span className="text-sm text-emerald-300">
-                      {promoResult.bonus_type && promoResult.bonus_value
-                        ? formatBonusValue(promoResult.bonus_type, promoResult.bonus_value)
-                        : ''}
-                    </span>
-                  </div>
-                </div>
-                <button onClick={clearPromocode} className="p-1 text-emerald-400 hover:text-white">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === 'Enter' && applyBonusStars()}
-                    placeholder="WELCOME50"
-                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--gold)]/50 font-mono uppercase text-sm"
-                  />
-                </div>
-                <Button
-                  onClick={applyBonusStars}
-                  disabled={promoValidating || promoApplying || !promoCode.trim()}
-                  className="shrink-0 bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
-                >
-                  {promoValidating || promoApplying ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    'OK'
-                  )}
-                </Button>
-              </div>
-            )}
+          {/* Mobile Accordion */}
+          <div className="md:hidden space-y-2">
+            <MobileAccordion
+              title="Общее"
+              rows={COMPARISON_TABLE.filter(r => r.category === 'general')}
+              isOpen={mobileAccordion === 'general'}
+              onToggle={() => setMobileAccordion(mobileAccordion === 'general' ? null : 'general')}
+            />
+            <MobileAccordion
+              title="Видео модели"
+              rows={COMPARISON_TABLE.filter(r => r.category === 'video')}
+              isOpen={mobileAccordion === 'video'}
+              onToggle={() => setMobileAccordion(mobileAccordion === 'video' ? null : 'video')}
+            />
+            <MobileAccordion
+              title="Фото модели"
+              rows={COMPARISON_TABLE.filter(r => r.category === 'image')}
+              isOpen={mobileAccordion === 'image'}
+              onToggle={() => setMobileAccordion(mobileAccordion === 'image' ? null : 'image')}
+            />
           </div>
-        </motion.div>
-      </div>
 
-      {/* FAQ */}
-      <div className="border-t border-[var(--border)]">
-        <div className="container mx-auto px-4 sm:px-6 py-16 sm:py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-10"
-          >
-            <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text)] mb-3">
-              Частые вопросы
-            </h2>
-          </motion.div>
-
-          <div className="max-w-2xl mx-auto space-y-2">
-            {FAQ_ITEMS.map((faq, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <button
-                  onClick={() => setFaqOpen(faqOpen === i ? null : i)}
-                  className="w-full p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--gold)]/30 transition-all text-left"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <h3 className="font-medium text-[var(--text)]">{faq.q}</h3>
-                    <ChevronRight className={cn(
-                      "w-5 h-5 text-[var(--muted)] transition-transform shrink-0",
-                      faqOpen === i && "rotate-90"
-                    )} />
-                  </div>
-                  <AnimatePresence>
-                    {faqOpen === i && (
-                      <motion.p
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="text-sm text-[var(--text2)] mt-3 overflow-hidden"
-                      >
-                        {faq.a}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </motion.div>
+          {/* Footnotes under table */}
+          <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
+            {PRICING_FOOTNOTES.map((note, i) => (
+              <p key={i}>{note}</p>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Auth Dialog */}
+      {/* FAQ */}
+      <FAQ />
+
       <LoginDialog isOpen={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
 
-      {/* Hide scrollbar */}
       <style jsx global>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );
 }
 
-// Plan Card Component
+// Plan Card
 interface PlanCardProps {
-  plan: typeof SUBSCRIPTION_TIERS[0];
+  plan: PricingTier;
   index: number;
   loading: string | null;
-  onPurchase: (type: 'subscription' | 'package', itemId: string) => void;
+  onPurchase: (planId: string) => void;
   planIcons: Record<string, any>;
-  planColors: Record<string, { bg: string; border: string; accent: string }>;
+  planColors: Record<string, string>;
   isMobile: boolean;
+  onCompare: () => void;
 }
 
-function PlanCard({
-  plan,
-  index,
-  loading,
-  onPurchase,
-  planIcons,
-  planColors,
-  isMobile,
-}: PlanCardProps) {
-  const Icon = planIcons[plan.id as keyof typeof planIcons] || Sparkles;
-  const colors = planColors[plan.id as keyof typeof planColors] || planColors.creator;
+function PlanCard({ plan, index, loading, onPurchase, planIcons, planColors, isMobile, onCompare }: PlanCardProps) {
+  const Icon = planIcons[plan.id as keyof typeof planIcons] || Zap;
+  const gradient = planColors[plan.id as keyof typeof planColors] || planColors.start;
   const isPopular = !!plan.popular;
   const isLoading = loading === plan.id;
-
-  // Features by plan
-  const planFeatures = {
-    creator: [
-      '🖼️ Nano Banana — БЕСПЛАТНО',
-      '🎬 Veo 3.1, Sora 2, Kling',
-      '🖼️ FLUX 2 Pro, GPT Image',
-      '🎵 Suno AI музыка',
-      '📁 Галерея без лимита',
-    ],
-    creator_plus: [
-      '🖼️ Nano Banana — БЕСПЛАТНО',
-      '✨ Nano Banana Pro 1-2K — БЕЗЛИМИТ',
-      '🎬 Veo 3.1, Sora 2, Kling',
-      '🖼️ FLUX 2 Pro, GPT Image, Ideogram',
-      '🎵 Suno AI музыка',
-      '⚡ Приоритетная очередь',
-    ],
-    business: [
-      '🖼️ Nano Banana — БЕСПЛАТНО',
-      '✨ Nano Banana Pro 1-2K — БЕЗЛИМИТ',
-      '🎬 Veo 3.1, Sora 2, Kling + все видео',
-      '🖼️ Все фото-модели без ограничений',
-      '🎵 Suno AI + голосовые модели',
-      '⚡ Максимальный приоритет',
-      '💼 API доступ (скоро)',
-    ],
-  };
-
-  const features = planFeatures[plan.id as keyof typeof planFeatures] || planFeatures.creator;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      className={cn(
-        isMobile && "min-w-[85vw] snap-center"
-      )}
+      className={cn(isMobile && "min-w-[85vw] snap-center")}
     >
       <div
         className={cn(
-          "relative p-5 sm:p-6 rounded-2xl h-full flex flex-col",
-          "bg-gradient-to-b",
-          colors.bg,
-          "border-2",
-          isPopular ? "border-[var(--gold)] shadow-xl shadow-[var(--gold)]/20" : colors.border
+          "relative p-6 rounded-2xl h-full flex flex-col",
+          "bg-gradient-to-b border",
+          gradient,
+          isPopular 
+            ? "border-amber-500/50 shadow-lg shadow-amber-500/10" 
+            : "border-zinc-800"
         )}
       >
-        {/* Popular Badge */}
         {isPopular && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--gold)] text-black text-xs font-bold rounded-full shadow-lg">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-amber-500 text-black text-xs font-bold rounded-full">
             Популярный
           </div>
         )}
 
-        {/* Header */}
-        <div className={cn("text-center mb-4", isPopular && "pt-2")}>
+        <div className={cn("text-center mb-5", isPopular && "pt-2")}>
           <div className={cn(
             "w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3",
-            isPopular ? "bg-[var(--gold)]/20" : "bg-white/10"
+            isPopular ? "bg-amber-500/20" : "bg-zinc-800"
           )}>
-            <Icon className={cn("w-6 h-6", isPopular ? "text-[var(--gold)]" : "text-white")} />
+            <Icon className={cn("w-6 h-6", isPopular ? "text-amber-400" : "text-zinc-400")} />
           </div>
-          <h3 className="font-bold text-[var(--text)] text-xl sm:text-2xl mb-1">{plan.name}</h3>
           
-          {/* Stars badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <Star className="w-4 h-4 text-[var(--gold)] fill-[var(--gold)]" />
-            <span className="text-sm font-bold text-white">
-              {plan.stars.toLocaleString()} ⭐/мес на платные модели
-            </span>
+          <h3 className="font-bold text-white text-2xl mb-1">{plan.name}</h3>
+          
+          <div className="flex items-baseline justify-center gap-1 mb-2">
+            <span className="text-3xl font-bold text-white">{formatPrice(plan.price)}</span>
+            <span className="text-zinc-500">₽/мес</span>
+          </div>
+          
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 border border-zinc-700/50">
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+            <span className="text-sm font-semibold text-white">+{plan.stars.toLocaleString()}⭐ / мес</span>
           </div>
         </div>
 
-        {/* Main Feature Highlight */}
-        <div className={cn(
-          "mb-4 p-3 rounded-xl text-center",
-          plan.id === 'creator' 
-            ? "bg-emerald-500/10 border border-emerald-500/30"
-            : "bg-gradient-to-r from-[var(--gold)]/20 to-amber-500/20 border-2 border-[var(--gold)]/50"
-        )}>
-          {plan.id === 'creator' ? (
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span className="text-base font-bold text-emerald-400">Nano Banana БЕСПЛАТНО</span>
-              </div>
-              <span className="text-xs text-emerald-400/70">Быстрая генерация изображений</span>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center justify-center gap-2">
-                <Infinity className="w-5 h-5 text-[var(--gold)]" />
-                <span className="text-base font-bold text-[var(--gold)]">Pro 1-2K БЕЗЛИМИТ</span>
-              </div>
-              <span className="text-xs text-[var(--gold)]/70">+ Nano Banana бесплатно</span>
-            </div>
-          )}
-        </div>
-
-        {/* Features List */}
         <div className="mb-5 flex-1">
-          <p className="text-xs text-[var(--muted)] uppercase tracking-wider mb-2 font-medium">Что входит:</p>
-          <ul className="space-y-2">
-            {features.map((item, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-[var(--text2)]">
+          <ul className="space-y-2.5">
+            {plan.highlights.map((item, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-300">
                 <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <span>{item}</span>
               </li>
@@ -710,24 +331,235 @@ function PlanCard({
           </ul>
         </div>
 
-        {/* CTA Button */}
-        <Button
-          className={cn(
-            "w-full font-semibold h-11",
-            isPopular
-              ? 'bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90 shadow-lg shadow-[var(--gold)]/30'
-              : 'bg-white text-black hover:bg-white/90'
-          )}
-          onClick={() => onPurchase('subscription', plan.id)}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            `Выбрать ${plan.name}`
-          )}
-        </Button>
+        <div className="space-y-2">
+          <Button
+            className={cn(
+              "w-full font-semibold h-11",
+              isPopular
+                ? 'bg-amber-500 text-black hover:bg-amber-400'
+                : 'bg-white text-black hover:bg-zinc-200'
+            )}
+            onClick={() => onPurchase(plan.id)}
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Выбрать ${plan.name}`}
+          </Button>
+          
+          <button
+            onClick={onCompare}
+            className="w-full text-center text-xs text-zinc-500 hover:text-zinc-300 transition py-1"
+          >
+            Сравнить тарифы →
+          </button>
+        </div>
       </div>
     </motion.div>
+  );
+}
+
+// Desktop Comparison Table
+function ComparisonTableDesktop({ rows }: { rows: ComparisonRow[] }) {
+  const categories = [
+    { key: 'general', label: 'Общее' },
+    { key: 'video', label: 'Видео модели' },
+    { key: 'image', label: 'Фото модели' },
+  ];
+
+  return (
+    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      {/* Header */}
+      <div className="grid grid-cols-4 bg-zinc-900/80">
+        <div className="p-4 text-sm font-medium text-zinc-400"></div>
+        <div className="p-4 text-center text-sm font-bold text-zinc-300">START</div>
+        <div className="p-4 text-center text-sm font-bold text-amber-400 bg-amber-500/5">PRO</div>
+        <div className="p-4 text-center text-sm font-bold text-violet-400">MAX</div>
+      </div>
+
+      {categories.map((cat) => (
+        <div key={cat.key}>
+          <div className="grid grid-cols-4 bg-zinc-800/50">
+            <div className="col-span-4 p-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+              {cat.label}
+            </div>
+          </div>
+          {rows.filter(r => r.category === cat.key).map((row, i) => (
+            <div key={i} className="grid grid-cols-4 border-t border-zinc-800/50 hover:bg-zinc-800/20">
+              <div className="p-3 text-sm text-zinc-300">{row.label}</div>
+              <TableCell value={row.start} />
+              <TableCell value={row.pro} highlight />
+              <TableCell value={row.max} />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TableCell({ value, highlight }: { value: string; highlight?: boolean }) {
+  const isCheck = value === '✓';
+  const isDash = value === '—';
+  
+  return (
+    <div className={cn(
+      "p-3 text-center text-sm",
+      highlight && "bg-amber-500/5"
+    )}>
+      {isCheck ? (
+        <Check className="w-4 h-4 text-emerald-400 mx-auto" />
+      ) : isDash ? (
+        <span className="text-zinc-600">—</span>
+      ) : (
+        <span className={cn(
+          value.includes('Бесплатно') ? "text-emerald-400 font-medium" : 
+          value.includes('⭐') ? "text-amber-400 font-medium" : "text-zinc-300"
+        )}>
+          {value}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Mobile Accordion
+function MobileAccordion({ 
+  title, 
+  rows, 
+  isOpen, 
+  onToggle 
+}: { 
+  title: string; 
+  rows: ComparisonRow[]; 
+  isOpen: boolean; 
+  onToggle: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full p-4 flex items-center justify-between bg-zinc-900/50 hover:bg-zinc-800/50"
+      >
+        <span className="font-medium text-white">{title}</span>
+        <ChevronDown className={cn("w-5 h-5 text-zinc-400 transition-transform", isOpen && "rotate-180")} />
+      </button>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[400px]">
+                <thead>
+                  <tr className="border-t border-zinc-800">
+                    <th className="p-2 text-left text-xs text-zinc-500 font-normal"></th>
+                    <th className="p-2 text-center text-xs text-zinc-400 font-medium">START</th>
+                    <th className="p-2 text-center text-xs text-amber-400 font-medium bg-amber-500/5">PRO</th>
+                    <th className="p-2 text-center text-xs text-violet-400 font-medium">MAX</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={i} className="border-t border-zinc-800/50">
+                      <td className="p-2 text-xs text-zinc-300">{row.label}</td>
+                      <MobileTableCell value={row.start} />
+                      <MobileTableCell value={row.pro} highlight />
+                      <MobileTableCell value={row.max} />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function MobileTableCell({ value, highlight }: { value: string; highlight?: boolean }) {
+  const isCheck = value === '✓';
+  const isDash = value === '—';
+  
+  return (
+    <td className={cn("p-2 text-center text-xs", highlight && "bg-amber-500/5")}>
+      {isCheck ? (
+        <Check className="w-3.5 h-3.5 text-emerald-400 mx-auto" />
+      ) : isDash ? (
+        <span className="text-zinc-600">—</span>
+      ) : (
+        <span className={cn(
+          value.includes('Бесплатно') ? "text-emerald-400" : 
+          value.includes('⭐') ? "text-amber-400" : "text-zinc-300"
+        )}>
+          {value}
+        </span>
+      )}
+    </td>
+  );
+}
+
+// FAQ
+function FAQ() {
+  const [open, setOpen] = useState<number | null>(null);
+  
+  const items = [
+    {
+      q: 'Что такое ⭐ и как их тратить?',
+      a: '⭐ — универсальная валюта LensRoom. Начисляются каждый месяц и тратятся на любые генерации: видео, фото, аудио. У каждой модели своя цена в ⭐.',
+    },
+    {
+      q: 'Что входит в "Бесплатно" NanoBanana Pro?',
+      a: 'В тарифах PRO и MAX NanoBanana Pro 2K/4K включены без ограничений (fair-use). Генерируйте сколько нужно за 0⭐.',
+    },
+    {
+      q: 'Переносятся ли ⭐ на следующий месяц?',
+      a: 'Нет, ⭐ из подписки не переносятся. Используйте их до конца периода.',
+    },
+    {
+      q: 'Что такое Motion Control?',
+      a: 'Motion Control — режим Kling 2.6 для точного управления движением камеры. Доступен во всех тарифах.',
+    },
+    {
+      q: 'Как отменить подписку?',
+      a: 'В личном кабинете или напишите в поддержку. Деньги за неиспользованный период возвращаем в течение 14 дней.',
+    },
+  ];
+
+  return (
+    <div className="border-t border-zinc-800/50">
+      <div className="container mx-auto px-4 py-16">
+        <h2 className="text-2xl font-bold text-white text-center mb-8">Частые вопросы</h2>
+        <div className="max-w-2xl mx-auto space-y-2">
+          {items.map((item, i) => (
+            <button
+              key={i}
+              onClick={() => setOpen(open === i ? null : i)}
+              className="w-full p-4 rounded-xl bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition text-left"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-medium text-white">{item.q}</span>
+                <ChevronRight className={cn("w-5 h-5 text-zinc-500 transition-transform shrink-0", open === i && "rotate-90")} />
+              </div>
+              <AnimatePresence>
+                {open === i && (
+                  <motion.p
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="text-sm text-zinc-400 mt-3 overflow-hidden"
+                  >
+                    {item.a}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

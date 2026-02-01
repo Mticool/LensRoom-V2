@@ -2,18 +2,19 @@
 
 import { useMemo } from 'react';
 import { GeneratorMode, GenerationSettings } from '../GeneratorV2';
-import { computePrice, ComputedPrice } from '@/lib/pricing/compute-price';
+import { getSkuFromRequest, calculateTotalStars, type PricingOptions } from '@/lib/pricing/pricing';
 
 interface CostCalculationResult {
   stars: number;
   credits: number;
   breakdown?: string;
   isIncludedInPlan?: boolean;
+  sku?: string;
 }
 
 /**
  * Calculate the cost in stars for a generation based on model and settings
- * Uses the centralized computePrice function (same as API)
+ * Uses the NEW pricing system (2026-01-27) - same as API
  */
 export function calculateGenerationCost(
   mode: GeneratorMode,
@@ -21,32 +22,54 @@ export function calculateGenerationCost(
 ): CostCalculationResult {
   const modelId = settings.model;
   
-  // Build price options matching API format
-  const priceOptions: Parameters<typeof computePrice>[1] = {
-    variants: 1,
-  };
+  try {
+    // Build pricing options matching API format
+    const pricingOptions: PricingOptions = {
+      mode: mode === 'image' ? 't2i' : 't2v',
+    };
 
-  if (mode === 'image') {
-    // Photo options
-    if (settings.quality) priceOptions.quality = settings.quality;
-    if (settings.resolution) priceOptions.resolution = settings.resolution;
-  } else {
-    // Video options
-    priceOptions.mode = 't2v'; // Default to text-to-video
-    if (settings.duration) priceOptions.duration = settings.duration;
-    if (settings.quality) priceOptions.videoQuality = settings.quality;
-    if (settings.resolution) priceOptions.resolution = settings.resolution;
-    if (settings.audio !== undefined) priceOptions.audio = settings.audio;
-    if (settings.modelVariant) priceOptions.modelVariant = settings.modelVariant;
+    if (mode === 'image') {
+      // Photo options
+      if (settings.quality) pricingOptions.quality = settings.quality;
+      if (settings.resolution) pricingOptions.resolution = settings.resolution;
+    } else {
+      // Video options
+      if (settings.duration) pricingOptions.duration = settings.duration;
+      if (settings.quality) pricingOptions.videoQuality = settings.quality;
+      if (settings.resolution) pricingOptions.resolution = settings.resolution;
+      if (settings.audio !== undefined) pricingOptions.audio = settings.audio;
+      if (settings.modelVariant) pricingOptions.modelVariant = settings.modelVariant;
+      // Check for motion control
+      if (modelId === 'kling-motion-control' || modelId.includes('motion-control')) {
+        pricingOptions.isMotionControl = true;
+      }
+    }
+
+    // Generate SKU and calculate price
+    const sku = getSkuFromRequest(modelId, pricingOptions);
+    const stars = calculateTotalStars(sku, pricingOptions.duration);
+
+    return {
+      stars,
+      credits: stars, // Legacy field for backwards compatibility
+      sku,
+      breakdown: `${settings.model}${settings.quality ? ` (${settings.quality})` : ''}${settings.duration ? ` ${settings.duration}с` : ''}`,
+    };
+  } catch (error) {
+    console.error('[useCostCalculation] Pricing error:', {
+      modelId,
+      mode,
+      settings,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    
+    // Return 0 stars on error (don't block UI)
+    return {
+      stars: 0,
+      credits: 0,
+      breakdown: 'Ошибка расчёта стоимости',
+    };
   }
-
-  const computed = computePrice(modelId, priceOptions);
-
-  return {
-    stars: computed.stars,
-    credits: computed.credits,
-    breakdown: `${settings.model}${settings.quality ? ` (${settings.quality})` : ''}${settings.duration ? ` ${settings.duration}с` : ''}`,
-  };
 }
 
 /**

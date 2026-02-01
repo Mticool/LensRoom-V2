@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { refundCredits } from '@/lib/credits/refund';
 
 /**
  * CRON: Cleanup stuck generations and refund credits
@@ -91,44 +92,22 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          // Refund credits to user
+          // Refund credits to user (via split-credits)
           const creditsToRefund = generation.credits_used || 0;
-          
           if (creditsToRefund > 0) {
-            // Get current balance
-            const { data: userData, error: userError } = await supabase
-              .from('users')
-              .select('credits')
-              .eq('id', generation.user_id)
-              .single();
-
-            if (!userError && userData) {
-              const newBalance = (userData.credits || 0) + creditsToRefund;
-              
-              // Update balance
-              await supabase
-                .from('users')
-                .update({ credits: newBalance })
-                .eq('id', generation.user_id);
-
-              // Log transaction
-              await supabase
-                .from('credit_transactions')
-                .insert({
-                  user_id: generation.user_id,
-                  amount: creditsToRefund,
-                  type: 'refund',
-                  description: `Автовозврат за зависшую генерацию (${generation.model_id})`,
-                  generation_id: generation.id,
-                  metadata: {
-                    reason: 'stuck_generation_cleanup',
-                    original_status: status,
-                    timeout_minutes: timeoutMinutes,
-                  },
-                });
-
-              console.log(`[Cleanup] Refunded ${creditsToRefund} credits to user ${generation.user_id}`);
-            }
+            await refundCredits(
+              supabase,
+              generation.user_id,
+              generation.id,
+              creditsToRefund,
+              'stuck_generation_cleanup',
+              {
+                original_status: status,
+                timeout_minutes: timeoutMinutes,
+                model_id: generation.model_id,
+              }
+            );
+            console.log(`[Cleanup] Refunded ${creditsToRefund} credits to user ${generation.user_id}`);
           }
 
           results.push({

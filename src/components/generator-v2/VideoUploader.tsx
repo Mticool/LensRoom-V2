@@ -17,7 +17,7 @@ interface VideoUploaderProps {
   duration?: number | null;
 }
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (per KIE documentation)
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (per API documentation)
 const ACCEPTED_FORMATS = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm'];
 
 export function VideoUploader({

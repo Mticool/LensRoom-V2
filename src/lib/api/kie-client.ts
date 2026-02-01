@@ -41,14 +41,56 @@ export interface CreateTaskRequest {
 
 export interface VeoGenerateRequest {
   prompt: string;
-  model?: 'veo3' | 'veo3_fast'; // veo3 = quality, veo3_fast = fast
-  aspectRatio?: string;
+  model?: 'veo3' | 'veo3_fast'; // veo3 = quality, veo3_fast = fast (maps to "veo-3-1-quality" / "veo-3-1-fast")
+  mode?: 'reference-to-video' | 'image-to-video' | 'text-to-video'; // API mode
+  ratio?: string; // "Auto" | "16:9" | "9:16"
+  aspectRatio?: string; // Legacy field (mapped to ratio)
+  duration?: number; // Duration in seconds (default 8)
+  seed?: number; // Random seed for reproducibility
+  enable_audio?: boolean; // Native Veo 3.1 audio
   enhancePrompt?: boolean;
   useFallback?: boolean; // Use Veo 3 Fallback API to bypass content policy
-  // For image-to-video
+  // For image-to-video (legacy single/multiple images)
   imageUrls?: string[];
+  // For reference-to-video with weighted references
+  reference_images?: Array<{
+    url: string;
+    weight?: number; // 0.0-1.0
+    type?: string; // Optional label like "character", "lighting", etc.
+  }>;
+  // Frame control for start/end frames
+  frame_control?: {
+    start_frame?: {
+      mode: 'image';
+      image_url: string;
+      strength?: number; // 0.0-1.0
+    };
+    end_frame?: {
+      mode: 'image';
+      image_url: string;
+      strength?: number; // 0.0-1.0
+    };
+  };
   // For callback webhook
   callBackUrl?: string;
+}
+
+export interface VeoExtendRequest {
+  taskId: string; // ID оригинальной задачи генерации Veo
+  prompt: string; // Описание продолжения видео
+  seeds?: number; // Случайное зерно (10000-99999)
+  watermark?: string; // Текст водяного знака
+  callBackUrl?: string; // URL для асинхронного уведомления
+}
+
+export interface LipSyncParams {
+  model: string; // API model: 'kling/ai-avatar-standard' or 'infinitalk/from-audio'
+  imageUrl: string; // URL изображения персонажа
+  audioUrl: string; // URL аудио файла
+  prompt?: string; // Описание эмоций/стиля (опционально)
+  resolution?: '480p' | '720p'; // Разрешение (только для InfiniteTalk)
+  seed?: number; // Случайное зерно (только для InfiniteTalk, 10000-1000000)
+  callbackUrl?: string; // URL для callback уведомления
 }
 
 // ===== RESPONSE TYPES =====
@@ -176,9 +218,15 @@ export interface GenerateVideoRequest {
   duration?: number | string;
   aspectRatio?: string;
   sound?: boolean | string;
-  mode?: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'storyboard' | 'motion_control';
+  mode?: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'storyboard' | 'motion_control' | 'ref2v' | 'extend';
   resolution?: string; // For bytedance: 480p/720p/1080p; For motion control: 720p/1080p
   quality?: string; // For sora-pro: standard/high
+  // For Veo 3.1 reference-to-video: array of reference images with weights
+  referenceImages?: Array<{
+    url?: string;
+    weight?: number;
+    type?: string;
+  }> | string[]; // Can be array of objects or simple string array (converted internally)
   // For motion control: character orientation
   // 'image' = use orientation from reference image (max 10s video)
   // 'video' = use orientation from reference video (max 30s video)
@@ -459,6 +507,77 @@ export class KieAIClient {
     });
   }
 
+  // ===== VEO 3.1 API - EXTEND =====
+  // POST /api/v1/veo/extend
+  async veoExtend(request: VeoExtendRequest): Promise<VeoGenerateResponse> {
+    if (this._isMockMode) {
+      return this.mockVeoGenerate({ prompt: request.prompt, model: 'veo3_fast' });
+    }
+
+    const requestBody: Record<string, unknown> = {
+      taskId: request.taskId,
+      prompt: request.prompt,
+    };
+
+    if (request.seeds !== undefined) {
+      requestBody.seeds = request.seeds;
+    }
+    if (request.watermark) {
+      requestBody.watermark = request.watermark;
+    }
+    if (request.callBackUrl) {
+      requestBody.callBackUrl = request.callBackUrl;
+    }
+
+    return this.request<VeoGenerateResponse>("/api/v1/veo/extend", {
+      method: "POST",
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  // ===== LIP SYNC API - GENERATE VIDEO FROM IMAGE + AUDIO =====
+  // POST /api/v1/jobs/createTask (Kling AI Avatar & InfiniteTalk)
+  async lipSyncVideo(params: LipSyncParams): Promise<CreateTaskResponse> {
+    if (this._isMockMode) {
+      return this.mockCreateTask({
+        model: params.model,
+        input: {
+          image_url: params.imageUrl,
+          audio_url: params.audioUrl,
+        },
+      });
+    }
+
+    const input: Record<string, unknown> = {
+      image_url: params.imageUrl,
+      audio_url: params.audioUrl,
+    };
+
+    // Добавить опциональные параметры
+    if (params.prompt) {
+      input.prompt = params.prompt;
+    }
+
+    // Resolution и seed только для InfiniteTalk
+    if (params.resolution) {
+      input.resolution = params.resolution;
+    }
+
+    if (params.seed !== undefined) {
+      input.seed = params.seed;
+    }
+
+    const request: CreateTaskRequest = {
+      model: params.model,
+      input,
+      ...(params.callbackUrl && { callBackUrl: params.callbackUrl }),
+    };
+
+    console.log('[KIE Lip Sync] Request:', JSON.stringify(request, null, 2));
+
+    return this.createTask(request);
+  }
+
   // ===== VEO 3.1 API - WAIT FOR COMPLETION =====
   // Poll status until completion or timeout
   async veoWaitForCompletion(
@@ -737,9 +856,11 @@ export class KieAIClient {
 
     const request: VeoGenerateRequest = {
       prompt: params.prompt || '',
-      aspectRatio: veoAspect,
+      ratio: veoAspect, // Use ratio field for new API format
+      duration: typeof params.duration === 'number' ? params.duration : 8,
       enhancePrompt: true,
       useFallback: true, // Enable Veo 3 Fallback API to bypass content policy
+      enable_audio: typeof params.sound === 'boolean' ? params.sound : false,
     };
 
     // Select model based on quality
@@ -750,22 +871,63 @@ export class KieAIClient {
       request.model = 'veo3'; // Default quality mode
     }
 
-    // Add image URLs for i2v mode
+    // Map mode to API format
+    if (params.mode === 'ref2v') {
+      request.mode = 'reference-to-video';
+    } else if (params.mode === 'i2v' || params.mode === 'start_end') {
+      request.mode = 'image-to-video';
+    } else {
+      request.mode = 'text-to-video';
+    }
+
+    // === REF2V MODE: Reference images with weights ===
+    if (params.mode === 'ref2v' && params.referenceImages && params.referenceImages.length > 0) {
+      request.reference_images = params.referenceImages.map((ref, index) => {
+        // Handle both string URLs and object format
+        if (typeof ref === 'string') {
+          return {
+            url: ref,
+            weight: 0.8,
+            type: `reference_${index + 1}`,
+          };
+        }
+        return {
+          url: ref.url || '',
+          weight: ref.weight || 0.8,
+          type: ref.type || `reference_${index + 1}`,
+        };
+      });
+      console.log('[VEO] ref2v mode: using', request.reference_images.length, 'reference images');
+    }
+
+    // === I2V MODE: Single or multiple images (legacy format) ===
     if (params.mode === 'i2v' && params.imageUrl) {
       request.imageUrls = [params.imageUrl];
     } else if (params.mode === 'i2v' && params.imageUrls && params.imageUrls.length > 0) {
       request.imageUrls = params.imageUrls;
     }
 
-    // Start_end mode: first and last frame
+    // === START_END MODE: First and last frame control ===
     if (params.mode === 'start_end') {
-      const urls: string[] = [];
-      if (params.imageUrl) urls.push(params.imageUrl); // First frame
-      if (params.lastFrameUrl) urls.push(params.lastFrameUrl); // Last frame
-      if (urls.length > 0) {
-        request.imageUrls = urls;
-        console.log('[VEO] start_end mode: using', urls.length, 'frames (first + last)');
+      request.frame_control = {};
+      
+      if (params.imageUrl) {
+        request.frame_control.start_frame = {
+          mode: 'image',
+          image_url: params.imageUrl,
+          strength: 0.9,
+        };
       }
+      
+      if (params.lastFrameUrl) {
+        request.frame_control.end_frame = {
+          mode: 'image',
+          image_url: params.lastFrameUrl,
+          strength: 0.9,
+        };
+      }
+      
+      console.log('[VEO] start_end mode: frame_control configured');
     }
 
     // Add callback URL (recommended to keep delivery reliable)

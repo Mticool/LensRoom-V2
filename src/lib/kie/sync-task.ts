@@ -520,6 +520,201 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     return { ok: true, status: mapped as "queued" | "generating", state: status.status };
   }
 
+  // ---- AUDIO SYNC (TTS / ElevenLabs) ----
+  if (String(generation.type || "").toLowerCase() === "audio") {
+    const info = await fetchRecordInfo(taskId);
+    console.log("[KIE sync-task] audio recordInfo", { taskId, state: info.state, hasResultJson: !!info.resultJson });
+
+    if (info.state === "success") {
+      let audioUrl: string | null = null;
+      let durationSec = 0;
+
+      // Extract audio URL from resultJson
+      if (info.resultJson) {
+        try {
+          const parsed = JSON.parse(info.resultJson);
+          audioUrl = parsed.audio_url || parsed.audioUrl || parsed.url || parsed.output;
+          
+          // Try to get duration from metadata
+          if (parsed.duration) durationSec = Math.ceil(Number(parsed.duration));
+          else if (parsed.duration_seconds) durationSec = Math.ceil(Number(parsed.duration_seconds));
+          
+          console.log("[KIE sync-task] audio parsed", { audioUrl, durationSec, parsed: JSON.stringify(parsed).substring(0, 200) });
+        } catch {
+          // If JSON parse fails, try regex
+          const urlMatch = info.resultJson.match(/https?:\/\/[^\s"'<>]+\.(mp3|wav|ogg|m4a)[^\s"'<>]*/i);
+          if (urlMatch) audioUrl = urlMatch[0];
+        }
+      }
+
+      if (!audioUrl) {
+        await safeUpdateGeneration(supabase, generation.id, {
+          status: "failed",
+          error: "No audio URL returned from KIE",
+          updated_at: new Date().toISOString(),
+        });
+        await refundGenerationCredits(supabase, generation.id, 'no_audio_url_returned');
+        return { ok: true, status: "failed" as const, error: "no_audio_url" as const };
+      }
+
+      // If duration not in metadata, estimate from file size or use default
+      if (durationSec === 0) {
+        try {
+          // Import the duration helper
+          const { getAudioDurationFromUrl } = await import('@/lib/audio/get-duration');
+          durationSec = await getAudioDurationFromUrl(audioUrl);
+          console.log("[KIE sync-task] audio duration from file", { durationSec });
+        } catch (err) {
+          console.warn("[KIE sync-task] failed to get audio duration, estimating", { err });
+          // Fallback: estimate based on prompt length (rough: ~2 words per second)
+          const promptLength = String(generation.prompt || "").length;
+          const estimatedWords = promptLength / 5;
+          durationSec = Math.max(1, Math.ceil(estimatedWords / 2));
+        }
+      }
+
+      // Ensure minimum 1 second
+      durationSec = Math.max(1, Math.ceil(durationSec));
+
+      // Calculate stars: 1 second = 1 star
+      const starsToDeduct = durationSec;
+
+      console.log("[KIE sync-task] audio billing", {
+        generationId: generation.id,
+        durationSec,
+        starsToDeduct,
+        audioUrl: audioUrl.substring(0, 50),
+      });
+
+      // Check if deferred billing (metadata.deferred_billing = true)
+      const metadata = generation.metadata as any || {};
+      const isDeferredBilling = metadata.deferred_billing === true;
+
+      // Deduct credits (if deferred billing and not admin/manager)
+      if (isDeferredBilling) {
+        try {
+          const { data: profile } = await supabase
+            .from('telegram_profiles')
+            .select('role')
+            .eq('auth_user_id', generation.user_id)
+            .single();
+
+          const userRole = profile?.role || 'user';
+          const skipCredits = userRole === 'manager' || userRole === 'admin';
+
+          if (!skipCredits) {
+            // Get current balance
+            const { data: creditsData } = await supabase
+              .from('credits')
+              .select('amount')
+              .eq('user_id', generation.user_id)
+              .single();
+
+            if (creditsData && creditsData.amount >= starsToDeduct) {
+              // Deduct credits
+              const newBalance = creditsData.amount - starsToDeduct;
+              await supabase
+                .from('credits')
+                .update({
+                  amount: newBalance,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('user_id', generation.user_id);
+
+              // Record transaction
+              await supabase.from('credit_transactions').insert({
+                user_id: generation.user_id,
+                amount: -starsToDeduct,
+                type: 'deduction',
+                description: `Озвучка: ${durationSec} сек (автоматическое списание)`,
+                generation_id: generation.id,
+              });
+
+              console.log("[KIE sync-task] audio credits deducted", {
+                generationId: generation.id,
+                starsDeducted: starsToDeduct,
+                newBalance,
+              });
+            } else {
+              console.error("[KIE sync-task] insufficient credits for audio finalization", {
+                generationId: generation.id,
+                required: starsToDeduct,
+                available: creditsData?.amount || 0,
+              });
+              // Still mark as success but log error
+            }
+          }
+        } catch (err) {
+          console.error("[KIE sync-task] audio credit deduction error", { err });
+          // Don't fail the generation, just log
+        }
+      }
+
+      // Update generation record
+      await safeUpdateGeneration(supabase, generation.id, {
+        status: "success",
+        result_url: audioUrl,
+        result_urls: [audioUrl],
+        asset_url: audioUrl,
+        duration_sec: durationSec,
+        actual_stars_spent: starsToDeduct,
+        error: null,
+        updated_at: new Date().toISOString(),
+      });
+
+      // Telegram notification
+      try {
+        await notifyGenerationStatus({
+          userId: String(generation.user_id),
+          generationId: String(generation.id),
+          kind: "audio",
+          status: "success",
+        });
+      } catch {}
+
+      // Track referral event
+      try {
+        await trackFirstGenerationEvent(String(generation.user_id), String(generation.id));
+      } catch {}
+
+      return { ok: true, status: "success" as const, assetUrl: audioUrl, resultUrls: [audioUrl], durationSec, starsSpent: starsToDeduct };
+    }
+
+    if (info.state === "fail") {
+      const msg = info.failMsg || `Audio generation failed (code: ${info.failCode || "unknown"})`;
+      await safeUpdateGeneration(supabase, generation.id, {
+        status: "failed",
+        error: msg,
+        updated_at: new Date().toISOString(),
+      });
+
+      // Auto-refund credits on failure (if any were deducted upfront)
+      await refundGenerationCredits(supabase, generation.id, 'audio_generation_failed', {
+        error: msg,
+        failCode: info.failCode,
+      });
+
+      try {
+        await notifyGenerationStatus({
+          userId: String(generation.user_id),
+          generationId: String(generation.id),
+          kind: "audio",
+          status: "failed",
+        });
+      } catch {}
+      return { ok: true, status: "failed" as const, error: msg };
+    }
+
+    // In-progress states
+    const nextStatus = info.state === "waiting" || info.state === "queuing" ? "queued" : "generating";
+    await safeUpdateGeneration(supabase, generation.id, {
+      status: nextStatus,
+      updated_at: new Date().toISOString(),
+    });
+
+    return { ok: true, status: nextStatus as "queued" | "generating", state: info.state };
+  }
+
   // ---- IMAGE SYNC ----
   const info = await fetchRecordInfo(taskId);
   console.log("[KIE sync-task] recordInfo", { taskId, state: info.state, hasResultJson: !!info.resultJson, failCode: info.failCode });

@@ -11,22 +11,36 @@ import {
   type EffectPreset,
 } from '@/config/effectsGallery';
 import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
+import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 
 // ===== CONSTANTS =====
-const INITIAL_LOAD = 12; // Load 12 items initially (4 per column)
-const LOAD_MORE = 9; // Load 9 more on scroll
+const INITIAL_LOAD = 15; // Increased for better initial experience
+const LOAD_MORE = 12; // Increased for smoother scrolling
+const PREFETCH_THRESHOLD = 3; // Start loading when 3 items from bottom
 
 // ===== EFFECT CARD (Memoized) =====
 interface EffectCardProps {
   preset: EffectPreset;
   onClick: () => void;
   priority?: boolean;
+  quality?: 'low' | 'medium' | 'high';
+  reducedMotion?: boolean;
 }
 
-const EffectCard = memo(function EffectCard({ preset, onClick, priority = false }: EffectCardProps) {
+const EffectCard = memo(function EffectCard({ 
+  preset, 
+  onClick, 
+  priority = false,
+  quality = 'medium',
+  reducedMotion = false,
+}: EffectCardProps) {
   const src = (preset.previewImage || '').trim();
   const posterSrc = (preset.posterUrl || '').trim();
   const isVideo = preset.contentType === 'video' || /\.(mp4|webm)(\?|#|$)/i.test(src);
+  
+  // Transition based on reduced motion
+  const transitionDuration = reducedMotion ? 'duration-200' : 'duration-500';
+  const hoverTransform = reducedMotion ? '' : 'group-hover:scale-105';
   
   // Dynamic aspect ratios for visual variety in masonry
   const getAspectClass = (ratio: string, isFeatured?: boolean) => {
@@ -47,12 +61,12 @@ const EffectCard = memo(function EffectCard({ preset, onClick, priority = false 
   
   return (
     <div
-      className="group relative w-full overflow-hidden rounded-xl bg-[var(--surface)] 
+      className={`group relative w-full overflow-hidden rounded-xl bg-[var(--surface)] 
                  border border-[var(--border)] break-inside-avoid mb-3
-                 transition-all duration-300 ease-out
-                 hover:translate-y-[-2px]
+                 transition-all ${transitionDuration} ease-out
+                 ${reducedMotion ? '' : 'hover:translate-y-[-2px]'}
                  hover:border-white/50
-                 hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]"
+                 hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]`}
     >
       {/* Image/Video with proper aspect ratio */}
       <div className={`relative w-full ${getAspectClass(preset.tileRatio, preset.featured)} overflow-hidden`}>
@@ -61,14 +75,15 @@ const EffectCard = memo(function EffectCard({ preset, onClick, priority = false 
             <LazyVideo
               src={src}
               poster={posterSrc || undefined}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className={`w-full h-full object-cover transition-transform ${transitionDuration} ${hoverTransform}`}
             />
           ) : (
             <OptimizedImage
               src={src}
               alt={preset.title}
-              className="transition-transform duration-500 group-hover:scale-105"
+              className={`transition-transform ${transitionDuration} ${hoverTransform}`}
               priority={priority}
+              quality={quality}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           )
@@ -149,9 +164,18 @@ const FilterChips = memo(function FilterChips({ activeFilter, onFilterChange }: 
 interface MasonryGridProps {
   presets: EffectPreset[];
   onCardClick: (preset: EffectPreset) => void;
+  quality?: 'low' | 'medium' | 'high';
+  reducedMotion?: boolean;
+  isMobile?: boolean;
 }
 
-const MasonryGrid = memo(function MasonryGrid({ presets, onCardClick }: MasonryGridProps) {
+const MasonryGrid = memo(function MasonryGrid({ 
+  presets, 
+  onCardClick, 
+  quality = 'medium',
+  reducedMotion = false,
+  isMobile = false,
+}: MasonryGridProps) {
   // Order presets for balanced visual layout
   const orderedPresets = getOrderedPresetsForMasonry(presets);
   
@@ -172,13 +196,15 @@ const MasonryGrid = memo(function MasonryGrid({ presets, onCardClick }: MasonryG
   });
   
   return (
-    <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3">
+    <div className={`columns-2 sm:columns-3 lg:columns-4 xl:columns-5 ${isMobile ? 'gap-2' : 'gap-3'}`}>
       {presetsWithVariety.map((preset, index) => (
         <EffectCard
           key={preset.presetId}
           preset={preset}
           onClick={() => onCardClick(preset)}
-          priority={index < 8} // Priority load first 8 items
+          priority={index < (isMobile ? 6 : 8)}
+          quality={quality}
+          reducedMotion={reducedMotion}
         />
       ))}
     </div>
@@ -218,6 +244,9 @@ export function EffectsGallery() {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const cacheRef = useRef<EffectPreset[] | null>(null);
+  
+  // Mobile optimization
+  const { isMobile, imageQuality, reducedMotion } = useMobileOptimization();
 
   // Load content with caching
   useEffect(() => {
@@ -299,42 +328,6 @@ export function EffectsGallery() {
     };
   }, []);
 
-  // Infinite scroll - load more when reaching bottom
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && !loadingMore) {
-          setLoadingMore(true);
-          // Use requestIdleCallback for non-blocking load
-          if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => {
-              setDisplayCount(prev => prev + LOAD_MORE);
-              setLoadingMore(false);
-            });
-          } else {
-            setTimeout(() => {
-              setDisplayCount(prev => prev + LOAD_MORE);
-              setLoadingMore(false);
-            }, 100);
-          }
-        }
-      },
-      { rootMargin: '200px' }
-    );
-    
-    const current = loadMoreRef.current;
-    if (current) {
-      observer.observe(current);
-    }
-    
-    return () => {
-      if (current) {
-        observer.unobserve(current);
-      }
-    };
-  }, [loadingMore]);
-
   // Reset display count when filter changes
   useEffect(() => {
     setDisplayCount(INITIAL_LOAD);
@@ -356,6 +349,47 @@ export function EffectsGallery() {
   // Only show displayCount items
   const visiblePresets = filteredPresets.slice(0, displayCount);
   const hasMore = filteredPresets.length > displayCount;
+  
+  // Optimized infinite scroll - load more when reaching bottom
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !loadingMore && hasMore) {
+          setLoadingMore(true);
+          
+          // Use requestIdleCallback for non-blocking UI updates
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+              setDisplayCount(prev => Math.min(prev + LOAD_MORE, filteredPresets.length));
+              setLoadingMore(false);
+            }, { timeout: 2000 });
+          } else {
+            // Fallback for browsers without requestIdleCallback
+            setTimeout(() => {
+              setDisplayCount(prev => Math.min(prev + LOAD_MORE, filteredPresets.length));
+              setLoadingMore(false);
+            }, 50);
+          }
+        }
+      },
+      { 
+        rootMargin: '300px', // Increased for better prefetching
+        threshold: 0 
+      }
+    );
+    
+    const current = loadMoreRef.current;
+    if (current) {
+      observer.observe(current);
+    }
+    
+    return () => {
+      if (current) {
+        observer.unobserve(current);
+      }
+    };
+  }, [loadingMore, hasMore, filteredPresets.length]);
   
   const handleCardClick = useCallback((preset: EffectPreset) => {
     router.push(buildPresetUrl(preset));
@@ -394,12 +428,15 @@ export function EffectsGallery() {
           />
         </div>
 
-        {/* Masonry grid */}
+        {/* Masonry grid - Optimized for mobile */}
         {visiblePresets.length > 0 ? (
           <>
             <MasonryGrid 
               presets={visiblePresets} 
-              onCardClick={handleCardClick} 
+              onCardClick={handleCardClick}
+              quality={imageQuality}
+              reducedMotion={reducedMotion}
+              isMobile={isMobile}
             />
             
             {/* Load more trigger */}

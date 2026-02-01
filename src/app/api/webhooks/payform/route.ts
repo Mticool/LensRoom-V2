@@ -148,6 +148,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Idempotency: if already completed, skip
+    if (orderId) {
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id, status')
+        .eq('prodamus_order_id', orderId)
+        .maybeSingle();
+      if (existingPayment?.status === 'completed') {
+        console.log('[Payform Webhook] Payment already processed:', orderId);
+        return NextResponse.json({ received: true, status: 'already_processed' });
+      }
+    }
+
     // 3. Если всё ещё нет userId, ищем по email в auth.users
     if (!userId && body.customer_email) {
       // Используем admin API для поиска пользователя

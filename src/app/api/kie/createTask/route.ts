@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     const body: CreateTaskRequestBody = await request.json();
     const { modelKey, prompt, options = {}, assets } = body;
 
-    console.log(`[KIE createTask] Starting for model: ${modelKey}`);
+    console.log(`[Generation] Starting for model: ${modelKey}`);
 
     // 2. Validate model
     const model = getKieModel(modelKey);
@@ -184,9 +184,9 @@ export async function POST(request: NextRequest) {
           imageData: { url: assets.imageUrl, base64: assets.imageBase64 },
         });
         kieInput.imageUrl = uploadedUrl;
-        console.log(`[KIE createTask] Image uploaded: ${uploadedUrl}`);
+        console.log(`[Generation] Image uploaded`);
       } catch (uploadError) {
-        console.error('[KIE createTask] Image upload failed:', uploadError);
+        console.error('[Generation] Image upload failed:', uploadError);
         return NextResponse.json(
           { error: 'Failed to upload image', details: uploadError instanceof Error ? uploadError.message : 'Unknown error' },
           { status: 500 }
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
       input: kieInput,
     };
 
-    console.log(`[KIE createTask] Calling Market API with:`, JSON.stringify(kiePayload, null, 2));
+    console.log(`[Generation] Calling upstream API with payload`);
 
     const response = await fetch(`${marketBaseUrl}/api/v1/jobs/createTask`, {
       method: 'POST',
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
     try {
       responseData = JSON.parse(responseText);
     } catch (e) {
-      console.error('[KIE createTask] Failed to parse response:', responseText);
+      console.error('[Generation] Failed to parse response:', responseText);
       return NextResponse.json(
         { error: 'Invalid response from KIE API', details: responseText.substring(0, 200) },
         { status: 500 }
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response.ok || responseData.code !== 0) {
-      console.error('[KIE createTask] API error:', {
+      console.error('[Generation] Upstream API error:', {
         status: response.status,
         code: responseData.code,
         message: responseData.message || responseData.msg,
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         { 
-          error: responseData.message || responseData.msg || 'KIE API error',
+          error: responseData.message || responseData.msg || 'Upstream API error',
           code: responseData.code,
           details: responseData.data,
         },
@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[KIE createTask] Task created: ${taskId}`);
+    console.log(`[Generation] Task created`);
 
     // 11. Deduct credits
     const { error: deductError } = await supabase.rpc('deduct_credits', {
@@ -285,7 +285,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (deductError) {
-      console.error('[KIE createTask] Failed to deduct credits:', deductError);
+      console.error('[Generation] Failed to deduct credits:', deductError);
       // Continue anyway - task is already created
     }
 
@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         kind: model.kind,
         model_key: modelKey,
-        provider: 'kie',
+        provider: 'upstream',
         task_id: taskId,
         status: 'generating',
         prompt,
@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
       });
 
     if (insertError) {
-      console.error('[KIE createTask] Failed to save generation:', insertError);
+      console.error('[Generation] Failed to save generation:', insertError);
       // This is critical - if DB insert fails, callback will fail too
       return NextResponse.json(
         { error: 'Failed to save generation to database', details: insertError.message },
@@ -315,10 +315,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[KIE createTask] Saved to database with status=generating`);
+    console.log(`[Generation] Saved to database with status=generating`);
 
     const elapsed = Date.now() - startTime;
-    console.log(`[KIE createTask] Success in ${elapsed}ms`);
+    console.log(`[Generation] Success in ${elapsed}ms`);
 
     // 13. Return success
     return NextResponse.json({
@@ -330,7 +330,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[KIE createTask] Unexpected error:', error);
+    console.error('[Generation] Unexpected error:', error);
     return NextResponse.json(
       { 
         error: 'Internal server error',

@@ -301,7 +301,7 @@ export function RecraftRemoveBGGenerator() {
         
         {/* Auth Required Banner for non-authenticated users */}
         {!authLoading && !isAuthenticated && (
-          <div className="sticky top-0 z-40 bg-[#CDFF00] px-4 py-3">
+          <div className="sticky top-0 z-40 bg-[#f59e0b] px-4 py-3">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-black animate-pulse" />
@@ -311,7 +311,7 @@ export function RecraftRemoveBGGenerator() {
               </div>
               <button
                 onClick={showPopup}
-                className="px-4 py-1.5 bg-black text-[#CDFF00] text-sm font-medium rounded-lg hover:bg-gray-900 transition-colors whitespace-nowrap"
+                className="px-4 py-1.5 bg-black text-[#f59e0b] text-sm font-medium rounded-lg hover:bg-gray-900 transition-colors whitespace-nowrap"
               >
                 Войти через Telegram
               </button>

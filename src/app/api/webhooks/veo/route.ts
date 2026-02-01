@@ -5,27 +5,30 @@ import { notifyGenerationStatus } from "@/lib/telegram/notify";
 import { refundCredits } from "@/lib/credits/refund";
 
 /**
- * Veo 3.1 Callback Webhook
- * POST /api/webhooks/veo
+ * Video generation callback webhook
+ * POST /api/webhooks/video
  * 
- * Called by KIE.ai when Veo video generation completes
+ * Called by upstream service when video generation completes
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { code, msg, data } = body;
 
-    console.log('[VEO Webhook] Received:', { code, msg, taskId: data?.taskId });
+    console.log('[Video Webhook] Received:', { code, msg, taskId: data?.taskId });
 
     // Verify the request (optional: add secret verification)
     const secret = request.nextUrl.searchParams.get('secret');
-    if (secret !== (env.optional("VEO_WEBHOOK_SECRET") || "")) {
-      console.warn('[VEO Webhook] Invalid secret');
-      // Still accept for now, but log warning
+    const expectedSecret = env.optional("VEO_WEBHOOK_SECRET") || "";
+    if (expectedSecret && secret !== expectedSecret) {
+      console.warn('[Video Webhook] Invalid secret');
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
+      }
     }
 
     if (code !== 200) {
-      console.error('[VEO Webhook] Error response:', body);
+      console.error('[Video Webhook] Error response:', body);
       return NextResponse.json({ status: 'error', message: msg }, { status: 400 });
     }
 
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (successFlag === 1) {
       // Success - update with result URLs
-      console.log('[VEO Webhook] Success:', taskId, 'URLs:', resultUrls.length);
+      console.log('[Video Webhook] Success:', taskId, 'URLs:', resultUrls.length);
 
       // Fetch current row to detect status transition + get ids for notification
       const { data: beforeRow } = await supabase
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
         .eq("task_id", taskId);
 
       if (updateError) {
-        console.error('[VEO Webhook] Failed to update generation:', updateError);
+        console.error('[Video Webhook] Failed to update generation:', updateError);
       } else {
         // Notify only on real transition into a terminal success state
         const isAlreadyTerminal = beforeStatus === "completed" || beforeStatus === "success" || beforeStatus === "failed";
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
       }
     } else if (successFlag === 2 || successFlag === 3) {
       // Failed
-      console.error('[VEO Webhook] Generation failed:', taskId, errorMsg);
+      console.error('[Video Webhook] Generation failed:', taskId, errorMsg);
 
       const { data: beforeRow } = await supabase
         .from("generations")
@@ -107,7 +110,7 @@ export async function POST(request: NextRequest) {
         .eq("task_id", taskId);
 
       if (updateError) {
-        console.error('[VEO Webhook] Failed to update generation:', updateError);
+        console.error('[Video Webhook] Failed to update generation:', updateError);
       } else {
         const isAlreadyTerminal = beforeStatus === "completed" || beforeStatus === "success" || beforeStatus === "failed";
         if (!isAlreadyTerminal) {
@@ -135,7 +138,7 @@ export async function POST(request: NextRequest) {
               userId,
               generationId,
               creditsToRefund,
-              'veo_generation_failed',
+              'video_generation_failed',
               { error: errorMsg, task_id: taskId }
             );
           }
@@ -149,7 +152,7 @@ export async function POST(request: NextRequest) {
       successFlag,
     });
   } catch (error) {
-    console.error('[VEO Webhook] Error:', error);
+    console.error('[Video Webhook] Error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { status: 'error', message },

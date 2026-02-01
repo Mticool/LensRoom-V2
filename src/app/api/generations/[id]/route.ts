@@ -44,22 +44,29 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 500 });
-    }
+    console.log('[Generations API] GET request for id:', id);
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const userId = await getUserId();
+    console.log('[Generations API] User ID:', userId);
+    
+    if (!userId) {
+      console.error('[Generations API] No userId - returning 401');
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("generations")
       .select("*")
       .eq("id", id)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
+    
+    console.log('[Generations API] Query result:', { 
+      found: !!data, 
+      error: error?.message,
+      generationStatus: data?.status 
+    });
 
     if (error) {
       if (error.code === "PGRST116") {

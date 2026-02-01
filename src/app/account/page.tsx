@@ -124,9 +124,9 @@ export default function AccountPage() {
 
             {/* Role Badge */}
             {user.role !== 'user' && (
-              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/20">
-                <Crown className="w-3 h-3 text-[#CDFF00]" />
-                <span className="text-xs font-medium text-[#CDFF00] uppercase">
+              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#f59e0b]/10 border border-[#f59e0b]/20">
+                <Crown className="w-3 h-3 text-[#f59e0b]" />
+                <span className="text-xs font-medium text-[#f59e0b] uppercase">
                   {user.role}
                 </span>
               </div>

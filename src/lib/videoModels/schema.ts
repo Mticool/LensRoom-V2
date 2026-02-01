@@ -14,7 +14,7 @@ export const ModelIdEnum = z.enum([
 ]);
 export type ModelId = z.infer<typeof ModelIdEnum>;
 
-export const ModeEnum = z.enum(['t2v', 'i2v', 'ref2v', 'v2v', 'motion_control']);
+export const ModeEnum = z.enum(['t2v', 'i2v', 'start_end', 'v2v', 'motion_control', 'extend']);
 export type Mode = z.infer<typeof ModeEnum>;
 
 export const AspectRatioEnum = z.enum([
@@ -143,6 +143,10 @@ export const VideoGenerationRequestSchema = z.object({
   startImage: z.string().optional(),
   endImage: z.string().optional(),
   
+  // Extend mode inputs
+  sourceGenerationId: z.string().optional(), // ID записи generation для продления
+  taskId: z.string().optional(), // Прямой taskId для extend (если фронт шлёт напрямую)
+  
   // Audio
   sound: z.boolean().optional(),
   soundPreset: z.string().optional(),
@@ -157,32 +161,17 @@ export const VideoGenerationRequestSchema = z.object({
   // Advanced
   seed: z.number().optional(),
   variants: z.number().min(1).max(4).optional().default(1),
-  
-  // Internal
-  threadId: z.string().optional(),
 }).refine(
   (data) => {
-    // i2v requires inputImage
-    if (data.mode === 'i2v' && !data.inputImage) {
+    // start_end requires start image
+    if (data.mode === 'start_end' && !data.startImage) {
       return false;
     }
     return true;
   },
   {
-    message: 'inputImage is required for i2v mode',
-    path: ['inputImage'],
-  }
-).refine(
-  (data) => {
-    // ref2v requires referenceVideo
-    if (data.mode === 'ref2v' && !data.referenceVideo) {
-      return false;
-    }
-    return true;
-  },
-  {
-    message: 'referenceVideo is required for ref2v mode',
-    path: ['referenceVideo'],
+    message: 'startImage is required for start_end mode',
+    path: ['startImage'],
   }
 ).refine(
   (data) => {
@@ -195,6 +184,18 @@ export const VideoGenerationRequestSchema = z.object({
   {
     message: 'referenceVideo is required for motion_control mode',
     path: ['referenceVideo'],
+  }
+).refine(
+  (data) => {
+    // extend requires sourceGenerationId or taskId
+    if (data.mode === 'extend' && !data.sourceGenerationId && !data.taskId) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'sourceGenerationId or taskId is required for extend mode',
+    path: ['sourceGenerationId'],
   }
 );
 

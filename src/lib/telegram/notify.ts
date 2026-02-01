@@ -2,7 +2,7 @@ import { env } from "@/lib/env";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/telegram/bot-client";
 
-type Kind = "photo" | "video";
+type Kind = "photo" | "video" | "audio";
 type Status = "success" | "failed";
 
 function getSiteUrl(): string {

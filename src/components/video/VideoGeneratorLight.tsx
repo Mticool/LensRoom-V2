@@ -5,7 +5,6 @@ import { Play } from 'lucide-react';
 import { VideoGeneratorHiru } from './VideoGeneratorHiru';
 import { useVideoGeneration } from '@/hooks/useVideoGeneration';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
 
 type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3';
 
@@ -25,48 +24,59 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
     loadHistory();
   }, []);
 
+  const extractVideoUrl = (gen: any) => {
+    if (!gen) return null;
+
+    if (gen.asset_url && typeof gen.asset_url === 'string') return gen.asset_url;
+    if (gen.result_url && typeof gen.result_url === 'string') return gen.result_url;
+
+    if (gen.result_urls) {
+      if (Array.isArray(gen.result_urls) && gen.result_urls.length > 0) {
+        const first = gen.result_urls[0];
+        if (typeof first === 'string') return first;
+      }
+      if (typeof gen.result_urls === 'string') {
+        try {
+          const parsed = JSON.parse(gen.result_urls);
+          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+            return parsed[0];
+          }
+        } catch {
+          return gen.result_urls;
+        }
+      }
+    }
+
+    if (gen.preview_url && typeof gen.preview_url === 'string') return gen.preview_url;
+    if (gen.thumbnail_url && typeof gen.thumbnail_url === 'string') return gen.thumbnail_url;
+
+    if (gen.id && (gen.status === 'success' || gen.status === 'completed')) {
+      return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
+    }
+
+    return null;
+  };
+
   const loadHistory = async () => {
     try {
-      const supabase = createClient();
-      if (!supabase) {
-        console.log('[VideoGeneratorLight] Supabase client not initialized');
-        return;
-      }
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('[VideoGeneratorLight] No user for history');
-        return;
+      const response = await fetch('/api/generations?type=video&limit=20', {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || `HTTP ${response.status}`);
       }
 
-      console.log('[VideoGeneratorLight] Loading history for user:', user.id);
+      const data = await response.json();
+      const generations = Array.isArray(data?.generations) ? data.generations : [];
 
-      const { data, error } = await supabase
-        .from('generations')
-        .select('id, result_urls, status, created_at, task_id')
-        .eq('user_id', user.id)
-        .eq('type', 'video')
-        .in('status', ['success', 'completed'])
-        .order('created_at', { ascending: false })
-        .limit(20); // Увеличим лимит чтобы точно захватить успешные
+      const urls = generations
+        .filter((g: any) => ['success', 'completed'].includes(String(g.status || '').toLowerCase()))
+        .map((g: any) => extractVideoUrl(g))
+        .filter(Boolean);
 
-      if (error) {
-        console.error('[VideoGeneratorLight] History query error:', error);
-        throw error;
-      }
-      
-      console.log('[VideoGeneratorLight] Query returned:', data?.length || 0, 'generations');
-      console.log('[VideoGeneratorLight] Full data:', data);
-      
-      // Extract first URL from result_urls array, filter out invalid entries
-      const urls = data
-        ?.filter((g: any) => g.result_urls && Array.isArray(g.result_urls) && g.result_urls.length > 0)
-        .map((g: any) => g.result_urls[0])
-        .filter(Boolean) || [];
-      
-      console.log('[VideoGeneratorLight] Valid generations with URLs:', urls.length);
-      console.log('[VideoGeneratorLight] Extracted URLs:', urls);
-      setGenerationHistory(urls.slice(0, 8)); // Ограничим до 8 для отображения
+      setGenerationHistory(urls.slice(0, 8));
     } catch (error) {
       console.error('[VideoGeneratorLight] Failed to load history:', error);
     }
@@ -116,10 +126,11 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
       }
 
       // Determine mode based on inputs and params.mode
-      let mode: 'text' | 'image' | 'reference' | 'v2v' | 'motion' = 'text';
+      let mode: 'text' | 'image' | 'reference' | 'v2v' | 'motion' | 'extend' = 'text';
       
       // Use mode from params if provided (from UI selector)
-      if (params.mode === 'i2v') mode = 'image';
+      if (params.mode === 'extend') mode = 'extend';
+      else if (params.mode === 'i2v') mode = 'image';
       else if (params.mode === 'ref2v') mode = 'reference';
       else if (params.mode === 'v2v') mode = 'v2v';
       else if (params.mode === 'motion_control') mode = 'motion';
@@ -173,6 +184,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
         endFrame: endFrameBase64,
         motionVideo: motionVideoBase64,
         characterImage: characterImageBase64,
+        sourceGenerationId: params.sourceGenerationId || null, // For extend mode
       });
       
       onGenerate?.(params);
@@ -211,7 +223,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
   const getMaxWidth = () => {
     switch (currentRatio) {
       case '9:16':
-        return 'max-w-md'; // ~448px для вертикального видео
+        return 'max-w-sm max-h-[70vh]'; // ~384px ширина + ограничение по высоте для вертикального видео
       case '1:1':
         return 'max-w-xl'; // ~576px для квадрата
       case '4:3':
@@ -242,13 +254,13 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
             {/* Video Player */}
             <div className="flex justify-center">
               <div className={`w-full ${getMaxWidth()}`}>
-                <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
+                <div className={`bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm ${currentRatio === '9:16' ? 'max-h-[70vh]' : ''}`}>
                   {isGenerating ? (
                     <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
                       <div className="text-center">
                         <div className="relative w-20 h-20 mx-auto mb-4">
                           <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
-                          <div className="absolute inset-0 border-4 border-[#CDFF00] border-t-transparent rounded-full animate-spin"></div>
+                          <div className="absolute inset-0 border-4 border-[#f59e0b] border-t-transparent rounded-full animate-spin"></div>
                         </div>
                         <p className="text-gray-400 text-sm mb-2">Генерация видео...</p>
                         <p className="text-gray-500 text-xs">Это может занять до 2 минут</p>
@@ -259,8 +271,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                       ref={videoRef}
                       src={videoUrl}
                       controls
-                      autoPlay
-                      className="w-full bg-black"
+                      className={`w-full bg-black ${currentRatio === '9:16' ? 'max-h-[70vh] object-contain' : ''}`}
                     />
                   ) : (
                     <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
@@ -285,7 +296,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                     <button
                       key={i}
                       onClick={() => setVideoUrl(url)}
-                      className="relative aspect-video bg-black/50 rounded-lg border border-white/10 overflow-hidden hover:border-[#CDFF00] transition-colors group"
+                      className="relative aspect-video bg-black/50 rounded-lg border border-white/10 overflow-hidden hover:border-[#f59e0b] transition-colors group"
                     >
                       <video
                         src={url}

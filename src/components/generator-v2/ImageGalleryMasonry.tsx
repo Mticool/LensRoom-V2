@@ -235,9 +235,9 @@ export function ImageGalleryMasonry({
     return (
       <div className="flex-1 flex items-center justify-center text-center px-4 py-12 md:py-20">
         <div className="max-w-sm w-full">
-          <div className={`w-28 h-28 mx-auto mb-6 rounded-2xl ${isUploadTool ? 'bg-[#1C1C1E] border-2 border-[#CDFF00]/30' : 'bg-[#1C1C1E] border border-white/10'} flex items-center justify-center`}>
+          <div className={`w-28 h-28 mx-auto mb-6 rounded-2xl ${isUploadTool ? 'bg-[#1C1C1E] border-2 border-[#f59e0b]/30' : 'bg-[#1C1C1E] border border-white/10'} flex items-center justify-center`}>
             {isUploadTool ? (
-              <ImagePlus className="w-14 h-14 text-[#CDFF00]" strokeWidth={2} />
+              <ImagePlus className="w-14 h-14 text-[#f59e0b]" strokeWidth={2} />
             ) : (
               <ZoomIn className="w-14 h-14 text-[#A1A1AA]" />
             )}
@@ -342,7 +342,7 @@ export function ImageGalleryMasonry({
                   </div>
               
               {isDemo && (
-                <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#CDFF00] text-black text-xs font-medium z-10">
+                <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#f59e0b] text-black text-xs font-medium z-10">
                   Пример
                 </div>
               )}
@@ -361,7 +361,7 @@ export function ImageGalleryMasonry({
                         className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                         title="Открыть"
                       >
-                        <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                        <Maximize2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                       </button>
                       
                       {/* Использовать как референс */}
@@ -374,7 +374,7 @@ export function ImageGalleryMasonry({
                           className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                           title="Использовать как референс"
                         >
-                          <ImagePlus className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                          <ImagePlus className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                         </button>
                       )}
 
@@ -387,7 +387,7 @@ export function ImageGalleryMasonry({
                         className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                         title="Скачать"
                       >
-                        <Download className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                        <Download className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                       </button>
 
                       {/* В избранное */}
@@ -400,7 +400,7 @@ export function ImageGalleryMasonry({
                         title="В избранное"
                       >
                         <Heart
-                          className={`w-5 h-5 group-hover:text-[#CDFF00] ${
+                          className={`w-5 h-5 group-hover:text-[#f59e0b] ${
                             image.id && isFavoriteId(image.id) ? "text-rose-400" : "text-white"
                           }`}
                         />
@@ -415,7 +415,7 @@ export function ImageGalleryMasonry({
                         className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                         title="Поделиться"
                       >
-                        <Share2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                        <Share2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                       </button>
                       
                       {/* Перегенерировать */}
@@ -428,7 +428,7 @@ export function ImageGalleryMasonry({
                           className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                           title="Перегенерировать"
                         >
-                          <RotateCcw className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                          <RotateCcw className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                         </button>
                       )}
                     </div>
@@ -503,7 +503,7 @@ export function ImageGalleryMasonry({
 
                   {/* Demo Badge */}
                   {isDemo && (
-                    <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#CDFF00] text-black text-xs font-medium">
+                    <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#f59e0b] text-black text-xs font-medium">
                       Пример
                     </div>
                   )}
@@ -523,7 +523,7 @@ export function ImageGalleryMasonry({
                             className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                             title="Открыть"
                           >
-                            <Maximize2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                            <Maximize2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                           </button>
 
                           {/* Использовать как референс */}
@@ -536,7 +536,7 @@ export function ImageGalleryMasonry({
                               className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                               title="Использовать как референс"
                             >
-                              <ImagePlus className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                              <ImagePlus className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                             </button>
                           )}
 
@@ -549,7 +549,7 @@ export function ImageGalleryMasonry({
                             className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                             title="Скачать"
                           >
-                            <Download className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                            <Download className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                           </button>
 
                           {/* В избранное */}
@@ -562,7 +562,7 @@ export function ImageGalleryMasonry({
                             title="В избранное"
                           >
                             <Heart
-                              className={`w-5 h-5 group-hover:text-[#CDFF00] ${
+                              className={`w-5 h-5 group-hover:text-[#f59e0b] ${
                                 image.id && isFavoriteId(image.id) ? "text-rose-400" : "text-white"
                               }`}
                             />
@@ -577,7 +577,7 @@ export function ImageGalleryMasonry({
                             className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                             title="Поделиться"
                           >
-                            <Share2 className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                            <Share2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                           </button>
 
                           {/* Перегенерировать */}
@@ -590,7 +590,7 @@ export function ImageGalleryMasonry({
                               className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
                               title="Перегенерировать"
                             >
-                              <RotateCcw className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                              <RotateCcw className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
                             </button>
                           )}
                         </div>

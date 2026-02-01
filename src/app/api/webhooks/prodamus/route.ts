@@ -98,6 +98,19 @@ export async function POST(request: NextRequest) {
     const userId = customer_extra;
     const isSubscription = !!subscription_id;
 
+    // Idempotency: do not process already completed payment
+    if (order_id) {
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id, status')
+        .eq('prodamus_order_id', order_id)
+        .maybeSingle();
+      if (existingPayment?.status === 'completed') {
+        console.log('[Prodamus Webhook] Payment already processed:', order_id);
+        return NextResponse.json({ received: true, status: 'already_processed' });
+      }
+    }
+
     if (isSubscription) {
       // ПОДПИСКА
       const planId = custom_fields?.plan_id || 'pro';

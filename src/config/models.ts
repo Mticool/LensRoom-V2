@@ -2,9 +2,15 @@
  * Unified Model Configuration
  * Single source of truth for all AI models with pricing in Kie credits
  * 
- * KIE.ai API Documentation: https://docs.kie.ai
- * - Market API: POST https://api.kie.ai/api/v1/jobs/createTask
- * - Veo 3.1 API: POST https://api.kie.ai/api/v1/veo/generate
+ * ⚠️ PRICING UPDATE (2026-01-27): The pricing structures in this file are DEPRECATED.
+ * All pricing is now handled by src/lib/pricing/pricing.ts using SKU-based system.
+ * The pricing objects below are kept for reference but should NOT be used for calculations.
+ * 
+ * For pricing: Use getSkuFromRequest() and getPriceStars() from @/lib/pricing/pricing
+ * 
+ * API Documentation:
+ * - Market API: POST /api/v1/jobs/createTask
+ * - Video API: POST /api/v1/video/generate
  */
 
 export type ModelType = 'photo' | 'video';
@@ -33,7 +39,7 @@ export type PhotoQuality =
   | 'c_60cred'
   | 'c_72cred';
 export type VideoQuality = '720p' | '1080p' | '480p' | '580p' | 'fast' | 'quality' | 'standard' | 'high';
-export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference' | 'v2v' | 'style_transfer' | 'motion_control';
+export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference' | 'v2v' | 'style_transfer' | 'motion_control' | 'extend';
 export type PhotoMode = 't2i' | 'i2i';
 
 // === NEW TYPES FOR EXTENDED MODEL CAPABILITIES ===
@@ -194,8 +200,8 @@ export interface VideoModelConfig {
 
   // Short label for sidebar (e.g., "8s • Ultra", "5/10s • Audio")
   shortLabel?: string;
-  // Model tag for UI badges (e.g., "PRO", "FAST", "NEW", "ULTRA")
-  modelTag?: 'PRO' | 'FAST' | 'NEW' | 'ULTRA' | 'TOP' | 'CORE';
+  // Model tag for UI badges (e.g., "PRO", "FAST", "NEW", "ULTRA", "AVATAR", "HD")
+  modelTag?: 'PRO' | 'FAST' | 'NEW' | 'ULTRA' | 'TOP' | 'CORE' | 'AVATAR' | 'HD';
 }
 
 export type ModelConfig = PhotoModelConfig | VideoModelConfig;
@@ -204,27 +210,27 @@ export type ModelConfig = PhotoModelConfig | VideoModelConfig;
 // All photo models use kie_market provider: POST /api/v1/jobs/createTask
 
 export const PHOTO_MODELS: PhotoModelConfig[] = [
-  // === GROK IMAGINE - xAI === (Text-to-Image with Spicy Mode)
+// === GROK IMAGINE === (Text-to-Image with Spicy Mode)
   {
     id: 'grok-imagine',
     name: 'Grok Imagine',
     apiId: 'grok-imagine/text-to-image',
     type: 'photo',
     provider: 'kie_market',
-    shortDescription: 'xAI: креативные изображения с Spicy Mode 🌶️',
-    description: 'Grok Imagine от xAI — мультимодальная модель с тремя режимами: Normal, Fun и Spicy. Spicy Mode создаёт более выразительные и креативные результаты.',
+    shortDescription: 'Креативные изображения с режимом Spicy 🌶️',
+    description: 'Grok Imagine — мультимодальная модель с тремя режимами: Normal, Fun и Spicy. Spicy Mode создаёт более выразительные и креативные результаты.',
     rank: 1,
     featured: true,
     speed: 'fast',
     quality: 'high',
     supportsI2i: false,
-    pricing: 15, // Примерная цена
+    pricing: 5, // UPDATED (2026-01-27): grok_imagine:i2i_run = 5⭐
     // KIE docs: https://kie.ai/grok-imagine?model=grok-imagine%2Ftext-to-image
     // Allowed: 2:3, 3:2, 1:1, 9:16, 16:9
     aspectRatios: ['1:1', '3:2', '2:3', '9:16', '16:9'],
-    shortLabel: 'xAI 🌶️',
+    shortLabel: 'Spicy 🌶️',
   },
-  // === MIDJOURNEY - KIE Market API === (ВРЕМЕННО СКРЫТО - требует активации в KIE)
+  // === MIDJOURNEY === (ВРЕМЕННО СКРЫТО - требует активации)
   // Раскомментировать когда модель будет доступна в аккаунте KIE
   /*
   {
@@ -263,9 +269,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'high',
     supportsI2i: true,
     pricing: {
-      // NEW PRICING: 4 credits = 7⭐
-      turbo: 7,
-      balanced: 7,
+      // UPDATED PRICING (2026-01-27): 9⭐
+      turbo: 9,
+      balanced: 9,
       quality: 7,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
@@ -291,9 +297,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     inputImageFormats: ['jpeg', 'png', 'webp'],
     outputFormats: ['png', 'jpg'],
     pricing: {
-      // NEW PRICING: 1k_2k (18 credits) = 30⭐, 4k (24 credits) = 40⭐
-      '1k_2k': 30,
-      '4k': 40,
+      // UPDATED PRICING (2026-01-27): 1k_2k = 17⭐, 4k = 25⭐
+      '1k_2k': 17,
+      '4k': 25,
     },
     qualityOptions: ['1k_2k', '4k'],
     // All aspect ratios supported by KIE API: https://kie.ai/nano-banana-pro
@@ -333,9 +339,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     // Seedream 4.5 in this app is T2I only. Edits/references require a separate KIE "edit" model.
     supportsI2i: false,
     pricing: {
-      // Keep current ⭐ pricing unchanged (even if KIE credit cost differs).
-      // KIE Seedream 4.5 T2I uses quality: basic (2K) / high (4K)
-      basic: 11,
+      // UPDATED (2026-01-27): seedream_4_5:image = 10⭐
+      basic: 10,
       high: 11,
     },
     qualityOptions: ['basic', 'high'],
@@ -362,9 +367,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     maxInputImageSizeMb: 10,
     inputImageFormats: ['jpeg', 'png', 'webp'],
     pricing: {
-      // Keep current ⭐ pricing unchanged.
-      // KIE supports 1K/2K/4K; 4K is enabled at the same ⭐ price as 2K for now.
-      '1k': 9,
+      // UPDATED (2026-01-27): flux_2_pro:1k = 10⭐, 2k = 12⭐
+      '1k': 10,
       '2k': 12,
       '4k': 12,
     },
@@ -490,43 +494,43 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     apiId: 'gpt-image/1.5-text-to-image',
     type: 'photo',
     provider: 'kie_market', // Теперь через KIE API
-    shortDescription: 'OpenAI 1.5: 4x быстрее, лучше текст, до 16 фото для редактирования.',
-    description: 'GPT Image 1.5 — улучшенная модель OpenAI. Генерация в 4x быстрее, точнее рендерит текст на изображениях, поддерживает редактирование до 16 фото одновременно.',
+    shortDescription: 'Версия 1.5: быстрее, лучше текст, до 16 фото для редактирования.',
+    description: 'GPT Image 1.5 — улучшенная модель. Генерация быстрее, точнее рендерит текст на изображениях, поддерживает редактирование до 16 фото одновременно.',
     rank: 3,
     featured: true,
     speed: 'fast',
     quality: 'ultra',
     supportsI2i: true, // До 16 изображений для редактирования
     pricing: {
-      // medium = быстро и экономно, high = максимум деталей
-      medium: 17,
-      high: 67,
+      // UPDATED (2026-01-27): gpt_image_1_5:medium = 5⭐, high = 35⭐
+      medium: 5,
+      high: 35,
     },
     qualityOptions: ['medium', 'high'],
     aspectRatios: ['1:1', '3:2', '2:3'], // Новые пропорции из документации
-    shortLabel: 'OpenAI 1.5',
+    shortLabel: 'v1.5',
   },
 ];
 
 // ===== VIDEO MODELS =====
-// KIE.ai Video API Documentation: https://docs.kie.ai
+// Video API Documentation
 // - Market API: POST /api/v1/jobs/createTask (kling, sora, bytedance)
-// - Veo 3.1 API: POST /api/v1/veo/generate (separate endpoint)
+// - Video API: POST /api/v1/video/generate
 
 // ===== VIDEO MODELS =====
 // Unified Video Generator: 8 models
-// Providers: Google (Veo), Kling (via Kie.ai), xAI (Grok), OpenAI (Sora), WAN
+// Providers: Veo, Kling, Grok, Sora, WAN
 // Motion Control moved to separate section
 
 export const VIDEO_MODELS: VideoModelConfig[] = [
-  // === 1. VEO 3.1 FAST - Google via GenAIPro ===
+  // === 1. VEO 3.1 FAST ===
   {
     id: 'veo-3.1-fast',
     name: 'Veo 3.1 Fast',
     apiId: 'veo-3.1-fast',
     type: 'video',
-    provider: 'laozhang', // Using LaoZhang API (老张)
-    description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений, start/end frames.',
+    provider: 'kie_veo', // Using Kie AI Veo API for extend support
+    description: 'Veo 3.1 Fast — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений, start/end frames.',
     rank: 1,
     featured: true,
     speed: 'fast',
@@ -537,9 +541,10 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsFirstLastFrame: true,
     maxReferenceImages: 3,
     pricing: {
-      '8': 99,
+      // UPDATED (2026-01-27): veo_3_1_fast:clip = 50⭐
+      '8': 50,
     },
-    modes: ['t2v', 'i2v'],
+    modes: ['t2v', 'i2v', 'start_end', 'extend'],
     durationOptions: [8],
     resolutionOptions: [],
     aspectRatios: ['16:9', '9:16'],
@@ -547,7 +552,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'FAST',
   },
 
-  // === 2. KLING 2.1 - Kie.ai ===
+  // === 2. KLING 2.1 ===
   {
     id: 'kling-2.1',
     name: 'Kling 2.1',
@@ -564,8 +569,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudio: false,
     supportsFirstLastFrame: true,
     pricing: {
-      '5': 200,
-      '10': 400,
+      // UPDATED (2026-01-27): kling_2_1 standard:5s = 42, :10s = 84
+      '5': 42,
+      '10': 84,
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
@@ -575,7 +581,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'ULTRA',
   },
 
-  // === 3. KLING 2.5 - Kie.ai ===
+  // === 3. KLING 2.5 ===
   {
     id: 'kling-2.5',
     name: 'Kling 2.5',
@@ -592,8 +598,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudio: false,
     supportsFirstLastFrame: true,
     pricing: {
-      '5': 105,
-      '10': 210,
+      // UPDATED (2026-01-27): kling_2_5:5s:720p = 70, :10s = 140
+      '5': 70,
+      '10': 140,
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
@@ -603,7 +610,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'FAST',
   },
 
-  // === 4. KLING 2.6 - Kie.ai ===
+  // === 4. KLING 2.6 ===
   {
     id: 'kling-2.6',
     name: 'Kling 2.6',
@@ -621,8 +628,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudioGeneration: true,
     supportsFirstLastFrame: true,
     pricing: {
-      '5': { no_audio: 105, audio: 135 },
-      '10': { no_audio: 210, audio: 270 },
+      // UPDATED (2026-01-27): kling_2_6:5s:720p:no_audio = 92, audio = 184
+      '5': { no_audio: 92, audio: 184 },
+      '10': { no_audio: 184, audio: 367 },
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
@@ -647,8 +655,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: false,
     supportsAudio: false,
     pricing: {
-      '720p': { per_second: 16 },
-      '1080p': { per_second: 25 },
+      // UPDATED (2026-01-27): motion_control:720p = 10⭐/sec, 1080p = 20⭐/sec
+      '720p': { per_second: 10 },
+      '1080p': { per_second: 20 },
     },
     modes: ['motion_control'], // motion control mode
     durationOptions: [], // Based on input video length (3-30s)
@@ -658,14 +667,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'CORE',
   },
 
-  // === 6. GROK VIDEO - xAI ===
+  // === 6. GROK VIDEO ===
   {
     id: 'grok-video',
     name: 'Grok Video',
     apiId: 'grok-imagine/text-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Grok Video от xAI — создаёт видео с синхронизированным звуком. Поддерживает style transfer, start/end frames. 6 стилей на выбор.',
+    description: 'Grok Video — создаёт видео с синхронизированным звуком. Поддерживает style transfer, start/end frames. 6 стилей на выбор.',
     rank: 6,
     featured: true,
     speed: 'fast',
@@ -678,9 +687,10 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudioGeneration: true,
     styleOptions: ['realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'],
     pricing: {
-      '6': 25,
-      '12': 45,
-      '18': 65,
+      // UPDATED (2026-01-27): grok_video:6s = 34⭐
+      '6': 34,
+      '12': 68,
+      '18': 102,
       '24': 85,
       '30': 105,
     },
@@ -691,14 +701,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'NEW',
   },
 
-  // === 7. SORA 2 - OpenAI via LaoZhang ===
+  // === 7. SORA 2 ===
   {
     id: 'sora-2',
     name: 'Sora 2',
     apiId: 'sora-2', // LaoZhang API model ID
     type: 'video',
     provider: 'laozhang', // Uses LaoZhang API
-    description: 'OpenAI Sora 2 через LaoZhang — универсальная генерация с балансом качества и скорости. Text-to-video, image-to-video.',
+    description: 'Sora 2 — универсальная генерация с балансом качества и скорости. Text-to-video, image-to-video.',
     rank: 7,
     featured: true,
     speed: 'medium',
@@ -706,8 +716,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: false,
     pricing: {
-      '10': 250,
-      '15': 450,
+      // UPDATED (2026-01-27): sora_2:clip = 50⭐ (fixed price)
+      '10': 50,
+      '15': 50,
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [10, 15],
@@ -735,9 +746,11 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     cameraMotionOptions: ['static', 'pan_left', 'pan_right', 'tilt_up', 'tilt_down', 'zoom_in', 'zoom_out', 'orbit', 'follow'],
     styleOptions: ['realistic', 'cinematic', 'anime', 'cartoon'],
     pricing: {
-      '5': 120,
-      '10': 240,
-      '15': 360,
+      // UPDATED (2026-01-27): wan_2_6 720p:5s=117, :10s=234, :15s=350
+      // Note: This is simplified, actual pricing.ts has resolution-based pricing
+      '5': 117,
+      '10': 234,
+      '15': 350,
     },
     modes: ['t2v', 'i2v', 'v2v'],
     durationOptions: [5, 10, 15],
@@ -745,6 +758,89 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     aspectRatios: ['16:9', '9:16', '1:1'],
     shortLabel: '5-15s • Camera • V2V',
     modelTag: 'ULTRA',
+  },
+
+  // === LIP SYNC MODELS (Kling AI Avatar + InfiniteTalk) ===
+  
+  {
+    id: 'kling-ai-avatar',
+    name: 'Kling AI Avatar',
+    apiId: 'kling/ai-avatar-standard',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Высокое качество синхронизации губ с контролем эмоций через промпт. Фиксированная цена за видео.',
+    rank: 90,
+    featured: true,
+    speed: 'medium',
+    quality: 'ultra',
+    supportsI2v: false,
+    supportsAudio: false,
+    pricing: {
+      // Fixed price: 50 stars per generation
+      '0': 50,
+    },
+    modes: ['lipsync' as any],
+    durationOptions: [],
+    aspectRatios: [],
+    shortLabel: 'Lip Sync • Emotions',
+    modelTag: 'AVATAR',
+  },
+
+  {
+    id: 'infinitalk-480p',
+    name: 'InfiniteTalk 480p',
+    apiId: 'infinitalk/from-audio',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Быстрая генерация говорящих видео с хорошей точностью синхронизации. Поддержка пения. До 15 секунд аудио.',
+    rank: 91,
+    featured: true,
+    speed: 'fast',
+    quality: 'standard',
+    supportsI2v: false,
+    supportsAudio: false,
+    pricing: {
+      // Per-second pricing: 3 stars/sec
+      // Will be calculated dynamically based on audio duration
+      '1': 3,
+      '5': 15,
+      '10': 30,
+      '15': 45,
+    },
+    modes: ['lipsync' as any],
+    durationOptions: [5, 10, 15],
+    resolutionOptions: ['480p'],
+    aspectRatios: [],
+    shortLabel: '480p • 3⭐/сек',
+    modelTag: 'FAST',
+  },
+
+  {
+    id: 'infinitalk-720p',
+    name: 'InfiniteTalk 720p',
+    apiId: 'infinitalk/from-audio',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'HD качество с максимальной точностью синхронизации губ. Поддержка пения. До 15 секунд аудио.',
+    rank: 92,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: false,
+    supportsAudio: false,
+    pricing: {
+      // Per-second pricing: 12 stars/sec
+      '1': 12,
+      '5': 60,
+      '10': 120,
+      '15': 180,
+    },
+    modes: ['lipsync' as any],
+    durationOptions: [5, 10, 15],
+    resolutionOptions: ['720p'],
+    aspectRatios: [],
+    shortLabel: '720p • 12⭐/сек',
+    modelTag: 'HD',
   },
 ];
 
