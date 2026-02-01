@@ -3,7 +3,7 @@ import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getKieClient } from "@/lib/api/kie-client";
 import { PHOTO_MODELS, getModelById, PhotoModelConfig } from "@/config/models";
-import { computePrice } from "@/lib/pricing/compute-price";
+import { getSkuFromRequest, calculateTotalStars } from "@/lib/pricing/pricing";
 import { requireAuth } from "@/lib/auth/requireRole";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 
@@ -113,8 +113,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // 3. Calculate total price
-    const pricePerImage = computePrice(model, { quality }).stars;
+    // 3. Calculate total price using new SKU-based pricing system
+    const sku = getSkuFromRequest(model, { quality });
+    const pricePerImage = calculateTotalStars(sku);
     const totalCost = pricePerImage * images.length;
 
     console.log('[Batch API] Price calculation:', {

@@ -233,7 +233,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Require start image for i2v/start_end (for models that expose those modes)
-    if ((mode === "i2v" || mode === "start_end") && !referenceImage && !startImage) {
+    // Veo 3.1 can use referenceImages array instead of single image
+    const hasReferenceInput = referenceImage || startImage || (referenceImages && referenceImages.length > 0);
+    if ((mode === "i2v" || mode === "start_end") && !hasReferenceInput) {
       return NextResponse.json(
         { error: "Start image is required for this mode" },
         { status: 400 }
@@ -314,7 +316,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate Veo 3.1 reference images (max 3)
-    if (model === 'veo-3.1' && referenceImages) {
+    const isVeo31 = model === 'veo-3.1' || model === 'veo-3.1-fast';
+    if (isVeo31 && referenceImages) {
       if (!Array.isArray(referenceImages)) {
         return NextResponse.json(
           { error: 'referenceImages must be an array' },

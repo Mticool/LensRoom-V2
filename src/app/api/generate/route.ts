@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
-import { computePrice } from '@/lib/pricing/compute-price';
+import { getSkuFromRequest, calculateTotalStars } from '@/lib/pricing/pricing';
 import { VIDEO_MODELS } from '@/config/models';
 
 export const maxDuration = 300; // 5 minutes
@@ -59,12 +59,12 @@ export async function POST(request: NextRequest) {
       if (videoModel) {
         const duration = parseInt(body.settings?.duration || '10');
         const quality = body.settings?.quality || 'HD';
-        const priceResult = computePrice(body.model, {
+        const sku = getSkuFromRequest(body.model, {
           duration,
           videoQuality: quality,
           mode: 't2v',
         });
-        costStars = priceResult.stars || 100;
+        costStars = calculateTotalStars(sku, duration) || 100;
       } else {
         costStars = 100; // Default fallback
       }

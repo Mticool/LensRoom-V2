@@ -3,7 +3,6 @@ import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { requireAuth } from '@/lib/auth/requireRole';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getModelById, type VideoModelConfig } from '@/config/models';
-import { computePrice } from '@/lib/pricing/compute-price';
 import { getSkuFromRequest, calculateTotalStars, PRICING_VERSION } from '@/lib/pricing/pricing';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
 import { refundCredits } from '@/lib/credits/refund';
@@ -110,16 +109,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     const balance = await getCreditBalance(supabase, userId);
 
-    // Calculate cost
-    const costParams = {
-      mode: (mode === 'text_to_video' ? 't2v' : mode === 'image_to_video' ? 'i2v' : 't2v') as 't2v' | 'i2v' | 'start_end',
-      duration: duration_seconds,
-      quality: options.quality || resolution,
-      audio: options.generate_audio,
-      aspectRatio: aspect_ratio,
-    };
-
-    const priceResult = computePrice(model, costParams);
+    // Calculate cost using new SKU-based pricing system
     const sku = getSkuFromRequest(model, {
       duration: duration_seconds,
       videoQuality: options.quality || resolution,
