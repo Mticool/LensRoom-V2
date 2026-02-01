@@ -4,7 +4,6 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getKieClient } from '@/lib/api/kie-client';
 import { getFalClient } from '@/lib/api/fal-client';
 import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
-import { computePrice } from '@/lib/pricing/compute-price';
 import { getSkuFromRequest, getPriceStars, calculateTotalStars, isPerSecondSku, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { 

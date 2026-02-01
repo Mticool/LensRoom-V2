@@ -4,7 +4,6 @@ import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getKieClient } from "@/lib/api/kie-client";
 import { PHOTO_MODELS, getModelById } from "@/config/models";
-import { computePrice } from "@/lib/pricing/compute-price";
 import { getSkuFromRequest, getPriceStars, calculateTotalStars, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";

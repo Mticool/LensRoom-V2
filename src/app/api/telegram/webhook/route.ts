@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
-import { computePrice } from '@/lib/pricing/compute-price';
 import { getKieClient } from '@/lib/api/kie-client';
 import type { KieProvider } from '@/config/models';
 import {
