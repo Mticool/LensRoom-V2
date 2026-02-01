@@ -74,17 +74,36 @@ export async function POST(request: NextRequest) {
       taskId, // Прямой taskId для extend (если фронт шлёт напрямую)
     } = body;
     
-    // === NEW: STRICT ZOD + CAPABILITY VALIDATION ===    
+    // === NEW: STRICT ZOD + CAPABILITY VALIDATION ===
     // Get capability config (capabilities now use dashed IDs matching UI)
     const capability = getModelCapability(model);
-    
+
+    // Normalize mode from UI format to schema format
+    const normalizeMode = (m: string | undefined): string => {
+      if (!m) return 't2v';
+      const modeMap: Record<string, string> = {
+        'text_to_video': 't2v',
+        'image_to_video': 'i2v',
+        'text-to-video': 't2v',
+        'image-to-video': 'i2v',
+        'reference-to-video': 'i2v',
+        'start-end': 'start_end',
+        'video_to_video': 'v2v',
+        'extend': 'extend',
+      };
+      return modeMap[m] || m;
+    };
+    const normalizedMode = normalizeMode(mode);
+
     // NEW: Validate with Zod schema if capability exists
-    if (capability) {
+    // Skip strict validation for Veo - use legacy path which is more flexible
+    const skipStrictValidation = model === 'veo-3.1-fast' || model === 'veo-3.1';
+    if (capability && !skipStrictValidation) {
       try {
         // Build validation request object
         const validationRequest = {
           modelId: model,
-          mode: mode,
+          mode: normalizedMode,
           prompt: prompt || '',
           negativePrompt,
           aspectRatio: aspectRatioFromBody || capability.supportedAspectRatios[0],
@@ -107,12 +126,14 @@ export async function POST(request: NextRequest) {
         };
         
         // Validate with Zod schema
+        console.log('[Video API] Validation request:', JSON.stringify(validationRequest, null, 2));
         const parseResult = VideoGenerationRequestSchema.safeParse(validationRequest);
         if (!parseResult.success) {
           const errors = parseResult.error.issues.map(err => ({
             path: err.path.join('.'),
             message: err.message,
           }));
+          console.log('[Video API] Zod validation failed:', JSON.stringify(errors, null, 2));
           return NextResponse.json(
             {
               error: 'VALIDATION_ERROR',
@@ -743,7 +764,6 @@ export async function POST(request: NextRequest) {
           estimatedTime: 180, // Veo extend takes similar time as generation
           creditCost: creditCost,
           generationId: generation?.id,
-          provider: 'kie_veo',
           kind: 'video',
           mode: 'extend',
         });
@@ -849,17 +869,28 @@ export async function POST(request: NextRequest) {
     }
     
     // Handle Veo 3.1 reference images (array)
-    // Keep as Base64 data URLs - required by Veo API
-    let referenceImageBase64s: string[] | undefined;
+    // KIE API requires HTTP URLs, not base64 - upload to storage first
+    let referenceImageUrls: string[] | undefined;
     if (referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0) {
       // Limit to 2 images for stability (Veo supports up to 3, but 2 is recommended)
       const maxRefs = 2;
-      referenceImageBase64s = referenceImages.slice(0, maxRefs);
-      console.log('[API] Veo reference images:', {
+      const imagesToUpload = referenceImages.slice(0, maxRefs);
+      referenceImageUrls = [];
+      for (let i = 0; i < imagesToUpload.length; i++) {
+        const img = imagesToUpload[i];
+        if (img.startsWith('data:')) {
+          // Upload base64 to storage
+          const uploadedUrl = await uploadDataUrlToStorage(img, `veo_ref_${i}`);
+          referenceImageUrls.push(uploadedUrl);
+        } else {
+          // Already a URL
+          referenceImageUrls.push(img);
+        }
+      }
+      console.log('[API] Veo reference images uploaded:', {
         total: referenceImages.length,
-        using: referenceImageBase64s.length,
-        format: 'base64 data URLs',
-        limited: referenceImages.length > maxRefs,
+        using: referenceImageUrls.length,
+        format: 'HTTP URLs',
       });
     }
     
@@ -939,9 +970,9 @@ export async function POST(request: NextRequest) {
       sound: audio,
       // Reference assets
       hasReferenceImage: !!imageUrl,
-      hasReferenceImages: !!referenceImageBase64s,
-      referenceImagesCount: referenceImageBase64s?.length || 0,
-      referenceImagesFormat: referenceImageBase64s ? 'base64 data URLs' : 'none',
+      hasReferenceImages: !!referenceImageUrls,
+      referenceImagesCount: referenceImageUrls?.length || 0,
+      referenceImagesFormat: referenceImageUrls ? 'HTTP URLs' : 'none',
       hasStartImage: !!imageUrl && mode === 'start_end',
       hasEndImage: !!lastFrameUrl,
       hasReferenceVideo: !!videoUrl && (mode === 'start_end' || model === 'kling-motion-control'),
@@ -951,7 +982,7 @@ export async function POST(request: NextRequest) {
       stylePreset: stylePreset || 'not set',
       motionStrength: motionStrength || 'not set',
       // URLs/data (redacted)
-      referenceImageSample: referenceImageBase64s?.[0]?.substring(0, 60) || 'none',
+      referenceImageSample: referenceImageUrls?.[0]?.substring(0, 60) || 'none',
       imageUrlSample: imageUrl?.substring(0, 50) || 'none',
       videoUrlSample: videoUrl?.substring(0, 50) || 'none',
     });
@@ -1037,9 +1068,9 @@ export async function POST(request: NextRequest) {
           mode,
           hasStartImage: !!startImageUrlForVideo,
           hasEndImage: !!endImageUrlForVideo,
-          hasReferenceImages: !!referenceImageBase64s,
-          referenceImagesCount: referenceImageBase64s?.length || 0,
-          referenceImagesFormat: referenceImageBase64s ? 'base64 data URLs' : 'none',
+          hasReferenceImages: !!referenceImageUrls,
+          referenceImagesCount: referenceImageUrls?.length || 0,
+          referenceImagesFormat: referenceImageUrls ? 'HTTP URLs' : 'none',
           prompt: fullPrompt.substring(0, 50),
           userId,
           generationId: generation?.id,
@@ -1052,7 +1083,7 @@ export async function POST(request: NextRequest) {
           prompt: fullPrompt,
           startImageUrl: startImageUrlForVideo,
           endImageUrl: endImageUrlForVideo,
-          referenceImages: referenceImageBase64s, // Pass reference images as Base64 data URLs
+          referenceImages: referenceImageUrls, // Pass reference images as Base64 data URLs
         });
         
         // Upload video to Supabase Storage for permanent storage
@@ -1145,7 +1176,6 @@ export async function POST(request: NextRequest) {
           jobId: generation?.id,
           status: 'completed',
           generationId: generation?.id,
-          provider: 'video',
           kind: 'video',
           creditCost: creditCost,
           resultUrl: finalVideoUrl,
@@ -1332,7 +1362,7 @@ export async function POST(request: NextRequest) {
           quality: quality,
           shots: shots, // For storyboard mode
           characterOrientation: model === 'kling-motion-control' ? (characterOrientation || 'image') : undefined,
-          referenceImages: referenceImageBase64s, // Veo 3.1 reference images
+          referenceImages: referenceImageUrls, // Veo 3.1 reference images
         });
       } catch (error: any) {
       // Обработка ошибки политики контента Google Veo
@@ -1431,7 +1461,6 @@ export async function POST(request: NextRequest) {
       estimatedTime: response.estimatedTime || 120,
       creditCost: creditCost,
       generationId: generation?.id,
-      provider: usedFallback ? 'kie_market' : modelInfo.provider,
       kind: "video",
       warning: promptWarning,
       usedFallback: usedFallback,

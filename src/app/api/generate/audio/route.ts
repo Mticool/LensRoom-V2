@@ -477,7 +477,6 @@ export async function POST(request: NextRequest) {
         estimatedTime: isElevenLabs ? 15 : 60,
         creditCost: creditCost,
         generationId: generation?.id,
-        provider: isElevenLabs ? 'kie_elevenlabs' : 'kie_suno',
         kind: "audio",
       });
     } catch (apiError) {
