@@ -21,10 +21,20 @@ export const LAOZHANG_MODELS = {
   SEEDREAM_4_5: "seedream-4-5-251128",
   
   // === VIDEO MODELS - VEO 3.1 ===
+  // Standard models (720p)
   VEO_31: "veo-3.1",
   VEO_31_FAST: "veo-3.1-fast",
   VEO_31_LANDSCAPE: "veo-3.1-landscape",
   VEO_31_LANDSCAPE_FAST: "veo-3.1-landscape-fast",
+  
+  // 4K models (higher resolution)
+  VEO_31_FAST_4K: "veo-3.1-fast-4k",
+  VEO_31_LANDSCAPE_FAST_4K: "veo-3.1-landscape-fast-4k",
+  
+  // Multiple reference images support (-fl suffix)
+  // NOTE: Only works with standard veo-3.1 (NOT fast models)
+  VEO_31_FL: "veo-3.1-fl",
+  VEO_31_LANDSCAPE_FL: "veo-3.1-landscape-fl",
   
   // === VIDEO MODELS - SORA ===
   SORA_2: "sora-2",
@@ -154,7 +164,7 @@ export function resolutionToLaoZhangSize(
   // Resolution multipliers
   const multipliers: Record<string, number> = {
     "1k": 1,
-    "1k_2k": 1.5, // Between 1K and 2K
+    "1k_2k": 2, // Map to 2K tier to keep sizes standard for LaoZhang/Gemini
     "2k": 2,
     "4k": 4,
   };
@@ -233,7 +243,7 @@ export class LaoZhangClient {
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
-      timeout: 60000, // 60s for image generation
+      timeout: 120000, // 120s for image generation
     });
 
     const responseText = await response.text();
@@ -346,7 +356,7 @@ export class LaoZhangClient {
         // Don't set Content-Type - let fetch set it with boundary for FormData
       },
       body: formData,
-      timeout: 60000, // 60s for image editing
+      timeout: 120000, // 120s for image editing
     });
 
     const responseText = await response.text();
@@ -368,122 +378,250 @@ export class LaoZhangClient {
 
   /**
    * Generate video using Veo / Sora models
-   * Uses chat/completions endpoint which returns video URL directly
-   * Supports: t2v (text only), i2v (single image), start_end (first + last frame), ref2v (with reference images)
+   * 
+   * IMPORTANT: Veo 3.1 Reference Images mode:
+   * - Multiple refs (2-3): Only standard veo-3.1 (NOT fast), uses -fl suffix
+   * - Single first frame: veo-3.1-fast with action: "image2video"
+   * 
+   * Supports: t2v (text only), i2v (single image), start_end (first + last frame)
    */
   async generateVideo(params: {
     model: string;
     prompt: string;
-    startImageUrl?: string; // First frame image URL (for i2v or start_end)
+    startImageUrl?: string; // First frame image URL (for i2v)
     endImageUrl?: string; // Last frame image URL (for start_end mode)
-    referenceImages?: string[]; // Reference images as Base64 data URLs (for Veo 3.1 ref2v)
+    referenceImages?: string[]; // Reference images (for standard veo-3.1 only, NOT fast)
   }): Promise<LaoZhangVideoResponse> {
-    // Check if model needs -fl suffix for reference images (Veo with refs)
-    let finalModel = params.model;
     const hasReferenceImages = params.referenceImages && params.referenceImages.length > 0;
+    const isFastModel = params.model.includes('fast');
     
-    if (hasReferenceImages && params.model.startsWith('veo') && !params.model.includes('-fl')) {
-      // Add -fl suffix for Veo with reference images (required by API)
-      const parts = params.model.split('-');
-      const baseName = parts.slice(0, -1).join('-'); // e.g., "veo-3.1"
-      const lastPart = parts[parts.length - 1]; // e.g., "fast" or "landscape"
+    // IMPORTANT: Multiple reference images only work with standard veo-3.1 (NOT fast)
+    if (hasReferenceImages && isFastModel) {
+      console.warn('[Video API] ⚠️  Fast models do NOT support multiple reference images!');
+      console.warn('[Video API] Use standard veo-3.1 for 2-3 references, or use first image only for fast');
       
-      if (lastPart === 'fast' || lastPart === 'landscape') {
-        finalModel = `${baseName}-fl-${lastPart}`;
-      } else {
-        finalModel = `${params.model}-fl`;
+      // Use only first image as startImageUrl for fast models
+      if (params.referenceImages && params.referenceImages.length > 0) {
+        console.log('[Video API] Converting first reference image to startImageUrl for fast model');
+        params.startImageUrl = params.referenceImages[0];
+        params.referenceImages = undefined;
       }
+    }
+    
+    // IMPORTANT: Always use chat/completions format for Veo
+    // The /video/generations endpoint is async-only (returns taskId, not URL)
+    // chat/completions returns URL directly in response
+    return this.generateVideoChatFormat(params);
+  }
+
+  /**
+   * Generate video using Veo Video API format (action-based)
+   * POST /v1/video/generations or similar
+   */
+  private async generateVideoVeoFormat(params: {
+    model: string;
+    prompt: string;
+    startImageUrl?: string;
+    endImageUrl?: string;
+    referenceImages?: string[];
+  }): Promise<LaoZhangVideoResponse> {
+    const hasReferenceImages = params.referenceImages && params.referenceImages.length > 0;
+    const hasStartImage = !!params.startImageUrl;
+    const isFastModel = params.model.includes('fast');
+    
+    let action: 'text2video' | 'image2video' = 'text2video';
+    let imageUrls: string[] | undefined;
+    let finalModel = params.model;
+    
+    // Determine action and model based on inputs
+    if (hasReferenceImages && !isFastModel) {
+      // Multiple references - standard veo-3.1 with -fl suffix
+      action = 'text2video'; // Still text2video but with -fl model
+      finalModel = params.model.includes('-fl') ? params.model : `${params.model}-fl`;
       
-      console.log('[Video API] Using -fl model for reference images:', {
-        original: params.model,
-        final: finalModel,
+      console.log('[Video API] Using standard Veo with multiple references:', {
+        model: finalModel,
         referenceCount: params.referenceImages?.length || 0,
       });
+      
+      // For -fl models, we might need chat/completions format instead
+      return this.generateVideoChatFormat({
+        ...params,
+        model: finalModel,
+      });
+    } else if (hasStartImage) {
+      // Single first frame - image2video
+      action = 'image2video';
+      imageUrls = [params.startImageUrl!];
+      
+      console.log('[Video API] Using image2video with first frame:', {
+        model: params.model,
+        hasImage: true,
+      });
+    } else {
+      // Text only - text2video
+      action = 'text2video';
+      
+      console.log('[Video API] Using text2video:', {
+        model: params.model,
+      });
     }
+    
+    // Build request body
+    const body: Record<string, unknown> = {
+      model: finalModel,
+      prompt: params.prompt,
+      action,
+    };
+    
+    if (imageUrls) {
+      body.image_urls = imageUrls;
+    }
+    
+    console.log("[Video API] Veo Video API Request:", JSON.stringify(body, null, 2));
+    
+    const response = await fetchWithTimeout(`${this.baseUrl}/video/generations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      timeout: 120000,
+    });
+
+    const responseText = await response.text();
+    console.log("[Video API] Response status:", response.status);
+
+    if (!response.ok) {
+      let errorMessage = response.statusText;
+      try {
+        const error: LaoZhangError = JSON.parse(responseText);
+        errorMessage = error.error?.message || response.statusText;
+      } catch {
+        errorMessage = responseText || response.statusText;
+      }
+      throw new Error(`Video API error: ${errorMessage}`);
+    }
+
+    const result = JSON.parse(responseText);
+    
+    // Handle async response - might need polling
+    if (result.id && !result.videoUrl) {
+      console.log('[Video API] Async response received, task ID:', result.id);
+      // Return task info, caller should poll for completion
+      return {
+        id: result.id,
+        videoUrl: '', // Will be available after polling
+        model: finalModel,
+        created: Date.now() / 1000,
+      };
+    }
+    
+    // Extract video URL from response
+    const videoUrl = result.videoUrl || result.video_url || result.url;
+    if (!videoUrl) {
+      console.error("[Video API] No video URL in response:", result);
+      throw new Error("No video URL in response");
+    }
+
+    return {
+      id: result.id || result.task_id || String(Date.now()),
+      videoUrl,
+      model: finalModel,
+      created: result.created || Date.now() / 1000,
+    };
+  }
+
+  /**
+   * Generate video using chat/completions format
+   * Works for all Veo models (fast and standard) and Sora
+   */
+  private async generateVideoChatFormat(params: {
+    model: string;
+    prompt: string;
+    startImageUrl?: string;
+    endImageUrl?: string;
+    referenceImages?: string[];
+  }): Promise<LaoZhangVideoResponse> {
+    const hasReferenceImages = params.referenceImages && params.referenceImages.length > 0;
+    const hasStartImage = !!params.startImageUrl;
+    const hasEndImage = !!params.endImageUrl;
     
     // Build message content
     let messageContent: string | { type: string; text?: string; image_url?: { url: string } }[];
     
     if (hasReferenceImages) {
-      // ref2v mode - prompt + reference images (Base64)
+      // Multiple ref images mode (only for standard veo-3.1 with -fl)
       const contentParts: { type: string; text?: string; image_url?: { url: string } }[] = [
         { type: "text", text: params.prompt }
       ];
       
-      // Add reference images (must be Base64 data URLs)
-      if (params.referenceImages) {
-        for (const refImageBase64 of params.referenceImages) {
-          if (!refImageBase64.startsWith('data:image/')) {
-            console.warn('[Video API] Reference image not in Base64 format, skipping');
-            continue;
-          }
-          contentParts.push({
-            type: "image_url",
-            image_url: { url: refImageBase64 }
-          });
+      for (const refImageBase64 of params.referenceImages!) {
+        if (!refImageBase64.startsWith('data:image/') && !refImageBase64.startsWith('http')) {
+          console.warn('[Video API] Invalid image format, skipping');
+          continue;
         }
-      }
-      
-      messageContent = contentParts;
-      console.log("[Video API] Using ref2v mode with reference images:", {
-        referenceCount: params.referenceImages?.length || 0,
-        format: 'base64 data URLs',
-      });
-    } else if (params.startImageUrl || params.endImageUrl) {
-      // i2v or start_end mode - use multimodal content
-      const contentParts: { type: string; text?: string; image_url?: { url: string } }[] = [
-        { type: "text", text: params.prompt }
-      ];
-      
-      // Add start/first frame image
-      if (params.startImageUrl) {
         contentParts.push({
           type: "image_url",
-          image_url: { url: params.startImageUrl }
+          image_url: { url: refImageBase64 }
         });
       }
       
-      // Add end/last frame image (for start_end mode)
-      if (params.endImageUrl) {
-        // Add instruction about last frame
+      messageContent = contentParts;
+      console.log("[Video API] Chat format - multiple references:", {
+        model: params.model,
+        referenceCount: params.referenceImages?.length || 0,
+      });
+    } else if (hasStartImage || hasEndImage) {
+      // Single first frame (image2video for fast models) or start/end frame mode
+      const contentParts: { type: string; text?: string; image_url?: { url: string } }[] = [
+        { type: "text", text: params.prompt }
+      ];
+      
+      if (hasStartImage) {
+        contentParts.push({
+          type: "image_url",
+          image_url: { url: params.startImageUrl! }
+        });
+      }
+      
+      if (hasEndImage) {
         contentParts.push({
           type: "text",
-          text: "This is the desired end frame/final state of the video:"
+          text: "This is the desired end frame:"
         });
         contentParts.push({
           type: "image_url",
-          image_url: { url: params.endImageUrl }
+          image_url: { url: params.endImageUrl! }
         });
       }
       
       messageContent = contentParts;
-      console.log("[Video API] Using i2v/start_end mode with images:", {
-        hasStart: !!params.startImageUrl,
-        hasEnd: !!params.endImageUrl
+      console.log("[Video API] Chat format - image2video:", {
+        model: params.model,
+        hasStartImage,
+        hasEndImage,
       });
     } else {
-      // t2v mode - text only
+      // Text only (text2video)
       messageContent = params.prompt;
+      console.log("[Video API] Chat format - text2video:", {
+        model: params.model,
+      });
     }
     
     const body = {
-      model: finalModel,
+      model: params.model,
       messages: [
         { role: "user", content: messageContent }
       ],
     };
 
-    console.log("[Video API] Request to LaoZhang:", JSON.stringify({
-      baseUrl: this.baseUrl,
-      endpoint: "/chat/completions",
-      model: finalModel,
-      originalModel: params.model,
-      hasStartImage: !!params.startImageUrl,
-      hasEndImage: !!params.endImageUrl,
-      hasReferenceImages: hasReferenceImages,
-      referenceImagesCount: params.referenceImages?.length || 0,
-      promptLength: params.prompt.length,
-      promptPreview: params.prompt.substring(0, 100)
+    console.log("[Video API] Chat/completions Request:", JSON.stringify({
+      model: params.model,
+      hasImages: Array.isArray(messageContent),
+      imageCount: Array.isArray(messageContent) ? messageContent.filter((m: any) => m.type === 'image_url').length : 0,
     }, null, 2));
 
     const response = await fetchWithTimeout(`${this.baseUrl}/chat/completions`, {

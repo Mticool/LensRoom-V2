@@ -164,6 +164,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requestedAspectRatio = String(aspectRatio || "").trim();
+    if (requestedAspectRatio && Array.isArray(modelInfo.aspectRatios) && modelInfo.aspectRatios.length > 0) {
+      if (!modelInfo.aspectRatios.includes(requestedAspectRatio)) {
+        return NextResponse.json(
+          {
+            error: "Unsupported aspect ratio for this model",
+            aspectRatio: requestedAspectRatio,
+            allowed: modelInfo.aspectRatios,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    console.log('[API] Photo request:', {
+      modelId: effectiveModelId,
+      provider: modelInfo.provider,
+      aspectRatio: requestedAspectRatio || null,
+      mode,
+      variants,
+      outputFormat,
+      hasReference: Array.isArray(referenceImages) ? referenceImages.length > 0 : !!referenceImage,
+    });
+
     type OutputFormat = "png" | "jpg" | "webp";
     const rawOut = String(outputFormat || "").trim().toLowerCase();
     let requestedOutputFormat: OutputFormat =

@@ -200,21 +200,25 @@ export async function POST(request: NextRequest) {
                       : mode === 'video_to_video' ? 'v2v'
                       : 't2v';
 
+        // Filter out empty strings from URLs
+        const validReferenceImages = reference_images?.filter(url => url && url.trim() !== '');
+        const validInputVideo = input_video && input_video.trim() !== '' ? input_video : undefined;
+
         // Prepare request with proper type casting
         const kieRequest: import('@/lib/api/kie-client').GenerateVideoRequest = {
           provider: provider as 'kie_veo' | 'kie_market',
           model,
           mode: kieMode,
           prompt,
-          imageUrl: reference_images?.[0], // First reference image
-          imageUrls: reference_images, // All reference images for Veo
-          videoUrl: input_video,
+          imageUrl: validReferenceImages?.[0], // First reference image
+          imageUrls: validReferenceImages, // All reference images for Veo
+          videoUrl: validInputVideo,
           duration: duration_seconds,
           aspectRatio: aspect_ratio,
           quality: options.quality || resolution,
           resolution: resolution,
           sound: options.generate_audio,
-          characterOrientation: input_video ? 'video' : (reference_images?.[0] ? 'image' : undefined),
+          characterOrientation: validInputVideo ? 'video' : (validReferenceImages?.[0] ? 'image' : undefined),
         };
 
         const kieResponse = await kieClient.generateVideo(kieRequest);

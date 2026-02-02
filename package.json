@@ -18,7 +18,11 @@
     "worker:previews": "node scripts/previews-worker.js",
     "worker:previews:oneshot": "PREVIEWS_WORKER_ONESHOT=1 node scripts/previews-worker.js",
     "previews:rebuild": "node scripts/previews-rebuild.js",
-    "previews:rebuild:dry": "node scripts/previews-rebuild.js --dry-run"
+    "previews:rebuild:dry": "node scripts/previews-rebuild.js --dry-run",
+    "test:veo": "npx tsx test-veo-models.ts",
+    "test:veo:check": "npx tsx check-veo-availability.ts",
+    "test:veo:correct": "npx tsx test-veo-correct.ts",
+    "test:veo:all": "npm run test:veo && npm run test:veo:check && npm run test:veo:correct"
   },
   "dependencies": {
     "@fal-ai/client": "^1.8.4",

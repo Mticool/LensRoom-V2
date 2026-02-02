@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Play } from 'lucide-react';
+import { Play, Download } from 'lucide-react';
 import { VideoGeneratorHiru } from './VideoGeneratorHiru';
 import { useVideoGeneration } from '@/hooks/useVideoGeneration';
 import { toast } from 'sonner';
@@ -93,6 +93,18 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
       toast.error(error);
     }
   });
+
+  // Download video handler
+  const handleDownload = () => {
+    if (!videoUrl) return;
+    const a = document.createElement('a');
+    a.href = videoUrl;
+    a.download = `video-${Date.now()}.mp4`;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   // Convert File to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -269,12 +281,21 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
                       </div>
                     </div>
                   ) : videoUrl ? (
-                    <video
-                      ref={videoRef}
-                      src={videoUrl}
-                      controls
-                      className={`w-full bg-black ${currentRatio === '9:16' ? 'max-h-[70vh] object-contain' : ''}`}
-                    />
+                    <div className="relative">
+                      <video
+                        ref={videoRef}
+                        src={videoUrl}
+                        controls
+                        className={`w-full bg-black ${currentRatio === '9:16' ? 'max-h-[70vh] object-contain' : ''}`}
+                      />
+                      <button
+                        onClick={handleDownload}
+                        className="absolute top-4 right-4 px-4 py-2 bg-[#f59e0b] text-black text-sm font-medium rounded-lg shadow-lg hover:bg-[#d97706] transition-colors flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Скачать
+                      </button>
+                    </div>
                   ) : (
                     <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
                       <div className="text-center">

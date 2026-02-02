@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Download } from 'lucide-react';
 import type { VideoStatus } from '@/types/video-generator';
 
 interface VideoPreviewProps {
@@ -29,6 +29,18 @@ export function VideoPreview({
       }
     }
   }, [isPlaying]);
+
+  // Download video
+  const handleDownload = () => {
+    if (!videoUrl) return;
+    const a = document.createElement('a');
+    a.href = videoUrl;
+    a.download = `video-${Date.now()}.mp4`;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   return (
     <div
@@ -58,6 +70,16 @@ export function VideoPreview({
                 <Play className="w-8 h-8 text-black ml-1" fill="currentColor" />
               )}
             </div>
+          </button>
+
+          {/* Download Button - Top Right */}
+          <button
+            onClick={handleDownload}
+            className="absolute top-4 right-4 px-4 py-2 bg-[var(--accent-primary)] text-black text-sm font-medium rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105 flex items-center gap-2"
+            aria-label="Скачать видео"
+          >
+            <Download className="w-4 h-4" />
+            Скачать
           </button>
         </>
       ) : (
