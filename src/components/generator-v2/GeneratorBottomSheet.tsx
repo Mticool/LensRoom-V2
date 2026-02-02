@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import { useCallback, useMemo, useRef, useState, useEffect, memo } from "react";
 import { Settings, Loader2, X, Send, ImagePlus, Square, RectangleVertical, RectangleHorizontal, Sparkles, ChevronUp, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -59,7 +59,7 @@ function AspectIcon({ ratio, className }: { ratio: string; className?: string })
   return <Square className={className} />;
 }
 
-export function GeneratorBottomSheet({
+const GeneratorBottomSheetComponent = ({
   modelId,
   modelName,
   estimatedCost,
@@ -88,7 +88,7 @@ export function GeneratorBottomSheet({
   onGenerate,
   onOpenMenu,
   onModelChange,
-}: GeneratorBottomSheetProps) {
+}: GeneratorBottomSheetProps) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
@@ -174,18 +174,18 @@ export function GeneratorBottomSheet({
     onGenerate();
   }, [canGenerate, onGenerate, prompt]);
 
-  const totalCost = estimatedCost * quantity;
+  const totalCost = useMemo(() => estimatedCost * quantity, [estimatedCost, quantity]);
 
   // Get short quality label
-  const getQualityLabel = (q: string) => {
+  const getQualityLabel = useCallback((q: string) => {
     const lower = q.toLowerCase();
     if (lower.includes('ultra') || lower.includes('4k')) return '4K';
     if (lower.includes('high') || lower.includes('2k') || lower.includes('hd')) return 'HD';
     return 'SD';
-  };
+  }, []);
 
   // Get short aspect label
-  const getAspectLabel = (a: string) => a.replace(':', '∶');
+  const getAspectLabel = useCallback((a: string) => a.replace(':', '∶'), []);
 
   const handleFileClick = () => {
     fileInputRef.current?.click();
@@ -735,4 +735,6 @@ export function GeneratorBottomSheet({
       )}
     </div>
   );
-}
+};
+
+export const GeneratorBottomSheet = memo(GeneratorBottomSheetComponent);
