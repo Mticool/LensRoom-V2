@@ -872,26 +872,34 @@ export async function POST(request: NextRequest) {
     // KIE API requires HTTP URLs, not base64 - upload to storage first
     let referenceImageUrls: string[] | undefined;
     if (referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0) {
-      // Limit to 2 images for stability (Veo supports up to 3, but 2 is recommended)
-      const maxRefs = 2;
-      const imagesToUpload = referenceImages.slice(0, maxRefs);
-      referenceImageUrls = [];
-      for (let i = 0; i < imagesToUpload.length; i++) {
-        const img = imagesToUpload[i];
-        if (img.startsWith('data:')) {
-          // Upload base64 to storage
-          const uploadedUrl = await uploadDataUrlToStorage(img, `veo_ref_${i}`);
-          referenceImageUrls.push(uploadedUrl);
-        } else {
-          // Already a URL
-          referenceImageUrls.push(img);
+      // Filter out empty strings first
+      const validReferenceImages = referenceImages.filter(img => img && typeof img === 'string' && img.trim() !== '');
+
+      if (validReferenceImages.length > 0) {
+        // Limit to 2 images for stability (Veo supports up to 3, but 2 is recommended)
+        const maxRefs = 2;
+        const imagesToUpload = validReferenceImages.slice(0, maxRefs);
+        referenceImageUrls = [];
+        for (let i = 0; i < imagesToUpload.length; i++) {
+          const img = imagesToUpload[i];
+          if (img.startsWith('data:')) {
+            // Upload base64 to storage
+            const uploadedUrl = await uploadDataUrlToStorage(img, `veo_ref_${i}`);
+            referenceImageUrls.push(uploadedUrl);
+          } else {
+            // Already a URL - verify it's not empty
+            if (img.trim() !== '') {
+              referenceImageUrls.push(img);
+            }
+          }
         }
+        console.log('[API] Veo reference images uploaded:', {
+          total: referenceImages.length,
+          valid: validReferenceImages.length,
+          using: referenceImageUrls.length,
+          format: 'HTTP URLs',
+        });
       }
-      console.log('[API] Veo reference images uploaded:', {
-        total: referenceImages.length,
-        using: referenceImageUrls.length,
-        format: 'HTTP URLs',
-      });
     }
     
     // Handle motion control reference video
@@ -1347,13 +1355,19 @@ export async function POST(request: NextRequest) {
     // === KIE.ai PROVIDER ===
     else {
       try {
+        // Final validation: filter out any empty URL strings before passing to KIE client
+        const safeImageUrl = imageUrl && imageUrl.trim() !== '' ? imageUrl : undefined;
+        const safeLastFrameUrl = lastFrameUrl && lastFrameUrl.trim() !== '' ? lastFrameUrl : undefined;
+        const safeVideoUrl = videoUrl && videoUrl.trim() !== '' ? videoUrl : undefined;
+        const safeReferenceImageUrls = referenceImageUrls?.filter(url => url && url.trim() !== '');
+
         response = await kieClient.generateVideo({
           model: apiModelId,
           provider: modelInfo.provider,
           prompt: fullPrompt,
-          imageUrl: imageUrl,
-          lastFrameUrl: lastFrameUrl,
-          videoUrl: videoUrl, // For motion control
+          imageUrl: safeImageUrl,
+          lastFrameUrl: safeLastFrameUrl,
+          videoUrl: safeVideoUrl, // For motion control
           duration: duration || modelInfo.fixedDuration || 5,
           aspectRatio: aspectRatio,
           sound: model === 'wan' ? (wanSoundPreset || false) : (model === 'kling-motion-control' ? false : soundEnabled),
@@ -1362,7 +1376,7 @@ export async function POST(request: NextRequest) {
           quality: quality,
           shots: shots, // For storyboard mode
           characterOrientation: model === 'kling-motion-control' ? (characterOrientation || 'image') : undefined,
-          referenceImages: referenceImageUrls, // Veo 3.1 reference images
+          referenceImages: safeReferenceImageUrls && safeReferenceImageUrls.length > 0 ? safeReferenceImageUrls : undefined, // Veo 3.1 reference images
         });
       } catch (error: any) {
       // Обработка ошибки политики контента Google Veo
