@@ -131,8 +131,10 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
       // Use mode from params if provided (from UI selector)
       if (params.mode === 'extend') mode = 'extend';
       else if (params.mode === 'i2v') mode = 'image';
+      else if (params.mode === 'start_end') mode = 'reference'; // Start/end frames
       else if (params.mode === 'ref2v') mode = 'reference';
       else if (params.mode === 'v2v') mode = 'v2v';
+      else if (params.mode === 't2v') mode = 'text';
       else if (params.mode === 'motion_control') mode = 'motion';
       // Auto-detect from inputs if mode not explicitly set
       else if (params.motionVideo) mode = 'motion';

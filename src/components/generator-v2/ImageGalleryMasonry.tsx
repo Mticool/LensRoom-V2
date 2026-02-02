@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react';
 import { Download, Share2, RotateCcw, Loader2, ZoomIn, Maximize2, AlertCircle, Heart, ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
@@ -38,8 +38,8 @@ const isImageReady = (image: GenerationResult): boolean => {
   return true;
 };
 
-export function ImageGalleryMasonry({ 
-  images, 
+const ImageGalleryMasonryComponent = ({
+  images,
   isGenerating,
   layout = 'masonry',
   onRegenerate,
@@ -53,17 +53,20 @@ export function ImageGalleryMasonry({
   onLoadMore,
   isLoadingMore = false,
   enableDragDrop = false,
-}: ImageGalleryMasonryProps) {
+}: ImageGalleryMasonryProps) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const { toggleFavorite, isFavorite: isFavoriteId } = useFavoritesStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastLenRef = useRef<number>(images.length);
-  const cardClassName =
+
+  const cardClassName = useMemo(() =>
     layout === "grid" || layout === "feed"
       ? "higgs-gallery-item group"
-      : "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl";
+      : "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl",
+    [layout]
+  );
 
-  const getAspect = (size?: string): { w: number; h: number } => {
+  const getAspect = useCallback((size?: string): { w: number; h: number } => {
     const s = String(size || "").trim();
     // Accept common shorthands: "9:16", "9/16", "9.16", "9x16", "9×16"
     const m = s.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);
@@ -72,9 +75,9 @@ export function ImageGalleryMasonry({
     const h = Number(m[2]);
     if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return { w: 1, h: 1 };
     return { w, h };
-  };
+  }, []);
 
-  const getTileStyle = (size?: string) => {
+  const getTileStyle = useCallback((size?: string) => {
     let { w, h } = getAspect(size);
     const ratio = w / h;
     if (ratio < 9/16) { w = 9; h = 16; }
@@ -83,21 +86,21 @@ export function ImageGalleryMasonry({
       aspectRatio: `${w} / ${h}`,
       width: "100%",
     } as const;
-  };
+  }, [getAspect]);
 
   /** data-aspect for Higgsfield-style cards (reference: gallery-item) */
-  const getDataAspect = (size?: string): string => {
+  const getDataAspect = useCallback((size?: string): string => {
     let { w, h } = getAspect(size);
     const ratio = w / h;
     if (ratio < 9/16) { w = 9; h = 16; }
     if (ratio > 16/9) { w = 16; h = 9; }
     return `${w}:${h}`;
-  };
+  }, [getAspect]);
 
-  const getAspectRatioStyle = (size?: string) => {
+  const getAspectRatioStyle = useCallback((size?: string) => {
     const { w, h } = getAspect(size);
     return { aspectRatio: `${w} / ${h}` } as const;
-  };
+  }, [getAspect]);
 
   // Auto-scroll to bottom when new images are appended (only if user is already near bottom).
   useEffect(() => {
@@ -128,7 +131,7 @@ export function ImageGalleryMasonry({
     });
   }, [autoScrollToBottom, autoScrollThresholdPx, images.length]);
 
-  const handleDownload = async (image: GenerationResult) => {
+  const handleDownload = useCallback(async (image: GenerationResult) => {
     if (!image?.url) return;
     try {
       const isDemo = String(image.id || "").startsWith("demo-");
@@ -162,9 +165,9 @@ export function ImageGalleryMasonry({
       } catch {}
       toast.error('Ошибка при скачивании');
     }
-  };
+  }, []);
 
-  const handleShare = async (image: GenerationResult) => {
+  const handleShare = useCallback(async (image: GenerationResult) => {
     if (navigator.share) {
       try {
         await navigator.share({
@@ -180,25 +183,25 @@ export function ImageGalleryMasonry({
       navigator.clipboard.writeText(image.url);
       toast.success('Ссылка скопирована');
     }
-  };
+  }, []);
 
-  const handleZoom = (image: GenerationResult) => {
+  const handleZoom = useCallback((image: GenerationResult) => {
     // Prefer in-app viewer if provided
     if (onImageClick) {
       onImageClick(image);
       return;
     }
     window.open(image.url, '_blank');
-  };
+  }, [onImageClick]);
 
-  const handleRegenerate = (image: GenerationResult) => {
+  const handleRegenerate = useCallback((image: GenerationResult) => {
     if (onRegenerate) {
       onRegenerate(image.prompt, image.settings);
       toast.info('Перегенерация...');
     }
-  };
+  }, [onRegenerate]);
 
-  const handleToggleFavorite = async (image: GenerationResult) => {
+  const handleToggleFavorite = useCallback(async (image: GenerationResult) => {
     if (!image?.id) return;
     // Avoid toggling for placeholders/demos
     if (String(image.id).startsWith("demo-") || String(image.id).startsWith("pending_")) return;
@@ -209,14 +212,14 @@ export function ImageGalleryMasonry({
     } catch {
       toast.error("Не удалось сохранить");
     }
-  };
+  }, [toggleFavorite, isFavoriteId]);
 
-  const handleUseAsReference = (image: GenerationResult) => {
+  const handleUseAsReference = useCallback((image: GenerationResult) => {
     if (!onUseAsReference) return;
     onUseAsReference(image);
-  };
+  }, [onUseAsReference]);
 
-  const renderSkeletons = () => {
+  const renderSkeletons = useCallback(() => {
     return Array.from({ length: 4 }).map((_, i) => (
       <div
         key={`skeleton-${i}`}
@@ -227,7 +230,7 @@ export function ImageGalleryMasonry({
         </div>
       </div>
     ));
-  };
+  }, []);
 
   // Don't show empty state if there are demo images
   if (images.length === 0 && !isGenerating) {
@@ -637,4 +640,6 @@ export function ImageGalleryMasonry({
       </div>
     </div>
   );
-}
+};
+
+export const ImageGalleryMasonry = memo(ImageGalleryMasonryComponent);

@@ -7,6 +7,8 @@
 
 import type { KieProvider } from '@/config/models';
 import { env } from "@/lib/env";
+import { getLaoZhangClient } from './laozhang-client';
+import { fetchWithTimeout } from './fetch-with-timeout';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -41,36 +43,14 @@ export interface CreateTaskRequest {
 
 export interface VeoGenerateRequest {
   prompt: string;
-  model?: 'veo3' | 'veo3_fast'; // veo3 = quality, veo3_fast = fast (maps to "veo-3-1-quality" / "veo-3-1-fast")
-  mode?: 'reference-to-video' | 'image-to-video' | 'text-to-video'; // API mode
-  ratio?: string; // "Auto" | "16:9" | "9:16"
-  aspectRatio?: string; // Legacy field (mapped to ratio)
-  duration?: number; // Duration in seconds (default 8)
-  seed?: number; // Random seed for reproducibility
-  enable_audio?: boolean; // Native Veo 3.1 audio
-  enhancePrompt?: boolean;
-  useFallback?: boolean; // Use Veo 3 Fallback API to bypass content policy
-  // For image-to-video (legacy single/multiple images)
+  model?: 'veo3' | 'veo3_fast'; // veo3 = quality, veo3_fast = fast
+  generationType?: 'TEXT_2_VIDEO' | 'FIRST_AND_LAST_FRAMES_2_VIDEO' | 'REFERENCE_2_VIDEO'; // API mode
+  aspect_ratio?: string; // "16:9" | "9:16" | "Auto"
+  seeds?: number; // Random seed (10000-99999)
+  enableTranslation?: boolean; // Auto-translate prompts to English (default: true)
+  watermark?: string; // Text overlay for branding
+  // For image-to-video (1-2 images)
   imageUrls?: string[];
-  // For reference-to-video with weighted references
-  reference_images?: Array<{
-    url: string;
-    weight?: number; // 0.0-1.0
-    type?: string; // Optional label like "character", "lighting", etc.
-  }>;
-  // Frame control for start/end frames
-  frame_control?: {
-    start_frame?: {
-      mode: 'image';
-      image_url: string;
-      strength?: number; // 0.0-1.0
-    };
-    end_frame?: {
-      mode: 'image';
-      image_url: string;
-      strength?: number; // 0.0-1.0
-    };
-  };
   // For callback webhook
   callBackUrl?: string;
 }
@@ -321,13 +301,14 @@ export class KieAIClient {
       body: parsedBody,
     });
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
         ...options.headers,
       },
+      timeout: 120000, // 2 minutes default for KIE API
     });
 
     // Check for empty response
@@ -834,10 +815,14 @@ export class KieAIClient {
   async generateVideo(params: GenerateVideoRequest): Promise<GenerateVideoResponse> {
     try {
       // Route to appropriate API based on provider
+      if (params.provider === 'laozhang') {
+        return this.generateLaoZhangVideo(params);
+      }
+
       if (params.provider === 'kie_veo') {
         return this.generateVeoVideo(params);
       }
-      
+
       return this.generateMarketVideo(params);
     } catch (error) {
       console.error("[KIE API] generateVideo error:", error);
@@ -845,104 +830,165 @@ export class KieAIClient {
     }
   }
 
+  // === LAOZHANG VIDEO GENERATION ===
+  // Routes to LaoZhang.ai API for Veo 3.1 Fast and Sora 2 models
+  private async generateLaoZhangVideo(params: GenerateVideoRequest): Promise<GenerateVideoResponse> {
+    console.log('[LAOZHANG] Routing to LaoZhang API:', {
+      model: params.model,
+      mode: params.mode,
+      aspectRatio: params.aspectRatio,
+      duration: params.duration,
+    });
+
+    // Map model ID to LaoZhang model name
+    let laozhangModel = params.model;
+
+    // For Sora models, use aspect ratio and duration to determine variant
+    if (params.model === 'sora-2' || params.model === 'sora_video2') {
+      const duration = Number(params.duration) || 10;
+      const aspectRatio = params.aspectRatio || '9:16';
+
+      if (duration >= 15) {
+        laozhangModel = 'sora_video2-15s';
+      } else if (aspectRatio === '16:9' || aspectRatio === 'landscape') {
+        laozhangModel = 'sora_video2-landscape';
+      } else {
+        laozhangModel = 'sora_video2'; // Default: portrait 10s
+      }
+    }
+
+    // Collect image URLs for i2v/start_end modes
+    let startImageUrl: string | undefined;
+    let endImageUrl: string | undefined;
+    let referenceImages: string[] | undefined;
+
+    // For i2v or start_end mode, use imageUrl/imageUrls
+    if (params.mode === 'i2v' || params.mode === 'start_end') {
+      if (params.imageUrl) {
+        startImageUrl = params.imageUrl;
+      } else if (params.imageUrls && params.imageUrls.length > 0) {
+        startImageUrl = params.imageUrls[0];
+      }
+
+      // For start_end mode, also get end frame
+      if (params.mode === 'start_end' && params.lastFrameUrl) {
+        endImageUrl = params.lastFrameUrl;
+      }
+    }
+
+    // For ref2v mode (Veo reference images)
+    if (params.mode === 'ref2v' && params.referenceImages) {
+      referenceImages = [];
+      for (const ref of params.referenceImages) {
+        const url = typeof ref === 'string' ? ref : ref.url;
+        if (url) {
+          referenceImages.push(url);
+        }
+      }
+    }
+
+    // Call LaoZhang API
+    const laozhangClient = getLaoZhangClient();
+    const result = await laozhangClient.generateVideo({
+      model: laozhangModel,
+      prompt: params.prompt || '',
+      startImageUrl,
+      endImageUrl,
+      referenceImages,
+    });
+
+    // Map LaoZhang response to our format
+    return {
+      id: result.id,
+      status: 'completed',
+      outputs: [{
+        url: result.videoUrl,
+        width: 1280,
+        height: 720,
+        duration: Number(params.duration) || 10,
+      }],
+    };
+  }
+
   // === VEO 3.1 VIDEO GENERATION ===
+  // API Docs: https://docs.kie.ai/veo3-api/generate-veo-3-video
   private async generateVeoVideo(params: GenerateVideoRequest): Promise<GenerateVideoResponse> {
-    // Veo API is strict about aspect ratios; it returns 422 "Ratio error" for unsupported values (e.g. 1:1).
+    // Veo API supports: "16:9", "9:16", "Auto"
     const rawAspect = String(params.aspectRatio || '16:9');
     const veoAspect = rawAspect === '1:1' ? '16:9' : rawAspect;
-    if (rawAspect !== veoAspect) {
-      console.warn('[VEO] Unsupported aspect ratio requested, falling back:', { rawAspect, veoAspect });
-    }
+    console.log('[VEO] Request params:', {
+      aspectRatio: params.aspectRatio,
+      veoAspect,
+      mode: params.mode,
+      model: params.model,
+      quality: params.quality
+    });
 
     const request: VeoGenerateRequest = {
       prompt: params.prompt || '',
-      ratio: veoAspect, // Use ratio field for new API format
-      duration: typeof params.duration === 'number' ? params.duration : 8,
-      enhancePrompt: true,
-      useFallback: true, // Enable Veo 3 Fallback API to bypass content policy
-      enable_audio: typeof params.sound === 'boolean' ? params.sound : false,
+      aspect_ratio: veoAspect, // "16:9" | "9:16" | "Auto"
+      model: params.quality === 'fast' ? 'veo3_fast' : 'veo3',
+      enableTranslation: true,
     };
 
-    // Select model based on quality
-    // params.quality can be 'fast' or 'quality' from the model config
-    if (params.quality === 'fast') {
-      request.model = 'veo3_fast';
-    } else {
-      request.model = 'veo3'; // Default quality mode
-    }
+    // Determine generationType based on mode and images
+    if (params.mode === 'i2v' || params.mode === 'ref2v') {
+      // Collect image URLs
+      const imageUrls: string[] = [];
 
-    // Map mode to API format
-    if (params.mode === 'ref2v') {
-      request.mode = 'reference-to-video';
-    } else if (params.mode === 'i2v' || params.mode === 'start_end') {
-      request.mode = 'image-to-video';
-    } else {
-      request.mode = 'text-to-video';
-    }
+      if (params.referenceImages && params.referenceImages.length > 0) {
+        params.referenceImages.forEach((ref) => {
+          const url = typeof ref === 'string' ? ref : ref.url;
+          if (url) imageUrls.push(url);
+        });
+      } else if (params.imageUrl) {
+        imageUrls.push(params.imageUrl);
+      } else if (params.imageUrls && params.imageUrls.length > 0) {
+        imageUrls.push(...params.imageUrls);
+      }
 
-    // === REF2V MODE: Reference images with weights ===
-    if (params.mode === 'ref2v' && params.referenceImages && params.referenceImages.length > 0) {
-      request.reference_images = params.referenceImages.map((ref, index) => {
-        // Handle both string URLs and object format
-        if (typeof ref === 'string') {
-          return {
-            url: ref,
-            weight: 0.8,
-            type: `reference_${index + 1}`,
-          };
+      if (imageUrls.length > 0) {
+        request.imageUrls = imageUrls.slice(0, 2); // Max 2 images
+        // REFERENCE_2_VIDEO only works with veo3_fast and 16:9
+        if (params.mode === 'ref2v' && request.model === 'veo3_fast' && veoAspect === '16:9') {
+          request.generationType = 'REFERENCE_2_VIDEO';
+        } else {
+          // Use FIRST_AND_LAST_FRAMES_2_VIDEO for image-to-video
+          // 1 image = movement around it, 2 images = transition between them
+          request.generationType = 'FIRST_AND_LAST_FRAMES_2_VIDEO';
         }
-        return {
-          url: ref.url || '',
-          weight: ref.weight || 0.8,
-          type: ref.type || `reference_${index + 1}`,
-        };
-      });
-      console.log('[VEO] ref2v mode: using', request.reference_images.length, 'reference images');
-    }
-
-    // === I2V MODE: Single or multiple images (legacy format) ===
-    if (params.mode === 'i2v' && params.imageUrl) {
-      request.imageUrls = [params.imageUrl];
-    } else if (params.mode === 'i2v' && params.imageUrls && params.imageUrls.length > 0) {
-      request.imageUrls = params.imageUrls;
-    }
-
-    // === START_END MODE: First and last frame control ===
-    if (params.mode === 'start_end') {
-      request.frame_control = {};
-      
-      if (params.imageUrl) {
-        request.frame_control.start_frame = {
-          mode: 'image',
-          image_url: params.imageUrl,
-          strength: 0.9,
-        };
+        console.log('[VEO] Image mode:', { imageCount: request.imageUrls.length, generationType: request.generationType });
       }
-      
-      if (params.lastFrameUrl) {
-        request.frame_control.end_frame = {
-          mode: 'image',
-          image_url: params.lastFrameUrl,
-          strength: 0.9,
-        };
+    } else if (params.mode === 'start_end') {
+      // First and last frames mode
+      const imageUrls: string[] = [];
+      if (params.imageUrl) imageUrls.push(params.imageUrl);
+      if (params.lastFrameUrl) imageUrls.push(params.lastFrameUrl);
+
+      if (imageUrls.length > 0) {
+        request.imageUrls = imageUrls;
+        request.generationType = 'FIRST_AND_LAST_FRAMES_2_VIDEO';
+        console.log('[VEO] Start/End frames mode:', { imageCount: imageUrls.length });
       }
-      
-      console.log('[VEO] start_end mode: frame_control configured');
+    } else {
+      // Text-to-video mode
+      request.generationType = 'TEXT_2_VIDEO';
     }
 
-    // Add callback URL (recommended to keep delivery reliable)
+    // Add callback URL
     const base = this.callbackUrlBase.replace(/\/$/, "");
     const secret = this.veoWebhookSecret || this.callbackSecret;
     if (base && secret) {
       request.callBackUrl = `${base}/api/webhooks/veo?secret=${encodeURIComponent(secret)}`;
     }
 
+    console.log('[VEO] Final request:', JSON.stringify(request, null, 2));
     const response = await this.veoGenerate(request);
 
     return {
       id: response.data.taskId,
       status: "queued",
-      estimatedTime: 180, // Veo takes longer (3 minutes)
+      estimatedTime: 180,
     };
   }
 
@@ -1457,11 +1503,12 @@ export class KieAIClient {
   
   async checkHealth(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/jobs/recordInfo?taskId=test`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/api/v1/jobs/recordInfo?taskId=test`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
         },
+        timeout: 10000, // 10s for health check
       });
       return response.status !== 500;
     } catch {

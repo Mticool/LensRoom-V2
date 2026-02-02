@@ -4,6 +4,7 @@
 // Base URL: https://genaipro.vn/api/v1
 
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from './fetch-with-timeout';
 
 // ===== MODEL IDS =====
 
@@ -230,11 +231,12 @@ export class GenAIProClient {
       );
     }
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url.toString(), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
       },
+      timeout: 30000, // 30s for GET requests
     });
 
     return this.handleResponse(res);
@@ -244,13 +246,14 @@ export class GenAIProClient {
    * POST JSON request helper
    */
   private async postJson(path: string, body: any): Promise<any> {
-    const res = await fetch(this.baseUrl + path, {
+    const res = await fetchWithTimeout(this.baseUrl + path, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      timeout: 120000, // 2 minutes for generation requests
     });
 
     return this.handleResponse(res);
@@ -260,13 +263,14 @@ export class GenAIProClient {
    * POST FormData request helper
    */
   private async postFormData(path: string, formData: FormData): Promise<any> {
-    const res = await fetch(this.baseUrl + path, {
+    const res = await fetchWithTimeout(this.baseUrl + path, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         // Content-Type will be set automatically by FormData
       },
       body: formData,
+      timeout: 120000, // 2 minutes for file upload and generation
     });
 
     return this.handleResponse(res);

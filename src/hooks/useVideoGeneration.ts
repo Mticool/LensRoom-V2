@@ -173,10 +173,12 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
             break;
           case 'reference':
             // Reference maps to start_end (frames) or v2v (video)
-            if (params.startFrame && params.endFrame) {
-              apiMode = 'start_end'; // Start/end frames
-            } else {
+            if (params.startFrame || params.endFrame) {
+              apiMode = 'start_end'; // Start/end frames (at least one)
+            } else if (params.referenceVideo) {
               apiMode = 'v2v'; // Reference video
+            } else {
+              apiMode = 'start_end'; // Default to start_end for reference mode
             }
             break;
           case 'motion':
@@ -214,11 +216,16 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
           }
         }
 
+        // Veo 3.1 reference images (array of up to 3 images)
+        if (params.referenceImages && params.referenceImages.length > 0) {
+          requestBody.referenceImages = params.referenceImages;
+        }
+
         if (params.mode === 'reference') {
-          if (params.startFrame && params.endFrame) {
-            // Start/End Frame mode
-            requestBody.startFrame = params.startFrame;
-            requestBody.endFrame = params.endFrame;
+          if (params.startFrame || params.endFrame) {
+            // Start/End Frame mode - API expects startImage/endImage
+            if (params.startFrame) requestBody.startImage = params.startFrame;
+            if (params.endFrame) requestBody.endImage = params.endFrame;
           } else if (params.referenceVideo) {
             // Reference video mode
             requestBody.referenceVideo = params.referenceVideo;

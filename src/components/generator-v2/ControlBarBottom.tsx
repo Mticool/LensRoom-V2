@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { Sparkles, Loader2, ChevronUp, Star, Settings, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AspectRatioSelector } from './AspectRatioSelector';
@@ -51,7 +51,7 @@ interface ControlBarBottomProps {
   onStepsChange?: (value: number) => void;
 }
 
-export function ControlBarBottom({
+const ControlBarBottomComponent = ({
   prompt,
   onPromptChange,
   aspectRatio,
@@ -86,53 +86,118 @@ export function ControlBarBottom({
   onSeedChange,
   steps,
   onStepsChange,
-}: ControlBarBottomProps) {
+}: ControlBarBottomProps) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
-  
-  // Get model name from config if modelId provided, otherwise use modelName prop
-  const displayName = modelId 
-    ? (getModelById(modelId)?.name || modelName)
-    : modelName;
 
-  const isToolModel = modelId === 'topaz-image-upscale' || modelId === 'recraft-remove-background';
-  const isGrokImagine = modelId === "grok-imagine";
+  // Get model name from config if modelId provided, otherwise use modelName prop
+  const displayName = useMemo(() =>
+    modelId ? (getModelById(modelId)?.name || modelName) : modelName,
+    [modelId, modelName]
+  );
+
+  const isToolModel = useMemo(() =>
+    modelId === 'topaz-image-upscale' || modelId === 'recraft-remove-background',
+    [modelId]
+  );
+
+  const isGrokImagine = useMemo(() =>
+    modelId === "grok-imagine",
+    [modelId]
+  );
+
   // Most photo models in our UI allow up to 4 parallel generations per click.
   // Grok Imagine returns 6 images per run on upstream (fixed output count).
-  const quantityMax = isToolModel ? 1 : isGrokImagine ? 6 : 4;
-  const uploadTitle = isToolModel ? 'Загрузить фото' : 'Загрузить референс';
-  const uploadedTitle = isToolModel ? 'Фото загружено (клик для замены)' : 'Референс загружен (клик для замены)';
-  const removeTitle = isToolModel ? 'Удалить фото' : 'Удалить референс';
-  const model = modelId ? getModelById(modelId) : undefined;
-  const photoModel = model && model.type === "photo" ? (model as any) : null;
-  const maxReferenceImages = isToolModel ? 1 : Math.max(1, Number(photoModel?.maxInputImages ?? 1));
-  const referenceList: string[] = Array.isArray(referenceImages)
-    ? referenceImages.filter((x) => typeof x === "string" && x.trim().length > 0)
-    : (referenceImage ? [referenceImage] : []);
-  const hasAnyReference = referenceList.length > 0;
+  const quantityMax = useMemo(() =>
+    isToolModel ? 1 : isGrokImagine ? 6 : 4,
+    [isToolModel, isGrokImagine]
+  );
 
-  const promptPlaceholder = isToolModel
-    ? (hasAnyReference
-        ? `${displayName}: (опционально) комментарий...`
-        : `${displayName}: сначала загрузите фото слева`)
-    : (hasAnyReference
-        ? `${displayName}: Опишите что изменить...`
-        : `${displayName}: Опишите сцену...`);
-  
-  const allowedInputFormats: Array<'jpeg' | 'png' | 'webp'> | null =
+  const uploadTitle = useMemo(() =>
+    isToolModel ? 'Загрузить фото' : 'Загрузить референс',
+    [isToolModel]
+  );
+
+  const uploadedTitle = useMemo(() =>
+    isToolModel ? 'Фото загружено (клик для замены)' : 'Референс загружен (клик для замены)',
+    [isToolModel]
+  );
+
+  const removeTitle = useMemo(() =>
+    isToolModel ? 'Удалить фото' : 'Удалить референс',
+    [isToolModel]
+  );
+
+  const model = useMemo(() =>
+    modelId ? getModelById(modelId) : undefined,
+    [modelId]
+  );
+
+  const photoModel = useMemo(() =>
+    model && model.type === "photo" ? (model as any) : null,
+    [model]
+  );
+
+  const maxReferenceImages = useMemo(() =>
+    isToolModel ? 1 : Math.max(1, Number(photoModel?.maxInputImages ?? 1)),
+    [isToolModel, photoModel]
+  );
+
+  const referenceList: string[] = useMemo(() =>
+    Array.isArray(referenceImages)
+      ? referenceImages.filter((x) => typeof x === "string" && x.trim().length > 0)
+      : (referenceImage ? [referenceImage] : []),
+    [referenceImages, referenceImage]
+  );
+
+  const hasAnyReference = useMemo(() =>
+    referenceList.length > 0,
+    [referenceList]
+  );
+
+  const promptPlaceholder = useMemo(() =>
+    isToolModel
+      ? (hasAnyReference
+          ? `${displayName}: (опционально) комментарий...`
+          : `${displayName}: сначала загрузите фото слева`)
+      : (hasAnyReference
+          ? `${displayName}: Опишите что изменить...`
+          : `${displayName}: Опишите сцену...`),
+    [isToolModel, hasAnyReference, displayName]
+  );
+
+  const allowedInputFormats: Array<'jpeg' | 'png' | 'webp'> | null = useMemo(() =>
     photoModel?.inputImageFormats && Array.isArray(photoModel.inputImageFormats)
       ? photoModel.inputImageFormats
-      : null;
-  const allowedMimeTypes: string[] | null = allowedInputFormats
-    ? allowedInputFormats
-        .map((f) => (f === "jpeg" ? "image/jpeg" : f === "png" ? "image/png" : f === "webp" ? "image/webp" : undefined))
-        .filter((x): x is Exclude<typeof x, undefined> => x !== undefined)
-    : null;
-  const maxImageSizeMb = Number(photoModel?.maxInputImageSizeMb ?? 10);
-  const MAX_IMAGE_SIZE_BYTES = Math.max(1, maxImageSizeMb) * 1024 * 1024;
-  const acceptAttr = allowedMimeTypes?.length ? allowedMimeTypes.join(",") : "image/*";
+      : null,
+    [photoModel]
+  );
 
-  const updateReferences = (next: string[], files?: File[]) => {
+  const allowedMimeTypes: string[] | null = useMemo(() =>
+    allowedInputFormats
+      ? allowedInputFormats
+          .map((f) => (f === "jpeg" ? "image/jpeg" : f === "png" ? "image/png" : f === "webp" ? "image/webp" : undefined))
+          .filter((x): x is Exclude<typeof x, undefined> => x !== undefined)
+      : null,
+    [allowedInputFormats]
+  );
+
+  const maxImageSizeMb = useMemo(() =>
+    Number(photoModel?.maxInputImageSizeMb ?? 10),
+    [photoModel]
+  );
+
+  const MAX_IMAGE_SIZE_BYTES = useMemo(() =>
+    Math.max(1, maxImageSizeMb) * 1024 * 1024,
+    [maxImageSizeMb]
+  );
+
+  const acceptAttr = useMemo(() =>
+    allowedMimeTypes?.length ? allowedMimeTypes.join(",") : "image/*",
+    [allowedMimeTypes]
+  );
+
+  const updateReferences = useCallback((next: string[], files?: File[]) => {
     if (onReferenceImagesChange) {
       onReferenceImagesChange(next);
       return;
@@ -142,23 +207,23 @@ export function ControlBarBottom({
     onReferenceImageChange?.(first);
     if (files && files[0]) onReferenceFileChange?.(files[0]);
     else if (!first) onReferenceFileChange?.(null);
-  };
+  }, [onReferenceImagesChange, onReferenceImageChange, onReferenceFileChange]);
 
-  const readFileAsDataUrl = (file: File): Promise<string> =>
+  const readFileAsDataUrl = useCallback((file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error("read_failed"));
       reader.onload = () => resolve(String(reader.result || ""));
       reader.readAsDataURL(file);
-    });
+    }), []);
   
   // Handle file upload with validation
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     // allow selecting the same file again
     e.target.value = "";
     if (!files.length) return;
-    
+
     const current = referenceList;
     const remaining = Math.max(0, maxReferenceImages - current.length);
     if (remaining <= 0) {
@@ -202,18 +267,18 @@ export function ControlBarBottom({
     } catch {
       toast.error("Не удалось прочитать файл");
     }
-  };
+  }, [referenceList, maxReferenceImages, isToolModel, allowedMimeTypes, allowedInputFormats, MAX_IMAGE_SIZE_BYTES, maxImageSizeMb, readFileAsDataUrl, updateReferences]);
   
-  const handleRemoveReference = () => {
+  const handleRemoveReference = useCallback(() => {
     updateReferences([]);
-  };
+  }, [updateReferences]);
 
-  const handleRemoveReferenceAt = (idx: number) => {
+  const handleRemoveReferenceAt = useCallback((idx: number) => {
     const next = referenceList.filter((_, i) => i !== idx);
     updateReferences(next);
-  };
+  }, [referenceList, updateReferences]);
 
-  const normalizeToOption = (value: string, options: string[]): string | null => {
+  const normalizeToOption = useCallback((value: string, options: string[]): string | null => {
     const raw = String(value || "").trim();
     if (!raw) return null;
     if (options.includes(raw)) return raw;
@@ -234,15 +299,34 @@ export function ControlBarBottom({
       return raw;
     })();
     return options.includes(guess) ? guess : null;
-  };
+  }, []);
 
-  const hasEnoughCredits = credits >= estimatedCost;
-  const isDisabled = disabled || isGenerating;
-  const hasRequiredInput = isToolModel ? hasAnyReference : prompt.trim().length > 0;
-  const canGenerate = isAuthenticated && hasRequiredInput && !isDisabled && hasEnoughCredits;
-  const canSubmit = !isDisabled && (isAuthenticated ? canGenerate : true);
+  const hasEnoughCredits = useMemo(() =>
+    credits >= estimatedCost,
+    [credits, estimatedCost]
+  );
 
-  const handleSubmit = () => {
+  const isDisabled = useMemo(() =>
+    disabled || isGenerating,
+    [disabled, isGenerating]
+  );
+
+  const hasRequiredInput = useMemo(() =>
+    isToolModel ? hasAnyReference : prompt.trim().length > 0,
+    [isToolModel, hasAnyReference, prompt]
+  );
+
+  const canGenerate = useMemo(() =>
+    isAuthenticated && hasRequiredInput && !isDisabled && hasEnoughCredits,
+    [isAuthenticated, hasRequiredInput, isDisabled, hasEnoughCredits]
+  );
+
+  const canSubmit = useMemo(() =>
+    !isDisabled && (isAuthenticated ? canGenerate : true),
+    [isDisabled, isAuthenticated, canGenerate]
+  );
+
+  const handleSubmit = useCallback(() => {
     if (!isAuthenticated) {
       onRequireAuth?.();
       return;
@@ -253,7 +337,7 @@ export function ControlBarBottom({
       else if (!isToolModel && prompt.trim().length === 0) toast.error("Введите промпт");
       else if (!hasEnoughCredits) toast.error("Недостаточно звёзд");
     }
-  };
+  }, [isAuthenticated, canGenerate, onRequireAuth, onGenerate, isToolModel, hasAnyReference, prompt, hasEnoughCredits]);
 
   return (
     <>
@@ -836,4 +920,6 @@ export function ControlBarBottom({
     )}
     </>
   );
-}
+};
+
+export const ControlBarBottom = memo(ControlBarBottomComponent);

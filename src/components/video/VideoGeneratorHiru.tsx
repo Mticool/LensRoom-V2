@@ -340,22 +340,29 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
         ? referenceImage
         : null;
 
+      // Veo 3.1 Fast: convert single referenceImage to referenceImages array
+      const isVeo31 = selectedModel === 'veo-3.1-fast';
+      const effectiveReferenceImages = isVeo31 && effectiveMode === 'i2v' && referenceImage
+        ? [referenceImage]
+        : null;
+
       // start_end: first/last frame control
       const effectiveStartFrame = effectiveMode === 'start_end' && supportsStartEndFrames ? startFrame : null;
       const effectiveEndFrame = effectiveMode === 'start_end' && supportsStartEndFrames ? endFrame : null;
       const effectiveV2vVideo = effectiveMode === 'v2v' && supportedModes.includes('v2v') ? v2vVideo : null;
-      
+
       console.log('[VideoGeneratorHiru] Calling onGenerate with:', {
         mode,
         model: selectedModel,
         hasStartFrame: !!effectiveStartFrame,
         hasEndFrame: !!effectiveEndFrame,
-        hasReferenceImages: 0,
+        hasReferenceImages: effectiveReferenceImages?.length || 0,
         hasReferenceImage: !!effectiveReferenceImage,
         hasReferenceVideo: false,
         hasV2vVideo: !!effectiveV2vVideo,
+        isVeo31,
       });
-      
+
       // Call API
       if (onGenerate) {
         await onGenerate({
@@ -366,7 +373,8 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
           aspectRatio,
           startFrame: effectiveStartFrame,
           endFrame: effectiveEndFrame,
-          referenceImage: effectiveReferenceImage, // I2V single image
+          referenceImage: isVeo31 ? null : effectiveReferenceImage, // I2V single image (not for Veo)
+          referenceImages: effectiveReferenceImages, // Veo 3.1 uses array
           motionVideo,
           characterImage,
           sceneControlMode,

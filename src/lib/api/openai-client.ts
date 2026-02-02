@@ -10,6 +10,7 @@
 // Quality: medium, high
 
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from './fetch-with-timeout';
 
 // Model snapshots
 export const OPENAI_IMAGE_MODEL = "gpt-image-1";
@@ -96,14 +97,15 @@ export class OpenAIClient {
     }
     
     console.log('[OpenAI] Request body:', JSON.stringify(body));
-    
-    const response = await fetch(`${this.baseUrl}/images/generations`, {
+
+    const response = await fetchWithTimeout(`${this.baseUrl}/images/generations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
+      timeout: 120000, // 2 minutes for image generation
     });
 
     const responseText = await response.text();
@@ -162,13 +164,14 @@ export class OpenAIClient {
     formData.append('prompt', request.prompt);
     if (request.size) formData.append('size', request.size);
     if (request.n) formData.append('n', String(request.n));
-    
-    const response = await fetch(`${this.baseUrl}/images/edits`, {
+
+    const response = await fetchWithTimeout(`${this.baseUrl}/images/edits`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: formData,
+      timeout: 120000, // 2 minutes for image editing
     });
 
     if (!response.ok) {

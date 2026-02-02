@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './fetch-with-timeout';
+
 export class MiniMaxAPIError extends Error {
   constructor(
     message: string,
@@ -85,10 +87,11 @@ export class MiniMaxClient {
     formData.append('file', file);
     formData.append('purpose', 'voice_clone'); // Required by MiniMax API
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: this.headers,
       body: formData,
+      timeout: 60000, // 60s for audio file upload
     });
 
     if (!response.ok) {
@@ -141,13 +144,14 @@ export class MiniMaxClient {
     console.log('[MiniMax Clone] Request:', JSON.stringify(requestBody, null, 2));
     console.log('[MiniMax Clone] file_id type:', typeof requestBody.file_id, 'value:', requestBody.file_id);
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
         ...this.headers,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
+      timeout: 120000, // 2 minutes for voice cloning
     });
 
     if (!response.ok) {
@@ -211,13 +215,14 @@ export class MiniMaxClient {
     console.log('[MiniMax TTS DIAGNOSTIC] Request payload:');
     console.log(JSON.stringify(requestBody, null, 2));
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
         ...this.headers,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
+      timeout: 120000, // 2 minutes for TTS generation
     });
 
     console.log('[MiniMax TTS DIAGNOSTIC] HTTP Status:', response.status, response.statusText);

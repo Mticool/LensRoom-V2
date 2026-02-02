@@ -1,10 +1,12 @@
 /**
  * Fal.ai Client for Kling O1 + ElevenLabs
- * 
+ *
  * APIs:
  * - Video: fal-ai/kling-video/o1/...
  * - Audio: fal-ai/elevenlabs/tts/eleven-v3, fal-ai/elevenlabs/voice-cloning
  */
+
+import { fetchWithTimeout } from './fetch-with-timeout';
 
 // ===== ELEVENLABS TYPES =====
 
@@ -133,13 +135,14 @@ export class FalAIClient {
     const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/standard/image-to-video`;
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Key ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(params),
+        timeout: 60000, // 60s for job submission
       });
 
       if (!response.ok) {
@@ -182,11 +185,12 @@ export class FalAIClient {
     const endpoint = `${this.baseUrl}/fal-ai/kling-video/requests/${requestId}/status`;
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'GET',
         headers: {
           'Authorization': `Key ${this.apiKey}`,
         },
+        timeout: 10000, // 10s for status check
       });
 
       if (!response.ok) {
@@ -211,13 +215,14 @@ export class FalAIClient {
     const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/video-to-video/edit`;
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Key ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(params),
+        timeout: 60000, // 60s for job submission
       });
 
       if (!response.ok) {
@@ -261,11 +266,12 @@ export class FalAIClient {
     const endpoint = `${this.baseUrl}/fal-ai/kling-video/requests/${requestId}/status`;
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'GET',
         headers: {
           'Authorization': `Key ${this.apiKey}`,
         },
+        timeout: 10000, // 10s for status check
       });
 
       if (!response.ok) {
@@ -450,11 +456,12 @@ export class FalAIClient {
     const endpoint = `${this.baseUrl}/${path}/requests/${requestId}`;
     
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'GET',
         headers: {
           'Authorization': `Key ${this.apiKey}`,
         },
+        timeout: 10000, // 10s for status check
       });
 
       if (!response.ok) {
@@ -489,9 +496,9 @@ export class FalAIClient {
   }> {
     try {
       // HEAD request to check content-type and size
-      const response = await fetch(videoUrl, {
+      const response = await fetchWithTimeout(videoUrl, {
         method: 'HEAD',
-        signal: AbortSignal.timeout(10000),
+        timeout: 10000, // 10s for metadata check
       });
 
       if (!response.ok) {

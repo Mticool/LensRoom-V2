@@ -2,6 +2,7 @@
 // Internal API client for video generation services
 
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from './fetch-with-timeout';
 
 // ===== MODEL IDS =====
 
@@ -225,13 +226,14 @@ export class LaoZhangClient {
 
     console.log("[Video API] Request:", JSON.stringify(body));
 
-    const response = await fetch(`${this.baseUrl}/images/generations`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/images/generations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
+      timeout: 60000, // 60s for image generation
     });
 
     const responseText = await response.text();
@@ -308,7 +310,7 @@ export class LaoZhangClient {
       } else if (request.image.startsWith("http")) {
         // URL - fetch and convert to blob
         try {
-          const imageResponse = await fetch(request.image);
+          const imageResponse = await fetchWithTimeout(request.image, { timeout: 30000 });
           const imageBlob = await imageResponse.blob();
           formData.append("image", imageBlob, "image.png");
         } catch (fetchError) {
@@ -337,13 +339,14 @@ export class LaoZhangClient {
       }
     }
 
-    const response = await fetch(`${this.baseUrl}/images/edits`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/images/edits`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         // Don't set Content-Type - let fetch set it with boundary for FormData
       },
       body: formData,
+      timeout: 60000, // 60s for image editing
     });
 
     const responseText = await response.text();
@@ -483,13 +486,14 @@ export class LaoZhangClient {
       promptPreview: params.prompt.substring(0, 100)
     }, null, 2));
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
+      timeout: 120000, // 2 minutes for video generation
     });
 
     const responseText = await response.text();
@@ -543,13 +547,14 @@ export class LaoZhangClient {
 
     console.log("[Video API Async] Request:", JSON.stringify(body));
 
-    const response = await fetch(`${this.baseUrl}/video/generations`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/video/generations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
+      timeout: 120000, // 2 minutes for video generation
     });
 
     const responseText = await response.text();
@@ -567,11 +572,12 @@ export class LaoZhangClient {
   async checkBalance(): Promise<{ balance: number }> {
     try {
       // LaoZhang may have a balance endpoint
-      const response = await fetch(`${this.baseUrl}/dashboard/billing/credit_grants`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/dashboard/billing/credit_grants`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
         },
+        timeout: 10000, // 10s for balance check
       });
 
       if (response.ok) {

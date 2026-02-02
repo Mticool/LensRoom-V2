@@ -18,20 +18,20 @@ export const VIDEO_MODELS: ModelCapability[] = [
   {
     id: 'veo-3.1-fast',
     label: 'Veo 3.1 Fast',
-    provider: 'kie',
+    provider: 'laozhang',
     description: 'Veo 3.1 Fast от Google — быстрая генерация видео высокого качества с поддержкой референсов и продления',
     apiId: 'veo-3.1-fast',
-    
+
     supportedModes: ['t2v', 'i2v', 'start_end', 'extend'],
     supportedAspectRatios: ['auto', '16:9', '9:16'],
-    supportedDurationsSec: [8],
-    fixedDuration: 8,
-    
+    supportedDurationsSec: [4, 6, 8],
+    supportedQualities: ['720p', '1080p'],
+
     supportsSound: false,
     supportsReferenceVideo: false,
-    supportsReferenceImages: false,
+    supportsReferenceImages: true, // Multi-Image Reference поддерживается
     supportsStartEndFrames: true,
-    
+
     constraints: undefined,
   },
   
@@ -43,15 +43,15 @@ export const VIDEO_MODELS: ModelCapability[] = [
     description: 'Kling 2.6 Standard — отличная динамика с поддержкой звука',
     apiId: 'kling-2.6/text-to-video',
     apiIdI2v: 'kling-2.6/image-to-video',
-    
+
     supportedModes: ['t2v', 'i2v'],
     supportedAspectRatios: ['1:1', '16:9', '9:16'],
     supportedDurationsSec: [5, 10],
     supportedQualities: ['720p', '1080p'],
-    
+
     supportsSound: true,
-    supportsStartEndFrames: true,
-    
+    supportsStartEndFrames: false, // НЕ ПОДДЕРЖИВАЕТ start/end frames
+
     constraints: undefined,
   },
   
@@ -63,15 +63,15 @@ export const VIDEO_MODELS: ModelCapability[] = [
     description: 'Kling 2.5 Turbo — быстрая генерация с балансом скорости и качества',
     apiId: 'kling-2.5-turbo/text-to-video',
     apiIdI2v: 'kling-2.5-turbo/image-to-video',
-    
+
     supportedModes: ['t2v', 'i2v'],
     supportedAspectRatios: ['1:1', '16:9', '9:16'],
     supportedDurationsSec: [5, 10],
     supportedQualities: ['720p', '1080p'],
-    
+
     supportsSound: false,
-    supportsStartEndFrames: true,
-    
+    supportsStartEndFrames: false, // НЕ ПОДДЕРЖИВАЕТ start/end frames
+
     constraints: undefined,
   },
   
@@ -83,15 +83,15 @@ export const VIDEO_MODELS: ModelCapability[] = [
     description: 'Kling 2.1 Master — высокое качество генерации с тремя уровнями качества',
     apiId: 'kling-2.1/text-to-video',
     apiIdI2v: 'kling-2.1/image-to-video',
-    
-    supportedModes: ['t2v', 'i2v'],
+
+    supportedModes: ['t2v', 'i2v', 'start_end'], // Pro режим поддерживает tail_image_url
     supportedAspectRatios: ['1:1', '16:9', '9:16'],
     supportedDurationsSec: [5, 10],
     supportedQualities: ['720p', '1080p', 'standard', 'pro', 'master'],
-    
+
     supportsSound: false,
-    supportsStartEndFrames: true,
-    
+    supportsStartEndFrames: true, // Только для Pro/Master качества
+
     constraints: undefined,
   },
   
@@ -100,36 +100,37 @@ export const VIDEO_MODELS: ModelCapability[] = [
     id: 'grok-video',
     label: 'Grok Video',
     provider: 'kie',
-    description: 'Grok Video от xAI — создаёт видео с синхронизированным звуком и 6 стилей',
+    description: 'Grok Video от xAI — создаёт видео с синхронизированным звуком и режимами Fun/Normal/Spicy',
     apiId: 'grok-imagine/text-to-video',
-    
+
     supportedModes: ['t2v', 'i2v'],
-    supportedAspectRatios: ['16:9', '9:16', '1:1', 'auto'],
-    supportedDurationsSec: [6],
-    fixedDuration: 6,
-    
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '2:3', '3:2'],
+    supportedDurationsSec: [6, 10],
+
     supportsSound: true,
     supportsReferenceImages: false,
-    
-    styleOptions: ['realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'],
-    
+
+    styleOptions: ['normal', 'fun', 'spicy'],
+
     constraints: undefined,
   },
   
-  // ===== SORA 2 - OpenAI =====
+  // ===== SORA 2 - OpenAI via LaoZhang =====
   {
     id: 'sora-2',
     label: 'Sora 2',
     provider: 'laozhang',
-    description: 'OpenAI Sora 2 — универсальная генерация с балансом качества и скорости',
-    apiId: 'sora-2',
-    
+    description: 'OpenAI Sora 2 — универсальная генерация 10/15 сек, 720p с синхронизацией звука',
+    apiId: 'sora_video2', // Base model: 704×1280 portrait 10s
+
     supportedModes: ['t2v', 'i2v'],
-    supportedAspectRatios: ['16:9', '9:16', 'portrait', 'landscape'],
-    supportedDurationsSec: [5, 10],
-    
-    supportsSound: false,
-    
+    supportedAspectRatios: ['16:9', '9:16'], // portrait (9:16) или landscape (16:9)
+    supportedDurationsSec: [10, 15], // 10s базовая, 15s расширенная
+    supportedQualities: ['720p'], // Базовая модель 720p, sora-2-pro = HD/1080p
+
+    supportsSound: true, // Audio-video synchronization
+    supportsReferenceImages: true, // Поддерживает до 1 референс изображения для I2V
+
     constraints: undefined,
   },
   
@@ -138,18 +139,19 @@ export const VIDEO_MODELS: ModelCapability[] = [
     id: 'wan-2.6',
     label: 'WAN 2.6',
     provider: 'kie',
-    description: 'WAN 2.6 — кинематографическая генерация с управлением камерой',
+    description: 'WAN 2.6 — кинематографическая генерация до 15 сек с управлением камерой и синхронизированным аудио',
     apiId: 'wan-2.6/text-to-video',
     apiIdI2v: 'wan-2.6/image-to-video',
     apiIdV2v: 'wan-2.6/video-to-video',
-    
+
     supportedModes: ['t2v', 'i2v', 'v2v'],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
     supportedDurationsSec: [5, 10, 15],
     supportedQualities: ['720p', '1080p'],
-    
-    supportsSound: false,
-    
+
+    supportsSound: true, // Synced audio + lip sync
+    supportsReferenceVideo: true, // R2V режим
+
     cameraMotionOptions: [
       'static',
       'pan_left',
@@ -162,7 +164,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
       'follow',
     ],
     styleOptions: ['realistic', 'cinematic', 'anime', 'cartoon'],
-    
+
     constraints: undefined,
   },
   

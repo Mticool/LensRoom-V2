@@ -161,16 +161,19 @@ export const VideoGenerationRequestSchema = z.object({
   // Advanced
   seed: z.number().optional(),
   variants: z.number().min(1).max(4).optional().default(1),
+  threadId: z.string().optional(), // Thread ID for conversation context
 }).refine(
   (data) => {
-    // start_end requires start image
-    if (data.mode === 'start_end' && !data.startImage) {
-      return false;
+    // start_end requires start image OR referenceImages (for Veo 3.1)
+    if (data.mode === 'start_end') {
+      const hasStartImage = !!data.startImage;
+      const hasReferenceImages = data.referenceImages && data.referenceImages.length > 0;
+      return hasStartImage || hasReferenceImages;
     }
     return true;
   },
   {
-    message: 'startImage is required for start_end mode',
+    message: 'startImage or referenceImages is required for start_end mode',
     path: ['startImage'],
   }
 ).refine(

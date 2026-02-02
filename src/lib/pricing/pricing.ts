@@ -58,7 +58,8 @@ export interface PricingOptions {
  * - infinitalk_720p:per_sec
  */
 export function getSkuFromRequest(modelId: string, options: PricingOptions = {}): string {
-  const normalizedModelId = modelId.replace(/-/g, '_');
+  // Replace both dashes and dots with underscores (e.g., veo-3.1-fast → veo_3_1_fast)
+  const normalizedModelId = modelId.replace(/[-\.]/g, '_');
 
   // === PHOTO MODELS ===
   if (normalizedModelId === 'nano_banana') {

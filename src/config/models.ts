@@ -529,7 +529,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     name: 'Veo 3.1 Fast',
     apiId: 'veo-3.1-fast',
     type: 'video',
-    provider: 'kie_veo', // Using Kie AI Veo API for extend support
+    provider: 'laozhang', // Using LaoZhang API for Veo 3.1
     description: 'Veo 3.1 Fast — быстрая генерация видео высокого качества. Поддерживает text-to-video, image-to-video, до 3 референс-изображений, start/end frames.',
     rank: 1,
     featured: true,
