@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, memo } from 'react';
 import { Sparkles, ChevronDown, Info, X, Check, Upload, Image as ImageIcon, Video as VideoIcon, User, Film } from 'lucide-react';
 import { toast } from 'sonner';
 import { VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
@@ -37,7 +37,7 @@ interface DropdownProps {
   onChange: (value: any) => void;
 }
 
-function Dropdown({ label, value, options, onChange }: DropdownProps) {
+const Dropdown = memo(({ label, value, options, onChange }: DropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -52,14 +52,19 @@ function Dropdown({ label, value, options, onChange }: DropdownProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedOption = options.find(opt => opt.value === value);
+  const selectedOption = useMemo(
+    () => options.find(opt => opt.value === value),
+    [options, value]
+  );
 
-            return (
-              <div className="relative flex-1" ref={dropdownRef}>
-                <button
-                  onClick={() => setIsOpen(!isOpen)}
-                  className="w-full flex items-center justify-between p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08] hover:border-white/20 transition-all duration-200"
-                >
+  const toggleOpen = useCallback(() => setIsOpen(prev => !prev), []);
+
+  return (
+    <div className="relative flex-1" ref={dropdownRef}>
+      <button
+        onClick={toggleOpen}
+        className="w-full flex items-center justify-between p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08] hover:border-white/20 transition-all duration-200"
+      >
                   <div>
                     <div className="text-[10px] text-zinc-500 uppercase tracking-wide">{label}</div>
                     <div className="text-[13px] font-medium text-white">{selectedOption?.label || value}</div>
@@ -85,18 +90,24 @@ function Dropdown({ label, value, options, onChange }: DropdownProps) {
                       </button>
                     ))}
                   </div>
-                )}
-              </div>
-            );
-          }
-        
-export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp = false }: VideoGeneratorHiruProps) {
+        )}
+      </div>
+    );
+});
+
+const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingProp = false }: VideoGeneratorHiruProps) => {
   // Main tabs
   const [activeTab, setActiveTab] = useState<Tab>('create');
-  
+
   // Model selection
-  const STANDARD_MODELS = VIDEO_MODELS.filter(m => m.id !== 'kling-motion-control' && m.featured);
-  const MOTION_MODEL = VIDEO_MODELS.find(m => m.id === 'kling-motion-control');
+  const STANDARD_MODELS = useMemo(
+    () => VIDEO_MODELS.filter(m => m.id !== 'kling-motion-control' && m.featured),
+    []
+  );
+  const MOTION_MODEL = useMemo(
+    () => VIDEO_MODELS.find(m => m.id === 'kling-motion-control'),
+    []
+  );
   
   const [selectedModel, setSelectedModel] = useState(STANDARD_MODELS[0]?.id || 'veo-3.1-fast');
   const [showModelSelector, setShowModelSelector] = useState(false);
@@ -130,14 +141,26 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   
   // Use prop for loading state if provided, otherwise local state
   const isGenerating = isGeneratingProp;
-  
+
   // Get current model info
-  const currentModel = VIDEO_MODELS.find(m => m.id === selectedModel) as VideoModelConfig | undefined;
-  const currentGradient = MODEL_GRADIENTS[selectedModel] || 'from-blue-600 to-purple-600';
-  const modelConfig = VIDEO_MODELS_CONFIG[selectedModel];
-  
+  const currentModel = useMemo(
+    () => VIDEO_MODELS.find(m => m.id === selectedModel) as VideoModelConfig | undefined,
+    [selectedModel]
+  );
+  const currentGradient = useMemo(
+    () => MODEL_GRADIENTS[selectedModel] || 'from-blue-600 to-purple-600',
+    [selectedModel]
+  );
+  const modelConfig = useMemo(
+    () => VIDEO_MODELS_CONFIG[selectedModel],
+    [selectedModel]
+  );
+
   // NEW: Get capability-based config
-  const capability = getModelCapability(selectedModel);
+  const capability = useMemo(
+    () => getModelCapability(selectedModel),
+    [selectedModel]
+  );
   
   // Update settings when model changes - reset invalid values
   useEffect(() => {
@@ -177,25 +200,55 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
   }, [selectedModel, modelConfig, capability]);
 
   // Check what features current model supports (STRICT: capability-driven only)
-  const supportedModes = (capability?.supportedModes || []).filter(m => m !== 'motion_control');
-  const supportsStartEndFrames = capability?.supportsStartEndFrames || false;
-  const supportsReferenceImages = capability?.supportsReferenceImages || false;
-  const supportsI2v = supportedModes.includes('i2v');
-  const hasResolutionOptions = (capability?.supportedQualities?.length || 0) > 0;
-  const supportsAudioGeneration = capability?.supportsSound || false;
-  
+  const supportedModes = useMemo(
+    () => (capability?.supportedModes || []).filter(m => m !== 'motion_control'),
+    [capability]
+  );
+  const supportsStartEndFrames = useMemo(
+    () => capability?.supportsStartEndFrames || false,
+    [capability]
+  );
+  const supportsReferenceImages = useMemo(
+    () => capability?.supportsReferenceImages || false,
+    [capability]
+  );
+  const supportsI2v = useMemo(
+    () => supportedModes.includes('i2v'),
+    [supportedModes]
+  );
+  const hasResolutionOptions = useMemo(
+    () => (capability?.supportedQualities?.length || 0) > 0,
+    [capability]
+  );
+  const supportsAudioGeneration = useMemo(
+    () => capability?.supportsSound || false,
+    [capability]
+  );
+
   // Simple I2V input (no tabs): Grok, Sora
-  const useSimpleImageInput = ['grok-video', 'sora-2'].includes(selectedModel) && supportsI2v;
+  const useSimpleImageInput = useMemo(
+    () => ['grok-video', 'sora-2'].includes(selectedModel) && supportsI2v,
+    [selectedModel, supportsI2v]
+  );
 
-  const isT2vMode = mode === 't2v';
-  const isI2vMode = mode === 'i2v';
-  const isStartEndMode = mode === 'start_end';
-  const isV2vMode = mode === 'v2v';
-  const isExtendMode = mode === 'extend';
+  const isT2vMode = useMemo(() => mode === 't2v', [mode]);
+  const isI2vMode = useMemo(() => mode === 'i2v', [mode]);
+  const isStartEndMode = useMemo(() => mode === 'start_end', [mode]);
+  const isV2vMode = useMemo(() => mode === 'v2v', [mode]);
+  const isExtendMode = useMemo(() => mode === 'extend', [mode]);
 
-  const showStartEndInputs = isStartEndMode && supportsStartEndFrames;
-  const showV2vInput = isV2vMode && supportedModes.includes('v2v');
-  const showI2vInput = isI2vMode && supportsI2v;
+  const showStartEndInputs = useMemo(
+    () => isStartEndMode && supportsStartEndFrames,
+    [isStartEndMode, supportsStartEndFrames]
+  );
+  const showV2vInput = useMemo(
+    () => isV2vMode && supportedModes.includes('v2v'),
+    [isV2vMode, supportedModes]
+  );
+  const showI2vInput = useMemo(
+    () => isI2vMode && supportsI2v,
+    [isI2vMode, supportsI2v]
+  );
 
   // Reset incompatible inputs when mode changes
   useEffect(() => {
@@ -237,7 +290,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
     }
   }, [isExtendMode, selectedModel]);
 
-  const loadExtendableGenerations = async () => {
+  const loadExtendableGenerations = useCallback(async () => {
     try {
       const response = await fetch('/api/generations?type=video&model=veo-3.1-fast&limit=50', {
         credentials: 'include',
@@ -252,8 +305,8 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       const generations = Array.isArray(data?.generations) ? data.generations : [];
 
       // Фильтруем только генерации с task_id (сгенерированные через API)
-      const extendable = generations.filter((g: any) => 
-        g.task_id && 
+      const extendable = generations.filter((g: any) =>
+        g.task_id &&
         ['success', 'completed'].includes(String(g.status || '').toLowerCase())
       );
 
@@ -261,38 +314,38 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
     } catch (error) {
       console.error('[VideoGeneratorHiru] Failed to load extendable generations:', error);
     }
-  };
+  }, []);
   
   // Get available options for current model (STRICT: capability-driven only)
-  const getQualityOptions = () => {
+  const getQualityOptions = useCallback(() => {
     if (!capability?.supportedQualities?.length) return [];
     return capability.supportedQualities.map(q => ({ value: q, label: q.toUpperCase() }));
-  };
+  }, [capability]);
 
-  const getAspectRatioOptions = () => {
+  const getAspectRatioOptions = useCallback(() => {
     if (!capability?.supportedAspectRatios?.length) return [];
     return capability.supportedAspectRatios.map(ar => ({ value: ar, label: ar }));
-  };
+  }, [capability]);
 
-  const handleAspectRatioChange = (newRatio: string) => {
+  const handleAspectRatioChange = useCallback((newRatio: string) => {
     setAspectRatio(newRatio);
     onRatioChange?.(newRatio);
-  };
+  }, [onRatioChange]);
 
-  const getDurationOptions = () => {
+  const getDurationOptions = useCallback(() => {
     if (!capability?.supportedDurationsSec?.length) return [];
     return capability.supportedDurationsSec.map(dur => ({ value: dur, label: `${dur}s` }));
-  };
+  }, [capability]);
 
-  const aspectRatioOptions = getAspectRatioOptions();
-  const durationOptions = getDurationOptions();
+  const aspectRatioOptions = useMemo(() => getAspectRatioOptions(), [getAspectRatioOptions]);
+  const durationOptions = useMemo(() => getDurationOptions(), [getDurationOptions]);
   
   // Calculate cost using centralized pricing
-  const calculateCost = () => {
+  const calculateCost = useCallback(() => {
     try {
       // Determine if quality is a tier (for Kling 2.1) or resolution
       const isTier = ['standard', 'pro', 'master'].includes(quality);
-      
+
       // Map UI mode to API mode for pricing
       // Note: All veo modes (t2v, i2v, ref2v) use same base price, so map to t2v
       let pricingMode: 't2v' | 'i2v' | 'start_end' | 'storyboard' | undefined;
@@ -301,7 +354,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       else if (mode === 'start_end') pricingMode = 't2v'; // Same price as t2v
       // For extend mode, use t2v as base (extend pricing handled in route via SKU)
       else if (mode === 'extend') pricingMode = 't2v';
-      
+
       const result = computePrice(selectedModel, {
         duration,
         resolution: isTier ? undefined : quality,
@@ -315,12 +368,12 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       console.error('Price calculation error:', error);
       return 0;
     }
-  };
-  
-  const cost = calculateCost();
+  }, [selectedModel, quality, duration, audioEnabled, mode]);
+
+  const cost = useMemo(() => calculateCost(), [calculateCost]);
   
   // Handle generate
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!prompt && activeTab !== 'motion') {
       toast.error('Пожалуйста, введите описание');
       return;
@@ -331,7 +384,7 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       toast.error('Выберите исходное видео для продления');
       return;
     }
-    
+
     try {
       const effectiveMode = supportedModes.includes(mode) ? mode : (supportedModes[0] || 't2v');
 
@@ -392,8 +445,33 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       toast.error('Ошибка генерации');
       console.error(error);
     }
-  };
-  
+  }, [
+    prompt,
+    activeTab,
+    mode,
+    sourceGenerationId,
+    supportedModes,
+    supportsI2v,
+    supportsStartEndFrames,
+    selectedModel,
+    referenceImage,
+    startFrame,
+    endFrame,
+    v2vVideo,
+    onGenerate,
+    duration,
+    quality,
+    aspectRatio,
+    motionVideo,
+    characterImage,
+    sceneControlMode,
+    audioEnabled,
+    style,
+    cameraMotion,
+    stylePreset,
+    motionStrength,
+  ]);
+
   return (
     <div className="w-full max-w-[380px] bg-[#1A1A1C] rounded-2xl border border-zinc-800/50 overflow-hidden flex flex-col shadow-2xl">
       {/* Tabs Navigation - Compact Apple Style */}
@@ -1145,4 +1223,6 @@ export function VideoGeneratorHiru({ onGenerate, onRatioChange, isGeneratingProp
       )}
     </div>
   );
-}
+};
+
+export const VideoGeneratorHiru = memo(VideoGeneratorHiruComponent);
