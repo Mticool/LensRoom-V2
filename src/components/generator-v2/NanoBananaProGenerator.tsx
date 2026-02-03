@@ -61,7 +61,17 @@ export function NanoBananaProGenerator() {
   
   // Load history (filter by current thread)
   const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
-  
+
+  // Use refs to avoid re-renders when these functions change
+  const refreshHistoryRef = useRef(refreshHistory);
+  const invalidateCacheRef = useRef(invalidateCache);
+
+  // Keep refs up to date
+  useEffect(() => {
+    refreshHistoryRef.current = refreshHistory;
+    invalidateCacheRef.current = invalidateCache;
+  }, [refreshHistory, invalidateCache]);
+
   // Clear local images when thread changes (new chat = clean slate)
   useEffect(() => {
     setImages([]);
@@ -169,6 +179,66 @@ export function NanoBananaProGenerator() {
     },
     [fetchAsReferenceDataUrl]
   );
+
+  // Poll job status - MUST be declared before handleGenerate
+  const pollJobStatus = useCallback(async (jobId: string, pendingIds: string[], generationId?: string) => {
+    const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
+    let attempts = 0;
+
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/jobs/${jobId}`);
+        const data = await response.json();
+
+        if (data.status === 'completed' && data.urls) {
+          const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
+            id: `${generationId || Date.now()}-${i}`,
+            url,
+            prompt,
+            mode: 'image' as const,
+            settings: {
+              model: 'nano-banana-pro',
+              size: aspectRatio,
+              quality: QUALITY_MAPPING[quality],
+            },
+            timestamp: Date.now(),
+          }));
+
+          // Replace pending with real images
+          setImages(prev => {
+            const filtered = prev.filter(img => !pendingIds.includes(img.id));
+            return [...filtered, ...newImages];
+          });
+
+          celebrateGeneration();
+          toast.success(`Сгенерировано ${newImages.length} изображений!`);
+          return;
+        }
+
+        if (data.status === 'failed') {
+          throw new Error(data.error || 'Генерация не удалась');
+        }
+
+        // Continue polling
+        if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(poll, 2000);
+        } else {
+          throw new Error('Превышено время ожидания');
+        }
+      } catch (error: any) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Polling error:', error);
+        }
+        toast.error(error.message || 'Ошибка получения результата');
+
+        // Remove pending images
+        setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
+      }
+    };
+
+    poll();
+  }, [prompt, aspectRatio, quality]);
 
   // Generate handler
   const handleGenerate = useCallback(async () => {
@@ -288,85 +358,26 @@ export function NanoBananaProGenerator() {
         toast.success(`Сгенерировано ${newImages.length} изображений!`);
       }
 
-      // Refresh credits
-      await refreshCredits();
-      
-      // Invalidate cache and refresh history
-      invalidateCache();
-      refreshHistory();
+      // Refresh credits and history asynchronously to avoid render loops
+      // Use setTimeout to break the synchronous execution chain
+      setTimeout(async () => {
+        await refreshCredits();
+        invalidateCacheRef.current();
+        refreshHistoryRef.current();
+      }, 0);
 
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
       }
       toast.error(error.message || 'Ошибка при генерации');
-      
+
       // Remove pending images on error
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, aspectRatio, quality, quantity, negativePrompt, seed, steps, credits, estimatedCost, refreshCredits, refreshHistory]);
-
-  // Poll job status
-  const pollJobStatus = async (jobId: string, pendingIds: string[], generationId?: string) => {
-    const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
-    let attempts = 0;
-
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/jobs/${jobId}`);
-        const data = await response.json();
-
-        if (data.status === 'completed' && data.urls) {
-          const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
-            id: `${generationId || Date.now()}-${i}`,
-            url,
-            prompt,
-            mode: 'image' as const,
-            settings: {
-              model: 'nano-banana-pro',
-              size: aspectRatio,
-              quality: QUALITY_MAPPING[quality],
-            },
-            timestamp: Date.now(),
-          }));
-
-          // Replace pending with real images
-          setImages(prev => {
-            const filtered = prev.filter(img => !pendingIds.includes(img.id));
-            return [...filtered, ...newImages];
-          });
-
-          celebrateGeneration();
-          toast.success(`Сгенерировано ${newImages.length} изображений!`);
-          return;
-        }
-
-        if (data.status === 'failed') {
-          throw new Error(data.error || 'Генерация не удалась');
-        }
-
-        // Continue polling
-        if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(poll, 2000);
-        } else {
-          throw new Error('Превышено время ожидания');
-        }
-      } catch (error: any) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Polling error:', error);
-        }
-        toast.error(error.message || 'Ошибка получения результата');
-        
-        // Remove pending images
-        setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
-      }
-    };
-
-    poll();
-  };
+  }, [isAuthenticated, prompt, aspectRatio, quality, quantity, negativePrompt, seed, steps, credits, estimatedCost, refreshCredits, outputFormat, referenceImages, pollJobStatus]);
 
   // Regenerate handler
   const handleRegenerate = useCallback((regeneratePrompt: string, settings: GenerationSettings) => {
