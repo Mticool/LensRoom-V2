@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cachedJson, invalidateCached } from '@/lib/client/generations-cache';
 import { GenerationResult, GeneratorMode, GenerationSettings } from '../GeneratorV2';
 
@@ -278,7 +278,7 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
     }
   }, [mode, modelId, threadId]);
 
-  return {
+  return useMemo(() => ({
     history,
     isLoading,
     isLoadingMore,
@@ -290,5 +290,17 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
     clearHistory,
     refresh: fetchHistory,
     invalidateCache: invalidateHistoryCache,
-  };
+  }), [
+    history,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMore,
+    addToHistory,
+    addPendingToHistory,
+    removePendingFromHistory,
+    clearHistory,
+    fetchHistory,
+    invalidateHistoryCache,
+  ]);
 }

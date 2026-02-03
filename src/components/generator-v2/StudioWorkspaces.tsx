@@ -980,9 +980,13 @@ export function StudioWorkspaces() {
 
       try {
         await generateOne(pending.id, generationPrompt, settings, refDataUrl ? [refDataUrl] : [], null);
-        invalidateCache();
-        refreshHistory();
-        await refreshCredits();
+        
+        // Refresh credits and history asynchronously to avoid render loops
+        setTimeout(async () => {
+          invalidateCache();
+          refreshHistory();
+          await refreshCredits();
+        }, 0);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Ошибка генерации";
         updateLocalItem(pending.id, null);
@@ -1269,9 +1273,12 @@ export function StudioWorkspaces() {
           });
         }
 
-        invalidateCache();
-        refreshHistory();
-        await refreshCredits();
+        // Refresh credits and history asynchronously to avoid render loops
+        setTimeout(async () => {
+          invalidateCache();
+          refreshHistory();
+          await refreshCredits();
+        }, 0);
         return;
       }
 
@@ -1288,9 +1295,12 @@ export function StudioWorkspaces() {
         })
       );
 
-      invalidateCache();
-      refreshHistory();
-      await refreshCredits();
+      // Refresh credits and history asynchronously to avoid render loops
+      setTimeout(async () => {
+        invalidateCache();
+        refreshHistory();
+        await refreshCredits();
+      }, 0);
     } finally {
       setIsGeneratingBatch(false);
     }

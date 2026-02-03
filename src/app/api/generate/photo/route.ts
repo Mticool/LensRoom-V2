@@ -182,6 +182,7 @@ export async function POST(request: NextRequest) {
       modelId: effectiveModelId,
       provider: modelInfo.provider,
       aspectRatio: requestedAspectRatio || null,
+      aspectRatioRaw: aspectRatio,
       mode,
       variants,
       outputFormat,
@@ -427,8 +428,13 @@ export async function POST(request: NextRequest) {
     let generation: any = null;
     let genError: any = null;
 
-    // Resolve aspect ratio (used for API call, but NOT saved to DB - column doesn't exist yet)
+    // Resolve aspect ratio for DB and API calls
     const finalAspectRatioForDb = resolveAspectRatio(aspectRatio, effectiveModelId);
+    console.log('[API] Aspect ratio resolution:', {
+      received: aspectRatio,
+      resolved: finalAspectRatioForDb,
+      modelId: effectiveModelId,
+    });
     
     const insertOnce = async (opts?: { includeParams?: boolean }) => {
       const includeParams = opts?.includeParams !== false;
@@ -654,6 +660,13 @@ export async function POST(request: NextRequest) {
     let kieImageInputs: string[] | undefined = undefined;
 
     if (mode === "i2i") {
+      console.log('[API] Processing i2i mode with references:', {
+        rawRefsCount: rawRefs.length,
+        maxRefs: maxRefs,
+        firstRefLength: rawRefs[0]?.length,
+        firstRefType: rawRefs[0]?.startsWith('data:') ? 'base64' : rawRefs[0]?.startsWith('http') ? 'url' : 'unknown',
+      });
+      
       if (rawRefs.length === 0) {
         return NextResponse.json({ error: "referenceImage/referenceImages is required for i2i" }, { status: 400 });
       }
@@ -689,6 +702,12 @@ export async function POST(request: NextRequest) {
       referenceForProvider = rawRefs.length === 1
         ? rawRefs[0]!
         : await buildReferenceCollageDataUrl(rawRefs, { maxTiles: maxRefs });
+      
+      console.log('[API] Reference prepared for provider:', {
+        isCollage: rawRefs.length > 1,
+        referenceLength: referenceForProvider?.length,
+        referenceType: referenceForProvider?.startsWith('data:') ? 'base64' : 'url',
+      });
 
       // For KIE-like providers, upload all refs to storage and pass URLs array.
       // (Even if the underlying model uses only first, keeping an array is forward-compatible.)
@@ -919,6 +938,13 @@ export async function POST(request: NextRequest) {
               let laozhangResponse;
               
               if (mode === 'i2i' && referenceForProvider) {
+                console.log('[API] Calling editImage with reference:', {
+                  model: laozhangModelId,
+                  hasImage: !!referenceForProvider,
+                  imageLength: referenceForProvider.length,
+                  imageSize: imageSize,
+                  prompt: prompt.substring(0, 50) + '...',
+                });
                 laozhangResponse = await laozhangClient.editImage({
                   model: laozhangModelId,
                   prompt: prompt,

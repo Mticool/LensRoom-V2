@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
@@ -54,9 +54,11 @@ export function FluxProGenerator() {
   }, [currentThreadId]);
   
   const credits = authCredits;
-  const estimatedCost = COST_PER_IMAGE[quality] * quantity;
+  const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
 
-  const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
+  const demoImages = useMemo<GenerationResult[]>(() => {
+    if (isAuthenticated || images.length > 0 || history.length > 0) return [];
+    return [
     {
       id: 'demo-1',
       url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
@@ -65,10 +67,11 @@ export function FluxProGenerator() {
       settings: { model: 'flux-2-pro', size: '16:9', quality: '1k' },
       timestamp: Date.now(),
     },
-  ] : [];
+  ];
+  }, [isAuthenticated, images.length, history.length]);
   
   // Oldest → newest. New generations should appear at the bottom.
-  const allImages = [...history, ...images, ...demoImages];
+  const allImages = useMemo(() => [...history, ...images, ...demoImages], [history, images, demoImages]);
 
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -146,9 +149,13 @@ export function FluxProGenerator() {
         const filtered = prev.filter(img => !img.id.startsWith('pending-'));
         return [...filtered, newImage];
       });
-      await refreshCredits();
-      await invalidateCache();
-      refreshHistory();
+      // Refresh credits and history asynchronously to avoid render loops
+      setTimeout(async () => {
+        await refreshCredits();
+        invalidateCache();
+        refreshHistory();
+      }, 0);
+      
       celebrateGeneration();
       toast.success('Изображение создано!');
     } catch (error: any) {

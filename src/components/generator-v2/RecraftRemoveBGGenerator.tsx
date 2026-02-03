@@ -202,9 +202,11 @@ export function RecraftRemoveBGGenerator() {
       // Refresh credits
       await refreshCredits();
       
-      // Invalidate cache and refresh history
-      invalidateCache();
-      refreshHistory();
+      // Invalidate cache and refresh history asynchronously to avoid render loops
+      setTimeout(() => {
+        invalidateCache();
+        refreshHistory();
+      }, 0);
 
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {

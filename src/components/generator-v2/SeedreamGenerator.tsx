@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
 import { ControlBarBottom } from './ControlBarBottom';
@@ -16,7 +16,10 @@ const QUALITY_MAPPING: Record<string, string> = {
   High: 'high',
 };
 
-const COST_PER_IMAGE = 11;
+const COST_PER_IMAGE: Record<string, number> = {
+  'Basic': 10,  // basic
+  'High': 11,   // high
+};
 
 export function SeedreamGenerator() {
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
@@ -41,9 +44,11 @@ export function SeedreamGenerator() {
   const historyModelId = filterModel === 'all' ? undefined : filterModel;
   const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
   const credits = authCredits;
-  const estimatedCost = COST_PER_IMAGE * quantity;
+  const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
 
-  const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
+  const demoImages = useMemo<GenerationResult[]>(() => {
+    if (isAuthenticated || images.length > 0 || history.length > 0) return [];
+    return [
     {
       id: 'demo-1',
       url: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&q=80',
@@ -52,10 +57,11 @@ export function SeedreamGenerator() {
       settings: { model: 'seedream-4.5', size: '21:9', quality: 'basic' },
       timestamp: Date.now(),
     },
-  ] : [];
+  ];
+  }, [isAuthenticated, images.length, history.length]);
   
   // Oldest → newest. New generations should appear at the bottom.
-  const allImages = [...history, ...images, ...demoImages];
+  const allImages = useMemo(() => [...history, ...images, ...demoImages], [history, images, demoImages]);
 
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -133,9 +139,13 @@ export function SeedreamGenerator() {
         const filtered = prev.filter(img => !img.id.startsWith('pending-'));
         return [...filtered, newImage];
       });
-      await refreshCredits();
-      await invalidateCache();
-      refreshHistory();
+      // Refresh credits and history asynchronously to avoid render loops
+      setTimeout(async () => {
+        await refreshCredits();
+        invalidateCache();
+        refreshHistory();
+      }, 0);
+      
       celebrateGeneration();
       toast.success('Изображение создано!');
     } catch (error: any) {

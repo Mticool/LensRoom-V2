@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
@@ -21,11 +21,11 @@ const QUALITY_MAPPING: Record<string, string> = {
   '4K': '4k',
 };
 
-// Cost calculation for Nano Banana Pro
+// Cost calculation for Nano Banana Pro (from config/models.ts pricing)
 const COST_PER_IMAGE: Record<string, number> = {
-  '1K': 30,    // 1k_2k pricing
-  '2K': 30,    // 1k_2k pricing (uses apiId2k)
-  '4K': 40,    // 4k pricing
+  '1K': 17,    // 1k_2k tier pricing
+  '2K': 17,    // 1k_2k tier pricing
+  '4K': 25,    // 4k tier pricing
 };
 
 export function NanoBananaProGenerator() {
@@ -62,29 +62,34 @@ export function NanoBananaProGenerator() {
   // Load history (filter by current thread)
   const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
 
-  // Use refs to avoid re-renders when these functions change
-  const refreshHistoryRef = useRef(refreshHistory);
-  const invalidateCacheRef = useRef(invalidateCache);
-
-  // Keep refs up to date
-  useEffect(() => {
-    refreshHistoryRef.current = refreshHistory;
-    invalidateCacheRef.current = invalidateCache;
-  }, [refreshHistory, invalidateCache]);
-
   // Clear local images when thread changes (new chat = clean slate)
   useEffect(() => {
     setImages([]);
   }, [currentThreadId]);
+
+  // Cleanup polling timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+  }, []);
   
   // Use credits from auth hook
   const credits = authCredits;
 
-  // Calculate cost
-  const estimatedCost = COST_PER_IMAGE[quality] * quantity;
+  // Calculate cost - memoized to avoid recalculation on every render
+  const estimatedCost = useMemo(() => 
+    COST_PER_IMAGE[quality] * quantity, 
+    [quality, quantity]
+  );
 
-  // Demo images for non-authenticated users
-  const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
+  // Demo images for non-authenticated users - memoized
+  const demoImages = useMemo<GenerationResult[]>(() => {
+    if (isAuthenticated || images.length > 0 || history.length > 0) return [];
+    return [
     {
       id: 'demo-1',
       url: 'https://images.unsplash.com/photo-1680382750218-ea0e0cdcc741?w=800&q=80',
@@ -117,10 +122,15 @@ export function NanoBananaProGenerator() {
       settings: { model: 'nano-banana-pro', size: '4:3', quality: '1k_2k' },
       timestamp: Date.now(),
     },
-  ] : [];
+  ];
+  }, [isAuthenticated, images.length, history.length]);
   
   // Oldest → newest. New generations should appear at the bottom.
-  const allImages = [...history, ...images, ...demoImages];
+  // Memoized to avoid array recreation on every render
+  const allImages = useMemo(() => 
+    [...history, ...images, ...demoImages],
+    [history, images, demoImages]
+  );
 
   function extractGenerationUuid(rawId: string | undefined | null): string | null {
     const id = String(rawId || "").trim();
@@ -168,12 +178,18 @@ export function NanoBananaProGenerator() {
   const handleUseAsReference = useCallback(
     async (img: GenerationResult) => {
       try {
+        console.log('[Reference] Loading image as reference:', { id: img.id, hasUrl: !!img.url });
         const dataUrl = await fetchAsReferenceDataUrl(img);
+        console.log('[Reference] Successfully loaded, data URL length:', dataUrl.length);
         setReferenceImages([dataUrl]);
         setPrompt(String(img.prompt || ""));
-        if (img.settings?.size) setAspectRatio(String(img.settings.size));
+        if (img.settings?.size) {
+          console.log('[Reference] Setting aspect ratio from image:', img.settings.size);
+          setAspectRatio(String(img.settings.size));
+        }
         toast.success("Фото добавлено как референс");
-      } catch {
+      } catch (error) {
+        console.error('[Reference] Failed to load:', error);
         toast.error("Не удалось загрузить референс");
       }
     },
@@ -181,7 +197,14 @@ export function NanoBananaProGenerator() {
   );
 
   // Poll job status - MUST be declared before handleGenerate
-  const pollJobStatus = useCallback(async (jobId: string, pendingIds: string[], generationId?: string) => {
+  const pollJobStatus = useCallback(async (
+    jobId: string, 
+    pendingIds: string[], 
+    generationId?: string,
+    capturedPrompt?: string,
+    capturedAspectRatio?: string,
+    capturedQuality?: string
+  ) => {
     const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
     let attempts = 0;
 
@@ -194,12 +217,12 @@ export function NanoBananaProGenerator() {
           const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
             id: `${generationId || Date.now()}-${i}`,
             url,
-            prompt,
+            prompt: capturedPrompt || '',
             mode: 'image' as const,
             settings: {
               model: 'nano-banana-pro',
-              size: aspectRatio,
-              quality: QUALITY_MAPPING[quality],
+              size: capturedAspectRatio || '1:1',
+              quality: capturedQuality ? QUALITY_MAPPING[capturedQuality] : '1k_2k',
             },
             timestamp: Date.now(),
           }));
@@ -222,7 +245,12 @@ export function NanoBananaProGenerator() {
         // Continue polling
         if (attempts < maxAttempts) {
           attempts++;
-          setTimeout(poll, 2000);
+          const timeoutId = setTimeout(poll, 2000);
+          // Store timeout ID in ref for cleanup
+          if (pollingTimeoutRef.current) {
+            clearTimeout(pollingTimeoutRef.current);
+          }
+          pollingTimeoutRef.current = timeoutId;
         } else {
           throw new Error('Превышено время ожидания');
         }
@@ -238,7 +266,7 @@ export function NanoBananaProGenerator() {
     };
 
     poll();
-  }, [prompt, aspectRatio, quality]);
+  }, []);
 
   // Generate handler
   const handleGenerate = useCallback(async () => {
@@ -333,7 +361,15 @@ export function NanoBananaProGenerator() {
         toast.success(`Сгенерировано ${newImages.length} ${newImages.length === 1 ? 'изображение' : 'изображений'}!`);
       } else if (data.jobId) {
         // Poll for results (async generation)
-        await pollJobStatus(data.jobId, pendingImages.map(img => img.id), baseGenerationId);
+        // Pass captured values to avoid closure issues
+        await pollJobStatus(
+          data.jobId, 
+          pendingImages.map(img => img.id), 
+          baseGenerationId,
+          prompt,
+          aspectRatio,
+          quality
+        );
       } else if (data.urls) {
         // Direct URLs (legacy format)
         const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
@@ -362,8 +398,8 @@ export function NanoBananaProGenerator() {
       // Use setTimeout to break the synchronous execution chain
       setTimeout(async () => {
         await refreshCredits();
-        invalidateCacheRef.current();
-        refreshHistoryRef.current();
+        invalidateCache();
+        refreshHistory();
       }, 0);
 
     } catch (error: any) {
@@ -377,7 +413,24 @@ export function NanoBananaProGenerator() {
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, aspectRatio, quality, quantity, negativePrompt, seed, steps, credits, estimatedCost, refreshCredits, outputFormat, referenceImages, pollJobStatus]);
+  }, [
+    isAuthenticated, 
+    prompt, 
+    aspectRatio, 
+    quality, 
+    quantity, 
+    negativePrompt, 
+    seed, 
+    steps, 
+    credits, 
+    estimatedCost, 
+    refreshCredits, 
+    outputFormat, 
+    referenceImages, 
+    pollJobStatus,
+    refreshHistory,
+    invalidateCache
+  ]);
 
   // Regenerate handler
   const handleRegenerate = useCallback((regeneratePrompt: string, settings: GenerationSettings) => {

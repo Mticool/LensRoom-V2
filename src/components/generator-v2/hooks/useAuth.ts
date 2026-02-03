@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiFetch } from '@/lib/api-fetch';
 import logger from '@/lib/logger';
 import { useCreditsStore } from '@/stores/credits-store';
@@ -125,6 +125,9 @@ export function useAuth() {
     }
   }, []);
 
-  return { ...auth, refreshCredits, checkAuth };
+  return useMemo(
+    () => ({ ...auth, refreshCredits, checkAuth }),
+    [auth, refreshCredits, checkAuth]
+  );
 }
 

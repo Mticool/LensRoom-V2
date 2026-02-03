@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
 import { useAuth } from './hooks/useAuth';
@@ -16,7 +16,7 @@ import { Sparkles, Loader2, ChevronUp } from 'lucide-react';
 import type { GenerationResult } from './GeneratorV2';
 import './theme.css';
 
-const COST_PER_RUN = 15; // Fixed pricing per generation run (model returns multiple images)
+const COST_PER_RUN = 5; // Fixed pricing per generation run (from models.ts: grok_imagine:i2i_run = 5⭐)
 const GROK_RESULTS_PER_RUN = 6; // Upstream returns 6 images per task
 
 export function GrokImagineGenerator() {
@@ -43,19 +43,20 @@ export function GrokImagineGenerator() {
   const credits = authCredits;
   const estimatedCost = COST_PER_RUN;
 
-  const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
-    {
+  const demoImages = useMemo<GenerationResult[]>(() => {
+    if (isAuthenticated || images.length > 0 || history.length > 0) return [];
+    return [{
       id: 'demo-1',
       url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
       prompt: 'Creative artistic interpretation with bold colors',
       mode: 'image',
       settings: { model: 'grok-imagine', size: '1:1', quality: 'spicy' },
       timestamp: Date.now(),
-    },
-  ] : [];
+    }];
+  }, [isAuthenticated, images.length, history.length]);
   
   // Oldest → newest. New generations should appear at the bottom.
-  const allImages = [...history, ...images, ...demoImages];
+  const allImages = useMemo(() => [...history, ...images, ...demoImages], [history, images, demoImages]);
 
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -156,9 +157,14 @@ export function GrokImagineGenerator() {
         const filtered = prev.filter(img => !img.id.startsWith('pending-'));
         return [...filtered, ...finalImages];
       });
-      await refreshCredits();
-      await invalidateCache();
-      refreshHistory();
+      
+      // Refresh credits and history asynchronously to avoid render loops
+      setTimeout(async () => {
+        await refreshCredits();
+        invalidateCache();
+        refreshHistory();
+      }, 0);
+      
       celebrateGeneration();
       toast.success(`Создано ${finalImages.length} изображений!`);
     } catch (error: any) {

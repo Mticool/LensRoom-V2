@@ -266,9 +266,12 @@ export function usePhotoGeneration(config: PhotoGenerationConfig): UsePhotoGener
           celebrateGeneration();
           toast.success(`Создано ${newImages.length} ${newImages.length === 1 ? 'изображение' : 'изображений'}!`);
           
-          await refreshCredits();
-          invalidateCache();
-          refreshHistory();
+          // Refresh credits and history asynchronously to avoid render loops
+          setTimeout(async () => {
+            await refreshCredits();
+            invalidateCache();
+            refreshHistory();
+          }, 0);
         } else if (data.status === 'failed') {
           toast.error(data.error || 'Ошибка генерации');
           setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
@@ -416,10 +419,12 @@ export function usePhotoGeneration(config: PhotoGenerationConfig): UsePhotoGener
         toast.success('Изображение создано!');
       }
       
-      // Refresh credits and history
-      await refreshCredits();
-      invalidateCache();
-      refreshHistory();
+      // Refresh credits and history asynchronously to avoid render loops
+      setTimeout(async () => {
+        await refreshCredits();
+        invalidateCache();
+        refreshHistory();
+      }, 0);
       
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {

@@ -28,8 +28,8 @@ function StudioContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   // Canonical sections: photo|video|motion|music
-  // Backward-compat: image -> photo, audio -> music
-  const raw = (searchParams.get("section") || "").trim().toLowerCase();
+  // Backward-compat: image -> photo, audio -> music, kind -> section
+  const raw = (searchParams.get("section") || searchParams.get("kind") || "").trim().toLowerCase();
   const section =
     raw === "image" ? "photo" :
     raw === "audio" ? "music" :

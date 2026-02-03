@@ -135,9 +135,17 @@ const ImageGalleryMasonryComponent = ({
     if (!image?.url) return;
     try {
       const isDemo = String(image.id || "").startsWith("demo-");
-      const downloadUrl = !isDemo && image.id ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original` : image.url;
+      // Always use proxy=1 to avoid CORS issues and work without VPN
+      const downloadUrl = !isDemo && image.id 
+        ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original&proxy=1` 
+        : image.url;
+      
+      console.log('[Download] Fetching:', downloadUrl);
       const response = await fetch(downloadUrl, { credentials: "include" });
-      if (!response.ok) throw new Error("download_failed");
+      if (!response.ok) {
+        console.error('[Download] Failed:', response.status, response.statusText);
+        throw new Error("download_failed");
+      }
 
       const blob = await response.blob();
       const mime = String(blob.type || "").toLowerCase();
@@ -159,6 +167,7 @@ const ImageGalleryMasonryComponent = ({
       window.URL.revokeObjectURL(url);
       toast.success('Изображение скачано');
     } catch (error) {
+      console.error('[Download] Error:', error);
       // Fallback to direct URL open
       try {
         window.open(image.url, "_blank");

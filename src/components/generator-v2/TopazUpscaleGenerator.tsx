@@ -100,9 +100,13 @@ export function TopazUpscaleGenerator() {
           setIsProcessing(false);
           celebrateGeneration();
           toast.success('Апскейл завершён!');
-          await refreshCredits();
-          invalidateCache();
-          refreshHistory();
+          
+          // Refresh credits and history asynchronously to avoid render loops
+          setTimeout(async () => {
+            await refreshCredits();
+            invalidateCache();
+            refreshHistory();
+          }, 0);
           return;
         }
 
@@ -175,9 +179,13 @@ export function TopazUpscaleGenerator() {
         setIsProcessing(false);
         celebrateGeneration();
         toast.success('Апскейл завершён!');
-        await refreshCredits();
-        invalidateCache();
-        refreshHistory();
+        
+        // Refresh credits and history asynchronously to avoid render loops
+        setTimeout(async () => {
+          await refreshCredits();
+          invalidateCache();
+          refreshHistory();
+        }, 0);
       } else if (data.jobId) {
         // Poll for results
         await pollJobStatus(data.jobId);

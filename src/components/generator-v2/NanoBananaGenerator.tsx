@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
@@ -19,8 +19,12 @@ const QUALITY_MAPPING: Record<string, string> = {
   'Качество': 'quality',
 };
 
-// Cost calculation for Nano Banana - flat 7 stars for all qualities
-const COST_PER_IMAGE = 7;
+// Cost calculation for Nano Banana (from config/models.ts)
+const COST_PER_IMAGE: Record<string, number> = {
+  'Быстро': 9,    // turbo
+  'Баланс': 9,    // balanced
+  'Качество': 7,  // quality
+};
 
 export function NanoBananaGenerator() {
   const router = useRouter();
@@ -58,10 +62,12 @@ export function NanoBananaGenerator() {
   const credits = authCredits;
 
   // Calculate cost - flat pricing for Nano Banana
-  const estimatedCost = COST_PER_IMAGE * quantity;
+  const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
 
   // Demo images for non-authenticated users
-  const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
+  const demoImages = useMemo<GenerationResult[]>(() => {
+    if (isAuthenticated || images.length > 0 || history.length > 0) return [];
+    return [
     {
       id: 'demo-1',
       url: 'https://images.unsplash.com/photo-1680382750218-ea0e0cdcc741?w=800&q=80',
@@ -94,10 +100,11 @@ export function NanoBananaGenerator() {
       settings: { model: 'nano-banana', size: '4:3', quality: 'balanced' },
       timestamp: Date.now(),
     },
-  ] : [];
+  ];
+  }, [isAuthenticated, images.length, history.length]);
   
   // Oldest → newest. New generations should appear at the bottom.
-  const allImages = [...history, ...images, ...demoImages];
+  const allImages = useMemo(() => [...history, ...images, ...demoImages], [history, images, demoImages]);
 
   // Generate handler
   const handleGenerate = useCallback(async () => {
@@ -209,10 +216,12 @@ export function NanoBananaGenerator() {
         toast.success('Изображение создано!');
       }
       
-      // Refresh credits and history
-      await refreshCredits();
-      await invalidateCache();
-      refreshHistory();
+      // Refresh credits and history asynchronously to avoid render loops
+      setTimeout(async () => {
+        await refreshCredits();
+        invalidateCache();
+        refreshHistory();
+      }, 0);
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);

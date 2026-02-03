@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
@@ -53,10 +53,12 @@ export function ZImageGenerator() {
   const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   
   const credits = authCredits;
-  const estimatedCost = COST_PER_IMAGE * quantity;
+  const estimatedCost = useMemo(() => COST_PER_IMAGE * quantity, [quantity]);
 
   // Demo images
-  const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [
+  const demoImages = useMemo<GenerationResult[]>(() => {
+    if (isAuthenticated || images.length > 0 || history.length > 0) return [];
+    return [
     {
       id: 'demo-1',
       url: 'https://images.unsplash.com/photo-1680382750218-ea0e0cdcc741?w=800&q=80',
@@ -73,10 +75,11 @@ export function ZImageGenerator() {
       settings: { model: 'z-image', size: '1:1', quality: 'balanced' },
       timestamp: Date.now(),
     },
-  ] : [];
+  ];
+  }, [isAuthenticated, images.length, history.length]);
   
   // Oldest → newest. New generations should appear at the bottom.
-  const allImages = [...history, ...images, ...demoImages];
+  const allImages = useMemo(() => [...history, ...images, ...demoImages], [history, images, demoImages]);
 
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -184,9 +187,12 @@ export function ZImageGenerator() {
         toast.success('Изображение создано!');
       }
       
-      await refreshCredits();
-      await invalidateCache();
-      refreshHistory();
+      // Refresh credits and history asynchronously to avoid render loops
+      setTimeout(async () => {
+        await refreshCredits();
+        invalidateCache();
+        refreshHistory();
+      }, 0);
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);

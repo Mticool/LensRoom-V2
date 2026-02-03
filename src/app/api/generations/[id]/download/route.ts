@@ -8,6 +8,22 @@ type RouteContext = {
 };
 
 /**
+ * OPTIONS /api/generations/[id]/download
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest, context: RouteContext) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400', // 24 hours
+    },
+  });
+}
+
+/**
  * GET /api/generations/[id]/download?kind=original|preview|poster
  * Optional: &proxy=1 to stream bytes from our origin (avoids CORS when client needs Blob/DataURL).
  * Optional: &download=1 to force download with Content-Disposition: attachment (for mobile)
@@ -155,6 +171,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
       const upstream = await fetch(finalUrl);
       if (!upstream.ok) {
+        console.error(`[Download] Upstream fetch failed: ${upstream.status} ${upstream.statusText}`);
         return NextResponse.json({ error: 'Failed to fetch asset' }, { status: 502 });
       }
 
@@ -190,6 +207,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
           'Content-Length': String(arrayBuffer.byteLength),
           'Cache-Control': 'private, no-cache, no-store, must-revalidate',
           'Content-Disposition': disposition,
+          // Add CORS headers for cross-origin requests
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
         },
       });
     }
