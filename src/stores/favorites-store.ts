@@ -67,9 +67,15 @@ export const useFavoritesStore = create<FavoritesState>()(
       },
 
       addFavorite: async (id: string) => {
-        set((state) => ({
-          favorites: new Set([...state.favorites, id]),
-        }));
+        set((state) => {
+          // Ensure favorites is a Set
+          const currentFavorites = state.favorites instanceof Set
+            ? state.favorites
+            : new Set<string>();
+          return {
+            favorites: new Set([...currentFavorites, id]),
+          };
+        });
 
         try {
           await fetch(`/api/generations/${id}`, {
@@ -80,7 +86,10 @@ export const useFavoritesStore = create<FavoritesState>()(
           });
         } catch (error) {
           set((state) => {
-            const newFavorites = new Set(state.favorites);
+            const currentFavorites = state.favorites instanceof Set
+              ? state.favorites
+              : new Set<string>();
+            const newFavorites = new Set(currentFavorites);
             newFavorites.delete(id);
             return { favorites: newFavorites };
           });
@@ -90,7 +99,11 @@ export const useFavoritesStore = create<FavoritesState>()(
 
       removeFavorite: async (id: string) => {
         set((state) => {
-          const newFavorites = new Set(state.favorites);
+          // Ensure favorites is a Set
+          const currentFavorites = state.favorites instanceof Set
+            ? state.favorites
+            : new Set<string>();
+          const newFavorites = new Set(currentFavorites);
           newFavorites.delete(id);
           return { favorites: newFavorites };
         });
@@ -103,15 +116,25 @@ export const useFavoritesStore = create<FavoritesState>()(
             body: JSON.stringify({ is_favorite: false }),
           });
         } catch (error) {
-          set((state) => ({
-            favorites: new Set([...state.favorites, id]),
-          }));
+          set((state) => {
+            const currentFavorites = state.favorites instanceof Set
+              ? state.favorites
+              : new Set<string>();
+            return {
+              favorites: new Set([...currentFavorites, id]),
+            };
+          });
           console.error('Failed to remove favorite:', error);
         }
       },
 
       toggleFavorite: async (id: string) => {
         const { favorites, addFavorite, removeFavorite } = get();
+        // Ensure favorites is a Set (protect against hydration issues)
+        if (!favorites || !(favorites instanceof Set)) {
+          await addFavorite(id);
+          return;
+        }
         if (favorites.has(id)) {
           await removeFavorite(id);
         } else {
@@ -120,7 +143,12 @@ export const useFavoritesStore = create<FavoritesState>()(
       },
 
       isFavorite: (id: string) => {
-        return get().favorites.has(id);
+        const { favorites } = get();
+        // Ensure favorites is a Set (protect against hydration issues)
+        if (!favorites || !(favorites instanceof Set)) {
+          return false;
+        }
+        return favorites.has(id);
       },
 
       fetchFavorites: async () => {
@@ -142,11 +170,18 @@ export const useFavoritesStore = create<FavoritesState>()(
       name: 'lensroom-favorites',
       storage: createJSONStorage(() => safeStorage),
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        if (!state) return;
+
         // Convert array back to Set after hydration
-        if (state && Array.isArray(state.favorites)) {
-          state.favorites = new Set(state.favorites as unknown as string[]);
+        if (Array.isArray(state.favorites)) {
+          const favoritesArray = state.favorites as unknown as string[];
+          state.favorites = new Set(favoritesArray);
+        } else if (!(state.favorites instanceof Set)) {
+          // If favorites is neither array nor Set, initialize as empty Set
+          state.favorites = new Set<string>();
         }
+
+        state.setHasHydrated(true);
       },
       partialize: (state) => ({ 
         favorites: setToArray(state.favorites),
