@@ -709,9 +709,18 @@ export class KieAIClient {
           input.input_urls = params.imageInputs.slice(0, 8);
           input.strength = 0.75; // 0..1
         } else if (params.model.includes('nano-banana') || params.model.includes('imagen')) {
-          // Google models may use different naming
-          input.init_image = imgUrl;
-          input.image_urls = [imgUrl]; // Try array format too
+          // Nano Banana Pro supports up to 8 reference images
+          // API expects: image_urls array OR img_url comma-separated string
+          // Using array format (image_urls) as it's more explicit and supports multiple refs
+          input.init_image = imgUrl; // Fallback for single-image APIs
+          input.image_urls = params.imageInputs.slice(0, 8); // Support up to 8 images
+
+          // Also try comma-separated format as fallback (some docs mention img_url)
+          if (params.imageInputs.length > 1) {
+            input.img_url = params.imageInputs.slice(0, 8).join(',');
+          }
+
+          console.log(`[KIE i2i] Nano Banana Pro: sending ${params.imageInputs.length} reference image(s)`)
         } else if (params.model.includes('seedream')) {
           input.strength = 0.7;
         }
