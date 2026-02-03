@@ -6,7 +6,18 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_AUDIO_SIZE = 20 * 1024 * 1024; // 20MB
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/webm'];
+const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/webm', 'audio/x-mpeg-3', 'audio/mpeg3'];
+
+// Функция для проверки расширения файла
+function hasValidAudioExtension(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.endsWith('.webm');
+}
+
+function hasValidImageExtension(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,7 +58,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      // Проверяем и MIME-тип и расширение файла
+      const hasValidMime = ALLOWED_IMAGE_TYPES.includes(file.type);
+      const hasValidExt = hasValidImageExtension(file.name);
+
+      if (!hasValidMime && !hasValidExt) {
         return NextResponse.json(
           { error: 'INVALID_IMAGE_FORMAT', message: 'Поддерживаются только JPG, PNG, WEBP' },
           { status: 400 }
@@ -63,7 +78,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!ALLOWED_AUDIO_TYPES.includes(file.type)) {
+      // Проверяем и MIME-тип и расширение файла
+      const hasValidMime = ALLOWED_AUDIO_TYPES.includes(file.type);
+      const hasValidExt = hasValidAudioExtension(file.name);
+
+      if (!hasValidMime && !hasValidExt) {
         return NextResponse.json(
           { error: 'INVALID_AUDIO_FORMAT', message: 'Поддерживаются только MP3, WAV, WEBM' },
           { status: 400 }

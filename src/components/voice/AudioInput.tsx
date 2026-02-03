@@ -27,16 +27,29 @@ export function AudioInput({
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   const handleFileUpload = useCallback(async (file: File) => {
-    // Валидация
+    // Валидация размера
     if (file.size > maxSize) {
       const sizeMB = maxSize / 1024 / 1024;
       toast.error(`Аудио слишком большое. Максимум ${sizeMB}MB`);
       return;
     }
 
-    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/webm'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Поддерживаются только MP3, WAV, WEBM');
+    // Валидация формата (проверяем и MIME-тип и расширение файла)
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/webm', 'audio/x-mpeg-3', 'audio/mpeg3'];
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.webm');
+    const hasValidMimeType = allowedTypes.includes(file.type);
+
+    console.log('[AudioInput] File validation:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      hasValidExtension,
+      hasValidMimeType
+    });
+
+    if (!hasValidMimeType && !hasValidExtension) {
+      toast.error(`Поддерживаются только MP3, WAV, WEBM (обнаружен тип: ${file.type})`);
       return;
     }
 

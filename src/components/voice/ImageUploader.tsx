@@ -21,7 +21,7 @@ export function ImageUploader({
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
-    // Валидация
+    // Валидация размера
     if (file.size > maxSize) {
       const sizeMB = maxSize / 1024 / 1024;
       setError(`Файл слишком большой. Максимум ${sizeMB}MB`);
@@ -29,8 +29,13 @@ export function ImageUploader({
       return;
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
+    // Валидация формата (проверяем и MIME-тип и расширение файла)
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png') || fileName.endsWith('.webp');
+    const hasValidMimeType = allowedTypes.includes(file.type);
+
+    if (!hasValidMimeType && !hasValidExtension) {
       setError('Поддерживаются только JPG, PNG, WEBP');
       toast.error('Поддерживаются только JPG, PNG, WEBP');
       return;
