@@ -19,6 +19,24 @@ function hasValidImageExtension(filename: string): boolean {
   return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
 }
 
+// Функция для получения MIME-типа, совместимого с Supabase Storage
+function getSupabaseContentType(filename: string, originalType: string): string {
+  const lower = filename.toLowerCase();
+
+  // Для аудио файлов
+  if (lower.endsWith('.mp3')) return 'audio/mp3';
+  if (lower.endsWith('.wav')) return 'audio/wav';
+  if (lower.endsWith('.webm')) return 'audio/webm';
+
+  // Для изображений
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+
+  // Если не определили по расширению, возвращаем оригинальный тип
+  return originalType;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Получить сессию пользователя
@@ -101,12 +119,16 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
 
+    // Получить MIME-тип, совместимый с Supabase
+    const contentType = getSupabaseContentType(file.name, file.type);
+
     console.log('[Voice Upload]', {
       userId,
       type,
       fileName,
       size: file.size,
-      contentType: file.type,
+      originalType: file.type,
+      contentType,
       storagePath,
     });
 
@@ -114,7 +136,7 @@ export async function POST(request: NextRequest) {
     const { error: uploadError } = await supabase.storage
       .from('generations')
       .upload(storagePath, buffer, {
-        contentType: file.type,
+        contentType,
         upsert: true,
       });
 
