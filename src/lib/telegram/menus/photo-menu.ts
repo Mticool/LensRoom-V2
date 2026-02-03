@@ -122,36 +122,50 @@ export async function showPhotoConfig(
 ): Promise<void> {
   console.log('[Photo Config] Called with modelId:', modelId);
 
-  const model = findPhotoModel(modelId);
-  console.log('[Photo Config] Found model:', model ? model.name : 'NOT FOUND');
+  try {
+    const model = findPhotoModel(modelId);
+    console.log('[Photo Config] Found model:', model ? model.name : 'NOT FOUND');
 
-  if (!model) {
-    console.log('[Photo Config] Model not found, showing error');
-    await editMessageText(chatId, messageId, '❌ Модель не найдена');
-    return;
+    if (!model) {
+      console.log('[Photo Config] Model not found, showing error');
+      await editMessageText(chatId, messageId, '❌ Модель не найдена');
+      return;
+    }
+
+    // Get user preferences for defaults (with fallback)
+    let quality = model.qualityOptions[0] || 'balanced';
+    let aspectRatio = model.aspectRatios[0] || '1:1';
+
+    try {
+      const userState = await getUserState(telegramId);
+      if (userState.defaultQuality && model.qualityOptions.includes(userState.defaultQuality)) {
+        quality = userState.defaultQuality;
+      }
+      if (userState.defaultAspectRatio && model.aspectRatios.includes(userState.defaultAspectRatio)) {
+        aspectRatio = userState.defaultAspectRatio;
+      }
+    } catch (stateError) {
+      console.log('[Photo Config] getUserState failed, using defaults:', stateError);
+    }
+
+    // Start photo generation flow
+    try {
+      await startFlow(telegramId, 'photo_generation', 'configure', {
+        modelId,
+        quality,
+        aspectRatio,
+        mode: 't2i',
+      });
+    } catch (flowError) {
+      console.error('[Photo Config] startFlow failed:', flowError);
+      // Continue anyway - user can still see the menu
+    }
+
+    await renderPhotoHome(chatId, messageId, modelId, quality, aspectRatio, 't2i');
+  } catch (error) {
+    console.error('[Photo Config] Error:', error);
+    await editMessageText(chatId, messageId, '❌ Ошибка. Проверьте логи сервера.');
   }
-
-  // Get user preferences for defaults
-  const userState = await getUserState(telegramId);
-
-  // Use user's saved preferences or model defaults
-  const quality = userState.defaultQuality && model.qualityOptions.includes(userState.defaultQuality)
-    ? userState.defaultQuality
-    : model.qualityOptions[0] || 'balanced';
-
-  const aspectRatio = userState.defaultAspectRatio && model.aspectRatios.includes(userState.defaultAspectRatio)
-    ? userState.defaultAspectRatio
-    : model.aspectRatios[0] || '1:1';
-
-  // Start photo generation flow
-  await startFlow(telegramId, 'photo_generation', 'configure', {
-    modelId,
-    quality,
-    aspectRatio,
-    mode: 't2i',
-  });
-
-  await renderPhotoHome(chatId, messageId, modelId, quality, aspectRatio, 't2i');
 }
 
 /**
