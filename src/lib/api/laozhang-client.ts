@@ -10,32 +10,42 @@ export const LAOZHANG_MODELS = {
   // === IMAGE MODELS ===
   // Nano Banana (Flash - fast generation)
   NANO_BANANA: "gemini-2.5-flash-image-preview",
-  
+
   // Nano Banana Pro (Quality generation)
   NANO_BANANA_PRO: "gemini-3-pro-image-preview",
   NANO_BANANA_PRO_2K: "gemini-3-pro-image-preview-2k",
   NANO_BANANA_PRO_4K: "gemini-3-pro-image-preview-4k",
-  
+
   // Seedream alternatives (cheap)
   SEEDREAM_4_0: "seedream-4-0-250828",
   SEEDREAM_4_5: "seedream-4-5-251128",
-  
+
   // === VIDEO MODELS - VEO 3.1 ===
   // Standard models (720p)
   VEO_31: "veo-3.1",
   VEO_31_FAST: "veo-3.1-fast",
+  VEO_31_RELAXED: "veo-3.1-relaxed",
   VEO_31_LANDSCAPE: "veo-3.1-landscape",
   VEO_31_LANDSCAPE_FAST: "veo-3.1-landscape-fast",
-  
+  VEO_31_LANDSCAPE_RELAXED: "veo-3.1-landscape-relaxed",
+
+  // HD models (1080p) - requires aspect_ratio: "16:9", duration: 8
+  VEO_31_LANDSCAPE_HD: "veo-3.1-landscape-hd",
+  VEO_31_LANDSCAPE_FAST_HD: "veo-3.1-landscape-fast-hd",
+  VEO_31_LANDSCAPE_RELAXED_HD: "veo-3.1-landscape-relaxed-hd",
+
   // 4K models (higher resolution)
   VEO_31_FAST_4K: "veo-3.1-fast-4k",
   VEO_31_LANDSCAPE_FAST_4K: "veo-3.1-landscape-fast-4k",
-  
+
   // Multiple reference images support (-fl suffix)
-  // NOTE: Only works with standard veo-3.1 (NOT fast models)
+  // NOTE: Works with standard veo-3.1, also with HD models
   VEO_31_FL: "veo-3.1-fl",
   VEO_31_LANDSCAPE_FL: "veo-3.1-landscape-fl",
-  
+  VEO_31_LANDSCAPE_FL_HD: "veo-3.1-landscape-fl-hd",
+  VEO_31_LANDSCAPE_FAST_FL_HD: "veo-3.1-landscape-fast-fl-hd",
+  VEO_31_LANDSCAPE_RELAXED_FL_HD: "veo-3.1-landscape-relaxed-fl-hd",
+
   // === VIDEO MODELS - SORA ===
   SORA_2: "sora-2",
   SORA_VIDEO2: "sora_video2",
@@ -378,11 +388,18 @@ export class LaoZhangClient {
 
   /**
    * Generate video using Veo / Sora models
-   * 
+   *
    * IMPORTANT: Veo 3.1 Reference Images mode:
-   * - Multiple refs (2-3): Only standard veo-3.1 (NOT fast), uses -fl suffix
-   * - Single first frame: veo-3.1-fast with action: "image2video"
-   * 
+   * - Reference images require -fl suffix (e.g., veo-3.1-landscape-fl or veo-3.1-landscape-fl-hd)
+   * - Fast models CAN use reference images with -fast-fl suffix
+   * - HD models with refs use -fl-hd or -fast-fl-hd suffix
+   *
+   * Model suffix mapping for reference images:
+   * - veo-3.1-landscape -> veo-3.1-landscape-fl
+   * - veo-3.1-landscape-fast -> veo-3.1-landscape-fast-fl
+   * - veo-3.1-landscape-hd -> veo-3.1-landscape-fl-hd
+   * - veo-3.1-landscape-fast-hd -> veo-3.1-landscape-fast-fl-hd
+   *
    * Supports: t2v (text only), i2v (single image), start_end (first + last frame)
    */
   async generateVideo(params: {
@@ -390,24 +407,36 @@ export class LaoZhangClient {
     prompt: string;
     startImageUrl?: string; // First frame image URL (for i2v)
     endImageUrl?: string; // Last frame image URL (for start_end mode)
-    referenceImages?: string[]; // Reference images (for standard veo-3.1 only, NOT fast)
+    referenceImages?: string[]; // Reference images (up to 3)
   }): Promise<LaoZhangVideoResponse> {
     const hasReferenceImages = params.referenceImages && params.referenceImages.length > 0;
-    const isFastModel = params.model.includes('fast');
-    
-    // IMPORTANT: Multiple reference images only work with standard veo-3.1 (NOT fast)
-    if (hasReferenceImages && isFastModel) {
-      console.warn('[Video API] ⚠️  Fast models do NOT support multiple reference images!');
-      console.warn('[Video API] Use standard veo-3.1 for 2-3 references, or use first image only for fast');
-      
-      // Use only first image as startImageUrl for fast models
-      if (params.referenceImages && params.referenceImages.length > 0) {
-        console.log('[Video API] Converting first reference image to startImageUrl for fast model');
-        params.startImageUrl = params.referenceImages[0];
-        params.referenceImages = undefined;
+    const isHDModel = params.model.includes('-hd');
+    const alreadyHasFL = params.model.includes('-fl');
+
+    // Add -fl suffix for reference images if not already present
+    if (hasReferenceImages && !alreadyHasFL) {
+      let modelWithFL = params.model;
+
+      if (isHDModel) {
+        // For HD models: add -fl before -hd
+        // veo-3.1-landscape-hd -> veo-3.1-landscape-fl-hd
+        // veo-3.1-landscape-fast-hd -> veo-3.1-landscape-fast-fl-hd
+        modelWithFL = params.model.replace('-hd', '-fl-hd');
+      } else {
+        // For non-HD models: add -fl at the end
+        modelWithFL = `${params.model}-fl`;
       }
+
+      console.log('[Video API] Adding -fl suffix for reference images:', {
+        original: params.model,
+        withFL: modelWithFL,
+        isHD: isHDModel,
+        referenceCount: params.referenceImages?.length,
+      });
+
+      params.model = modelWithFL;
     }
-    
+
     // IMPORTANT: Always use chat/completions format for Veo
     // The /video/generations endpoint is async-only (returns taskId, not URL)
     // chat/completions returns URL directly in response
@@ -506,16 +535,11 @@ export class LaoZhangClient {
 
     const result = JSON.parse(responseText);
     
-    // Handle async response - might need polling
-    if (result.id && !result.videoUrl) {
-      console.log('[Video API] Async response received, task ID:', result.id);
-      // Return task info, caller should poll for completion
-      return {
-        id: result.id,
-        videoUrl: '', // Will be available after polling
-        model: finalModel,
-        created: Date.now() / 1000,
-      };
+    // Handle async response - need polling but we don't support it yet
+    if (result.id && !result.videoUrl && !result.video_url && !result.url) {
+      console.error('[Video API] Async response received, task ID:', result.id);
+      console.error('[Video API] Async mode not supported - video not ready immediately');
+      throw new Error('Video generation is processing asynchronously. Please try again in a few minutes.');
     }
     
     // Extract video URL from response
@@ -775,7 +799,17 @@ export function isLaoZhangModel(modelId: string): boolean {
 
 export function isLaoZhangVideoModel(modelId: string): boolean {
   const laozhangVideoModels = [
-    "veo-3.1", "veo-3.1-fast", "veo-3.1-landscape", "veo-3.1-landscape-fast",
+    // Veo 3.1 720p
+    "veo-3.1", "veo-3.1-fast", "veo-3.1-relaxed",
+    "veo-3.1-landscape", "veo-3.1-landscape-fast", "veo-3.1-landscape-relaxed",
+    // Veo 3.1 1080p HD
+    "veo-3.1-landscape-hd", "veo-3.1-landscape-fast-hd", "veo-3.1-landscape-relaxed-hd",
+    // Veo 3.1 4K
+    "veo-3.1-fast-4k", "veo-3.1-landscape-fast-4k",
+    // Veo 3.1 with reference images (-fl)
+    "veo-3.1-fl", "veo-3.1-landscape-fl",
+    "veo-3.1-landscape-fl-hd", "veo-3.1-landscape-fast-fl-hd", "veo-3.1-landscape-relaxed-fl-hd",
+    // Sora
     "sora-2", "sora_video2", "sora_video2-15s", "sora_video2-landscape"
   ];
   return laozhangVideoModels.includes(modelId);
@@ -787,19 +821,54 @@ export function getLaoZhangVideoModelId(
   lensroomModelId: string,
   aspectRatio?: string,
   quality?: string,
-  duration?: number | string
+  duration?: number | string,
+  resolution?: string
 ): string {
   // Veo 3.1 mapping (supports veo-3.1, veo-3.1-fast, veo-3.1-quality)
   if (lensroomModelId === "veo-3.1" || lensroomModelId.startsWith("veo-3.1")) {
     const isLandscape = aspectRatio === "16:9" || aspectRatio === "landscape";
     const isFast = quality === "fast" || lensroomModelId.includes("fast");
-    
+    const isRelaxed = quality === "relaxed" || lensroomModelId.includes("relaxed");
+    const isHD = resolution === "1080p" || resolution === "hd" || resolution === "HD" || resolution === "1080";
+    const is4K = resolution === "4k" || resolution === "4K" || resolution === "2160p";
+
+    console.log("[LaoZhang Model] Selecting Veo model:", {
+      input: lensroomModelId,
+      aspectRatio,
+      quality,
+      resolution,
+      isLandscape,
+      isFast,
+      isRelaxed,
+      isHD,
+      is4K,
+    });
+
+    // 4K models (only landscape fast supported)
+    if (is4K && isLandscape && isFast) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_FAST_4K;
+    if (is4K && isFast) return LAOZHANG_MODELS.VEO_31_FAST_4K;
+
+    // HD/1080p models (landscape only for HD)
+    if (isHD && isLandscape && isRelaxed) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_RELAXED_HD;
+    if (isHD && isLandscape && isFast) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_FAST_HD;
+    if (isHD && isLandscape) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_HD;
+    // For HD with non-landscape, fall back to landscape HD (1080p requires 16:9)
+    if (isHD) {
+      console.log("[LaoZhang Model] HD requires 16:9, using landscape HD model");
+      if (isRelaxed) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_RELAXED_HD;
+      if (isFast) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_FAST_HD;
+      return LAOZHANG_MODELS.VEO_31_LANDSCAPE_HD;
+    }
+
+    // Standard 720p models
+    if (isLandscape && isRelaxed) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_RELAXED;
     if (isLandscape && isFast) return LAOZHANG_MODELS.VEO_31_LANDSCAPE_FAST;
     if (isLandscape) return LAOZHANG_MODELS.VEO_31_LANDSCAPE;
+    if (isRelaxed) return LAOZHANG_MODELS.VEO_31_RELAXED;
     if (isFast) return LAOZHANG_MODELS.VEO_31_FAST;
     return LAOZHANG_MODELS.VEO_31;
   }
-  
+
   // Sora 2 mapping
   if (lensroomModelId === "sora-2" || lensroomModelId.startsWith("sora")) {
     const isLandscape = aspectRatio === "16:9" || aspectRatio === "landscape";
@@ -811,7 +880,7 @@ export function getLaoZhangVideoModelId(
     if (isLandscape) return LAOZHANG_MODELS.SORA_VIDEO2_LANDSCAPE;
     return LAOZHANG_MODELS.SORA_2;
   }
-  
+
   // Default - return as-is
   return lensroomModelId;
 }

@@ -1044,8 +1044,9 @@ export async function POST(request: NextRequest) {
         const { getLaoZhangClient, getLaoZhangVideoModelId } = await import("@/lib/api/laozhang-client");
         const videoClient = getLaoZhangClient();
         
-        // Select the right model based on aspect ratio and quality
-        const videoModelId = getLaoZhangVideoModelId(model, aspectRatio, quality, duration);
+        // Select the right model based on aspect ratio, quality and resolution
+        // resolution can be: '720p', '1080p', '4k', etc.
+        const videoModelId = getLaoZhangVideoModelId(model, aspectRatio, quality, duration, resolution);
         
         // Prepare image URLs for i2v / start_end modes
         let startImageUrlForVideo: string | undefined;
@@ -1097,8 +1098,15 @@ export async function POST(request: NextRequest) {
         // Upload video to Supabase Storage for permanent storage
         console.log('[API] Video generation successful from LaoZhang');
         console.log('[API] Video URL from provider:', videoGenResponse.videoUrl);
+
+        // Check if we got a valid video URL (not async/taskId response)
+        if (!videoGenResponse.videoUrl) {
+          console.error('[API] LaoZhang returned empty videoUrl - async mode not supported');
+          throw new Error('Video generation returned no URL. Please try again.');
+        }
+
         console.log('[API] Downloading video for storage upload...');
-        
+
         // Download video and upload to our storage
         const videoResponse = await fetch(videoGenResponse.videoUrl);
         if (!videoResponse.ok) {

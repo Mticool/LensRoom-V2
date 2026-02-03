@@ -10,13 +10,14 @@ type RouteContext = {
 /**
  * GET /api/generations/[id]/download?kind=original|preview|poster
  * Optional: &proxy=1 to stream bytes from our origin (avoids CORS when client needs Blob/DataURL).
- * 
+ * Optional: &download=1 to force download with Content-Disposition: attachment (for mobile)
+ *
  * Download generation asset with signed URL
- * 
+ *
  * Auth: Requires session (Telegram or Supabase)
  * Returns:
  * - default: 302 redirect to signed URL / direct URL
- * - proxy=1: 200 with file bytes (same-origin)
+ * - proxy=1 or download=1: 200 with file bytes and proper headers
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const searchParams = request.nextUrl.searchParams;
     const kind = searchParams.get('kind') || 'original';
     const proxy = searchParams.get('proxy') === '1' || searchParams.get('proxy') === 'true';
+    const forceDownload = searchParams.get('download') === '1' || searchParams.get('download') === 'true';
 
     if (!['original', 'preview', 'poster'].includes(kind)) {
       return NextResponse.json(
@@ -129,8 +131,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
     }
 
-    // Proxy mode: stream file bytes from server to avoid browser CORS issues.
-    if (proxy) {
+    // Proxy mode or force download: stream file bytes from server
+    if (proxy || forceDownload) {
       // Resolve final URL (signed for storage, or direct external URL).
       let finalUrl: string | null = null;
       if (directUrl) {
@@ -159,12 +161,35 @@ export async function GET(request: NextRequest, context: RouteContext) {
       const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
       const arrayBuffer = await upstream.arrayBuffer();
 
+      // Determine file extension based on content type and generation type
+      let extension = 'bin';
+      if (contentType.includes('video')) {
+        extension = 'mp4';
+      } else if (contentType.includes('image/webp')) {
+        extension = 'webp';
+      } else if (contentType.includes('image/png')) {
+        extension = 'png';
+      } else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) {
+        extension = 'jpg';
+      } else if (generation.type === 'video') {
+        extension = 'mp4';
+      } else if (generation.type === 'photo') {
+        extension = 'png';
+      }
+
+      // Generate filename
+      const filename = `lensroom_${generationId.substring(0, 8)}_${kind}.${extension}`;
+
+      // Content-Disposition: attachment forces download, inline allows browser to display
+      const disposition = forceDownload ? `attachment; filename="${filename}"` : 'inline';
+
       return new NextResponse(arrayBuffer, {
         status: 200,
         headers: {
           'Content-Type': contentType,
+          'Content-Length': String(arrayBuffer.byteLength),
           'Cache-Control': 'private, no-cache, no-store, must-revalidate',
-          'Content-Disposition': 'inline',
+          'Content-Disposition': disposition,
         },
       });
     }

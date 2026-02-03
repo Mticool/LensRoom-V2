@@ -59,3 +59,4 @@ next-env.d.ts
 /*.sh
 !DEPLOY.sh
 lensroom-v2/
+dev.log

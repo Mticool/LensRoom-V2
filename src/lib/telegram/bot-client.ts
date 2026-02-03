@@ -439,3 +439,106 @@ export function createReplyKeyboard(
 export function removeKeyboard(): { remove_keyboard: true } {
   return { remove_keyboard: true };
 }
+
+/**
+ * Get file info
+ */
+export async function getFile(fileId: string): Promise<{ file_path?: string } | null> {
+  try {
+    const response = await fetch(`${TELEGRAM_API}/getFile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId }),
+    });
+
+    const data = await response.json();
+    return data.ok ? data.result : null;
+  } catch (error) {
+    console.error('[TG Bot] getFile error:', error);
+    return null;
+  }
+}
+
+/**
+ * Get file URL from file_id
+ */
+export async function getFileUrl(fileId: string): Promise<string | null> {
+  const file = await getFile(fileId);
+  if (!file?.file_path) return null;
+
+  return `https://api.telegram.org/file/bot${BOT_TOKEN}/${file.file_path}`;
+}
+
+/**
+ * Send audio to a chat
+ */
+export async function sendAudio(
+  chatId: number | string,
+  audio: string, // URL or file_id
+  options?: {
+    caption?: string;
+    parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2';
+    replyMarkup?: any;
+    duration?: number;
+    performer?: string;
+    title?: string;
+  }
+): Promise<TelegramMessage | null> {
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendAudio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        audio,
+        caption: options?.caption,
+        parse_mode: options?.parseMode || 'HTML',
+        reply_markup: options?.replyMarkup,
+        duration: options?.duration,
+        performer: options?.performer,
+        title: options?.title,
+      }),
+    });
+
+    const data = await response.json();
+    return data.ok ? data.result : null;
+  } catch (error) {
+    console.error('[TG Bot] sendAudio error:', error);
+    return null;
+  }
+}
+
+/**
+ * Send voice message
+ */
+export async function sendVoice(
+  chatId: number | string,
+  voice: string, // URL or file_id
+  options?: {
+    caption?: string;
+    parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2';
+    replyMarkup?: any;
+    duration?: number;
+  }
+): Promise<TelegramMessage | null> {
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendVoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        voice,
+        caption: options?.caption,
+        parse_mode: options?.parseMode || 'HTML',
+        reply_markup: options?.replyMarkup,
+        duration: options?.duration,
+      }),
+    });
+
+    const data = await response.json();
+    return data.ok ? data.result : null;
+  } catch (error) {
+    console.error('[TG Bot] sendVoice error:', error);
+    return null;
+  }
+}

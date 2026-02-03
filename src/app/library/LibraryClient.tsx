@@ -278,13 +278,51 @@ export function LibraryClient() {
   };
 
   const handleDownload = async (id: string) => {
-    const link = document.createElement('a');
-    link.href = `/api/generations/${id}/download?kind=original`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Скачивание началось');
+    // Use download=1 to force Content-Disposition: attachment (works on mobile)
+    const downloadUrl = `/api/generations/${id}/download?kind=original&download=1`;
+
+    // For mobile: use fetch + blob approach for reliable downloads
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      try {
+        toast.loading('Подготовка файла...', { id: 'download' });
+        const response = await fetch(downloadUrl);
+        if (!response.ok) throw new Error('Download failed');
+
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get('content-disposition');
+        let filename = `lensroom_${id.substring(0, 8)}.mp4`;
+
+        // Extract filename from header if present
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="?([^"]+)"?/);
+          if (match) filename = match[1];
+        }
+
+        // Create blob URL and trigger download
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+
+        toast.success('Файл скачан!', { id: 'download' });
+      } catch (error) {
+        toast.error('Ошибка скачивания', { id: 'download' });
+        console.error('[Download] Mobile download error:', error);
+      }
+    } else {
+      // Desktop: simple link click with download attribute
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = '';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Скачивание началось');
+    }
   };
 
   const handleRegenerateSimilar = (item: LibraryItem) => {
@@ -336,7 +374,10 @@ export function LibraryClient() {
   };
 
   const getDisplayUrl = (item: LibraryItem, isVideo: boolean): string | null => {
-    if (isVideo) return item.posterUrl || null;
+    if (isVideo) {
+      // For videos: poster > preview > first frame of original video
+      return item.posterUrl || item.previewUrl || item.originalUrl || null;
+    }
     return item.previewUrl || item.originalUrl || null;
   };
 
@@ -524,13 +565,25 @@ export function LibraryClient() {
                   >
                     <div className="relative aspect-square bg-black/20">
                       {canDisplay ? (
-                        <img
-                          src={displayUrl}
-                          alt=""
-                          loading="lazy"
-                          className="w-full h-full object-cover"
-                          onError={() => setImageError(prev => new Set([...prev, item.id]))}
-                        />
+                        // For videos without poster, use video element to show first frame
+                        isVideo && !item.posterUrl && !item.previewUrl ? (
+                          <video
+                            src={displayUrl || undefined}
+                            muted
+                            playsInline
+                            preload="metadata"
+                            className="w-full h-full object-cover"
+                            onError={() => setImageError(prev => new Set([...prev, item.id]))}
+                          />
+                        ) : (
+                          <img
+                            src={displayUrl}
+                            alt=""
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                            onError={() => setImageError(prev => new Set([...prev, item.id]))}
+                          />
+                        )
                       ) : st === "generating" || st === "queued" ? (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[var(--gold)]/10 to-violet-500/10 p-3">
                           <Loader2 className="w-6 h-6 animate-spin text-[var(--gold)] mb-2" />
