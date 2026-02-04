@@ -724,15 +724,25 @@ html.tg-webview body {
 div.higgs-grid,
 [class*="higgs-grid"] {
   display: grid !important;
-  gap: 16px !important;
+  gap: 6px !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Full-width gallery: Higgsfield-style 4 columns
+   min(550px, max(300px, 18vw)) → 4 cols, cards ~300–550px */
+.higgs-grid-fullwidth {
+  display: grid !important;
+  gap: 6px !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(550px, max(300px, 18vw)), 1fr)) !important;
   width: 100% !important;
   max-width: 100% !important;
 }
 
 .feed-grid {
   display: grid;
-  gap: 16px;
+  gap: 6px;
   grid-template-columns: 1fr;
   max-width: 32rem;
   margin-left: auto;
@@ -743,7 +753,7 @@ div.higgs-grid,
 @media (min-width: 1025px) {
   .higgs-grid,
   div.higgs-grid,
-  [class*="higgs-grid"] {
+  [class*="higgs-grid"]:not(.higgs-grid-fullwidth) {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
@@ -752,7 +762,7 @@ div.higgs-grid,
 @media (min-width: 769px) and (max-width: 1024px) {
   .higgs-grid,
   div.higgs-grid,
-  [class*="higgs-grid"] {
+  [class*="higgs-grid"]:not(.higgs-grid-fullwidth) {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 }
@@ -761,7 +771,10 @@ div.higgs-grid,
 @media (min-width: 481px) and (max-width: 768px) {
   .higgs-grid,
   div.higgs-grid,
-  [class*="higgs-grid"] {
+  [class*="higgs-grid"]:not(.higgs-grid-fullwidth) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .higgs-grid-fullwidth {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
   .feed-grid {

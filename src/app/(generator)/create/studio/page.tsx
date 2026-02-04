@@ -38,9 +38,9 @@ function StudioContent() {
   const selectedPhotoModel = (searchParams.get("model") || "nano-banana-pro").trim();
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pt-24">
+    <div className={`bg-[var(--bg)] pt-24 ${section === "photo" ? "h-[calc(100vh-6rem)] flex flex-col" : "min-h-screen"}`}>
       {section === "photo" && (
-        <div className="hidden md:block px-4 pb-3">
+        <div className="hidden md:block px-4 pb-3 flex-shrink-0">
           <ModelSelector
             value={selectedPhotoModel}
             onChange={(modelId) => {
@@ -69,7 +69,9 @@ function StudioContent() {
         <StudioRuntime defaultKind="video" variant="motion" />
       ) : (
         <Suspense fallback={<LoadingFallback />}>
-          <StudioWorkspaces />
+          <div className={section === "photo" ? "flex-1 min-h-0 flex flex-col overflow-hidden" : ""}>
+            <StudioWorkspaces fillViewport={section === "photo"} />
+          </div>
         </Suspense>
       )}
     </div>

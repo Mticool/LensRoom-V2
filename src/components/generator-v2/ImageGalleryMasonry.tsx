@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react';
-import { Download, Share2, RotateCcw, Loader2, ZoomIn, Maximize2, AlertCircle, Heart, ImagePlus } from 'lucide-react';
+import { Download, Share2, RotateCcw, Loader2, Maximize2, AlertCircle, Heart, ImagePlus, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
 import type { GenerationResult } from './GeneratorV2';
@@ -27,6 +27,10 @@ interface ImageGalleryMasonryProps {
   isLoadingMore?: boolean;
   /** Enable drag and drop for tool models (Recraft, Topaz) */
   enableDragDrop?: boolean;
+  /** Show prompt label on cards (Higgsfield-style: false = cleaner). Default: false. */
+  showLabel?: boolean;
+  /** Full width layout (no max-width). Default: false. */
+  fullWidth?: boolean;
 }
 
 // Helper to check if image is ready to display
@@ -53,8 +57,11 @@ const ImageGalleryMasonryComponent = ({
   onLoadMore,
   isLoadingMore = false,
   enableDragDrop = false,
+  showLabel = false,
+  fullWidth = false,
 }: ImageGalleryMasonryProps) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const { toggleFavorite, isFavorite: isFavoriteId } = useFavoritesStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastLenRef = useRef<number>(images.length);
@@ -101,6 +108,18 @@ const ImageGalleryMasonryComponent = ({
     const { w, h } = getAspect(size);
     return { aspectRatio: `${w} / ${h}` } as const;
   }, [getAspect]);
+
+  // Close "more" menu on click outside (not on trigger or menu)
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('.gallery-more-menu') || t.closest('.gallery-more-trigger')) return;
+      setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
 
   // Auto-scroll to bottom when new images are appended (only if user is already near bottom).
   useEffect(() => {
@@ -157,21 +176,30 @@ const ImageGalleryMasonryComponent = ({
         preferred === "webp" ? "webp" :
         preferred === "jpg" ? "jpg" :
         "png";
+      // Create download link with proper MIME type
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `lensroom-${image.id}.${ext}`;
+      a.style.display = 'none';
+
+      // For mobile browsers - trigger download with timeout
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+
+      // Use setTimeout to ensure DOM is ready and download works on mobile
+      setTimeout(() => {
+        a.click();
+
+        // Clean up after download
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      }, 0);
+
       toast.success('Изображение скачано');
     } catch (error) {
       console.error('[Download] Error:', error);
-      // Fallback to direct URL open
-      try {
-        window.open(image.url, "_blank");
-      } catch {}
       toast.error('Ошибка при скачивании');
     }
   }, []);
@@ -246,19 +274,26 @@ const ImageGalleryMasonryComponent = ({
     const isUploadTool = emptyTitle?.toLowerCase().includes('загрузите') || emptyDescription?.toLowerCase().includes('загрузите');
     return (
       <div className="flex-1 flex items-center justify-center text-center px-4 py-12 md:py-20">
-        <div className="max-w-sm w-full">
-          <div className={`w-28 h-28 mx-auto mb-6 rounded-2xl ${isUploadTool ? 'bg-[#1C1C1E] border-2 border-[#f59e0b]/30' : 'bg-[#1C1C1E] border border-white/10'} flex items-center justify-center`}>
+        <div className="max-w-md w-full">
+          {/* Higgsfield-style: inspiring placeholder image instead of icon */}
+          <div className={`relative w-full max-w-[280px] mx-auto mb-6 rounded-none overflow-hidden aspect-[4/5] ${isUploadTool ? 'border-2 border-[#f59e0b]/30' : 'border border-white/[0.08]'}`}>
             {isUploadTool ? (
-              <ImagePlus className="w-14 h-14 text-[#f59e0b]" strokeWidth={2} />
+              <div className="absolute inset-0 bg-[#1C1C1E] flex items-center justify-center">
+                <ImagePlus className="w-16 h-16 text-[#f59e0b]" strokeWidth={2} />
+              </div>
             ) : (
-              <ZoomIn className="w-14 h-14 text-[#A1A1AA]" />
+              <OptimizedImage
+                src="/showcase/1.jpg"
+                alt=""
+                className="w-full h-full object-cover opacity-60"
+              />
             )}
           </div>
-          <h3 className="text-2xl font-bold text-white mb-3">
-            {emptyTitle || "Начните создавать"}
+          <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
+            {emptyTitle || "Создайте изображение"}
           </h3>
-          <p className="text-base text-[#A1A1AA] leading-relaxed px-4">
-            {emptyDescription || 'Введите описание изображения и нажмите "Сгенерировать"'}
+          <p className="text-sm md:text-base text-[#A1A1AA] leading-relaxed">
+            {emptyDescription || 'Опишите картинку и нажмите «Сгенерировать»'}
           </p>
         </div>
       </div>
@@ -266,8 +301,8 @@ const ImageGalleryMasonryComponent = ({
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto">
-      <div className="w-full max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-8">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto h-full min-h-0">
+      <div className={`w-full mx-auto py-6 px-4 md:px-6 ${fullWidth ? 'max-w-none' : 'max-w-7xl lg:px-12 md:px-8'}`}>
         {/* Load More Button - at top since new items appear at bottom */}
       {hasMore && onLoadMore && (
         <div className="flex justify-center py-2">
@@ -289,7 +324,7 @@ const ImageGalleryMasonryComponent = ({
       )}
 
       {(layout === 'grid' || layout === 'feed') ? (
-        <div className={layout === 'feed' ? 'feed-grid' : 'higgs-grid'} data-layout={layout}>
+        <div className={layout === 'feed' ? 'feed-grid' : fullWidth ? 'higgs-grid higgs-grid-fullwidth' : 'higgs-grid'} data-layout={layout}>
           {isGenerating && renderSkeletons()}
           {images.map((image) => {
             const isDemo = image.id.startsWith('demo-');
@@ -343,15 +378,18 @@ const ImageGalleryMasonryComponent = ({
                       <OptimizedImage
                         src={image.previewUrl || image.url}
                         alt={image.prompt}
+                        generationId={image.id}
                         className="absolute inset-0 w-full h-full object-cover block"
                         priority={false}
                       />
                     )}
                   </div>
 
-                  <div className="higgs-gallery-label">
-                    {image.prompt || ''}
-                  </div>
+                  {showLabel && (
+                    <div className="higgs-gallery-label">
+                      {image.prompt || ''}
+                    </div>
+                  )}
               
               {isDemo && (
                 <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#f59e0b] text-black text-xs font-medium z-10">
@@ -361,88 +399,60 @@ const ImageGalleryMasonryComponent = ({
 
               {hoveredId === image.id && (
                 <div className="absolute inset-0 pointer-events-none z-10">
-                  {/* Action Buttons в правом нижнем углу (hide for demo images) */}
+                  {/* Higgsfield-style: 3 primary + More menu (hide for demo images) */}
                   {!isDemo && (
-                    <div className="absolute bottom-3 right-3 flex flex-col gap-2 pointer-events-auto">
-                      {/* Открыть / View */}
+                    <div className="absolute bottom-3 right-3 flex flex-row gap-1.5 pointer-events-auto">
+                      {/* Primary: Open */}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleZoom(image);
-                        }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
+                        onClick={(e) => { e.stopPropagation(); handleZoom(image); }}
+                        className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group"
                         title="Открыть"
                       >
-                        <Maximize2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
+                        <Maximize2 className="w-4 h-4 text-white group-hover:text-[#ccff00]" />
                       </button>
-                      
-                      {/* Использовать как референс */}
-                      {onUseAsReference && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUseAsReference(image);
-                          }}
-                          className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                          title="Использовать как референс"
-                        >
-                          <ImagePlus className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
-                        </button>
-                      )}
-
-                      {/* Скачать */}
+                      {/* Primary: Download */}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownload(image);
-                        }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
+                        onClick={(e) => { e.stopPropagation(); handleDownload(image); }}
+                        className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group"
                         title="Скачать"
                       >
-                        <Download className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
+                        <Download className="w-4 h-4 text-white group-hover:text-[#ccff00]" />
                       </button>
-
-                      {/* В избранное */}
+                      {/* Primary: Favorite */}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleToggleFavorite(image);
-                        }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
+                        onClick={(e) => { e.stopPropagation(); void handleToggleFavorite(image); }}
+                        className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group"
                         title="В избранное"
                       >
-                        <Heart
-                          className={`w-5 h-5 group-hover:text-[#f59e0b] ${
-                            image.id && isFavoriteId(image.id) ? "text-rose-400" : "text-white"
-                          }`}
-                        />
+                        <Heart className={`w-4 h-4 group-hover:text-[#ccff00] ${image.id && isFavoriteId(image.id) ? "text-rose-400 fill-rose-400/30" : "text-white"}`} />
                       </button>
-
-                      {/* Поделиться (fallback = copy link) */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShare(image);
-                        }}
-                        className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                        title="Поделиться"
-                      >
-                        <Share2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
-                      </button>
-                      
-                      {/* Перегенерировать */}
-                      {onRegenerate && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRegenerate(image);
-                          }}
-                          className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                          title="Перегенерировать"
-                        >
-                          <RotateCcw className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
-                        </button>
-                      )}
+                      {/* More menu (Share + optional Reference, Regenerate) */}
+                      <div className="relative gallery-more-trigger">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === image.id ? null : image.id); }}
+                            className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group"
+                            title="Ещё"
+                          >
+                            <MoreVertical className="w-4 h-4 text-white group-hover:text-[#ccff00]" />
+                          </button>
+                          {openMenuId === image.id && (
+                            <div className="gallery-more-menu absolute bottom-full right-0 mb-1 py-1 min-w-[160px] rounded-lg bg-[#1a1a1c] border border-white/10 shadow-xl z-20">
+                              {onUseAsReference && (
+                                <button onClick={(e) => { e.stopPropagation(); handleUseAsReference(image); setOpenMenuId(null); }} className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2">
+                                  <ImagePlus className="w-4 h-4" /> Референс
+                                </button>
+                              )}
+                              <button onClick={(e) => { e.stopPropagation(); handleShare(image); setOpenMenuId(null); }} className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2">
+                                <Share2 className="w-4 h-4" /> Поделиться
+                              </button>
+                              {onRegenerate && (
+                                <button onClick={(e) => { e.stopPropagation(); handleRegenerate(image); setOpenMenuId(null); }} className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2">
+                                  <RotateCcw className="w-4 h-4" /> Перегенерировать
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                     </div>
                   )}
                 </div>
@@ -459,7 +469,7 @@ const ImageGalleryMasonryComponent = ({
           style={{
             columnCount: 'auto',
             columnFill: 'balance',
-            columnGap: '16px',
+            columnGap: '6px',
             // Responsive columns
             ...(typeof window !== 'undefined' && {
               columnCount: window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4
@@ -474,7 +484,7 @@ const ImageGalleryMasonryComponent = ({
             return (
               <div
                 key={image.id}
-                className="break-inside-avoid mb-4"
+                className="break-inside-avoid mb-1.5"
                 onMouseEnter={() => setHoveredId(image.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
@@ -520,103 +530,56 @@ const ImageGalleryMasonryComponent = ({
                     </div>
                   )}
 
-                  {/* Hover Overlay */}
+                  {/* Hover Overlay - Higgsfield-style: 3 primary + More */}
                   {hoveredId === image.id && (
                     <div className="absolute inset-0 pointer-events-none">
-                      {/* Action Buttons в правом нижнем углу (hide for demo images) */}
                       {!isDemo && (
-                        <div className="absolute bottom-3 right-3 flex flex-col gap-2 pointer-events-auto">
-                          {/* Открыть / View */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleZoom(image);
-                            }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                            title="Открыть"
-                          >
-                            <Maximize2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
+                        <div className="absolute bottom-3 right-3 flex flex-row gap-1.5 pointer-events-auto">
+                          <button onClick={(e) => { e.stopPropagation(); handleZoom(image); }} className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group" title="Открыть">
+                            <Maximize2 className="w-4 h-4 text-white group-hover:text-[#ccff00]" />
                           </button>
-
-                          {/* Использовать как референс */}
-                          {onUseAsReference && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUseAsReference(image);
-                              }}
-                              className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                              title="Использовать как референс"
-                            >
-                              <ImagePlus className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
+                          <button onClick={(e) => { e.stopPropagation(); handleDownload(image); }} className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group" title="Скачать">
+                            <Download className="w-4 h-4 text-white group-hover:text-[#ccff00]" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); void handleToggleFavorite(image); }} className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group" title="В избранное">
+                            <Heart className={`w-4 h-4 group-hover:text-[#ccff00] ${image.id && isFavoriteId(image.id) ? "text-rose-400 fill-rose-400/30" : "text-white"}`} />
+                          </button>
+                          <div className="relative gallery-more-trigger">
+                            <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === image.id ? null : image.id); }} className="p-2 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-md transition-all group" title="Ещё">
+                              <MoreVertical className="w-4 h-4 text-white group-hover:text-[#ccff00]" />
                             </button>
-                          )}
-
-                          {/* Скачать */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownload(image);
-                            }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                            title="Скачать"
-                          >
-                            <Download className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
-                          </button>
-
-                          {/* В избранное */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleToggleFavorite(image);
-                            }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                            title="В избранное"
-                          >
-                            <Heart
-                              className={`w-5 h-5 group-hover:text-[#f59e0b] ${
-                                image.id && isFavoriteId(image.id) ? "text-rose-400" : "text-white"
-                              }`}
-                            />
-                          </button>
-
-                          {/* Поделиться (fallback = copy link) */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleShare(image);
-                            }}
-                            className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                            title="Поделиться"
-                          >
-                            <Share2 className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
-                          </button>
-
-                          {/* Перегенерировать */}
-                          {onRegenerate && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRegenerate(image);
-                              }}
-                              className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-lg transition-all hover:scale-110 group"
-                              title="Перегенерировать"
-                            >
-                              <RotateCcw className="w-5 h-5 text-white group-hover:text-[#f59e0b]" />
-                            </button>
-                          )}
+                            {openMenuId === image.id && (
+                              <div className="gallery-more-menu absolute bottom-full right-0 mb-1 py-1 min-w-[160px] rounded-lg bg-[#1a1a1c] border border-white/10 shadow-xl z-20">
+                                {onUseAsReference && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleUseAsReference(image); setOpenMenuId(null); }} className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2">
+                                    <ImagePlus className="w-4 h-4" /> Референс
+                                  </button>
+                                )}
+                                <button onClick={(e) => { e.stopPropagation(); handleShare(image); setOpenMenuId(null); }} className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2">
+                                  <Share2 className="w-4 h-4" /> Поделиться
+                                </button>
+                                {onRegenerate && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleRegenerate(image); setOpenMenuId(null); }} className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2">
+                                    <RotateCcw className="w-4 h-4" /> Перегенерировать
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
 
-                {/* Prompt caption */}
-                <div className="mt-2">
-                  <div className="text-[11px] leading-snug text-white/75 line-clamp-2">
-                    {image.prompt || ""}
+                {/* Prompt caption - only when showLabel */}
+                {showLabel && (
+                  <div className="mt-2">
+                    <div className="text-[11px] leading-snug text-white/75 line-clamp-2">
+                      {image.prompt || ""}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
@@ -625,7 +588,7 @@ const ImageGalleryMasonryComponent = ({
 
       <style jsx>{`
         .masonry-grid {
-          column-gap: 16px;
+          column-gap: 6px;
         }
         
         @media (max-width: 768px) {

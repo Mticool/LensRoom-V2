@@ -213,7 +213,7 @@ function defaultPromptForModel(modelId: string): string {
   return "";
 }
 
-export function StudioWorkspaces() {
+export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1416,7 +1416,7 @@ export function StudioWorkspaces() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F0F10] text-white flex">
+    <div className={`${fillViewport ? 'h-full min-h-0' : 'min-h-screen'} bg-[#0F0F10] text-white flex`}>
       <ThreadSidebar
         open={isThreadsOpen}
         onOpenChange={setIsThreadsOpen}
@@ -1428,7 +1428,7 @@ export function StudioWorkspaces() {
         onRenameThread={renameThread}
       />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Mobile: Instagram-like feed + bottom sheet; tap image -> viewer */}
         <div className="md:hidden flex-1 flex flex-col min-h-0">
           <div
@@ -1442,6 +1442,7 @@ export function StudioWorkspaces() {
               images={effectiveImages}
               isGenerating={false}
               layout="grid"
+              fullWidth
               autoScrollToBottom
               onImageClick={(img) => {
                 const key = getRunKey(img);
@@ -1503,14 +1504,14 @@ export function StudioWorkspaces() {
           }}
         />
 
-        {/* Desktop: 4-column grid gallery */}
-        <div className="hidden md:flex flex-col">
-          {/* Gallery - centered with proper spacing */}
-          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto pb-44">
+        {/* Desktop: full-screen gallery */}
+        <div className="hidden md:flex flex-col flex-1 min-h-0">
+          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto min-h-0 pb-44">
             <ImageGalleryMasonry
               images={effectiveImages}
               isGenerating={false}
               layout="grid"
+              fullWidth
               autoScrollToBottom={false}
               onImageClick={handleImageClick}
               onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
