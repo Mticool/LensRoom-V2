@@ -94,12 +94,12 @@ export function TopazUpscaleGenerator() {
 
         const results = Array.isArray(data?.results) ? data.results : [];
         const urls: string[] = results
-          .map((r) => {
+          .map((r: unknown) => {
             if (!r || typeof r !== 'object') return '';
             const urlValue = (r as { url?: unknown }).url;
             return String(urlValue || '');
           })
-          .filter((u) => !!u);
+          .filter((u: string) => !!u);
         if (data.status === 'completed' && urls[0]) {
           setResultImage(urls[0]);
           setIsProcessing(false);

@@ -66,14 +66,14 @@ function getOriginalPath(gen: GenerationRow): string | null {
   }
   
   // Priority 2: extract from asset_url
-  const fromAssetUrl = extractStoragePath(gen.asset_url);
+  const fromAssetUrl = extractStoragePath(gen.asset_url ?? null);
   if (fromAssetUrl) {
     return fromAssetUrl;
   }
   
   // Priority 3: extract from result_urls[0]
   if (gen.result_urls && Array.isArray(gen.result_urls) && gen.result_urls[0]) {
-    const fromResultUrl = extractStoragePath(gen.result_urls[0]);
+    const fromResultUrl = extractStoragePath(gen.result_urls[0] ?? null);
     if (fromResultUrl) {
       return fromResultUrl;
     }

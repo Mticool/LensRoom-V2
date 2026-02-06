@@ -1169,12 +1169,12 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
         const jobData = await pollJob(jobId, provider);
         const results = Array.isArray(jobData?.results) ? jobData.results : [];
         const urls: string[] = results
-          .map((r) => {
+          .map((r: unknown) => {
             if (!r || typeof r !== "object") return "";
             const urlValue = (r as { url?: unknown }).url;
             return String(urlValue || "");
           })
-          .filter((u) => !!u);
+          .filter((u: string) => !!u);
         if (!urls.length) throw new Error("Не удалось получить результат");
 
         const limited = urls.slice(0, n);

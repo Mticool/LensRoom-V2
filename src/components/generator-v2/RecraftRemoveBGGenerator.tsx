@@ -104,6 +104,67 @@ export function RecraftRemoveBGGenerator() {
   // Oldest → newest. New generations should appear at the bottom.
   const allImages = [...history, ...images, ...demoImages];
 
+  // Poll job status
+  const pollJobStatus = useCallback(async (jobId: string, pendingIds: string[]) => {
+    const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
+    let attempts = 0;
+
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/jobs/${jobId}`);
+        const data = await response.json();
+
+        if (data.status === 'completed' && data.urls) {
+          const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
+            id: `${Date.now()}-${i}`,
+            url,
+            prompt,
+            mode: 'image' as const,
+            settings: {
+              model: 'recraft-remove-background',
+              size: aspectRatio,
+              quality: QUALITY_MAPPING[quality],
+            },
+            timestamp: Date.now(),
+          }));
+
+          // Replace pending with real images
+          setImages(prev => {
+            const filtered = prev.filter(img => !pendingIds.includes(img.id));
+            return [...filtered, ...newImages];
+          });
+
+          celebrateGeneration();
+          toast.success(`Сгенерировано ${newImages.length} изображений!`);
+          return;
+        }
+
+        if (data.status === 'failed') {
+          throw new Error(data.error || 'Генерация не удалась');
+        }
+
+        // Continue polling
+        if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(poll, 2000);
+        } else {
+          throw new Error('Превышено время ожидания');
+        }
+      } catch (error: unknown) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Polling error:', error);
+        }
+        const message = error instanceof Error ? error.message : 'Ошибка получения результата';
+        toast.error(message);
+        
+        // Remove pending images
+        setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
+      }
+    };
+
+    poll();
+  }, [aspectRatio, prompt, quality]);
+
   // Generate handler
   const handleGenerate = useCallback(async () => {
     if (!isAuthenticated) {
@@ -220,67 +281,6 @@ export function RecraftRemoveBGGenerator() {
     }
   }, [isAuthenticated, prompt, aspectRatio, quality, quantity, negativePrompt, seed, steps, credits, estimatedCost, showPopup, refreshCredits, refreshHistory, invalidateCache, pollJobStatus, referenceImage]);
 
-  // Poll job status
-  const pollJobStatus = useCallback(async (jobId: string, pendingIds: string[]) => {
-    const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
-    let attempts = 0;
-
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/jobs/${jobId}`);
-        const data = await response.json();
-
-        if (data.status === 'completed' && data.urls) {
-          const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
-            id: `${Date.now()}-${i}`,
-            url,
-            prompt,
-            mode: 'image' as const,
-            settings: {
-              model: 'recraft-remove-background',
-              size: aspectRatio,
-              quality: QUALITY_MAPPING[quality],
-            },
-            timestamp: Date.now(),
-          }));
-
-          // Replace pending with real images
-          setImages(prev => {
-            const filtered = prev.filter(img => !pendingIds.includes(img.id));
-            return [...filtered, ...newImages];
-          });
-
-          celebrateGeneration();
-          toast.success(`Сгенерировано ${newImages.length} изображений!`);
-          return;
-        }
-
-        if (data.status === 'failed') {
-          throw new Error(data.error || 'Генерация не удалась');
-        }
-
-        // Continue polling
-        if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(poll, 2000);
-        } else {
-          throw new Error('Превышено время ожидания');
-        }
-      } catch (error: unknown) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Polling error:', error);
-        }
-        const message = error instanceof Error ? error.message : 'Ошибка получения результата';
-        toast.error(message);
-        
-        // Remove pending images
-        setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
-      }
-    };
-
-    poll();
-  }, [aspectRatio, prompt, quality]);
-
   // Regenerate handler
   const handleRegenerate = useCallback((regeneratePrompt: string, settings: GenerationSettings) => {
     setPrompt(regeneratePrompt);
@@ -367,7 +367,6 @@ export function RecraftRemoveBGGenerator() {
           aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4']}
           referenceImage={referenceImage}
           onReferenceImageChange={setReferenceImage}
-          onReferenceFileChange={setReferenceFile}
           negativePrompt={negativePrompt}
           onNegativePromptChange={setNegativePrompt}
           seed={seed}

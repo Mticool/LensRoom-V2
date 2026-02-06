@@ -316,7 +316,6 @@ export function NanoBananaGenerator() {
         aspectRatioOptions={['1:1', '16:9', '9:16', '4:3']}
         referenceImage={referenceImage}
         onReferenceImageChange={setReferenceImage}
-        onReferenceFileChange={setReferenceFile}
         negativePrompt={negativePrompt}
         onNegativePromptChange={setNegativePrompt}
         seed={seed}
