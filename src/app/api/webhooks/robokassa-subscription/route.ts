@@ -49,16 +49,17 @@ export async function POST(request: NextRequest) {
     const state = params['State'] || params['state'] || 'active';
     
     // Определяем план по subscriptionId
-    // New plans: creator (1200⭐), creator_plus (2550⭐), business (3500⭐)
-    const subscriptionMap: Record<string, { planId: string; credits: number; name: string }> = {
-      // New plans
-      [process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '']: { planId: 'creator', credits: 1200, name: 'Creator' },
-      [process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '']: { planId: 'creator_plus', credits: 2550, name: 'Creator+' },
-      [process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '']: { planId: 'business', credits: 3500, name: 'Business' },
-      // Legacy mappings (for existing subscriptions)
-      [process.env.ROBOKASSA_SUBSCRIPTION_STAR || '']: { planId: 'creator', credits: 1200, name: 'Creator' },
-      [process.env.ROBOKASSA_SUBSCRIPTION_PRO || '']: { planId: 'creator_plus', credits: 2550, name: 'Creator+' },
-    };
+    // Current plans: start (1100⭐), pro (2400⭐), max (4000⭐)
+    const subscriptionMap: Record<string, { planId: string; credits: number; name: string }> = {};
+    if (process.env.ROBOKASSA_SUBSCRIPTION_START) {
+      subscriptionMap[process.env.ROBOKASSA_SUBSCRIPTION_START] = { planId: 'start', credits: 1100, name: 'START' };
+    }
+    if (process.env.ROBOKASSA_SUBSCRIPTION_PRO) {
+      subscriptionMap[process.env.ROBOKASSA_SUBSCRIPTION_PRO] = { planId: 'pro', credits: 2400, name: 'PRO' };
+    }
+    if (process.env.ROBOKASSA_SUBSCRIPTION_MAX) {
+      subscriptionMap[process.env.ROBOKASSA_SUBSCRIPTION_MAX] = { planId: 'max', credits: 4000, name: 'MAX' };
+    }
     
     const planInfo = subscriptionMap[subscriptionId];
     
@@ -358,4 +359,3 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   return new NextResponse('Robokassa Subscription Webhook is active', { status: 200 });
 }
-

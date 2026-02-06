@@ -10,10 +10,8 @@ import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult } from './GeneratorV2';
 import { getDefaultImageParams, getImageModelCapability } from '@/lib/imageModels/capabilities';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
-
-// Cost calculation for Z-image - cheapest model at 2 stars!
-const COST_PER_IMAGE = 2;
 
 export function ZImageGenerator() {
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
@@ -50,7 +48,7 @@ export function ZImageGenerator() {
   const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   
   const credits = authCredits;
-  const estimatedCost = useMemo(() => COST_PER_IMAGE * quantity, [quantity]);
+  const estimatedCost = useMemo(() => computePrice('z-image', { variants: quantity }).stars, [quantity]);
   const aspectRatioOptions = useMemo(() => {
     const base = capability?.supportedAspectRatios || ['1:1'];
     return referenceImage ? base : base.filter((ar) => ar !== 'auto');

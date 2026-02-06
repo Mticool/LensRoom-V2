@@ -6,12 +6,18 @@
 export interface PricingTier {
   id: string;
   name: string;
+  priceRub: number;
+  starsMonthly: number;
+  motionControlIncluded: boolean;
+  nanobananaProTier: 'none' | '2k_free' | '4k_free';
+  queuePriority: 'standard' | 'priority' | 'max';
+  libraryTier: 'basic' | 'extended' | 'max';
   price: number;
   stars: number;
   period: 'month';
   popular?: boolean;
   highlights: string[];
-  nanoBananaPro2k: string; // "120/мес" | "Бесплатно*" | "✓"
+  nanoBananaPro2k: string; // "—" | "Бесплатно*" | "✓"
   nanoBananaPro4k: string; // "—" | "Бесплатно*"
   hasPriority: boolean;
   hasMaxPriority: boolean;
@@ -28,6 +34,20 @@ export interface StarPack {
   capacity?: string;
 }
 
+export interface PaymentSubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  credits: number;
+}
+
+export interface PaymentCreditPackage {
+  id: string;
+  name: string;
+  credits: number;
+  price: number;
+}
+
 export function packTotalStars(pack: StarPack): number {
   return pack.stars + (pack.bonus || 0);
 }
@@ -37,22 +57,29 @@ export function packBonusPercent(pack: StarPack): number {
   return Math.round((pack.bonus / pack.stars) * 100);
 }
 
+export const REGISTRATION_BONUS = 50;
+
 // === НОВЫЕ ТАРИФЫ (2026-01-27) ===
 export const SUBSCRIPTION_TIERS: PricingTier[] = [
   {
     id: 'start',
     name: 'START',
+    priceRub: 990,
+    starsMonthly: 1100,
+    motionControlIncluded: true,
+    nanobananaProTier: 'none',
+    queuePriority: 'standard',
+    libraryTier: 'basic',
     price: 990,
     stars: 1100,
     period: 'month',
     highlights: [
       '+1100⭐ каждый месяц',
       'Все видео и фото модели доступны',
-      'NanoBanana Pro 2K: 120 генераций/мес включено',
       'Motion Control: доступен',
       'История и «Мои работы»',
     ],
-    nanoBananaPro2k: '120/мес',
+    nanoBananaPro2k: '—',
     nanoBananaPro4k: '—',
     hasPriority: false,
     hasMaxPriority: false,
@@ -61,6 +88,12 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
   {
     id: 'pro',
     name: 'PRO',
+    priceRub: 1990,
+    starsMonthly: 2400,
+    motionControlIncluded: true,
+    nanobananaProTier: '2k_free',
+    queuePriority: 'priority',
+    libraryTier: 'extended',
     price: 1990,
     stars: 2400,
     period: 'month',
@@ -81,6 +114,12 @@ export const SUBSCRIPTION_TIERS: PricingTier[] = [
   {
     id: 'max',
     name: 'MAX',
+    priceRub: 2990,
+    starsMonthly: 4000,
+    motionControlIncluded: true,
+    nanobananaProTier: '4k_free',
+    queuePriority: 'max',
+    libraryTier: 'max',
     price: 2990,
     stars: 4000,
     period: 'month',
@@ -106,6 +145,20 @@ export const STAR_PACKS: StarPack[] = [
   { id: 'max', stars: 3000, price: 1990, popular: true, capacity: '~428 Nano Banana' },
   { id: 'ultra', stars: 7600, price: 4990, capacity: '~1085 Nano Banana' },
 ];
+
+export const PAYMENT_SUBSCRIPTION_PLANS: PaymentSubscriptionPlan[] = SUBSCRIPTION_TIERS.map((tier) => ({
+  id: tier.id,
+  name: tier.name,
+  price: tier.price,
+  credits: tier.stars,
+}));
+
+export const PAYMENT_CREDIT_PACKAGES: PaymentCreditPackage[] = STAR_PACKS.map((pack) => ({
+  id: pack.id,
+  name: pack.id.charAt(0).toUpperCase() + pack.id.slice(1),
+  credits: packTotalStars(pack),
+  price: pack.price,
+}));
 
 // === ТАБЛИЦА СРАВНЕНИЯ ===
 export interface ComparisonRow {
@@ -138,8 +191,7 @@ export const COMPARISON_TABLE: ComparisonRow[] = [
   
   // IMAGE
   { label: 'Nano Banana', category: 'image', start: '✓', pro: '✓', max: '✓' },
-  { label: 'NanoBanana Pro 2K', category: 'image', start: '120/мес', pro: 'Бесплатно*', max: '✓' },
-  { label: 'NanoBanana Pro 4K', category: 'image', start: '—', pro: '—', max: 'Бесплатно*' },
+  { label: 'NanoBanana Pro 2K/4K', category: 'image', start: '—', pro: '2K бесплатно* / —', max: 'Бесплатно* (4K)' },
   { label: 'Seedream 4.5', category: 'image', start: '✓', pro: '✓', max: '✓' },
   { label: 'Z-image', category: 'image', start: '✓', pro: '✓', max: '✓' },
   { label: 'GPT Image 1.5', category: 'image', start: '✓', pro: '✓', max: '✓' },
@@ -187,22 +239,22 @@ export const PLAN_ENTITLEMENTS: PlanEntitlements[] = [
   {
     planId: 'start',
     entitlements: [
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 120, priceWhenNotIncluded: 17 },
-      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 25 },
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: 0, priceWhenNotIncluded: 9 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 9 },
     ],
   },
   {
     planId: 'pro',
     entitlements: [
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 17 },
-      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 25 },
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 9 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: 0, priceWhenNotIncluded: 9 },
     ],
   },
   {
     planId: 'max',
     entitlements: [
-      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 17 },
-      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: -1, priceWhenNotIncluded: 25 },
+      { modelId: 'nano-banana-pro', variantKey: '1k_2k', includedMonthlyLimit: -1, priceWhenNotIncluded: 9 },
+      { modelId: 'nano-banana-pro', variantKey: '4k', includedMonthlyLimit: -1, priceWhenNotIncluded: 9 },
     ],
   },
 ];
@@ -239,7 +291,7 @@ export function getVariantPrice(
   
   if (!ent) {
     if (modelId === 'nano-banana-pro') {
-      return { stars: variantKey === '4k' ? 25 : 17, isIncluded: false };
+      return { stars: 9, isIncluded: false };
     }
     return { stars: 0, isIncluded: false };
   }
@@ -256,6 +308,6 @@ export const PRICING_FOOTNOTES = [
   '⭐ начисляются каждый месяц.',
   '⭐ можно тратить на любые модели.',
   'Все генерации, кроме включённых NanoBanana Pro, списываются в ⭐ по прайсу.',
-  '*Бесплатно = включено в тариф (fair-use защита от злоупотреблений).',
+  'Бесплатно* = без списания ⭐ в рамках разумного использования. При аномальной нагрузке возможны ограничения скорости или списание ⭐ по стандартному прайсу.',
   'Модели и режимы пополняются: обновления каждую неделю.',
 ];

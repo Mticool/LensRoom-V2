@@ -108,11 +108,11 @@ export class PayformClient {
   }: CreatePaymentParams): string {
     
     const subscriptionId =
-      planId === 'star'
-        ? process.env.PAYFORM_SUBSCRIPTION_STAR
+      planId === 'start'
+        ? process.env.PAYFORM_SUBSCRIPTION_START
         : planId === 'pro'
           ? process.env.PAYFORM_SUBSCRIPTION_PRO
-          : process.env.PAYFORM_SUBSCRIPTION_BUSINESS;
+          : process.env.PAYFORM_SUBSCRIPTION_MAX;
 
     if (!subscriptionId) {
       throw new Error(`Subscription ID not found for plan: ${planId}`);

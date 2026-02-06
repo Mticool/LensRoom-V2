@@ -93,7 +93,7 @@ export async function GET() {
                 color: 'transparent',
               }}
             >
-              БЕЗЛИМИТ
+              PRO / MAX
             </span>
           </div>
           
@@ -108,7 +108,7 @@ export async function GET() {
               gap: '12px',
             }}
           >
-            <span>в тарифах Creator+ и Business</span>
+            <span>Бесплатно* на PRO и MAX</span>
           </div>
           
           {/* Features row */}

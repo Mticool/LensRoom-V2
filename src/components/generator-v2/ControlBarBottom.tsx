@@ -469,7 +469,7 @@ const ControlBarBottomComponent = ({
             <button
               onClick={handleSubmit}
               disabled={!canSubmit}
-              title={!canSubmit ? "Введите промпт" : `Генерация за ${estimatedCost} ⭐`}
+              title={!canSubmit ? "Введите промпт" : `Списать ${estimatedCost}⭐`}
               className={`
                 flex items-center justify-center w-14 h-14 rounded-full font-bold transition-all shrink-0
                 ${canSubmit
@@ -687,7 +687,7 @@ const ControlBarBottomComponent = ({
               </button>
             )}
 
-            {/* Generate Button со стоимостью (справа) */}
+            {/* Generate Button со списанием (справа) */}
             <button
               onClick={handleSubmit}
               disabled={!canSubmit}
@@ -719,7 +719,7 @@ const ControlBarBottomComponent = ({
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>{isAuthenticated ? `Создать ${estimatedCost}⭐` : "Войти"}</span>
+                  <span>{isAuthenticated ? `Списать ${estimatedCost}⭐` : "Войти"}</span>
                 </>
               )}
             </button>
@@ -999,7 +999,7 @@ const ControlBarBottomComponent = ({
             {/* Cost summary */}
             <div className="pt-4 border-t border-[#27272A]">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-[#A1A1AA]">Стоимость</div>
+                <div className="text-sm text-[#A1A1AA]">Списать</div>
                 <div className="flex items-center gap-2 text-lg font-bold text-[#f59e0b]">
                   <Star className="w-5 h-5" />
                   {estimatedCost}

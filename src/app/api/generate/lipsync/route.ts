@@ -221,6 +221,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Списать кредиты
+    console.log('[⭐ AUDIT_PRECHARGE]', JSON.stringify({
+      model,
+      mode: 'lipsync',
+      duration: audioDuration || null,
+      quality: finalResolution || null,
+      resolution: finalResolution || null,
+      calculatedStars: creditCost,
+      userId,
+      generationId: generation.id,
+    }));
+
     const deductResult = await deductCredits(supabase, userId, creditCost);
     if (!deductResult.success) {
       console.error('[Lip Sync] Failed to deduct credits');

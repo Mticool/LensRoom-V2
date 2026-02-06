@@ -11,8 +11,8 @@ import { VideoGeneratorBottomSheet } from "@/components/generator-v2/VideoGenera
 
 import { getEffectById } from "@/config/effectsGallery";
 import { getModelById, type ModelConfig, type VideoModelConfig } from "@/config/models";
-import { computePrice } from "@/lib/pricing/compute-price";
-import { calcMotionControlStars, validateMotionControlDuration, type MotionControlResolution } from "@/lib/pricing/motionControl";
+import { computePrice } from "@/lib/pricing/pricing";
+import { calcMotionControlStars, validateMotionControlDuration, type MotionControlResolution } from "@/lib/pricing/pricing";
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { usePreferencesStore } from "@/stores/preferences-store";
 import { useHistory } from "@/components/generator-v2/hooks/useHistory";

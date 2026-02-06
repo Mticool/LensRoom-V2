@@ -1,5 +1,5 @@
 import { PHOTO_MODELS, type PhotoModelConfig } from "@/config/models";
-import { computePrice } from "@/lib/pricing/compute-price";
+import { computePrice } from "@/lib/pricing/pricing";
 
 export type ParamKey = "version" | "mode" | "resolution" | "quality" | "format";
 

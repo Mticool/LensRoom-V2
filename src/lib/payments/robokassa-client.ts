@@ -212,15 +212,11 @@ export class RobokassaClient {
     email?: string;
   }): string {
     // Получаем SubscriptionId из env
-    // New plans: creator, creator_plus, business (with fallback to legacy env vars)
+    // Current plans: start, pro, max
     const subscriptionIds: Record<string, string> = {
-      // New plans with fallback to legacy
-      creator: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR || '',
-      creator_plus: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || process.env.ROBOKASSA_SUBSCRIPTION_PRO || '',
-      business: process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '',
-      // Legacy mappings
-      star: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR || '',
-      pro: process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || process.env.ROBOKASSA_SUBSCRIPTION_PRO || '',
+      start: process.env.ROBOKASSA_SUBSCRIPTION_START || '',
+      pro: process.env.ROBOKASSA_SUBSCRIPTION_PRO || '',
+      max: process.env.ROBOKASSA_SUBSCRIPTION_MAX || '',
     };
     
     const subscriptionId = subscriptionIds[params.planId];
@@ -229,11 +225,9 @@ export class RobokassaClient {
       // Если нет SubscriptionId, используем обычный платёж
       console.warn(`[Robokassa] No subscription ID for plan: ${params.planId}, using one-time payment`);
       const planNames: Record<string, string> = {
-        creator: 'Creator',
-        creator_plus: 'Creator+', 
-        business: 'Business',
-        star: 'Creator',
-        pro: 'Creator+',
+        start: 'START',
+        pro: 'PRO',
+        max: 'MAX',
       };
       return this.createPaymentUrl({
         ...params,
@@ -269,9 +263,9 @@ export class RobokassaClient {
    */
   hasSubscriptions(): boolean {
     return !!(
-      process.env.ROBOKASSA_SUBSCRIPTION_STAR ||
+      process.env.ROBOKASSA_SUBSCRIPTION_START ||
       process.env.ROBOKASSA_SUBSCRIPTION_PRO ||
-      process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS
+      process.env.ROBOKASSA_SUBSCRIPTION_MAX
     );
   }
 }
@@ -292,4 +286,3 @@ export function getRobokassaClient(): RobokassaClient | null {
 }
 
 export { robokassaClient };
-

@@ -109,11 +109,9 @@ export default function SubscriptionPage() {
 
   const getPlanName = (planId: string) => {
     const names: Record<string, string> = {
-      creator: 'Creator',
-      creator_plus: 'Creator+',
-      business: 'Business',
-      pro: 'Creator+', // Legacy
-      star: 'Creator', // Legacy
+      start: 'START',
+      pro: 'PRO',
+      max: 'MAX',
     };
     return names[planId] || planId;
   };

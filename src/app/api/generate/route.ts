@@ -58,26 +58,25 @@ export async function POST(request: NextRequest) {
       const videoModel = VIDEO_MODELS.find(m => m.id === body.model);
       if (videoModel) {
         const duration = parseInt(body.settings?.duration || '10');
-        const quality = body.settings?.quality || 'HD';
+        const quality = body.settings?.quality || undefined;
         const sku = getSkuFromRequest(body.model, {
           duration,
           videoQuality: quality,
+          qualityTier: (quality === 'standard' || quality === 'pro' || quality === 'master') ? quality : undefined,
+          audio: body.settings?.audio === true,
           mode: 't2v',
         });
-        costStars = calculateTotalStars(sku, duration) || 100;
-      } else {
-        costStars = 100; // Default fallback
+        costStars = calculateTotalStars(sku, duration);
       }
     } else if (body.type === 'image') {
-      // Image cost based on model
-      const costMap: Record<string, number> = {
-        'nano-banana-pro': 35,
-        'flux-2-pro': 10,
-        'gpt-image': 42,
-        'seedream-4.5': 11,
-        'z-image': 2,
-      };
-      costStars = costMap[body.model] || 20;
+      const quality = body.settings?.quality || undefined;
+      const resolution = body.settings?.resolution || undefined;
+      const sku = getSkuFromRequest(body.model, {
+        mode: 't2i',
+        quality,
+        resolution,
+      });
+      costStars = calculateTotalStars(sku);
     } else if (body.type === 'text') {
       const costMap: Record<string, number> = {
         'chatgpt-4.5': 30,

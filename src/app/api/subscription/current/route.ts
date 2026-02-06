@@ -65,11 +65,9 @@ export async function GET() {
 
     // Get plan details
     const planNames: Record<string, string> = {
-      creator: 'Creator',
-      creator_plus: 'Creator+',
-      business: 'Business',
-      pro: 'Creator+', // Legacy
-      star: 'Creator', // Legacy
+      start: 'START',
+      pro: 'PRO',
+      max: 'MAX',
     };
 
     return NextResponse.json({

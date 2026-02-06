@@ -229,14 +229,29 @@ export async function POST(request: NextRequest) {
 
     // === NEW PRICING SYSTEM (2026-01-27) ===
     const { quality: legacyQuality, resolution: legacyResolution } = body;
-    const quality =
+    let quality =
       resolvedParams?.quality && resolvedParams.quality !== "default"
         ? String(resolvedParams.quality)
         : legacyQuality || undefined;
-    const resolution =
+    let resolution =
       resolvedParams?.resolution && resolvedParams.resolution !== "default"
         ? String(resolvedParams.resolution)
         : legacyResolution || undefined;
+
+    if (effectiveModelId === 'topaz-image-upscale') {
+      const q = String(quality || '').toLowerCase();
+      if (!resolution) {
+        if (q === '2' || q === '2k') resolution = '2k';
+        if (q === '4' || q === '4k') resolution = '4k';
+        if (q === '8' || q === '8k') resolution = '8k';
+      }
+      quality = undefined;
+    }
+
+    if (effectiveModelId === 'recraft-remove-background') {
+      quality = undefined;
+      resolution = undefined;
+    }
 
     const defaults = getDefaultImageParams(effectiveModelId);
     const finalQuality = quality ?? defaults.quality;
@@ -288,25 +303,17 @@ export async function POST(request: NextRequest) {
       mode: resolvedMode as any,
     };
 
-    // Generate SKU and get price
+    // Generate SKU and get price (always server-side from pricing.ts)
     let sku: string;
     let creditCost: number;
     
     try {
-      // If variant payload was used with explicit stars, use that
-      if (resolvedVariantStars !== null && resolvedVariantStars > 0) {
-        // For variant-based pricing, we still need a SKU for tracking
-        sku = getSkuFromRequest(effectiveModelId, pricingOptions);
-        creditCost = resolvedVariantStars;
-      } else {
-        // Use new SKU-based pricing system
-        sku = getSkuFromRequest(effectiveModelId, pricingOptions);
-        creditCost = calculateTotalStars(sku);
-        
-        // For variants > 1, multiply the price
-        if (finalVariants && finalVariants > 1) {
-          creditCost = creditCost * finalVariants;
-        }
+      sku = getSkuFromRequest(effectiveModelId, pricingOptions);
+      creditCost = calculateTotalStars(sku);
+      
+      // For variants > 1, multiply the price
+      if (finalVariants && finalVariants > 1) {
+        creditCost = creditCost * finalVariants;
       }
     } catch (error) {
       console.error('[API] Pricing system error:', {
@@ -417,6 +424,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const generationIdForAudit = crypto.randomUUID();
+
     // Skip credit check for managers/admins
     if (!skipCredits) {
       // Get user credits (split: subscription + package)
@@ -440,6 +449,17 @@ export async function POST(request: NextRequest) {
       // Deduct credits (only if not included by plan)
       // Priority: subscription stars first (use before they expire), then package stars
       if (!isIncludedByPlan && actualCreditCost > 0) {
+        console.log('[⭐ AUDIT_PRECHARGE]', JSON.stringify({
+          model: effectiveModelId,
+          mode: resolvedMode,
+          duration: null,
+          quality: finalQuality || null,
+          resolution: finalResolution || null,
+          calculatedStars: actualCreditCost,
+          userId,
+          generationId: generationIdForAudit,
+        }));
+
         const deductResult = await deductCredits(supabase, userId, actualCreditCost);
         
         // 🔍 AUDIT LOG: Star deduction with SKU tracking (2026-01-27)
@@ -544,6 +564,7 @@ export async function POST(request: NextRequest) {
       };
 
       const payload: Record<string, unknown> = {
+        id: generationIdForAudit,
         user_id: userId,
         type: "photo",
         model_id: effectiveModelId,

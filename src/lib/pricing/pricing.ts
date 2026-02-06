@@ -11,7 +11,7 @@
  * 4. Store: sku, priceStars, pricingVersion in ledger + generation record
  */
 
-export const PRICING_VERSION = "2026-01-27";
+export const PRICING_VERSION = "2026-02-06";
 
 // ============================================================================
 // SKU GENERATION
@@ -21,7 +21,7 @@ export interface PricingOptions {
   // Photo options
   quality?: string; // '1k', '2k', '4k', '1k_2k', 'medium', 'high', etc.
   resolution?: string; // '512x512', '1024x1024', etc.
-  mode?: 't2i' | 'i2i' | 't2v' | 'i2v' | 'i2i_run' | 'extend' | 'start_end' | 'v2v';
+  mode?: 't2i' | 'i2i' | 't2v' | 'i2v' | 'i2i_run' | 'extend' | 'start_end' | 'v2v' | 'motion_control';
 
   // Video options
   duration?: number; // 5, 6, 10, 15, etc.
@@ -35,6 +35,22 @@ export interface PricingOptions {
 
   // Lip sync: audio duration in seconds (for per-second pricing)
   audioDurationSec?: number;
+}
+
+/**
+ * Backward-compatible options shape used in legacy UI components.
+ * Keep this interface here so all pricing imports come from one file.
+ */
+export interface PriceOptions {
+  quality?: string;
+  resolution?: string;
+  mode?: 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'extend' | 'v2v' | 'motion_control' | 't2i' | 'i2i' | 'i2i_run';
+  duration?: number | string;
+  videoQuality?: string;
+  audio?: boolean;
+  modelVariant?: string;
+  qualityTier?: 'standard' | 'pro' | 'master';
+  variants?: number;
 }
 
 /**
@@ -67,12 +83,7 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
   }
 
   if (normalizedModelId === 'nano_banana_pro') {
-    const quality = options.quality || '1k_2k';
-    if (quality === '4k') {
-      return 'nano_banana_pro:4k';
-    }
-    // Default: 1k or 2k
-    return 'nano_banana_pro:2k';
+    return 'nano_banana_pro:image';
   }
 
   if (normalizedModelId === 'seedream_4_5' || normalizedModelId === 'seedream_4_5_edit') {
@@ -83,7 +94,7 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
     return 'z_image:image';
   }
 
-  if (normalizedModelId === 'gpt_image_1_5') {
+  if (normalizedModelId === 'gpt_image_1_5' || normalizedModelId === 'gpt_image') {
     const quality = options.quality || 'medium';
     if (quality === 'high') {
       return 'gpt_image_1_5:high';
@@ -93,7 +104,7 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
 
   if (normalizedModelId === 'flux_2_pro') {
     const quality = options.quality || '1k';
-    if (quality === '2k') {
+    if (quality === '2k' || quality === '4k') {
       return 'flux_2_pro:2k';
     }
     return 'flux_2_pro:1k';
@@ -101,6 +112,25 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
 
   if (normalizedModelId === 'grok_imagine') {
     return 'grok_imagine:i2i_run';
+  }
+
+  if (normalizedModelId === 'z_image' || normalizedModelId === 'z_image_turbo') {
+    return 'z_image:image';
+  }
+
+  if (normalizedModelId === 'recraft_remove_background') {
+    return 'recraft_remove_background:image';
+  }
+
+  if (normalizedModelId === 'topaz_image_upscale') {
+    const q = String(options.quality || options.resolution || '').toLowerCase();
+    if (q === '8k' || q === '8') return 'topaz_image_upscale:8k';
+    if (q === '4k' || q === '4') return 'topaz_image_upscale:4k';
+    return 'topaz_image_upscale:2k';
+  }
+
+  if (normalizedModelId === 'ideogram_v3') {
+    return 'ideogram_v3:image';
   }
 
   // === VIDEO MODELS ===
@@ -126,32 +156,24 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
 
   // Grok Video
   if (normalizedModelId === 'grok_video') {
-    return 'grok_video:6s';
+    const duration = options.duration === 10 ? 10 : 6;
+    return `grok_video:${duration}s`;
   }
 
   // Kling 2.6
   if (normalizedModelId === 'kling_2_6' || 
       (normalizedModelId === 'kling' && options.modelVariant?.includes('2.6'))) {
     const duration = options.duration || 5;
-    const resolution = options.videoQuality || '720p';
     const hasAudio = options.audio === true;
-
-    // Special case: 10s 1080p with audio
-    if (duration === 10 && resolution === '1080p' && hasAudio) {
-      // Not in pricing table - use closest (10s 720p audio = 367)
-      // Actually user didn't provide this, so we'll skip it
-    }
-
     const audioSuffix = hasAudio ? 'audio' : 'no_audio';
-    return `kling_2_6:${duration}s:${resolution}:${audioSuffix}`;
+    return `kling_2_6:${duration}s:${audioSuffix}`;
   }
 
   // Kling 2.5
   if (normalizedModelId === 'kling_2_5' || 
       (normalizedModelId === 'kling' && options.modelVariant?.includes('2.5'))) {
     const duration = options.duration || 5;
-    const resolution = options.videoQuality || '720p';
-    return `kling_2_5:${duration}s:${resolution}`;
+    return `kling_2_5:${duration}s`;
   }
 
   // Kling 2.1 (tier-based)
@@ -165,7 +187,7 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
   // WAN 2.6
   if (normalizedModelId === 'wan_2_6' || 
       (normalizedModelId === 'wan' && options.modelVariant?.includes('2.6'))) {
-    const resolution = options.videoQuality || '720p';
+    const resolution = options.videoQuality || options.resolution || '720p';
     const duration = options.duration || 5;
     return `wan_2_6:${resolution}:${duration}s`;
   }
@@ -203,58 +225,60 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
 
 const PRICE_TABLE: Record<string, number> = {
   // === IMAGE MODELS ===
-  'nano_banana:image': 9,
-  'nano_banana_pro:2k': 17,
-  'nano_banana_pro:4k': 25,
-  'seedream_4_5:image': 10,
-  'z_image:image': 5,
-  'gpt_image_1_5:medium': 5,
-  'gpt_image_1_5:high': 35,
-  'flux_2_pro:1k': 10,
-  'flux_2_pro:2k': 12,
-  'grok_imagine:i2i_run': 5,
+  'nano_banana:image': 5,
+  'nano_banana_pro:image': 9,
+  'seedream_4_5:image': 6,
+  'z_image:image': 1,
+  'recraft_remove_background:image': 1,
+  'topaz_image_upscale:2k': 9,
+  'topaz_image_upscale:4k': 17,
+  'topaz_image_upscale:8k': 34,
+  'gpt_image_1_5:medium': 4,
+  'gpt_image_1_5:high': 19,
+  'flux_2_pro:1k': 5,
+  'flux_2_pro:2k': 6,
+  'grok_imagine:i2i_run': 4,
+  // Model exists as optional/feature-flagged in UI; keep explicit price in single table.
+  'ideogram_v3:image': 6,
 
   // === VIDEO MODELS (FIXED) ===
-  'veo_3_1_fast:clip': 50,
-  'veo_3_1_fast:extend': 60, // Продление видео Veo 3.1
-  'sora_2:clip': 50,
-  'grok_video:6s': 34,
+  'veo_3_1_fast:clip': 26,
+  'veo_3_1_fast:extend': 26,
+  'sora_2:clip': 26,
+  'grok_video:6s': 17,
+  'grok_video:10s': 26,
 
   // === VIDEO MODELS (VARIANTS) ===
 
   // KLING 2.6
-  'kling_2_6:5s:720p:no_audio': 92,
-  'kling_2_6:10s:720p:no_audio': 184,
-  'kling_2_6:5s:720p:audio': 184,
-  'kling_2_6:10s:720p:audio': 367,
-  'kling_2_6:5s:1080p:no_audio': 139,
-  'kling_2_6:10s:1080p:no_audio': 277,
+  'kling_2_6:5s:no_audio': 48,
+  'kling_2_6:10s:no_audio': 94,
+  'kling_2_6:5s:audio': 94,
+  'kling_2_6:10s:audio': 187,
 
   // KLING 2.5
-  'kling_2_5:5s:720p': 70,
-  'kling_2_5:10s:720p': 140,
-  'kling_2_5:5s:1080p': 105,
-  'kling_2_5:10s:1080p': 210,
+  'kling_2_5:5s': 36,
+  'kling_2_5:10s': 72,
 
   // KLING 2.1 (TIER)
-  'kling_2_1:standard:5s': 42,
-  'kling_2_1:standard:10s': 84,
-  'kling_2_1:pro:5s': 84,
-  'kling_2_1:pro:10s': 167,
-  'kling_2_1:master:5s': 267,
-  'kling_2_1:master:10s': 534,
+  'kling_2_1:standard:5s': 22,
+  'kling_2_1:standard:10s': 43,
+  'kling_2_1:pro:5s': 43,
+  'kling_2_1:pro:10s': 85,
+  'kling_2_1:master:5s': 136,
+  'kling_2_1:master:10s': 272,
 
   // WAN 2.6
-  'wan_2_6:720p:5s': 117,
-  'wan_2_6:720p:10s': 234,
-  'wan_2_6:720p:15s': 350,
-  'wan_2_6:1080p:5s': 234,
-  'wan_2_6:1080p:10s': 467,
-  'wan_2_6:1080p:15s': 700,
+  'wan_2_6:720p:5s': 60,
+  'wan_2_6:720p:10s': 119,
+  'wan_2_6:720p:15s': 179,
+  'wan_2_6:1080p:5s': 91,
+  'wan_2_6:1080p:10s': 179,
+  'wan_2_6:1080p:15s': 269,
 
   // KLING MOTION CONTROL (PER SECOND)
-  'kling_motion_control:720p:per_sec': 10,
-  'kling_motion_control:1080p:per_sec': 20,
+  'kling_motion_control:720p:per_sec': 6,
+  'kling_motion_control:1080p:per_sec': 8,
 
   // === LIP SYNC MODELS ===
   
@@ -370,4 +394,113 @@ export function computePriceV2(modelId: string, options: PricingOptions = {}): C
     sku,
     pricingVersion: PRICING_VERSION,
   };
+}
+
+function toPricingOptions(options: PriceOptions): PricingOptions {
+  const parsedDuration =
+    typeof options.duration === 'number'
+      ? options.duration
+      : Number.isFinite(Number(options.duration))
+        ? Number(options.duration)
+        : undefined;
+
+  return {
+    quality: options.quality,
+    resolution: options.resolution,
+    mode: options.mode as PricingOptions['mode'],
+    duration: parsedDuration,
+    videoQuality: options.videoQuality,
+    audio: options.audio,
+    modelVariant: options.modelVariant,
+    qualityTier: options.qualityTier,
+    isMotionControl: options.mode === 'motion_control',
+  };
+}
+
+/**
+ * Backward-compatible compute function.
+ * Prefer `getSkuFromRequest` + `calculateTotalStars` in new code.
+ */
+export function computePrice(modelId: string, options: PriceOptions = {}): ComputedPrice {
+  const pricingOptions = toPricingOptions(options);
+  const base = computePriceV2(modelId, pricingOptions);
+  const variants = Math.max(1, Number(options.variants || 1));
+
+  return {
+    credits: base.credits * variants,
+    stars: base.stars * variants,
+    sku: base.sku,
+    pricingVersion: base.pricingVersion,
+  };
+}
+
+export function calcStars(modelId: string, options: PriceOptions = {}): number {
+  return computePrice(modelId, options).stars;
+}
+
+// ============================================================================
+// MOTION CONTROL HELPERS (kept here to avoid split pricing sources)
+// ============================================================================
+
+export type MotionControlResolution = '720p' | '1080p';
+
+export const MOTION_CONTROL_CONFIG = {
+  MIN_DURATION_SEC: 3,
+  MAX_DURATION_SEC: 30,
+  RATE_720P: 6,
+  RATE_1080P: 8,
+  ROUND_TO: 1,
+} as const;
+
+export function validateMotionControlDuration(durationSec: number, autoTrim: boolean) {
+  const d = Number(durationSec || 0);
+
+  if (!Number.isFinite(d) || d <= 0) {
+    return { valid: false, error: 'Укажите длительность видео' as const };
+  }
+
+  if (d < MOTION_CONTROL_CONFIG.MIN_DURATION_SEC) {
+    return {
+      valid: false,
+      error: `Минимум ${MOTION_CONTROL_CONFIG.MIN_DURATION_SEC} сек` as const,
+    };
+  }
+
+  if (d > MOTION_CONTROL_CONFIG.MAX_DURATION_SEC) {
+    if (!autoTrim) {
+      return {
+        valid: false,
+        error: `Максимум ${MOTION_CONTROL_CONFIG.MAX_DURATION_SEC} сек` as const,
+      };
+    }
+    return {
+      valid: true,
+      effectiveDuration: MOTION_CONTROL_CONFIG.MAX_DURATION_SEC,
+      trimmed: true,
+      originalDuration: d,
+    };
+  }
+
+  return {
+    valid: true,
+    effectiveDuration: d,
+    trimmed: false,
+    originalDuration: d,
+  };
+}
+
+export function calcMotionControlStars(
+  durationSec: number,
+  resolution: MotionControlResolution,
+  autoTrim: boolean
+): number | null {
+  const validation = validateMotionControlDuration(durationSec, autoTrim);
+  if (!validation.valid) return null;
+
+  const effective = Number(validation.effectiveDuration || 0);
+  if (!Number.isFinite(effective) || effective <= 0) return null;
+
+  const rate = resolution === '1080p' ? MOTION_CONTROL_CONFIG.RATE_1080P : MOTION_CONTROL_CONFIG.RATE_720P;
+  const stars = effective * rate;
+  return Math.max(0, Math.round(stars));
 }

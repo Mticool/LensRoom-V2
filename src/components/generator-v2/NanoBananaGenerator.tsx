@@ -9,6 +9,7 @@ import { useHistory } from './hooks/useHistory';
 import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult } from './GeneratorV2';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
 
 // Quality mapping: UI labels → API values for Nano Banana
@@ -16,13 +17,6 @@ const QUALITY_MAPPING: Record<string, string> = {
   'Быстро': 'turbo',
   'Баланс': 'balanced',
   'Качество': 'quality',
-};
-
-// Cost calculation for Nano Banana (from config/models.ts)
-const COST_PER_IMAGE: Record<string, number> = {
-  'Быстро': 9,    // turbo
-  'Баланс': 9,    // balanced
-  'Качество': 7,  // quality
 };
 
 export function NanoBananaGenerator() {
@@ -60,7 +54,10 @@ export function NanoBananaGenerator() {
   const credits = authCredits;
 
   // Calculate cost - flat pricing for Nano Banana
-  const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
+  const estimatedCost = useMemo(
+    () => computePrice('nano-banana', { quality: QUALITY_MAPPING[quality], variants: quantity }).stars,
+    [quality, quantity]
+  );
 
   // Demo images for non-authenticated users
   const demoImages = useMemo<GenerationResult[]>(() => {

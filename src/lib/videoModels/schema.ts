@@ -358,6 +358,19 @@ export function validateAgainstCapability(
         message: `Quality '${request.quality}' is not supported by ${capability.label}. Supported: ${modeQualities.join(', ')}`,
       });
     }
+  } else if (request.quality && !modeQualities) {
+    errors.push({
+      path: 'quality',
+      message: `Quality is not supported by ${capability.label}`,
+    });
+  }
+
+  const requiredInputs = capability.requiredInputsByMode?.[modeKey]?.required || [];
+  if (request.resolution && !requiredInputs.includes('resolution')) {
+    errors.push({
+      path: 'resolution',
+      message: `Resolution is not supported by ${capability.label} for mode '${modeKey}'`,
+    });
   }
   
   // Check sound
@@ -390,7 +403,6 @@ export function validateAgainstCapability(
   }
 
   // Check required inputs by mode
-  const requiredInputs = capability.requiredInputsByMode?.[modeKey]?.required || [];
   requiredInputs.forEach((key) => {
     const isMissing =
       (key === 'prompt' && !request.prompt) ||

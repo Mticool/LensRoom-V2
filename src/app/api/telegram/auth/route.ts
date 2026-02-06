@@ -3,8 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { validateWebAppData } from '@/lib/telegram/bot-client';
 import { createSessionToken, setSessionCookie } from '@/lib/telegram/auth';
 import { getCreditBalance } from '@/lib/credits/split-credits';
-
-const REGISTRATION_BONUS = 50;
+import { REGISTRATION_BONUS } from '@/config/pricing';
 
 /**
  * Helper: Create auth user and credits with bonus for Telegram user

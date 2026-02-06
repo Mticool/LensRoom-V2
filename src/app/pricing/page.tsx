@@ -189,6 +189,7 @@ export default function PricingPage() {
 
         {/* Footnotes under plans */}
         <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
+          <p className="text-zinc-400 font-medium">Дисклеймер «Бесплатно*»</p>
           {PRICING_FOOTNOTES.map((note, i) => (
             <p key={i}>{note}</p>
           ))}
@@ -239,6 +240,7 @@ export default function PricingPage() {
 
           {/* Footnotes under table */}
           <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
+            <p className="text-zinc-400 font-medium">Дисклеймер «Бесплатно*»</p>
             {PRICING_FOOTNOTES.map((note, i) => (
               <p key={i}>{note}</p>
             ))}
@@ -513,7 +515,11 @@ function FAQ() {
     },
     {
       q: 'Что входит в "Бесплатно" NanoBanana Pro?',
-      a: 'В тарифах PRO и MAX NanoBanana Pro 2K/4K включены без ограничений (fair-use). Генерируйте сколько нужно за 0⭐.',
+      a: 'В PRO: NanoBanana Pro 2K — Бесплатно*. В MAX: NanoBanana Pro 4K — Бесплатно* (включая 2K). В START NanoBanana Pro не включён.',
+    },
+    {
+      q: 'Что означает «Бесплатно*»?',
+      a: 'Бесплатно* = без списания ⭐ в рамках разумного использования. При аномальной нагрузке возможны ограничения скорости или списание ⭐ по стандартному прайсу.',
     },
     {
       q: 'Переносятся ли ⭐ на следующий месяц?',

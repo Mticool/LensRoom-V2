@@ -10,12 +10,8 @@ import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult } from './GeneratorV2';
 import { getDefaultImageParams, getImageModelCapability } from '@/lib/imageModels/capabilities';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
-
-const COST_PER_IMAGE: Record<string, number> = {
-  medium: 5,
-  high: 35,
-};
 
 export function GPTImageGenerator() {
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
@@ -41,7 +37,7 @@ export function GPTImageGenerator() {
   
   const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   const credits = authCredits;
-  const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
+  const estimatedCost = useMemo(() => computePrice('gpt-image', { quality, variants: quantity }).stars, [quality, quantity]);
   const aspectRatioOptions = useMemo(() => capability?.supportedAspectRatios || ['1:1'], [capability]);
   const qualityOptions = useMemo(() => capability?.supportedQualities || ['medium', 'high'], [capability]);
 

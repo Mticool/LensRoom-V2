@@ -42,7 +42,7 @@ export const BottomActionBar = memo(function BottomActionBar({
         <div className="flex sm:hidden items-center gap-2">
           {/* Price left */}
           <div className="min-w-0 flex-shrink-0">
-            <div className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Цена</div>
+            <div className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Списать</div>
             <div className="text-sm font-bold text-[var(--text)]">{stars}⭐</div>
           </div>
 
@@ -97,7 +97,7 @@ export const BottomActionBar = memo(function BottomActionBar({
           haptic="none"
         >
           <Sparkles className="w-5 h-5" />
-          Сгенерировать • {stars}⭐
+          Списать {stars}⭐
         </MobileButton>
 
         {/* Desktop layout */}
@@ -105,7 +105,7 @@ export const BottomActionBar = memo(function BottomActionBar({
           {/* Price info */}
           <div className="min-w-0">
             <div className="text-xs text-[var(--muted)]" title={hint || undefined}>
-              Стоимость
+              Списать
             </div>
             <div className="text-sm font-semibold text-[var(--text)]">
               {stars}⭐
@@ -149,7 +149,7 @@ export const BottomActionBar = memo(function BottomActionBar({
             )}
           >
             <Sparkles className="w-5 h-5 mr-2" />
-            Сгенерировать • {stars}⭐
+            Списать {stars}⭐
           </Button>
         </div>
       </div>

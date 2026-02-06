@@ -8,15 +8,10 @@ import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import { UpscaleEmptyState, UpscaleSidebar, UpscaleImagePreview } from './upscale';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
 
-// Cost calculation for Topaz Upscale (from config/models.ts)
 type TopazScale = '2k' | '4k' | '8k';
-const COST_PER_SCALE: Record<TopazScale, number> = {
-  '2k': 17,
-  '4k': 34,
-  '8k': 68,
-};
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -45,7 +40,7 @@ export function TopazUpscaleGenerator() {
   } = useHistory('image', 'topaz-image-upscale');
   
   const credits = authCredits;
-  const estimatedCost = COST_PER_SCALE[scale];
+  const estimatedCost = computePrice('topaz-image-upscale', { quality: scale, variants: 1 }).stars;
 
   // Handle file selection
   const handleFileSelect = useCallback(async (file: File) => {

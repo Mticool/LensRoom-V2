@@ -3,9 +3,7 @@ type EnvName = string;
 const warned = new Set<EnvName>();
 
 function isProductionDeployment(): boolean {
-  // Per requirement: treat production when NODE_ENV=production OR Vercel env says production.
-  const vercelEnv = process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV;
-  return process.env.NODE_ENV === "production" || vercelEnv === "production";
+  return process.env.NODE_ENV === "production";
 }
 
 function warnOnce(message: string, key: EnvName) {
@@ -56,7 +54,6 @@ export const env = {
     return s === "1" || s === "true" || s === "yes" || s === "on";
   },
 };
-
 
 
 

@@ -8,8 +8,8 @@ import { VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { VIDEO_MODELS_CONFIG, getDefaultVideoSettings } from '@/config/video-models-config';
 import { VIDEO_MODELS as CAPABILITY_MODELS, getModelCapability, getDefaultsForModel, getCapabilitySummary } from '@/lib/videoModels/capabilities';
 import type { ModelCapability } from '@/lib/videoModels/schema';
-import { computePrice } from '@/lib/pricing/compute-price';
-import { calcMotionControlStars } from '@/lib/pricing/motionControl';
+import { computePrice } from '@/lib/pricing/pricing';
+import { calcMotionControlStars } from '@/lib/pricing/pricing';
 
 // Gradient backgrounds for each model
 const MODEL_GRADIENTS: Record<string, string> = {
@@ -227,6 +227,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
     () => getModelCapability(selectedModel),
     [selectedModel]
   );
+  const hasQualityOptions = (capability?.supportedQualities?.length || 0) > 0;
   
   useEffect(() => {
     if (activeTab === 'motion') {
@@ -662,7 +663,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
           prompt,
           model: selectedModel,
           duration: normalizedDuration,
-          quality: isKling21 ? undefined : quality,
+          quality: (!isKling21 && hasQualityOptions) ? quality : undefined,
           aspectRatio,
           startFrame: effectiveStartFrame,
           endFrame: effectiveEndFrame,
@@ -703,6 +704,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
     v2vVideo,
     onGenerate,
     normalizedDuration,
+    hasQualityOptions,
     quality,
     aspectRatio,
     motionVideo,
@@ -1063,7 +1065,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                   <div className="relative group">
                     <Info className="w-4 h-4 text-zinc-500 cursor-help" />
                     <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-black/90 backdrop-blur-xl text-white text-xs rounded-lg shadow-xl z-50 border border-white/10">
-                      Создать синхронизированный звук (+30 кредитов)
+                      Создать синхронизированный звук (цена по модели)
                     </div>
                   </div>
                 </div>
@@ -1269,8 +1271,8 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                 onChange={(e) => setMotionQuality(e.target.value as '720p' | '1080p')}
                 className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
               >
-                <option value="720p">720p — 10⭐/сек</option>
-                <option value="1080p">1080p — 20⭐/сек</option>
+                <option value="720p">720p — 6⭐/сек</option>
+                <option value="1080p">1080p — 8⭐/сек</option>
               </select>
             </div>
 
@@ -1324,7 +1326,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="text-xs text-blue-200">
-                  <span className="font-semibold">Цена за секунду:</span> зависит от длительности видео. 720p = 10⭐/сек, 1080p = 20⭐/сек.
+                  <span className="font-semibold">Цена за секунду:</span> зависит от длительности видео. 720p = 6⭐/сек, 1080p = 8⭐/сек.
                   {motionVideoDurationSec != null && (
                     <span className="block mt-1">Ваше видео: {motionVideoDurationSec} сек → {calcMotionControlStars(motionVideoDurationSec, motionQuality, true) ?? 0}⭐</span>
                   )}
@@ -1406,7 +1408,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               </div>
               
-              <span className="relative z-10 font-extrabold">Создать</span>
+              <span className="relative z-10 font-extrabold">Списать</span>
               <span className="flex items-center gap-1.5 relative z-10 px-2 py-0.5 bg-black/10 rounded-lg">
                 <Sparkles className="w-4 h-4 animate-pulse" />
                 <span className="font-extrabold">{cost}</span>

@@ -10,6 +10,7 @@ import { useHistory } from './hooks/useHistory';
 import { celebrateGeneration } from '@/lib/confetti';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import type { GenerationResult, GenerationSettings } from './GeneratorV2';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
 
 // Quality mapping: UI labels → API values
@@ -19,13 +20,6 @@ const QUALITY_MAPPING: Record<string, string> = {
   '1K': '1k_2k',
   '2K': '1k_2k',
   '4K': '4k',
-};
-
-// Cost calculation for Nano Banana Pro (from config/models.ts pricing)
-const COST_PER_IMAGE: Record<string, number> = {
-  '1K': 17,    // 1k_2k tier pricing
-  '2K': 17,    // 1k_2k tier pricing
-  '4K': 25,    // 4k tier pricing
 };
 
 export function NanoBananaProGenerator() {
@@ -83,8 +77,8 @@ export function NanoBananaProGenerator() {
   const credits = authCredits;
 
   // Calculate cost - memoized to avoid recalculation on every render
-  const estimatedCost = useMemo(() => 
-    COST_PER_IMAGE[quality] * quantity, 
+  const estimatedCost = useMemo(
+    () => computePrice('nano-banana-pro', { quality: QUALITY_MAPPING[quality], variants: quantity }).stars,
     [quality, quantity]
   );
 

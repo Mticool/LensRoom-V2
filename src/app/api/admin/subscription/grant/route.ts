@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth/requireRole";
+import { PAYMENT_SUBSCRIPTION_PLANS } from "@/config/pricing";
 
 /**
  * POST /api/admin/subscription/grant
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validPlans = ['creator', 'creator_plus', 'business'];
+    const validPlans = PAYMENT_SUBSCRIPTION_PLANS.map((p) => p.id);
     if (!planId || !validPlans.includes(planId)) {
       return NextResponse.json(
         { error: `planId must be one of: ${validPlans.join(', ')}` },
@@ -81,12 +82,7 @@ export async function POST(request: NextRequest) {
     const periodEnd = new Date();
     periodEnd.setMonth(periodEnd.getMonth() + durationMonths);
 
-    // Plan credits mapping
-    const planCredits: Record<string, number> = {
-      'creator': 1000,
-      'creator_plus': 3000,
-      'business': 10000,
-    };
+    const plan = PAYMENT_SUBSCRIPTION_PLANS.find((p) => p.id === planId)!;
 
     // Check for existing subscription
     const { data: existingSubscription } = await supabase
@@ -105,7 +101,7 @@ export async function POST(request: NextRequest) {
           status: 'active',
           current_period_start: periodStart.toISOString(),
           current_period_end: periodEnd.toISOString(),
-          credits_per_month: planCredits[planId],
+          credits_per_month: plan.credits,
           cancel_at_period_end: false,
           updated_at: new Date().toISOString(),
         })
@@ -125,7 +121,7 @@ export async function POST(request: NextRequest) {
           status: 'active',
           current_period_start: periodStart.toISOString(),
           current_period_end: periodEnd.toISOString(),
-          credits_per_month: planCredits[planId],
+          credits_per_month: plan.credits,
           cancel_at_period_end: false,
         });
 
@@ -150,20 +146,15 @@ export async function POST(request: NextRequest) {
     });
 
     const displayUsername = profile.telegram_username || cleanUsername || String(telegramId);
-    const planNames: Record<string, string> = {
-      'creator': 'Creator',
-      'creator_plus': 'Creator+ (безлимит Pro)',
-      'business': 'Business (безлимит Pro)',
-    };
 
     return NextResponse.json({
       success: true,
-      message: `Подписка ${planNames[planId]} назначена пользователю @${displayUsername} на ${durationMonths} мес.`,
+      message: `Подписка ${plan.name} назначена пользователю @${displayUsername} на ${durationMonths} мес.`,
       data: { 
         username: displayUsername, 
         userId, 
         planId,
-        planName: planNames[planId],
+        planName: plan.name,
         periodEnd: periodEnd.toISOString(),
       },
     });

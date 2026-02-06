@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getRobokassaClient } from '@/lib/payments/robokassa-client';
 import { getProdamusClient } from '@/lib/payments/prodamus-client';
-import { CREDIT_PACKAGES, SUBSCRIPTION_PLANS } from '@/lib/pricing/plans';
+import { PAYMENT_CREDIT_PACKAGES, PAYMENT_SUBSCRIPTION_PLANS } from '@/config/pricing';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
 
     if (type === 'subscription' && planId) {
       // Подписка
-      const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
+      const plan = PAYMENT_SUBSCRIPTION_PLANS.find(p => p.id === planId);
       if (!plan) {
         return NextResponse.json(
-          { error: 'Invalid subscription plan', availablePlans: SUBSCRIPTION_PLANS.map(p => p.id) },
+          { error: 'Invalid subscription plan', availablePlans: PAYMENT_SUBSCRIPTION_PLANS.map(p => p.id) },
           { status: 400 }
         );
       }
@@ -30,10 +30,10 @@ export async function POST(request: NextRequest) {
       description = `Подписка ${plan.name}: ${plan.credits} ⭐/мес`;
     } else {
       // Пакет звёзд
-      const package_ = CREDIT_PACKAGES.find(p => p.credits === credits);
+      const package_ = PAYMENT_CREDIT_PACKAGES.find(p => p.credits === credits);
       if (!package_) {
         return NextResponse.json(
-          { error: 'Invalid credits package', availablePackages: CREDIT_PACKAGES.map(p => p.credits) },
+          { error: 'Invalid credits package', availablePackages: PAYMENT_CREDIT_PACKAGES.map(p => p.credits) },
           { status: 400 }
         );
       }

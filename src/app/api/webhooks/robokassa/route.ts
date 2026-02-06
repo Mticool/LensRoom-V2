@@ -106,21 +106,17 @@ export async function POST(request: NextRequest) {
       const supabase = getSupabaseAdmin();
       
       // Определяем planId по subscriptionId
-      // New plans: creator (1200⭐), creator_plus (2550⭐), business (3500⭐)
-      // Support both new and legacy env var names
+      // Current plans: start (1100⭐), pro (2400⭐), max (4000⭐)
       const subscriptionMap: Record<string, { planId: string; credits: number }> = {};
       
-      // Creator plan (legacy: STAR)
-      const creatorId = process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR;
-      if (creatorId) subscriptionMap[creatorId] = { planId: 'creator', credits: 1200 };
+      const startId = process.env.ROBOKASSA_SUBSCRIPTION_START;
+      if (startId) subscriptionMap[startId] = { planId: 'start', credits: 1100 };
       
-      // Creator+ plan (legacy: PRO)  
-      const creatorPlusId = process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || process.env.ROBOKASSA_SUBSCRIPTION_PRO;
-      if (creatorPlusId) subscriptionMap[creatorPlusId] = { planId: 'creator_plus', credits: 2550 };
+      const proId = process.env.ROBOKASSA_SUBSCRIPTION_PRO;
+      if (proId) subscriptionMap[proId] = { planId: 'pro', credits: 2400 };
       
-      // Business plan
-      const businessId = process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS;
-      if (businessId) subscriptionMap[businessId] = { planId: 'business', credits: 3500 };
+      const maxId = process.env.ROBOKASSA_SUBSCRIPTION_MAX;
+      if (maxId) subscriptionMap[maxId] = { planId: 'max', credits: 4000 };
       
       const planInfo = subscriptionMap[subscriptionId];
       if (!planInfo) {

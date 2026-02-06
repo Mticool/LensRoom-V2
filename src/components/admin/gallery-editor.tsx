@@ -31,7 +31,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { PHOTO_MODELS, VIDEO_MODELS, getModelById } from '@/config/models';
-import { computePrice } from '@/lib/pricing/compute-price';
+import { computePrice } from '@/lib/pricing/pricing';
 
 // ===== TYPES =====
 export interface EffectPreset {

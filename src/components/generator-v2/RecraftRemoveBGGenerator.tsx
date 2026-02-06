@@ -10,6 +10,7 @@ import { useHistory } from './hooks/useHistory';
 import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult, GenerationSettings } from './GeneratorV2';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
 
 // Quality mapping: UI labels → API values
@@ -18,9 +19,6 @@ const QUALITY_MAPPING: Record<string, string> = {
   'Авто': 'balanced',
 };
 
-// Cost calculation for Recraft Remove BG (from config/models.ts)
-// Flat pricing - 2⭐ per image
-const COST_PER_IMAGE = 2;
 
 export function RecraftRemoveBGGenerator() {
   const searchParams = useSearchParams();
@@ -63,7 +61,7 @@ export function RecraftRemoveBGGenerator() {
   const credits = authCredits;
 
   // Calculate cost - flat pricing for Recraft Remove BG
-  const estimatedCost = COST_PER_IMAGE * quantity;
+  const estimatedCost = computePrice('recraft-remove-background', { variants: quantity }).stars;
 
   // Demo images for non-authenticated users
   const demoImages: GenerationResult[] = !isAuthenticated && images.length === 0 && history.length === 0 ? [

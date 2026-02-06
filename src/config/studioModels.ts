@@ -1,6 +1,5 @@
 import { PHOTO_MODELS, VIDEO_MODELS, type ModelConfig, type PhotoModelConfig, type VideoModelConfig } from "@/config/models";
-import { computePrice } from "@/lib/pricing/compute-price";
-import type { PriceOptions } from "@/lib/pricing/compute-price";
+import { computePrice } from "@/lib/pricing/pricing";
 
 export type ModelKind = "photo" | "video";
 export type Mode = "t2i" | "i2i" | "t2v" | "i2v" | "v2v" | "start_end" | "storyboard";

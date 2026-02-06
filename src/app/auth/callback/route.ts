@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { REGISTRATION_BONUS } from '@/config/pricing';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -40,7 +41,6 @@ export async function GET(request: Request) {
       
       try {
         const supabaseAdmin = getSupabaseAdmin() as any;
-        const REGISTRATION_BONUS = 50;
         
         console.log(`[Google Auth] Processing user ${userId}`);
         

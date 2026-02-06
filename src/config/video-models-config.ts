@@ -100,8 +100,8 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Длительность",
         type: "buttons",
         options: [
-          { value: 5, label: "5с (200⭐)" },
-          { value: 10, label: "10с (400⭐)" }
+          { value: 5, label: "5с" },
+          { value: 10, label: "10с" }
         ],
         default: 5,
         required: true,
@@ -152,8 +152,8 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Длительность",
         type: "buttons",
         options: [
-          { value: 5, label: "5с (105⭐)" },
-          { value: 10, label: "10с (210⭐)" }
+          { value: 5, label: "5с" },
+          { value: 10, label: "10с" }
         ],
         default: 5,
         required: true,
@@ -253,8 +253,8 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Качество",
         type: "buttons",
         options: [
-          { value: "720p", label: "720p (16⭐/сек)" },
-          { value: "1080p", label: "1080p (25⭐/сек)" }
+          { value: "720p", label: "720p (6⭐/сек)" },
+          { value: "1080p", label: "1080p (8⭐/сек)" }
         ],
         default: "720p",
         required: true,
@@ -295,10 +295,7 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         type: "buttons",
         options: [
           { value: 6, label: "6с" },
-          { value: 12, label: "12с" },
-          { value: 18, label: "18с" },
-          { value: 24, label: "24с" },
-          { value: 30, label: "30с" }
+          { value: 10, label: "10с" }
         ],
         default: 6,
         required: true,
@@ -354,8 +351,8 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Длительность",
         type: "buttons",
         options: [
-          { value: 10, label: "10с (250⭐)" },
-          { value: 15, label: "15с (450⭐)" }
+          { value: 10, label: "10с" },
+          { value: 15, label: "15с" }
         ],
         default: 10,
         required: true,

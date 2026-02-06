@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Sparkles, Zap, Image as ImageIcon, Star } from 'lucide-react';
 import { PHOTO_MODELS, PhotoModelConfig } from '@/config/models';
+import { getSkuFromRequest, calculateTotalStars } from '@/lib/pricing/pricing';
 
 interface ModelSelectorProps {
   value: string;
@@ -39,13 +40,23 @@ export function ModelSelector({ value, onChange, disabled, direction = 'up' }: M
   };
 
   const getPricingLabel = (model: PhotoModelConfig): string => {
-    if (typeof model.pricing === 'number') {
-      return `${model.pricing}⭐`;
+    try {
+      const options = model.qualityOptions && model.qualityOptions.length > 0
+        ? model.qualityOptions.map((quality) => ({ quality: String(quality) }))
+        : [{}];
+      const prices = options
+        .map((opts) => {
+          const sku = getSkuFromRequest(model.id, opts);
+          return calculateTotalStars(sku);
+        })
+        .filter((n) => Number.isFinite(n));
+      if (!prices.length) return '—';
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      return min === max ? `${min}⭐` : `${min}-${max}⭐`;
+    } catch {
+      return '—';
     }
-    const prices = Object.values(model.pricing);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    return min === max ? `${min}⭐` : `${min}-${max}⭐`;
   };
 
   const SelectedIcon = getModelIcon(selectedModel);

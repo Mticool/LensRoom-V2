@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getRobokassaClient } from '@/lib/payments/robokassa-client';
-import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/pricing/plans';
+import { PAYMENT_SUBSCRIPTION_PLANS, PAYMENT_CREDIT_PACKAGES } from '@/config/pricing';
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     if (type === 'subscription') {
       // ========== ПОДПИСКА (рекуррентный платёж Robokassa) ==========
-      const plan = SUBSCRIPTION_PLANS.find(p => p.id === itemId);
+      const plan = PAYMENT_SUBSCRIPTION_PLANS.find(p => p.id === itemId);
       if (!plan) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
       }
@@ -98,15 +98,9 @@ export async function POST(request: NextRequest) {
       // Robokassa передаёт email в уведомлениях о рекуррентных платежах
       if (realEmail) {
         const subscriptionMap: Record<string, string> = {
-          // New plans (2026-01-27)
-          'start': process.env.ROBOKASSA_SUBSCRIPTION_START || process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '',
-          'pro': process.env.ROBOKASSA_SUBSCRIPTION_PRO || process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '',
-          'max': process.env.ROBOKASSA_SUBSCRIPTION_MAX || process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '',
-          // Legacy mappings (keep for backwards compatibility)
-          'creator': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || '',
-          'creator_plus': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR_PLUS || '',
-          'business': process.env.ROBOKASSA_SUBSCRIPTION_BUSINESS || '',
-          'star': process.env.ROBOKASSA_SUBSCRIPTION_CREATOR || process.env.ROBOKASSA_SUBSCRIPTION_STAR || '',
+          start: process.env.ROBOKASSA_SUBSCRIPTION_START || '',
+          pro: process.env.ROBOKASSA_SUBSCRIPTION_PRO || '',
+          max: process.env.ROBOKASSA_SUBSCRIPTION_MAX || '',
         };
         
         await admin.from('subscription_emails').upsert({
@@ -131,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     } else if (type === 'package') {
       // ========== РАЗОВЫЙ ПАКЕТ (обычный платёж Robokassa) ==========
-      const pkg = CREDIT_PACKAGES.find(p => p.id === itemId);
+      const pkg = PAYMENT_CREDIT_PACKAGES.find(p => p.id === itemId);
       if (!pkg) {
         return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
       }

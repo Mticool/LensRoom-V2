@@ -10,12 +10,8 @@ import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult } from './GeneratorV2';
 import { getDefaultImageParams, getImageModelCapability } from '@/lib/imageModels/capabilities';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
-
-const COST_PER_IMAGE: Record<string, number> = {
-  basic: 10,
-  high: 11,
-};
 
 type SeedreamGeneratorProps = {
   modelId?: string;
@@ -45,7 +41,7 @@ export function SeedreamGenerator({ modelId = 'seedream-4.5' }: SeedreamGenerato
   
   const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image');
   const credits = authCredits;
-  const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
+  const estimatedCost = useMemo(() => computePrice(modelId, { quality, variants: quantity }).stars, [modelId, quality, quantity]);
 
   const aspectRatioOptions = useMemo(() => capability?.supportedAspectRatios || ['1:1'], [capability]);
   const qualityOptions = useMemo(() => capability?.supportedQualities || ['basic', 'high'], [capability]);

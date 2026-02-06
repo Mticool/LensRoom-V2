@@ -279,7 +279,7 @@ export function VoiceSection() {
 
         {/* Cost Display */}
         <div className="mb-6 p-4 rounded-xl bg-[var(--surface2)] flex items-center justify-between">
-          <span className="text-sm text-[var(--muted)]">Стоимость генерации:</span>
+          <span className="text-sm text-[var(--muted)]">Будет списано:</span>
           <span className="text-lg font-bold text-[var(--text)]">
             {estimatedCost} ⭐
           </span>
@@ -304,7 +304,7 @@ export function VoiceSection() {
           ) : (
             <>
               <Sparkles className="w-5 h-5" />
-              Создать видео ({estimatedCost} ⭐)
+              Списать {estimatedCost}⭐
             </>
           )}
         </button>

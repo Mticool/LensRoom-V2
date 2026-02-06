@@ -224,7 +224,7 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     speed: 'fast',
     quality: 'high',
     supportsI2i: false,
-    pricing: 5, // UPDATED (2026-01-27): grok_imagine:i2i_run = 5⭐
+    pricing: 4,
     // KIE docs: https://kie.ai/grok-imagine?model=grok-imagine%2Ftext-to-image
     // Allowed: 2:3, 3:2, 1:1, 9:16, 16:9
     aspectRatios: ['1:1', '3:2', '2:3', '9:16', '16:9'],
@@ -269,10 +269,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'high',
     supportsI2i: true,
     pricing: {
-      // UPDATED PRICING (2026-01-27): 9⭐
-      turbo: 9,
-      balanced: 9,
-      quality: 7,
+      turbo: 5,
+      balanced: 5,
+      quality: 5,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
@@ -300,9 +299,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     inputImageFormats: ['jpeg', 'png', 'webp'],
     outputFormats: ['png', 'jpg'],
     pricing: {
-      // UPDATED PRICING (2026-01-27): 1k_2k = 17⭐, 4k = 25⭐
-      '1k_2k': 17,
-      '4k': 25,
+      '1k_2k': 9,
+      '4k': 9,
     },
     qualityOptions: ['1k_2k', '4k'],
     // All aspect ratios supported by KIE API: https://kie.ai/nano-banana-pro
@@ -342,9 +340,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     // Seedream 4.5 in this app is T2I only. Edits/references require a separate KIE "edit" model.
     supportsI2i: false,
     pricing: {
-      // UPDATED (2026-01-27): seedream_4_5:image = 10⭐
-      basic: 10,
-      high: 11,
+      basic: 6,
+      high: 6,
     },
     qualityOptions: ['basic', 'high'],
     // KIE Seedream 4.5 supports multiple aspect ratios; default is 1:1.
@@ -369,9 +366,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     maxInputImageSizeMb: 10,
     inputImageFormats: ['jpeg', 'png', 'webp'],
     pricing: {
-      // Same pricing as Seedream 4.5 text-to-image
-      basic: 10,
-      high: 11,
+      basic: 6,
+      high: 6,
     },
     qualityOptions: ['basic', 'high'],
     aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '21:9'],
@@ -395,12 +391,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     maxInputImageSizeMb: 10,
     inputImageFormats: ['jpeg', 'png', 'webp'],
     pricing: {
-      // UPDATED (2026-01-27): flux_2_pro:1k = 10⭐, 2k = 12⭐
-      '1k': 10,
-      '2k': 12,
-      '4k': 12,
+      '1k': 5,
+      '2k': 6,
     },
-    qualityOptions: ['1k', '2k', '4k'],
+    qualityOptions: ['1k', '2k'],
     // KIE allowed: 1:1, 16:9, 9:16, 4:5, 3:4, 2:3, 3:2, auto
     aspectRatios: ['1:1', '16:9', '9:16', '4:5', '3:4', '2:3', '3:2', 'auto'],
     shortLabel: '1K/2K/4K',
@@ -425,15 +419,14 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     maxInputImageSizeMb: 10,
     inputImageFormats: ['jpeg', 'png', 'webp'],
     pricing: {
-      // NEW PRICING: 0.8 credit = 2⭐
-      turbo: 2,
-      balanced: 2,
-      quality: 2,
+      turbo: 1,
+      balanced: 1,
+      quality: 1,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     // Allowed: 1:1, 4:3, 3:4, 16:9, 9:16 (+ auto when a reference image is provided)
     aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', 'auto'],
-    shortLabel: '2⭐',
+    shortLabel: '1⭐',
   },
   // NOTE: Ideogram V3 is currently unavailable on KIE API (422 error)
   // Keeping config for future use when model becomes available
@@ -475,10 +468,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'standard',
     supportsI2i: true,
     pricing: {
-      // NEW PRICING: 1 credit = 2⭐
-      turbo: 2,
-      balanced: 2,
-      quality: 2,
+      turbo: 1,
+      balanced: 1,
+      quality: 1,
     },
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
@@ -498,11 +490,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true,
     pricing: {
-      // Topaz Upscale (KIE): upscale_factor "2" | "4" | "8"
-      // Use quality labels as "2k"/"4k"/"8k" in pricing/UI
-      '2k': 17,
-      '4k': 34,
-      '8k': 68,
+      '2k': 9,
+      '4k': 17,
+      '8k': 34,
     },
     qualityOptions: ['2k', '4k', '8k'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3'],
@@ -530,9 +520,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     quality: 'ultra',
     supportsI2i: true, // До 16 изображений для редактирования
     pricing: {
-      // UPDATED (2026-01-27): gpt_image_1_5:medium = 5⭐, high = 35⭐
-      medium: 5,
-      high: 35,
+      medium: 4,
+      high: 19,
     },
     qualityOptions: ['medium', 'high'],
     aspectRatios: ['1:1', '3:2', '2:3'], // Новые пропорции из документации
@@ -569,8 +558,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsFirstLastFrame: true,
     maxReferenceImages: 3,
     pricing: {
-      // UPDATED (2026-01-27): veo_3_1_fast:clip = 50⭐
-      '8': 50,
+      '8': 26,
     },
     modes: ['t2v', 'i2v', 'start_end', 'extend'],
     durationOptions: [8],
@@ -597,9 +585,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudio: false,
     supportsFirstLastFrame: false,
     pricing: {
-      // UPDATED (2026-01-27): kling_2_1 standard:5s = 42, :10s = 84
-      '5': 42,
-      '10': 84,
+      '5': 22,
+      '10': 43,
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
@@ -626,9 +613,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudio: false,
     supportsFirstLastFrame: true,
     pricing: {
-      // UPDATED (2026-01-27): kling_2_5:5s:720p = 70, :10s = 140
-      '5': 70,
-      '10': 140,
+      '5': 36,
+      '10': 72,
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
@@ -656,9 +642,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudioGeneration: true,
     supportsFirstLastFrame: false,
     pricing: {
-      // UPDATED (2026-01-27): kling_2_6:5s:720p:no_audio = 92, audio = 184
-      '5': { no_audio: 92, audio: 184 },
-      '10': { no_audio: 184, audio: 367 },
+      '5': { no_audio: 48, audio: 94 },
+      '10': { no_audio: 94, audio: 187 },
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [5, 10],
@@ -683,9 +668,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: false,
     supportsAudio: false,
     pricing: {
-      // UPDATED (2026-01-27): motion_control:720p = 10⭐/sec, 1080p = 20⭐/sec
-      '720p': { per_second: 10 },
-      '1080p': { per_second: 20 },
+      '720p': { per_second: 6 },
+      '1080p': { per_second: 8 },
     },
     modes: ['motion_control'], // motion control mode
     durationOptions: [], // Based on input video length (3-30s)
@@ -715,17 +699,13 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudioGeneration: true,
     styleOptions: ['realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'],
     pricing: {
-      // UPDATED (2026-01-27): grok_video:6s = 34⭐
-      '6': 34,
-      '12': 68,
-      '18': 102,
-      '24': 85,
-      '30': 105,
+      '6': 17,
+      '10': 26,
     },
     modes: ['t2v', 'i2v', 'style_transfer'],
-    durationOptions: [6, 12, 18, 24, 30],
+    durationOptions: [6, 10],
     aspectRatios: ['9:16', '1:1', '3:2', '2:3'],
-    shortLabel: '6-30s • Audio • Styles',
+    shortLabel: '6/10s • Audio • Styles',
     modelTag: 'NEW',
   },
 
@@ -744,9 +724,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: false,
     pricing: {
-      // UPDATED (2026-01-27): sora_2:clip = 50⭐ (fixed price)
-      '10': 50,
-      '15': 50,
+      '10': 26,
+      '15': 26,
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [10, 15],
@@ -774,11 +753,9 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     cameraMotionOptions: ['static', 'pan_left', 'pan_right', 'tilt_up', 'tilt_down', 'zoom_in', 'zoom_out', 'orbit', 'follow'],
     styleOptions: ['realistic', 'cinematic', 'anime', 'cartoon'],
     pricing: {
-      // UPDATED (2026-01-27): wan_2_6 720p:5s=117, :10s=234, :15s=350
-      // Note: This is simplified, actual pricing.ts has resolution-based pricing
-      '5': 117,
-      '10': 234,
-      '15': 350,
+      '5': 60,
+      '10': 119,
+      '15': 179,
     },
     modes: ['t2v', 'i2v', 'v2v'],
     durationOptions: [5, 10, 15],

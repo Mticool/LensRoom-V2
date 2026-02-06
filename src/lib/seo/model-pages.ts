@@ -74,17 +74,18 @@ export const MODEL_LANDINGS: ModelLanding[] = [
     name: "Nano Banana Pro",
     category: "image",
     generatorModelId: "nano-banana-pro",
-    description: "Премиальная генерация изображений: 1K–4K, варианты и режим фото→фото. Безлимит в Creator+ и Business.",
+    description: "Премиальная генерация изображений: 1K–4K, варианты и режим фото→фото. Бесплатно* в тарифах PRO/MAX.",
     keywords: [
       "nano banana pro",
       "nano banana pro lensroom",
-      "nano banana безлимит",
+      "nano banana pro 2k",
+      "nano banana pro 4k",
       "нейросеть для фото",
       "генерация изображений 4k",
       "image to image",
       "создать фото нейросеть",
       "lensroom nano banana",
-      "безлимитная генерация фото",
+      "nanobanana pro бесплатно",
     ],
   },
   {
@@ -338,5 +339,4 @@ export const MODEL_LANDINGS: ModelLanding[] = [
 export function getModelLandingBySlug(slug: string): ModelLanding | undefined {
   return MODEL_LANDINGS.find((m) => m.slug === slug);
 }
-
 

@@ -10,16 +10,12 @@ import { useHistory } from './hooks/useHistory';
 import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult } from './GeneratorV2';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
 
 const QUALITY_MAPPING: Record<string, string> = {
   '1K': '1k',
   '2K': '2k',
-};
-
-const COST_PER_IMAGE: Record<string, number> = {
-  '1K': 9,
-  '2K': 12,
 };
 
 export function FluxProGenerator() {
@@ -54,7 +50,10 @@ export function FluxProGenerator() {
   }, [currentThreadId]);
   
   const credits = authCredits;
-  const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
+  const estimatedCost = useMemo(
+    () => computePrice('flux-2-pro', { quality: QUALITY_MAPPING[quality], variants: quantity }).stars,
+    [quality, quantity]
+  );
 
   const demoImages = useMemo<GenerationResult[]>(() => {
     if (isAuthenticated || images.length > 0 || history.length > 0) return [];

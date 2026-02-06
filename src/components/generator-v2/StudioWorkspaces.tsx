@@ -16,7 +16,7 @@ import { useHistory } from "@/components/generator-v2/hooks/useHistory";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { GenerationResult, GenerationSettings } from "@/components/generator-v2/GeneratorV2";
 import { getModelById } from "@/config/models";
-import { computePrice } from "@/lib/pricing/compute-price";
+import { computePrice } from "@/lib/pricing/pricing";
 import { openExternal } from "@/lib/telegram/webview";
 import { useFavoritesStore } from "@/stores/favorites-store";
 

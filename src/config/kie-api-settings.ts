@@ -912,7 +912,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
   "kling-motion-control": {
     name: "Kling Motion Control",
     apiModel: "kling-2.6/motion-control",
-    // Цена рассчитывается динамически в src/lib/pricing/motionControl.ts
+    // Цена рассчитывается динамически в src/lib/pricing/pricing.ts
     // baseCost не используется - цена зависит от длительности видео
     settings: {
       resolution: {

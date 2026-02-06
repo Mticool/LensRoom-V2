@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Star, Search, Plus, History, User, Hash, Crown, Infinity } from "lucide-react";
+import { Star, Search, Plus, History, User, Hash, Crown } from "lucide-react";
 
 type SearchResult = {
   auth_user_id: string;
@@ -31,7 +31,7 @@ export default function AdminCreditsClient() {
   
   // Subscription grant
   const [subUsername, setSubUsername] = useState("");
-  const [subPlan, setSubPlan] = useState<"creator" | "creator_plus" | "business">("creator_plus");
+  const [subPlan, setSubPlan] = useState<"start" | "pro" | "max">("pro");
   const [subMonths, setSubMonths] = useState("1");
   const [isGrantingSub, setIsGrantingSub] = useState(false);
 
@@ -249,7 +249,7 @@ export default function AdminCreditsClient() {
       <Card className="border-[var(--gold)]/30 bg-gradient-to-br from-[var(--gold)]/5 to-transparent">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Crown className="w-5 h-5 text-[var(--gold)]" />Назначить подписку</CardTitle>
-          <CardDescription>Выдать подписку с безлимитом Pro 1-2K</CardDescription>
+          <CardDescription>Выдать подписку START / PRO / MAX</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-4">
@@ -267,9 +267,9 @@ export default function AdminCreditsClient() {
                 value={subPlan} 
                 onChange={(e) => setSubPlan(e.target.value as any)}
               >
-                <option value="creator">Creator (1000⭐/мес)</option>
-                <option value="creator_plus">Creator+ (3000⭐ + безлимит Pro)</option>
-                <option value="business">Business (10000⭐ + безлимит Pro)</option>
+                <option value="start">START (1100⭐/мес)</option>
+                <option value="pro">PRO (2400⭐/мес)</option>
+                <option value="max">MAX (4000⭐/мес)</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -277,13 +277,6 @@ export default function AdminCreditsClient() {
               <Input type="number" value={subMonths} onChange={(e) => setSubMonths(e.target.value)} min={1} max={12} />
             </div>
           </div>
-          
-          {(subPlan === 'creator_plus' || subPlan === 'business') && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--gold)]/10 border border-[var(--gold)]/20">
-              <Infinity className="w-4 h-4 text-[var(--gold)]" />
-              <span className="text-sm text-[var(--gold)]">Безлимит на Nano Banana Pro 1K-2K</span>
-            </div>
-          )}
           
           <Button 
             onClick={handleGrantSubscription} 
@@ -297,4 +290,3 @@ export default function AdminCreditsClient() {
     </div>
   );
 }
-

@@ -159,6 +159,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const generationIdForAudit = crypto.randomUUID();
+
     // Check credits
     if (!skipCredits) {
       const balance = await getCreditBalance(supabase, userId);
@@ -180,6 +182,17 @@ export async function POST(request: NextRequest) {
 
       // Deduct credits ONLY for music (not for speech)
       if (!shouldDeferCreditDeduction && creditCost > 0) {
+        console.log('[⭐ AUDIT_PRECHARGE]', JSON.stringify({
+          model,
+          mode: generation_type,
+          duration: null,
+          quality: null,
+          resolution: null,
+          calculatedStars: creditCost,
+          userId,
+          generationId: generationIdForAudit,
+        }));
+
         const deductResult = await deductCredits(supabase, userId, creditCost);
         if (!deductResult.success) {
           return NextResponse.json(
@@ -204,6 +217,7 @@ export async function POST(request: NextRequest) {
     
     // Standard insert - Supabase schema cache may complain about metadata, but insert should work
     const insertData: any = {
+      id: generationIdForAudit,
       user_id: userId,
       type: "audio",
       model_id: model,

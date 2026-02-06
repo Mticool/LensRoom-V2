@@ -9,12 +9,13 @@ import { useAuth } from '@/providers/auth-provider';
 import { useCreditsStore } from '@/stores/credits-store';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import { toast } from 'sonner';
+import { computePrice } from '@/lib/pricing/pricing';
 
 // Quality options with pricing
 const QUALITY_OPTIONS = [
-  { value: '2k', label: '2K', description: 'До 2048px', price: 17 },
-  { value: '4k', label: '4K', description: 'До 4096px', price: 34 },
-  { value: '8k', label: '8K', description: 'До 8192px', price: 67 },
+  { value: '2k', label: '2K', description: 'До 2048px', price: computePrice('topaz-image-upscale', { quality: '2k' }).stars },
+  { value: '4k', label: '4K', description: 'До 4096px', price: computePrice('topaz-image-upscale', { quality: '4k' }).stars },
+  { value: '8k', label: '8K', description: 'До 8192px', price: computePrice('topaz-image-upscale', { quality: '8k' }).stars },
 ];
 
 export default function UpscalePage() {

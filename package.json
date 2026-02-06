@@ -16,6 +16,8 @@
     "test:e2e": "playwright test",
     "test:smoke:ui": "node scripts/smoke-ui.js",
     "test:smoke:video": "RUN_LIVE_SMOKE=1 SMOKE_ALLOW_CHARGE=0 npx tsx scripts/live-smoke-video.ts",
+    "deploy:prod": "bash ./deploy-direct.sh",
+    "deploy:prod:no-build": "bash ./deploy-no-build.sh",
     "clean": "rm -rf .next out node_modules/.cache",
     "backfill:previews": "node scripts/backfill-previews.js",
     "worker:previews": "node scripts/previews-worker.js",

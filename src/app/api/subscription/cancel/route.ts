@@ -104,7 +104,7 @@ export async function GET() {
     if (!subscription) {
       return NextResponse.json({ 
         hasSubscription: false,
-        plan: 'starter',
+        plan: 'start',
       });
     }
 

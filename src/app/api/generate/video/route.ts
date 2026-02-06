@@ -10,7 +10,7 @@ import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { 
   validateMotionControlDuration,
   type MotionControlResolution 
-} from '@/lib/pricing/motionControl';
+} from '@/lib/pricing/pricing';
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 import { requireAuth } from "@/lib/auth/requireRole";
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
           negativePrompt,
           aspectRatio: aspectRatioFromBody || modeAspectRatios[0],
           durationSec: duration || modeDurations[0],
-          quality: quality || resolution,
+          quality: quality,
           resolution: resolution,
           inputImage: referenceImage || startImage,
           referenceImages,
@@ -492,11 +492,15 @@ export async function POST(request: NextRequest) {
     } else {
       // Standard video pricing using new SKU-based system
       try {
+        const requiredInputsForMode = capability?.requiredInputsByMode?.[normalizedMode]?.required || [];
+        const acceptsResolution = requiredInputsForMode.includes('resolution');
+        const supportsQuality = Array.isArray(capability?.supportedQualities) && capability.supportedQualities.length > 0;
+
         const pricingOptions: PricingOptions = {
           mode: mode as any,
           duration: duration || modelInfo.fixedDuration || 5,
-          videoQuality: quality || resolution,
-          resolution: resolution || undefined,
+          videoQuality: supportsQuality ? quality : undefined,
+          resolution: acceptsResolution ? (resolution || undefined) : undefined,
           audio: model === 'wan' ? !!wanSoundPreset : soundEnabled,
           modelVariant: modelVariant || undefined,
           qualityTier: qualityTier as any,
@@ -581,6 +585,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const generationIdForAudit = crypto.randomUUID();
+
     // Skip credit check for managers/admins
     if (!skipCredits) {
       // Get user credits (split: subscription + package)
@@ -600,6 +606,17 @@ export async function POST(request: NextRequest) {
           { status: 402 }
         );
       }
+
+      console.log('[⭐ AUDIT_PRECHARGE]', JSON.stringify({
+        model,
+        mode,
+        duration: model === 'kling-motion-control' ? effectiveDuration : (duration || modelInfo.fixedDuration || null),
+        quality: quality || null,
+        resolution: resolution || null,
+        calculatedStars: creditCost,
+        userId,
+        generationId: generationIdForAudit,
+      }));
 
       // Deduct credits (subscription first, then package)
       const deductResult = await deductCredits(supabase, userId, creditCost);
@@ -659,6 +676,7 @@ export async function POST(request: NextRequest) {
       const r = await supabase
         .from("generations")
         .insert({
+          id: generationIdForAudit,
           user_id: userId,
           type: "video",
           model_id: model,

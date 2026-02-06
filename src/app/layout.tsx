@@ -26,11 +26,11 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: "LensRoom — AI генератор изображений и видео • Nano Banana Pro безлимит",
+    default: "LensRoom — AI генератор изображений и видео",
     template: "%s | LensRoom",
   },
   description:
-    "🔥 Nano Banana Pro — БЕЗЛИМИТ в тарифах Creator+ и Business! 10+ AI моделей: Veo 3.1, Sora 2, Kling, Flux. 50⭐ бесплатно при регистрации. Создавайте фото и видео за минуты.",
+    "10+ AI моделей: Veo 3.1, Sora 2, Kling, Flux. NanoBanana Pro бесплатно* в тарифах PRO/MAX, Motion Control во всех тарифах. 50⭐ бесплатно при регистрации.",
   keywords: [
     // Брендовые запросы
     "lensroom",
@@ -45,7 +45,8 @@ export const metadata: Metadata = {
     "генерация видео",
     "nano banana pro",
     "nano banana",
-    "безлимит генерация",
+    "nanobanana pro 2k",
+    "nanobanana pro 4k",
     // Русские запросы для Яндекса
     "нейросеть для картинок",
     "нейросеть для видео",
@@ -79,9 +80,9 @@ export const metadata: Metadata = {
   publisher: "LensRoom",
   metadataBase: new URL("https://lensroom.ru"),
   openGraph: {
-    title: "LensRoom — Nano Banana Pro БЕЗЛИМИТ 🔥",
+    title: "LensRoom — AI генератор изображений и видео",
     description:
-      "10+ AI моделей в одном месте: Veo 3.1, Sora 2, Kling, Flux. Безлимитная генерация Pro изображений в тарифах Creator+ и Business. 50⭐ бесплатно!",
+      "10+ AI моделей в одном месте: Veo 3.1, Sora 2, Kling, Flux. NanoBanana Pro бесплатно* в PRO/MAX, Motion Control во всех тарифах.",
     url: "https://lensroom.ru",
     siteName: "LensRoom",
     images: [
@@ -89,7 +90,7 @@ export const metadata: Metadata = {
         url: "https://lensroom.ru/og-image.png",
         width: 1200,
         height: 630,
-        alt: "LensRoom — Nano Banana Pro безлимит • AI генератор",
+        alt: "LensRoom — AI генератор изображений и видео",
       },
     ],
     locale: "ru_RU",
@@ -97,8 +98,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "LensRoom — Nano Banana Pro БЕЗЛИМИТ 🔥",
-    description: "10+ AI моделей: Veo 3.1, Sora 2, Kling, Flux. Безлимитная генерация в Creator+ и Business. 50⭐ бесплатно!",
+    title: "LensRoom — AI генератор изображений и видео",
+    description: "10+ AI моделей: Veo 3.1, Sora 2, Kling, Flux. NanoBanana Pro бесплатно* в PRO/MAX. Motion Control во всех тарифах.",
     images: ["https://lensroom.ru/og-image.png"],
     creator: "@lensroom",
   },

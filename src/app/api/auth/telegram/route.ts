@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { TelegramLoginPayload, TelegramSession } from '@/types/telegram';
 import { env } from "@/lib/env";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { REGISTRATION_BONUS } from '@/config/pricing';
 
 function tgEmail(telegramId: number) {
   // Deterministic pseudo-email so we can create a Supabase auth user for Telegram logins.
@@ -130,8 +131,6 @@ export async function POST(request: NextRequest) {
 
       // Ensure credits row exists with 50⭐ bonus for new users
       if (authUserId) {
-        const REGISTRATION_BONUS = 50;
-        
         console.log(`[Telegram Auth] Processing registration bonus for user ${authUserId}`);
         
         // Check if credits already exist with balance (use maybeSingle to handle no-row case)
@@ -252,6 +251,5 @@ export async function DELETE() {
     );
   }
 }
-
 
 

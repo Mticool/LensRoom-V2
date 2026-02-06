@@ -12,7 +12,7 @@
  * - Kling 2.1 Pro: 5s=200⭐, 10s=400⭐
  */
 
-import { computePrice, PriceOptions } from './compute-price';
+import { computePrice, type PriceOptions } from './pricing';
 import { STAR_PACKS } from '@/config/pricing';
 
 // Reference prices for equivalents calculation (deprecated, use pricing.ts)
@@ -222,7 +222,6 @@ export const priceVerification = {
 if (typeof window === 'undefined' && require.main === module) {
   logAllPrices();
 }
-
 
 
 

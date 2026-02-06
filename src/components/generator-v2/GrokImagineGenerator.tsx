@@ -15,9 +15,8 @@ import { AdvancedSettingsCollapse } from './AdvancedSettingsCollapse';
 import { Sparkles, Loader2, ChevronUp } from 'lucide-react';
 import type { GenerationResult } from './GeneratorV2';
 import { getDefaultImageParams, getImageModelCapability } from '@/lib/imageModels/capabilities';
+import { computePrice } from '@/lib/pricing/pricing';
 import './theme.css';
-
-const COST_PER_RUN = 5; // Fixed pricing per generation run (from models.ts: grok_imagine:i2i_run = 5⭐)
 
 export function GrokImagineGenerator() {
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
@@ -43,7 +42,10 @@ export function GrokImagineGenerator() {
   
   const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   const credits = authCredits;
-  const estimatedCost = COST_PER_RUN;
+  const estimatedCost = useMemo(
+    () => computePrice('grok-imagine', { quality: mode === 'Обычный' ? 'normal' : mode === 'Креатив' ? 'fun' : 'spicy', variants: 1 }).stars,
+    [mode]
+  );
   const aspectRatioOptions = useMemo(() => capability?.supportedAspectRatios || ['1:1'], [capability]);
 
   useEffect(() => {
@@ -313,12 +315,12 @@ export function GrokImagineGenerator() {
                   {isGenerating ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Generating...</span>
+                      <span>Генерация...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      <span>Generate {estimatedCost}⭐</span>
+                      <span>Списать {estimatedCost}⭐</span>
                     </>
                   )}
                 </button>

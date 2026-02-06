@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowUpFromLine, RotateCcw, Sparkles, Loader2, Star } from 'lucide-react';
+import { computePrice } from '@/lib/pricing/pricing';
 
 interface UpscaleSidebarProps {
   scale: '2k' | '4k' | '8k';
@@ -14,9 +15,9 @@ interface UpscaleSidebarProps {
 }
 
 const SCALE_OPTIONS = [
-  { value: '2k' as const, label: '2K', price: 17 },
-  { value: '4k' as const, label: '4K', price: 34 },
-  { value: '8k' as const, label: '8K', price: 68 },
+  { value: '2k' as const, label: '2K', price: computePrice('topaz-image-upscale', { quality: '2k' }).stars },
+  { value: '4k' as const, label: '4K', price: computePrice('topaz-image-upscale', { quality: '4k' }).stars },
+  { value: '8k' as const, label: '8K', price: computePrice('topaz-image-upscale', { quality: '8k' }).stars },
 ];
 
 export function UpscaleSidebar({
