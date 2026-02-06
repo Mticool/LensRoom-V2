@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
 import { ControlBarBottom } from './ControlBarBottom';
@@ -10,32 +9,30 @@ import { useHistory } from './hooks/useHistory';
 import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult } from './GeneratorV2';
+import { getDefaultImageParams, getImageModelCapability } from '@/lib/imageModels/capabilities';
 import './theme.css';
-
-// Quality mapping for Z-image
-const QUALITY_MAPPING: Record<string, string> = {
-  'Быстро': 'turbo',
-  'Баланс': 'balanced',
-  'Качество': 'quality',
-};
 
 // Cost calculation for Z-image - cheapest model at 2 stars!
 const COST_PER_IMAGE = 2;
 
 export function ZImageGenerator() {
-  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
   const { isOpen: popupIsOpen, showPopup, hidePopup } = useBotConnectPopup();
   
+  const capability = useMemo(() => getImageModelCapability('z-image'), []);
+  const defaults = useMemo(() => getDefaultImageParams('z-image'), []);
+
   // Core state
   const [prompt, setPrompt] = useState('');
-  const [aspectRatio, setAspectRatio] = useState('1:1');
-  const [quality, setQuality] = useState('Баланс');
+  const [aspectRatio, setAspectRatio] = useState(defaults.aspectRatio || '1:1');
+  const [quality, setQuality] = useState('—');
   const [quantity, setQuantity] = useState(1);
   
   // Reference image for i2i
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  
+  // Gallery zoom (0.5–1.5)
+  const [galleryZoom, setGalleryZoom] = useState(1);
   
   // Advanced settings
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -50,10 +47,20 @@ export function ZImageGenerator() {
   const [images, setImages] = useState<GenerationResult[]>([]);
   
   // Load history (show all models)
-  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
+  const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   
   const credits = authCredits;
   const estimatedCost = useMemo(() => COST_PER_IMAGE * quantity, [quantity]);
+  const aspectRatioOptions = useMemo(() => {
+    const base = capability?.supportedAspectRatios || ['1:1'];
+    return referenceImage ? base : base.filter((ar) => ar !== 'auto');
+  }, [capability, referenceImage]);
+
+  useEffect(() => {
+    if (!aspectRatioOptions.includes(aspectRatio)) {
+      setAspectRatio(aspectRatioOptions[0] || '1:1');
+    }
+  }, [aspectRatioOptions, aspectRatio]);
 
   // Demo images
   const demoImages = useMemo<GenerationResult[]>(() => {
@@ -64,7 +71,7 @@ export function ZImageGenerator() {
       url: 'https://images.unsplash.com/photo-1680382750218-ea0e0cdcc741?w=800&q=80',
       prompt: 'A futuristic cityscape at sunset',
       mode: 'image',
-      settings: { model: 'z-image', size: '16:9', quality: 'balanced' },
+      settings: { model: 'z-image', size: '16:9' },
       timestamp: Date.now(),
     },
     {
@@ -72,7 +79,7 @@ export function ZImageGenerator() {
       url: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800&q=80',
       prompt: 'Magical forest with glowing elements',
       mode: 'image',
-      settings: { model: 'z-image', size: '1:1', quality: 'balanced' },
+      settings: { model: 'z-image', size: '1:1' },
       timestamp: Date.now(),
     },
   ];
@@ -108,7 +115,6 @@ export function ZImageGenerator() {
         settings: {
           model: 'z-image',
           size: aspectRatio,
-          quality: QUALITY_MAPPING[quality],
         },
         timestamp: Date.now(),
         status: 'pending',
@@ -125,7 +131,6 @@ export function ZImageGenerator() {
           prompt,
           negativePrompt: negativePrompt || undefined,
           aspectRatio,
-          quality: QUALITY_MAPPING[quality],
           variants: quantity,
           seed: seed || undefined,
           steps,
@@ -157,7 +162,6 @@ export function ZImageGenerator() {
           settings: {
             model: 'z-image',
             size: aspectRatio,
-            quality: QUALITY_MAPPING[quality],
           },
           timestamp: Date.now(),
           status: 'completed',
@@ -176,7 +180,6 @@ export function ZImageGenerator() {
           settings: {
             model: 'z-image',
             size: aspectRatio,
-            quality: QUALITY_MAPPING[quality],
           },
           timestamp: Date.now(),
           status: 'completed',
@@ -193,23 +196,23 @@ export function ZImageGenerator() {
         invalidateCache();
         refreshHistory();
       }, 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
       }
-      toast.error(error.message || 'Ошибка при генерации');
+      const message = error instanceof Error ? error.message : 'Ошибка при генерации';
+      toast.error(message);
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, credits, estimatedCost, quality, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory]);
+  }, [isAuthenticated, prompt, credits, estimatedCost, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory, invalidateCache]);
 
   // Cleanup polling on unmount
   useEffect(() => {
+    const timeout = pollingTimeoutRef.current;
     return () => {
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
-      }
+      if (timeout) clearTimeout(timeout);
     };
   }, []);
 
@@ -225,11 +228,22 @@ export function ZImageGenerator() {
       )}
 
       <div className="pt-8">
+        <div
+          style={{
+            transform: `scale(${galleryZoom})`,
+            transformOrigin: 'top left',
+            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : 'auto',
+          }}
+        >
         {allImages.length > 0 ? (
           <ImageGalleryMasonry 
             images={allImages} 
             isGenerating={isGenerating}
+            layout="grid"
+            fullWidth
             autoScrollToBottom
+            autoScrollBehavior="always"
             hasMore={hasMore}
             onLoadMore={loadMore}
             isLoadingMore={isLoadingMore}
@@ -246,9 +260,13 @@ export function ZImageGenerator() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       <ControlBarBottom
+        showGalleryZoom
+        galleryZoom={galleryZoom}
+        onGalleryZoomChange={setGalleryZoom}
         prompt={prompt}
         onPromptChange={setPrompt}
         aspectRatio={aspectRatio}
@@ -263,11 +281,11 @@ export function ZImageGenerator() {
         credits={credits}
         estimatedCost={estimatedCost}
         modelId="z-image"
-        qualityOptions={['Быстро', 'Баланс', 'Качество']}
-        aspectRatioOptions={['1:1', '16:9', '9:16', '4:3', '3:4']}
+        qualityOptions={[]}
+        aspectRatioOptions={aspectRatioOptions}
+        quantityMaxOverride={capability?.requestVariants?.max}
         referenceImage={referenceImage}
         onReferenceImageChange={setReferenceImage}
-        onReferenceFileChange={setReferenceFile}
         negativePrompt={negativePrompt}
         onNegativePromptChange={setNegativePrompt}
         seed={seed}

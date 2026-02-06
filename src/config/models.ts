@@ -277,6 +277,9 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     qualityOptions: ['turbo', 'balanced', 'quality'],
     aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4'],
     shortLabel: 'Turbo/Quality',
+    // Два референса: «фото 1 + фото 2» — коллаж собирается на бэкенде и отправляется в edit API
+    maxInputImages: 2,
+    maxInputImageSizeMb: 10,
   },
   {
     id: 'nano-banana-pro',
@@ -348,6 +351,31 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     // Keep in sync with src/config/kie-api-settings.ts
     aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '21:9'],
     shortLabel: 'Turbo/Quality',
+  },
+  {
+    id: 'seedream-4.5-edit',
+    name: 'Seedream 4.5 Edit',
+    apiId: 'seedream/4.5-edit',
+    type: 'photo',
+    provider: 'kie_market',
+    shortDescription: 'Редактирование изображения по промпту.',
+    description: 'Seedream 4.5 Edit — редактирование и улучшение изображений по текстовому описанию. Требует референс.',
+    rank: 10,
+    featured: true,
+    speed: 'medium',
+    quality: 'ultra',
+    supportsI2i: true,
+    maxInputImages: 1,
+    maxInputImageSizeMb: 10,
+    inputImageFormats: ['jpeg', 'png', 'webp'],
+    pricing: {
+      // Same pricing as Seedream 4.5 text-to-image
+      basic: 10,
+      high: 11,
+    },
+    qualityOptions: ['basic', 'high'],
+    aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '21:9'],
+    shortLabel: 'Edit • 2K/4K',
   },
   {
     id: 'flux-2-pro',
@@ -560,14 +588,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'kling-2.1/image-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Kling 2.1 Master — высокое качество генерации видео. Text-to-video, image-to-video, start/end frames.',
+    description: 'Kling 2.1 — высокое качество генерации видео. Text-to-video, image-to-video, выбор качества.',
     rank: 2,
     featured: true,
     speed: 'medium',
     quality: 'ultra',
     supportsI2v: true,
     supportsAudio: false,
-    supportsFirstLastFrame: true,
+    supportsFirstLastFrame: false,
     pricing: {
       // UPDATED (2026-01-27): kling_2_1 standard:5s = 42, :10s = 84
       '5': 42,
@@ -585,8 +613,8 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   {
     id: 'kling-2.5',
     name: 'Kling 2.5',
-    apiId: 'kling-2.5-turbo/text-to-video',
-    apiIdI2v: 'kling-2.5-turbo/image-to-video',
+    apiId: 'kling/v2-5-turbo-text-to-video-pro',
+    apiIdI2v: 'kling/v2-5-turbo-image-to-video-pro',
     type: 'video',
     provider: 'kie_market',
     description: 'Kling 2.5 Turbo — быстрая генерация с хорошим балансом скорости и качества. Поддержка start/end frames.',
@@ -618,7 +646,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     apiIdI2v: 'kling-2.6/image-to-video',
     type: 'video',
     provider: 'kie_market',
-    description: 'Kling 2.6 Standard — отличная динамика и стабильность. Поддерживает генерацию звука и start/end frames.',
+    description: 'Kling 2.6 Standard — отличная динамика и стабильность. Поддерживает генерацию звука.',
     rank: 4,
     featured: true,
     speed: 'medium',
@@ -626,7 +654,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsI2v: true,
     supportsAudio: true,
     supportsAudioGeneration: true,
-    supportsFirstLastFrame: true,
+    supportsFirstLastFrame: false,
     pricing: {
       // UPDATED (2026-01-27): kling_2_6:5s:720p:no_audio = 92, audio = 184
       '5': { no_audio: 92, audio: 184 },
@@ -644,7 +672,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   {
     id: 'kling-motion-control',
     name: 'Kling Motion Control',
-    apiId: 'kling-2.6-motion-control',
+    apiId: 'kling-2.6/motion-control',
     type: 'video',
     provider: 'kie_market',
     description: 'Kling 2.6 Motion Control — передача движения из референсного видео на персонажа.',

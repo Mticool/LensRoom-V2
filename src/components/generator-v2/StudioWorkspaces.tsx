@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -49,7 +50,7 @@ function qualityLabelFromApi(modelId: string, apiQuality?: string | null): strin
     // 1k_2k is the real pricing tier; we show user-friendly split (1K/2K)
     return "1K";
   }
-  if (modelId === "seedream-4.5") {
+  if (modelId === "seedream-4.5" || modelId === "seedream-4.5-edit") {
     if (q === "basic") return "Basic";
     if (q === "high") return "High";
     // Backward compatibility (older stored values)
@@ -94,7 +95,7 @@ function apiQualityFromLabel(modelId: string, label: string): string | undefined
     // 1K and 2K are the same tier in pricing (1k_2k)
     if (l === "1K" || l === "2K") return "1k_2k";
   }
-  if (modelId === "seedream-4.5") {
+  if (modelId === "seedream-4.5" || modelId === "seedream-4.5-edit") {
     if (l === "High") return "high";
     if (l === "Basic") return "basic";
     const raw = l.toLowerCase();
@@ -169,10 +170,6 @@ function normalizeAspect(value: string): string {
   const h = Number(m[2]);
   if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return raw;
   return `${w}:${h}`;
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
 }
 
 function parseAspect(value: string | undefined | null): { w: number; h: number } {
@@ -262,23 +259,15 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
   const [isThreadsOpen, setIsThreadsOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<GenerationResult | null>(null);
   const [activeRunKey, setActiveRunKey] = useState<string | null>(null);
-  const [activeRunIndex, setActiveRunIndex] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [galleryZoom, setGalleryZoom] = useState(1);
   const { toggleFavorite, isFavorite: isFavoriteId, fetchFavorites, _hasHydrated } = useFavoritesStore();
   
   // Refs for scrolling to top when model changes
   const mobileGalleryRef = useRef<HTMLDivElement>(null);
   const desktopGalleryRef = useRef<HTMLDivElement>(null);
 
-  const activeThread = useMemo(
-    () => threads.find((t) => t.id === selectedThreadId) || null,
-    [threads, selectedThreadId]
-  );
-
   const { 
     history, 
-    isLoading: historyLoading, 
     isLoadingMore,
     hasMore,
     loadMore,
@@ -323,25 +312,11 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
 
   const getRunKey = useCallback((img: GenerationResult | null | undefined): string | null => {
     if (!img) return null;
-    if (typeof (img as any).runId === "string" && String((img as any).runId).trim()) return String((img as any).runId).trim();
+    const maybe = img as { runId?: unknown };
+    if (typeof maybe.runId === "string" && maybe.runId.trim()) return maybe.runId.trim();
     // Fallback: treat single-image generations as their own “run”
     return extractGenerationUuid(img.id) || img.id;
   }, []);
-
-  const activeRunImages = useMemo(() => {
-    const key = activeRunKey;
-    if (!key) return [];
-    return viewerList.filter((img) => getRunKey(img) === key);
-  }, [viewerList, activeRunKey, getRunKey]);
-
-  const activeMobileImage = useMemo(() => {
-    if (activeRunImages.length) {
-      const idx = clamp(activeRunIndex, 0, activeRunImages.length - 1);
-      return activeRunImages[idx] || null;
-    }
-    // fallback: last available
-    return viewerList.length ? viewerList[viewerList.length - 1]! : null;
-  }, [activeRunImages, activeRunIndex, viewerList]);
 
   // Keep active run key in sync when new results arrive.
   useEffect(() => {
@@ -352,7 +327,6 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     const nextKey = getRunKey(last);
     if (nextKey) {
       setActiveRunKey(nextKey);
-      setActiveRunIndex(0);
     }
   }, [viewerList, activeRunKey, getRunKey]);
 
@@ -435,7 +409,7 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       if (!response.ok) throw new Error("download_failed");
       const blob = await response.blob();
       const mime = String(blob.type || "").toLowerCase();
-      const preferred = String((image as any)?.settings?.outputFormat || "").toLowerCase();
+      const preferred = String(image.settings?.outputFormat || "").toLowerCase();
       const ext =
         mime.includes("png") ? "png" :
         mime.includes("webp") ? "webp" :
@@ -459,53 +433,6 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       toast.error("Ошибка при скачивании");
     }
   }, [viewerImage]);
-
-  const downloadImage = useCallback(async (image: GenerationResult | null) => {
-    if (!image?.url) return;
-    try {
-      const isDemo = String(image.id || "").startsWith("demo-");
-      const genId = extractGenerationUuid(image.id);
-      const downloadUrl = !isDemo && genId
-        ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original`
-        : image.url;
-      const response = await fetch(downloadUrl, { credentials: "include" });
-      if (!response.ok) throw new Error("download_failed");
-      const blob = await response.blob();
-      const mime = String(blob.type || "").toLowerCase();
-      const preferred = String((image as any)?.settings?.outputFormat || "").toLowerCase();
-      const ext =
-        mime.includes("png") ? "png" :
-        mime.includes("webp") ? "webp" :
-        mime.includes("jpeg") || mime.includes("jpg") ? "jpg" :
-        preferred === "webp" ? "webp" :
-        preferred === "jpg" ? "jpg" :
-        "png";
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `lensroom-${image.id}.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      toast.success("Изображение скачано");
-    } catch {
-      try {
-        window.open(image.url, "_blank");
-      } catch {}
-      toast.error("Ошибка при скачивании");
-    }
-  }, []);
-
-  const toggleFavoriteForImage = useCallback(async (image: GenerationResult | null) => {
-    if (!image?.id) return;
-    if (String(image.id).startsWith("demo-") || String(image.id).startsWith("pending_")) return;
-    try {
-      await toggleFavorite(image.id);
-    } catch {
-      toast.error("Не удалось сохранить");
-    }
-  }, [toggleFavorite]);
 
   const handleViewerCopyLink = useCallback(async () => {
     const url = String(viewerImage?.url || "").trim();
@@ -611,13 +538,13 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     if (isToolModel) {
       // Tool models: use qualityLabel as a UI option (e.g. Topaz 2x/4x) for pricing only
       const q = apiQualityFromLabel(selectedModelId, qualityLabel);
-      const price = computePrice(selectedModelId, { variants: 1, quality: q as any });
+      const price = computePrice(selectedModelId, { variants: 1, quality: q ?? undefined });
       return price.stars;
     }
     const q = apiQualityFromLabel(selectedModelId, qualityLabel);
     // Grok Imagine returns 6 images per single run; price is per run, not per image.
     const priceVariants = selectedModelId === "grok-imagine" ? 1 : quantity;
-    const price = computePrice(selectedModelId, { variants: priceVariants, quality: q as any });
+    const price = computePrice(selectedModelId, { variants: priceVariants, quality: q ?? undefined });
     return price.stars;
   }, [photoModel, selectedModelId, qualityLabel, quantity, isToolModel]);
 
@@ -976,7 +903,6 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       };
       setLocalItems((prev) => [...prev, pending]);
       setActiveRunKey(runKey);
-      setActiveRunIndex(0);
 
       try {
         await generateOne(pending.id, generationPrompt, settings, refDataUrl ? [refDataUrl] : [], null);
@@ -1109,16 +1035,6 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadsLoaded, threadsLoading, threadsError, threads, selectedThreadId, selectedModelId, isAuthenticated, authLoading]);
 
-  const handleModelChange = useCallback(
-    (modelId: string) => {
-      // Model change must NOT create a new project. Keep `project` if present.
-      router.push(`/create/studio${buildSearchParams(searchParams, { model: modelId })}`, {
-        scroll: false,
-      });
-    },
-    [router, searchParams]
-  );
-
   const handleSelectThread = useCallback(
     (threadId: string) => {
       router.push(`/create/studio${buildSearchParams(searchParams, { model: selectedModelId, project: threadId, thread: null })}`, {
@@ -1214,7 +1130,6 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     // Add pending items at the end (bottom of gallery)
     setLocalItems((prev) => [...prev, ...pendingBatch]);
     setActiveRunKey(runKey);
-    setActiveRunIndex(0);
 
     setIsGeneratingBatch(true);
     try {
@@ -1252,9 +1167,14 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
         if (!jobId) throw new Error("Нет jobId для отслеживания");
 
         const jobData = await pollJob(jobId, provider);
-        const urls: string[] = Array.isArray(jobData?.results)
-          ? jobData.results.map((r: any) => String(r?.url || "")).filter((u: string) => !!u)
-          : [];
+        const results = Array.isArray(jobData?.results) ? jobData.results : [];
+        const urls: string[] = results
+          .map((r) => {
+            if (!r || typeof r !== "object") return "";
+            const urlValue = (r as { url?: unknown }).url;
+            return String(urlValue || "");
+          })
+          .filter((u) => !!u);
         if (!urls.length) throw new Error("Не удалось получить результат");
 
         const limited = urls.slice(0, n);
@@ -1319,85 +1239,13 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     supportsI2i,
     referenceImages,
     generateOne,
+    pollJob,
     startTelegramLogin,
     invalidateCache,
     refreshHistory,
     refreshCredits,
     updateLocalItem,
   ]);
-
-  const mobilePrev = useCallback(() => {
-    const list = activeRunImages;
-    if (!list.length) return;
-    setActiveRunIndex((i) => (i - 1 + list.length) % list.length);
-  }, [activeRunImages]);
-
-  const mobileNext = useCallback(() => {
-    const list = activeRunImages;
-    if (!list.length) return;
-    setActiveRunIndex((i) => (i + 1) % list.length);
-  }, [activeRunImages]);
-
-  const mobileCopyLink = useCallback(async () => {
-    const url = String(activeMobileImage?.url || "").trim();
-    if (!url) return;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Ссылка скопирована");
-    } catch {
-      toast.error("Не удалось скопировать");
-    }
-  }, [activeMobileImage]);
-
-  const mobileShare = useCallback(async () => {
-    const image = activeMobileImage;
-    if (!image?.url) return;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "LensRoom",
-          text: image.prompt || "",
-          url: image.url,
-        });
-      } else {
-        await navigator.clipboard.writeText(image.url);
-        toast.success("Ссылка скопирована");
-      }
-    } catch {
-      // ignore cancel
-    }
-  }, [activeMobileImage]);
-
-  const mobileRegenerate = useCallback(() => {
-    const image = activeMobileImage;
-    if (!image) return;
-    const p = String(image.prompt || "").trim();
-    if (p) setPrompt(p);
-    if (typeof image.settings?.negativePrompt === "string") setNegativePrompt(image.settings.negativePrompt);
-    if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
-    if (typeof image.settings?.quality === "string") {
-      setQualityLabel(qualityLabelFromApi(String(image.settings?.model || selectedModelId), image.settings.quality));
-    }
-    toast("Промпт подставлен. Нажмите «Сгенерировать».", { duration: 3000 });
-  }, [activeMobileImage, selectedModelId]);
-
-  const mobileUseAsReference = useCallback(async () => {
-    const image = activeMobileImage;
-    if (!image?.url) return;
-    if (!supportsI2i) {
-      toast.error("Эта модель не поддерживает референс");
-      return;
-    }
-    try {
-      const dataUrl = await fetchGenerationAsDataUrl(image);
-      setReferenceImages([dataUrl]);
-      setPrompt(String(image.prompt || ""));
-      if (typeof image.settings?.size === "string") setAspectRatio(normalizeAspect(image.settings.size) || "1:1");
-      toast.success("Добавлено как референс");
-    } catch {
-      toast.error("Не удалось загрузить референс");
-    }
-  }, [activeMobileImage, supportsI2i, fetchGenerationAsDataUrl]);
 
   const handleImageClick = useCallback((image: GenerationResult) => {
     if (!image) return;
@@ -1444,11 +1292,11 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
               layout="grid"
               fullWidth
               autoScrollToBottom
+              autoScrollBehavior="always"
               onImageClick={(img) => {
                 const key = getRunKey(img);
                 if (key) {
                   setActiveRunKey(key);
-                  setActiveRunIndex(0);
                 }
                 setViewerImage(img);
               }}
@@ -1504,15 +1352,25 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
           }}
         />
 
-        {/* Desktop: full-screen gallery */}
+        {/* Desktop: full-screen gallery with zoom */}
         <div className="hidden md:flex flex-col flex-1 min-h-0">
-          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto min-h-0 pb-44">
+          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pb-44">
+            <div
+              style={{
+                transform: `scale(${galleryZoom})`,
+                transformOrigin: 'top left',
+                width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+                minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+              }}
+            >
             <ImageGalleryMasonry
               images={effectiveImages}
               isGenerating={false}
               layout="grid"
               fullWidth
-              autoScrollToBottom={false}
+              autoScrollToBottom
+              autoScrollBehavior="always"
+              scrollContainerRef={desktopGalleryRef}
               onImageClick={handleImageClick}
               onUseAsReference={supportsI2i ? handleUseAsReferenceFromGallery : undefined}
               enableDragDrop={isToolModel && supportsI2i}
@@ -1530,12 +1388,16 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
               onLoadMore={isToolModel ? undefined : loadMore}
               isLoadingMore={isLoadingMore}
             />
+            </div>
           </div>
         </div>
 
         {/* Bottom control bar - fixed outside gallery container */}
         <div className="hidden md:block">
           <ControlBarBottom
+            showGalleryZoom
+            galleryZoom={galleryZoom}
+            onGalleryZoomChange={setGalleryZoom}
             prompt={prompt}
             onPromptChange={setPrompt}
             aspectRatio={aspectRatio}
@@ -1651,4 +1513,3 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     </div>
   );
 }
-

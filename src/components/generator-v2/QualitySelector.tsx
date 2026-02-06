@@ -26,6 +26,25 @@ const QUALITY_INFO: Record<string, { label: string; description: string; badge?:
     description: 'Ultra · Highest Detail, Longer Processing',
     badge: 'Premium',
   },
+  '8K': {
+    label: '8K',
+    description: 'Max Detail · Best For Large Prints',
+    badge: 'Ultra',
+  },
+  // Lowercase variants
+  '1k': { label: '1K', description: 'Fast · Quick Generation, Good Resolution' },
+  '2k': { label: '2K', description: 'Balanced · Recommended For Most Use Cases' },
+  '4k': { label: '4K', description: 'Ultra · Highest Detail, Longer Processing', badge: 'Premium' },
+  '8k': { label: '8K', description: 'Max Detail · Best For Large Prints', badge: 'Ultra' },
+  // Seedream
+  'basic': { label: 'Basic (2K)', description: 'Balanced · 2K quality' },
+  'high': { label: 'High (4K)', description: 'Ultra · 4K quality', badge: 'Premium' },
+  // GPT Image 1.5
+  'medium': { label: 'Medium', description: 'Standard · Faster generation' },
+  // Grok Imagine (if used in generic selector)
+  'normal': { label: 'Normal', description: 'Balanced · Default mode' },
+  'fun': { label: 'Fun', description: 'Creative · More playful results' },
+  'spicy': { label: 'Spicy', description: 'Bold · Most creative' },
 };
 
 export function QualitySelector({ value, onChange, disabled, options }: QualitySelectorProps) {

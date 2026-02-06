@@ -175,11 +175,8 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                             {/* Models Grid - Clean style like syntx.ai */}
                             <div className="p-3 grid grid-cols-2 gap-1">
                               {MODELS[item.dropdown].map((model: any) => {
-                                // Special handling for Motion Control - use motion section
-                                const section = model.id === 'kling-motion-control' 
-                                  ? 'motion' 
-                                  : (item.dropdown === 'design' ? 'photo' : item.dropdown);
-                                
+                                // Motion Control: same video generator, opens on "Движение" tab (section=video)
+                                const section = item.dropdown === 'design' ? 'photo' : item.dropdown;
                                 return (
                                   <Link
                                     key={model.id}
@@ -541,7 +538,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                     <p className="text-xs font-semibold text-[var(--text)]">Видео</p>
                   </Link>
                   <Link
-                    href="/create/studio?section=motion"
+                    href="/create/studio?section=video&model=kling-motion-control"
                     onClick={() => setMobileMenuOpen(false)}
                     className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-orange-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
                   >

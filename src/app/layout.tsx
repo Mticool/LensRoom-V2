@@ -4,6 +4,10 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { Analytics } from "@/components/analytics/Analytics";
+import { ChunkErrorHandler } from "@/components/ChunkErrorHandler";
+
+// После деплоя всегда отдаём свежий HTML с актуальными чанками (нет x-nextjs-cache: HIT)
+export const dynamic = "force-dynamic";
 
 // Optimized font loading with next/font
 const inter = Inter({
@@ -281,6 +285,7 @@ export default function RootLayout({
         ))}
       </head>
       <body className={`${inter.className} antialiased`}>
+        <ChunkErrorHandler />
         <Analytics 
           gaId={process.env.NEXT_PUBLIC_GA_ID} 
           ymId={process.env.NEXT_PUBLIC_YM_ID} 

@@ -1,7 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useMemo, useCallback, memo } from 'react';
-import { Sparkles, Loader2, ChevronUp, Star, Settings, X } from 'lucide-react';
+import { Sparkles, Loader2, ChevronUp, Star, Settings, X, Minus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { AspectRatioSelector } from './AspectRatioSelector';
 import { QualitySelector } from './QualitySelector';
@@ -9,6 +10,7 @@ import { QuantityCounter } from './QuantityCounter';
 import { PromptInput } from './PromptInput';
 import { AdvancedSettingsCollapse } from './AdvancedSettingsCollapse';
 import { getModelById } from '@/config/models';
+import { uploadReferenceFiles } from "@/lib/supabase/upload-reference";
 
 interface ControlBarBottomProps {
   prompt: string;
@@ -42,6 +44,8 @@ interface ControlBarBottomProps {
   onReferenceImagesChange?: (value: string[]) => void;
   onReferenceFileChange?: (file: File | null) => void;
   supportsI2i?: boolean;
+  requiresReferenceImage?: boolean;
+  requiresPrompt?: boolean;
   // Advanced settings
   negativePrompt?: string;
   onNegativePromptChange?: (value: string) => void;
@@ -49,7 +53,18 @@ interface ControlBarBottomProps {
   onSeedChange?: (value: number | null) => void;
   steps?: number;
   onStepsChange?: (value: number) => void;
+  /** Gallery zoom (0.5–1.5). When set, show +/- controls in the bar. */
+  showGalleryZoom?: boolean;
+  galleryZoom?: number;
+  onGalleryZoomChange?: (zoom: number) => void;
+  quantityMaxOverride?: number;
 }
+
+type PhotoModelMeta = {
+  maxInputImages?: number;
+  inputImageFormats?: Array<'jpeg' | 'png' | 'webp'>;
+  maxInputImageSizeMb?: number;
+};
 
 const ControlBarBottomComponent = ({
   prompt,
@@ -80,12 +95,18 @@ const ControlBarBottomComponent = ({
   onReferenceImagesChange,
   onReferenceFileChange,
   supportsI2i = true,
+  requiresReferenceImage,
+  requiresPrompt,
   negativePrompt,
   onNegativePromptChange,
   seed,
   onSeedChange,
   steps,
   onStepsChange,
+  showGalleryZoom = false,
+  galleryZoom = 1,
+  onGalleryZoomChange,
+  quantityMaxOverride,
 }: ControlBarBottomProps) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
@@ -109,8 +130,10 @@ const ControlBarBottomComponent = ({
   // Most photo models in our UI allow up to 4 parallel generations per click.
   // Grok Imagine returns 6 images per run on upstream (fixed output count).
   const quantityMax = useMemo(() =>
-    isToolModel ? 1 : isGrokImagine ? 6 : 4,
-    [isToolModel, isGrokImagine]
+    typeof quantityMaxOverride === 'number'
+      ? Math.max(1, quantityMaxOverride)
+      : (isToolModel ? 1 : isGrokImagine ? 6 : 4),
+    [quantityMaxOverride, isToolModel, isGrokImagine]
   );
 
   const uploadTitle = useMemo(() =>
@@ -133,8 +156,8 @@ const ControlBarBottomComponent = ({
     [modelId]
   );
 
-  const photoModel = useMemo(() =>
-    model && model.type === "photo" ? (model as any) : null,
+  const photoModel = useMemo<PhotoModelMeta | null>(() =>
+    model && model.type === "photo" ? (model as PhotoModelMeta) : null,
     [model]
   );
 
@@ -155,15 +178,25 @@ const ControlBarBottomComponent = ({
     [referenceList]
   );
 
+  const needsPrompt = useMemo(() =>
+    typeof requiresPrompt === 'boolean' ? requiresPrompt : !isToolModel,
+    [requiresPrompt, isToolModel]
+  );
+
+  const needsReference = useMemo(() =>
+    typeof requiresReferenceImage === 'boolean' ? requiresReferenceImage : isToolModel,
+    [requiresReferenceImage, isToolModel]
+  );
+
   const promptPlaceholder = useMemo(() =>
-    isToolModel
+    needsReference
       ? (hasAnyReference
-          ? `${displayName}: (опционально) комментарий...`
+          ? `${displayName}: Опишите что изменить...`
           : `${displayName}: сначала загрузите фото слева`)
       : (hasAnyReference
           ? `${displayName}: Опишите что изменить...`
           : `${displayName}: Опишите сцену...`),
-    [isToolModel, hasAnyReference, displayName]
+    [needsReference, hasAnyReference, displayName]
   );
 
   const allowedInputFormats: Array<'jpeg' | 'png' | 'webp'> | null = useMemo(() =>
@@ -254,6 +287,21 @@ const ControlBarBottomComponent = ({
     }
 
     try {
+      // Prefer uploading to storage to avoid sending large base64 in /api/generate/photo.
+      let uploadedUrls: string[] = [];
+      try {
+        uploadedUrls = await uploadReferenceFiles(picked, { prefix: "ref" });
+      } catch (uploadErr) {
+        console.warn("[Reference] Upload failed, falling back to base64:", uploadErr);
+      }
+
+      if (uploadedUrls.length === picked.length) {
+        const next = isToolModel ? [uploadedUrls[0]!] : [...current, ...uploadedUrls];
+        updateReferences(next, picked);
+        toast.success(isToolModel ? "Изображение загружено" : `Добавлено: ${uploadedUrls.length}`);
+        return;
+      }
+
       const encoded = await Promise.all(picked.map((f) => readFileAsDataUrl(f)));
       for (const b64 of encoded) {
         if (b64.length > MAX_IMAGE_SIZE_BYTES * 1.4) {
@@ -278,32 +326,19 @@ const ControlBarBottomComponent = ({
     updateReferences(next);
   }, [referenceList, updateReferences]);
 
-  const normalizeToOption = useCallback((value: string, options: string[]): string | null => {
-    const raw = String(value || "").trim();
-    if (!raw) return null;
-    if (options.includes(raw)) return raw;
-    const lowered = raw.toLowerCase();
-    // Common mappings between API values and UI labels
-    const guess = (() => {
-      if (lowered === "basic") return "Basic";
-      if (lowered === "high") return "High";
-      if (lowered === "turbo") return "Turbo";
-      if (lowered === "balanced") return "Balanced";
-      if (lowered === "quality") return "Quality";
-      if (lowered === "fast") return "Fast";
-      if (lowered === "ultra") return "Ultra";
-      if (lowered === "1k") return "1K";
-      if (lowered === "2k") return "2K";
-      if (lowered === "4k") return "4K";
-      if (lowered === "8k") return "8K";
-      return raw;
-    })();
-    return options.includes(guess) ? guess : null;
-  }, []);
-
   const hasEnoughCredits = useMemo(() =>
     credits >= estimatedCost,
     [credits, estimatedCost]
+  );
+
+  const showAspectRatio = useMemo(() =>
+    !isToolModel && (aspectRatioOptions?.length ?? 0) > 0,
+    [isToolModel, aspectRatioOptions]
+  );
+
+  const showQuality = useMemo(() =>
+    (qualityOptions?.length ?? 0) > 0,
+    [qualityOptions]
   );
 
   const isDisabled = useMemo(() =>
@@ -311,10 +346,11 @@ const ControlBarBottomComponent = ({
     [disabled, isGenerating]
   );
 
-  const hasRequiredInput = useMemo(() =>
-    isToolModel ? hasAnyReference : prompt.trim().length > 0,
-    [isToolModel, hasAnyReference, prompt]
-  );
+  const hasRequiredInput = useMemo(() => {
+    if (needsPrompt && prompt.trim().length === 0) return false;
+    if (needsReference && !hasAnyReference) return false;
+    return true;
+  }, [needsPrompt, needsReference, prompt, hasAnyReference]);
 
   const canGenerate = useMemo(() =>
     isAuthenticated && hasRequiredInput && !isDisabled && hasEnoughCredits,
@@ -333,11 +369,11 @@ const ControlBarBottomComponent = ({
     }
     if (canGenerate) onGenerate();
     else {
-      if (isToolModel && !hasAnyReference) toast.error("Загрузите изображение");
-      else if (!isToolModel && prompt.trim().length === 0) toast.error("Введите промпт");
+      if (needsReference && !hasAnyReference) toast.error("Загрузите изображение");
+      else if (needsPrompt && prompt.trim().length === 0) toast.error("Введите промпт");
       else if (!hasEnoughCredits) toast.error("Недостаточно звёзд");
     }
-  }, [isAuthenticated, canGenerate, onRequireAuth, onGenerate, isToolModel, hasAnyReference, prompt, hasEnoughCredits]);
+  }, [isAuthenticated, canGenerate, onRequireAuth, onGenerate, needsReference, hasAnyReference, needsPrompt, prompt, hasEnoughCredits]);
 
   return (
     <>
@@ -357,10 +393,18 @@ const ControlBarBottomComponent = ({
             <div className="flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-[#f59e0b]" />
               <span className="text-xs font-medium text-white/80">{displayName}</span>
-              <span className="text-[10px] text-white/40">•</span>
-              <span className="text-[10px] text-white/50">{aspectRatio}</span>
-              <span className="text-[10px] text-white/50">•</span>
-              <span className="text-[10px] text-white/50">{quality}</span>
+              {showAspectRatio && (
+                <>
+                  <span className="text-[10px] text-white/40">•</span>
+                  <span className="text-[10px] text-white/50">{aspectRatio}</span>
+                </>
+              )}
+              {showQuality && (
+                <>
+                  <span className="text-[10px] text-white/50">•</span>
+                  <span className="text-[10px] text-white/50">{quality}</span>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <Star className="w-3 h-3 text-[#f59e0b]" />
@@ -370,15 +414,41 @@ const ControlBarBottomComponent = ({
           
           {/* Controls row */}
           <div className="flex items-end gap-3">
+            {/* Mobile gallery zoom */}
+            {showGalleryZoom && onGalleryZoomChange && (
+              <div className="flex items-center gap-0.5 py-1.5 px-1.5 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onGalleryZoomChange(Math.max(0.5, (galleryZoom ?? 1) - 0.1))}
+                  disabled={(galleryZoom ?? 1) <= 0.5}
+                  className="flex items-center justify-center w-7 h-7 rounded text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40"
+                  title="Уменьшить"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[10px] font-medium text-white/80 min-w-[2rem] text-center">
+                  {Math.round((galleryZoom ?? 1) * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onGalleryZoomChange(Math.min(1.5, (galleryZoom ?? 1) + 0.1))}
+                  disabled={(galleryZoom ?? 1) >= 1.5}
+                  className="flex items-center justify-center w-7 h-7 rounded text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40"
+                  title="Увеличить"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             {/* Prompt input */}
             <div className="flex-1 min-w-0">
-              <PromptInput
-                value={prompt}
-                onChange={onPromptChange}
-                disabled={isGenerating}
-                placeholder={isToolModel ? "Комментарий (опционально)..." : "Опишите изображение..."}
-                onSubmit={handleSubmit}
-              />
+            <PromptInput
+              value={prompt}
+              onChange={onPromptChange}
+              disabled={isGenerating}
+              placeholder={promptPlaceholder}
+              onSubmit={handleSubmit}
+            />
             </div>
 
             {/* Settings button */}
@@ -514,6 +584,33 @@ const ControlBarBottomComponent = ({
 
           {/* Line 2: Model + Controls + Generate */}
           <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible no-scrollbar pb-1">
+            {/* Gallery zoom (слева, только если передан showGalleryZoom) */}
+            {showGalleryZoom && onGalleryZoomChange && (
+              <div className="flex items-center gap-1 px-2 py-1.5 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onGalleryZoomChange(Math.max(0.5, (galleryZoom ?? 1) - 0.1))}
+                  disabled={(galleryZoom ?? 1) <= 0.5}
+                  className="flex items-center justify-center w-8 h-8 rounded-md text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Уменьшить галерею"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-medium text-white/80 min-w-[2.5rem] text-center" title="Масштаб галереи">
+                  {Math.round((galleryZoom ?? 1) * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onGalleryZoomChange(Math.min(1.5, (galleryZoom ?? 1) + 0.1))}
+                  disabled={(galleryZoom ?? 1) >= 1.5}
+                  className="flex items-center justify-center w-8 h-8 rounded-md text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Увеличить галерею"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Model Badge (слева) */}
             <div className="flex items-center gap-2 px-3 py-2 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg">
               <Sparkles className="w-4 h-4 text-[#f59e0b]" />
@@ -522,21 +619,25 @@ const ControlBarBottomComponent = ({
               </span>
             </div>
 
-            {/* Aspect Ratio - ВСЕГДА АКТИВЕН */}
-            <AspectRatioSelector
-              value={aspectRatio}
-              onChange={onAspectRatioChange}
-              disabled={isGenerating || isToolModel}
-              options={aspectRatioOptions}
-            />
+            {/* Aspect Ratio */}
+            {showAspectRatio && (
+              <AspectRatioSelector
+                value={aspectRatio}
+                onChange={onAspectRatioChange}
+                disabled={isGenerating || isToolModel}
+                options={aspectRatioOptions}
+              />
+            )}
             
-            {/* Quality - ВСЕГДА АКТИВЕН */}
-            <QualitySelector
-              value={quality}
-              onChange={onQualityChange}
-              disabled={isGenerating}
-              options={qualityOptions}
-            />
+            {/* Quality */}
+            {showQuality && (
+              <QualitySelector
+                value={quality}
+                onChange={onQualityChange}
+                disabled={isGenerating}
+                options={qualityOptions}
+              />
+            )}
 
             {/* Output format (photo only) */}
             {onOutputFormatChange && outputFormatOptions.length > 0 && (
@@ -562,13 +663,13 @@ const ControlBarBottomComponent = ({
               </div>
             )}
             
-            {/* Quantity Counter - ВСЕГДА АКТИВЕН */}
+            {/* Quantity Counter */}
             <QuantityCounter
               value={quantity}
               onChange={onQuantityChange}
               min={1}
               max={quantityMax}
-              disabled={isGenerating || isToolModel || isGrokImagine}
+              disabled={isGenerating || isToolModel || isGrokImagine || quantityMax <= 1}
             />
 
             {/* Spacer - push desktop Generate to the right */}
@@ -595,9 +696,9 @@ const ControlBarBottomComponent = ({
                   ? "Войти через Telegram"
                   : !hasEnoughCredits
                     ? `Недостаточно звёзд (нужно ${estimatedCost}⭐, есть ${credits}⭐)`
-                    : isToolModel && !hasAnyReference
+                    : needsReference && !hasAnyReference
                       ? "Загрузите изображение"
-                      : !isToolModel && prompt.trim().length === 0
+                      : needsPrompt && prompt.trim().length === 0
                         ? "Введите промпт"
                         : ""
               }
@@ -682,7 +783,7 @@ const ControlBarBottomComponent = ({
             </div>
 
             {/* Aspect Ratio */}
-            {!isToolModel && (
+            {showAspectRatio && (
               <div className="space-y-2">
                 <div className="text-xs text-[#A1A1AA] uppercase tracking-wider">Пропорции</div>
                 <div className="flex gap-2 flex-wrap">
@@ -708,11 +809,11 @@ const ControlBarBottomComponent = ({
             )}
 
             {/* Quality */}
-            {qualityOptions && qualityOptions.length > 0 && (
+            {showQuality && (
               <div className="space-y-2">
                 <div className="text-xs text-[#A1A1AA] uppercase tracking-wider">Качество</div>
                 <div className="flex gap-2 flex-wrap">
-                  {qualityOptions.map((q) => (
+                  {(qualityOptions ?? []).map((q) => (
                     <button
                       key={q}
                       type="button"
@@ -767,7 +868,7 @@ const ControlBarBottomComponent = ({
                   <button
                     type="button"
                     onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
-                    disabled={isGenerating || isGrokImagine || quantity <= 1}
+                    disabled={isGenerating || isGrokImagine || quantity <= 1 || quantityMax <= 1}
                     className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
                   >
                     -
@@ -776,7 +877,7 @@ const ControlBarBottomComponent = ({
                   <button
                     type="button"
                     onClick={() => onQuantityChange(Math.min(quantityMax, quantity + 1))}
-                    disabled={isGenerating || isGrokImagine || quantity >= quantityMax}
+                    disabled={isGenerating || isGrokImagine || quantity >= quantityMax || quantityMax <= 1}
                     className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
                   >
                     +

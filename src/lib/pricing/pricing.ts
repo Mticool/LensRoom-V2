@@ -75,7 +75,7 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
     return 'nano_banana_pro:2k';
   }
 
-  if (normalizedModelId === 'seedream_4_5') {
+  if (normalizedModelId === 'seedream_4_5' || normalizedModelId === 'seedream_4_5_edit') {
     return 'seedream_4_5:image';
   }
 

@@ -18,14 +18,32 @@ export function ImageCard({ image, onClick }: ImageCardProps) {
     try {
       const response = await fetch(image.url);
       const blob = await response.blob();
+
+      // Detect file extension from MIME type
+      const mime = String(blob.type || "").toLowerCase();
+      const ext =
+        mime.includes("png") ? "png" :
+        mime.includes("webp") ? "webp" :
+        mime.includes("jpeg") || mime.includes("jpg") ? "jpg" :
+        "png";
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `lensroom-${image.id}.png`;
+      a.download = `lensroom-${image.id}.${ext}`;
+      a.style.display = 'none';
+
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+
+      // Use setTimeout for better mobile compatibility
+      setTimeout(() => {
+        a.click();
+
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      }, 0);
     } catch (error) {
       console.error('Download failed:', error);
     }

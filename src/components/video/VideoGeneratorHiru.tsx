@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo, memo } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Sparkles, ChevronDown, Info, X, Check, Upload, Image as ImageIcon, Video as VideoIcon, User, Film } from 'lucide-react';
 import { toast } from 'sonner';
 import { VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
@@ -8,6 +9,7 @@ import { VIDEO_MODELS_CONFIG, getDefaultVideoSettings } from '@/config/video-mod
 import { VIDEO_MODELS as CAPABILITY_MODELS, getModelCapability, getDefaultsForModel, getCapabilitySummary } from '@/lib/videoModels/capabilities';
 import type { ModelCapability } from '@/lib/videoModels/schema';
 import { computePrice } from '@/lib/pricing/compute-price';
+import { calcMotionControlStars } from '@/lib/pricing/motionControl';
 
 // Gradient backgrounds for each model
 const MODEL_GRADIENTS: Record<string, string> = {
@@ -24,6 +26,8 @@ const MODEL_GRADIENTS: Record<string, string> = {
 type Tab = 'create' | 'motion';
 
 interface VideoGeneratorHiruProps {
+  /** Model id from URL — opens with this model selected */
+  initialModel?: string;
   onGenerate?: (params: any) => void;
   onRatioChange?: (newRatio: string) => void;
   isGeneratingProp?: boolean;
@@ -95,9 +99,10 @@ const Dropdown = memo(({ label, value, options, onChange }: DropdownProps) => {
     );
 });
 
-const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingProp = false }: VideoGeneratorHiruProps) => {
-  // Main tabs
-  const [activeTab, setActiveTab] = useState<Tab>('create');
+const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, isGeneratingProp = false }: VideoGeneratorHiruProps) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Model selection
   const STANDARD_MODELS = useMemo(
@@ -108,10 +113,57 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     () => VIDEO_MODELS.find(m => m.id === 'kling-motion-control'),
     []
   );
-  
-  const [selectedModel, setSelectedModel] = useState(STANDARD_MODELS[0]?.id || 'veo-3.1-fast');
+
+  const defaultModel = STANDARD_MODELS[0]?.id || 'veo-3.1-fast';
+  const validInitialModel = initialModel && VIDEO_MODELS.some(m => m.id === initialModel) ? initialModel : null;
+  const initialSelectedModel = validInitialModel ?? defaultModel;
+  const initialDefaults = getDefaultsForModel(initialSelectedModel);
+  const initialConfigDefaults = getDefaultVideoSettings(initialSelectedModel);
+  const initialKlingDuration =
+    initialSelectedModel === 'kling-2.6' ||
+    initialSelectedModel === 'kling-2.5' ||
+    initialSelectedModel === 'kling-2.1'
+      ? 5
+      : undefined;
+  const [selectedModel, setSelectedModel] = useState(initialSelectedModel);
   const [showModelSelector, setShowModelSelector] = useState(false);
-  
+  const isMotionModel = selectedModel === 'kling-motion-control';
+
+  // Motion Control from URL: open on "Движение" tab
+  const initialTab: Tab = validInitialModel === 'kling-motion-control' ? 'motion' : 'create';
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+
+  // Sync selected model and tab when URL initialModel changes (e.g. user navigates via header)
+  useEffect(() => {
+    const valid = initialModel && VIDEO_MODELS.some(m => m.id === initialModel);
+    if (valid) {
+      setSelectedModel(initialModel);
+      if (initialModel === 'kling-motion-control') setActiveTab('motion');
+      else setActiveTab('create');
+    }
+  }, [initialModel]);
+
+  const switchToModel = useCallback((modelId: string, nextTab: Tab) => {
+    setSelectedModel(modelId);
+    setActiveTab(nextTab);
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
+    params.set('section', 'video');
+    params.set('model', modelId);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const handleMotionTabClick = useCallback(() => {
+    if (isMotionModel) {
+      setActiveTab('motion');
+      return;
+    }
+    if (MOTION_MODEL) {
+      switchToModel(MOTION_MODEL.id, 'motion');
+    } else {
+      toast.error('Модель Motion Control временно недоступна');
+    }
+  }, [isMotionModel, MOTION_MODEL, switchToModel]);
+
   // Files
   const [startFrame, setStartFrame] = useState<File | null>(null);
   const [endFrame, setEndFrame] = useState<File | null>(null);
@@ -125,12 +177,17 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
   
   // Settings
   const [prompt, setPrompt] = useState('');
+  const [negativePrompt, setNegativePrompt] = useState('');
   const [quality, setQuality] = useState('720p');
   const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [duration, setDuration] = useState(8);
-  const [sceneControlMode, setSceneControlMode] = useState<'video' | 'image'>('video');
+  const [duration, setDuration] = useState(
+    initialDefaults?.durationSec ?? initialConfigDefaults?.duration_seconds ?? initialKlingDuration ?? 5
+  );
+  const [sceneControlMode, setSceneControlMode] = useState<'video' | 'image'>('image');
   const [mode, setMode] = useState<'t2v' | 'i2v' | 'v2v' | 'start_end' | 'extend'>('t2v');
   const [style, setStyle] = useState<string>('');
+  const [cfgScale, setCfgScale] = useState<number>(7.5);
+  const [cameraControlJson, setCameraControlJson] = useState<string>('{}');
   
   // Extend mode state
   const [sourceGenerationId, setSourceGenerationId] = useState<string | null>(null);
@@ -138,6 +195,10 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
   const [cameraMotion, setCameraMotion] = useState<string>('static');
   const [stylePreset, setStylePreset] = useState<string>('');
   const [motionStrength, setMotionStrength] = useState(50);
+  
+  // Motion Control tab: quality (720p/1080p) and video duration (from uploaded file)
+  const [motionQuality, setMotionQuality] = useState<'720p' | '1080p'>('720p');
+  const [motionVideoDurationSec, setMotionVideoDurationSec] = useState<number | null>(null);
   
   // Use prop for loading state if provided, otherwise local state
   const isGenerating = isGeneratingProp;
@@ -147,6 +208,10 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     () => VIDEO_MODELS.find(m => m.id === selectedModel) as VideoModelConfig | undefined,
     [selectedModel]
   );
+  const isKling26 = selectedModel === 'kling-2.6';
+  const isKling25 = selectedModel === 'kling-2.5';
+  const isKling21 = selectedModel === 'kling-2.1';
+  const isKlingModel = isKling21 || isKling25 || isKling26;
   const currentGradient = useMemo(
     () => MODEL_GRADIENTS[selectedModel] || 'from-blue-600 to-purple-600',
     [selectedModel]
@@ -156,11 +221,22 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     [selectedModel]
   );
 
+
   // NEW: Get capability-based config
   const capability = useMemo(
     () => getModelCapability(selectedModel),
     [selectedModel]
   );
+  
+  useEffect(() => {
+    if (activeTab === 'motion') {
+      setAspectRatio('source');
+      return;
+    }
+    if (aspectRatio === 'source' && capability?.supportedAspectRatios?.length) {
+      setAspectRatio(capability.supportedAspectRatios[0]);
+    }
+  }, [activeTab, aspectRatio, capability?.supportedAspectRatios]);
   
   // Update settings when model changes - reset invalid values
   useEffect(() => {
@@ -171,7 +247,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
         setDuration(defaults.durationSec);
         setQuality(defaults.quality || '720p');
         setAspectRatio(defaults.aspectRatio);
-        setAudioEnabled(false);
+        setAudioEnabled(capability.audioSupport === 'always');
         
         // Reset mode to first supported (exclude motion_control in create tab)
         const modelModes = (capability.supportedModes || []).filter(m => m !== 'motion_control');
@@ -190,6 +266,8 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
         setStartFrame(null);
         setEndFrame(null);
         setV2vVideo(null);
+        setNegativePrompt('');
+        setCfgScale(7.5);
       }
     } else if (modelConfig) {
       const defaults = getDefaultVideoSettings(selectedModel);
@@ -198,6 +276,45 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
       if (defaults.aspect_ratio) setAspectRatio(defaults.aspect_ratio);
     }
   }, [selectedModel, modelConfig, capability]);
+
+  // Kling 2.x defaults: hide quality selector, but keep internal defaults for pricing
+  useEffect(() => {
+    if (isKling26 || isKling25) {
+      setQuality('720p');
+    }
+    if (isKling21) {
+      setQuality((quality === 'standard' || quality === 'pro' || quality === 'master') ? quality : 'standard');
+    }
+  }, [isKling21, isKling25, isKling26, quality]);
+
+  // If user switches away from Motion Control, force create tab
+  useEffect(() => {
+    if (!isMotionModel && activeTab === 'motion') {
+      setActiveTab('create');
+    }
+  }, [isMotionModel, activeTab]);
+
+  // Read duration from motion video when file is selected
+  useEffect(() => {
+    if (!motionVideo) {
+      setMotionVideoDurationSec(null);
+      return;
+    }
+    const url = URL.createObjectURL(motionVideo);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const sec = Math.ceil(video.duration);
+      setMotionVideoDurationSec(sec);
+      URL.revokeObjectURL(url);
+    };
+    video.onerror = () => {
+      setMotionVideoDurationSec(null);
+      URL.revokeObjectURL(url);
+    };
+    video.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [motionVideo]);
 
   // Check what features current model supports (STRICT: capability-driven only)
   const supportedModes = useMemo(
@@ -221,7 +338,11 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     [capability]
   );
   const supportsAudioGeneration = useMemo(
-    () => capability?.supportsSound || false,
+    () => capability?.audioSupport === 'toggle',
+    [capability]
+  );
+  const audioAlwaysOn = useMemo(
+    () => capability?.audioSupport === 'always',
     [capability]
   );
 
@@ -250,6 +371,16 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     [isI2vMode, supportsI2v]
   );
 
+  useEffect(() => {
+    if (isI2vMode && isKlingModel) {
+      setAspectRatio('source');
+      return;
+    }
+    if (aspectRatio === 'source' && capability?.supportedAspectRatios?.length) {
+      setAspectRatio(capability.supportedAspectRatios[0]);
+    }
+  }, [isI2vMode, isKlingModel, capability?.supportedAspectRatios, aspectRatio]);
+
   // Reset incompatible inputs when mode changes
   useEffect(() => {
     if (isT2vMode) {
@@ -260,8 +391,10 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     }
 
     if (isI2vMode) {
-      setStartFrame(null);
-      setEndFrame(null);
+      if (!isKling25) {
+        setStartFrame(null);
+        setEndFrame(null);
+      }
       setV2vVideo(null);
     }
 
@@ -281,7 +414,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
       setEndFrame(null);
       setV2vVideo(null);
     }
-  }, [isT2vMode, isI2vMode, isStartEndMode, isV2vMode, isExtendMode]);
+  }, [isT2vMode, isI2vMode, isStartEndMode, isV2vMode, isExtendMode, isKling25]);
 
   // Load extendable generations when extend mode is active
   useEffect(() => {
@@ -319,13 +452,19 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
   // Get available options for current model (STRICT: capability-driven only)
   const getQualityOptions = useCallback(() => {
     if (!capability?.supportedQualities?.length) return [];
-    return capability.supportedQualities.map(q => ({ value: q, label: q.toUpperCase() }));
+    return capability.supportedQualities.map(q => ({
+      value: q,
+      label: q === 'standard' ? 'Standard' : q === 'pro' ? 'Pro' : q === 'master' ? 'Master' : q.toUpperCase()
+    }));
   }, [capability]);
 
   const getAspectRatioOptions = useCallback(() => {
-    if (!capability?.supportedAspectRatios?.length) return [];
-    return capability.supportedAspectRatios.map(ar => ({ value: ar, label: ar }));
-  }, [capability]);
+    const ratios = capability?.modeAspectRatios?.[mode] || capability?.supportedAspectRatios || [];
+    if (!ratios.length) return [];
+    return ratios
+      .filter(ar => ar !== 'source')
+      .map(ar => ({ value: ar, label: ar }));
+  }, [capability, mode]);
 
   const handleAspectRatioChange = useCallback((newRatio: string) => {
     setAspectRatio(newRatio);
@@ -333,16 +472,49 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
   }, [onRatioChange]);
 
   const getDurationOptions = useCallback(() => {
-    if (!capability?.supportedDurationsSec?.length) return [];
-    return capability.supportedDurationsSec.map(dur => ({ value: dur, label: `${dur}s` }));
-  }, [capability]);
+    const durations = capability?.modeDurationsSec?.[mode] || capability?.supportedDurationsSec || [];
+    if (!durations.length) return [];
+    return durations.map(dur => ({ value: dur, label: `${dur}s` }));
+  }, [capability, mode]);
 
-  const aspectRatioOptions = useMemo(() => getAspectRatioOptions(), [getAspectRatioOptions]);
+  const aspectRatioOptions = useMemo(() => {
+    if (isI2vMode && isKlingModel) {
+      return [{ value: 'source', label: 'Source' }];
+    }
+    return getAspectRatioOptions();
+  }, [getAspectRatioOptions, isI2vMode, isKlingModel]);
   const durationOptions = useMemo(() => getDurationOptions(), [getDurationOptions]);
+  const normalizedDuration = useMemo(() => {
+    const durations = capability?.modeDurationsSec?.[mode] || capability?.supportedDurationsSec || [];
+    if (!durations.length) return duration;
+    return durations.includes(duration)
+      ? duration
+      : durations[0];
+  }, [capability?.modeDurationsSec, capability?.supportedDurationsSec, duration, mode]);
+  const motionMaxDuration = sceneControlMode === 'image' ? 10 : 30;
+  const effectiveMotionDuration = motionVideoDurationSec != null
+    ? Math.min(motionVideoDurationSec, motionMaxDuration)
+    : null;
+
+  // Ensure duration always matches supported options for the current model
+  useEffect(() => {
+    const durations = capability?.modeDurationsSec?.[mode] || capability?.supportedDurationsSec || [];
+    if (!durations.length) return;
+    if (!durations.includes(duration)) {
+      setDuration(durations[0]);
+    }
+  }, [capability?.modeDurationsSec, capability?.supportedDurationsSec, duration, mode]);
   
   // Calculate cost using centralized pricing
   const calculateCost = useCallback(() => {
     try {
+      // Motion Control tab: per-second pricing
+      if (activeTab === 'motion') {
+        const durationSec = motionVideoDurationSec ?? 10;
+        const stars = calcMotionControlStars(durationSec, motionQuality as '720p' | '1080p', true);
+        return stars ?? 0;
+      }
+
       // Determine if quality is a tier (for Kling 2.1) or resolution
       const isTier = ['standard', 'pro', 'master'].includes(quality);
 
@@ -356,7 +528,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
       else if (mode === 'extend') pricingMode = 't2v';
 
       const result = computePrice(selectedModel, {
-        duration,
+        duration: normalizedDuration,
         resolution: isTier ? undefined : quality,
         audio: audioEnabled,
         qualityTier: isTier ? (quality as 'standard' | 'pro' | 'master') : undefined,
@@ -368,7 +540,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
       console.error('Price calculation error:', error);
       return 0;
     }
-  }, [selectedModel, quality, duration, audioEnabled, mode]);
+  }, [activeTab, motionVideoDurationSec, motionQuality, selectedModel, quality, normalizedDuration, audioEnabled, mode]);
 
   const cost = useMemo(() => calculateCost(), [calculateCost]);
   
@@ -378,6 +550,40 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
       toast.error('Пожалуйста, введите описание');
       return;
     }
+    if (isI2vMode && isKling25 && !startFrame) {
+      toast.error('Загрузите первый кадр (обязателен для Kling 2.5 I2V)');
+      return;
+    }
+
+    // Motion Control tab: require motion video, character image, and duration
+    if (activeTab === 'motion') {
+      if (!motionVideo) {
+        toast.error('Загрузите видео с движением (Motion Video)');
+        return;
+      }
+      if (!characterImage) {
+        toast.error('Загрузите изображение персонажа');
+        return;
+      }
+      if (motionVideoDurationSec == null || motionVideoDurationSec < 3) {
+        toast.error('Определяется длительность видео. Подождите или загрузите видео от 3 до 30 сек.');
+        return;
+      }
+      if (!effectiveMotionDuration) {
+        toast.error('Не удалось определить длительность видео');
+        return;
+      }
+      if (!cameraControlJson.trim()) {
+        toast.error('Укажите camera_control (JSON)');
+        return;
+      }
+      try {
+        JSON.parse(cameraControlJson);
+      } catch {
+        toast.error('camera_control должен быть валидным JSON');
+        return;
+      }
+    }
 
     // Extend mode validation
     if (mode === 'extend' && !sourceGenerationId) {
@@ -386,6 +592,40 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     }
 
     try {
+      // Motion tab: always use Kling Motion Control model and mode
+      if (activeTab === 'motion') {
+        if (onGenerate) {
+          await onGenerate({
+            prompt: prompt || 'Motion transfer',
+            model: 'kling-motion-control',
+            duration: effectiveMotionDuration || 10,
+            quality: motionQuality,
+            aspectRatio,
+            startFrame: null,
+            endFrame: null,
+            referenceImage: null,
+            referenceImages: null,
+            motionVideo,
+            characterImage,
+            sceneControlMode,
+            characterOrientation: sceneControlMode,
+            videoDuration: effectiveMotionDuration ?? undefined,
+            audioEnabled: false,
+            mode: 'motion_control',
+            style: '',
+            cameraMotion: 'static',
+            stylePreset: '',
+            motionStrength: 50,
+            v2vVideo: null,
+            sourceGenerationId: null,
+            negativePrompt,
+            cfgScale,
+            cameraControl: cameraControlJson,
+          });
+        }
+        return;
+      }
+
       const effectiveMode = supportedModes.includes(mode) ? mode : (supportedModes[0] || 't2v');
 
       // i2v: use single reference image
@@ -421,8 +661,8 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
         await onGenerate({
           prompt,
           model: selectedModel,
-          duration,
-          quality,
+          duration: normalizedDuration,
+          quality: isKling21 ? undefined : quality,
           aspectRatio,
           startFrame: effectiveStartFrame,
           endFrame: effectiveEndFrame,
@@ -431,14 +671,17 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
           motionVideo,
           characterImage,
           sceneControlMode,
-          audioEnabled,
-          mode: effectiveMode,
-          style,
-          cameraMotion,
-          stylePreset,
-          motionStrength,
+            audioEnabled: audioAlwaysOn ? true : audioEnabled,
+            mode: effectiveMode,
+            style,
+            cameraMotion,
+            stylePreset,
+            motionStrength,
           v2vVideo: effectiveV2vVideo, // For v2v
           sourceGenerationId: effectiveMode === 'extend' ? sourceGenerationId : null, // For extend
+          negativePrompt,
+          cfgScale,
+          qualityTier: isKling21 ? (quality as 'standard' | 'pro' | 'master') : undefined,
         });
       }
     } catch (error) {
@@ -459,7 +702,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     endFrame,
     v2vVideo,
     onGenerate,
-    duration,
+    normalizedDuration,
     quality,
     aspectRatio,
     motionVideo,
@@ -470,6 +713,8 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
     cameraMotion,
     stylePreset,
     motionStrength,
+    motionVideoDurationSec,
+    motionQuality,
   ]);
 
   return (
@@ -487,7 +732,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
           Создать
         </button>
         <button
-          onClick={() => setActiveTab('motion')}
+          onClick={handleMotionTabClick}
           className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
             activeTab === 'motion'
               ? 'bg-[#D4FF00] text-black'
@@ -614,7 +859,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
             )}
 
             {/* Simple Image Input for I2V (Grok, Sora) */}
-            {useSimpleImageInput && showI2vInput && (
+            {useSimpleImageInput && showI2vInput && !isKling25 && (
               <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                 <input
                   type="file"
@@ -647,7 +892,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
             )}
 
             {/* I2V Image Input for other models */}
-            {!useSimpleImageInput && showI2vInput && (
+            {!useSimpleImageInput && showI2vInput && !isKling25 && (
               <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                 <input
                   type="file"
@@ -674,6 +919,50 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
                   )}
                 </div>
               </label>
+            )}
+            
+            {/* Kling 2.5 Pro: Start/End frames in i2v */}
+            {showI2vInput && isKling25 && (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="group cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setStartFrame(e.target.files?.[0] || null)}
+                  />
+                  <div className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-lg p-3 flex flex-col items-center group-hover:border-zinc-500 transition-colors">
+                    <ImageIcon className="w-6 h-6 text-zinc-500 group-hover:text-zinc-400 mb-1.5" />
+                    <p className="text-[11px] text-white font-medium">Первый кадр</p>
+                    <p className="text-[9px] text-zinc-500">Обязателен</p>
+                    {startFrame && (
+                      <div className="mt-1 flex items-center gap-1 text-[9px] text-[#D4FF00]">
+                        <Check className="w-2.5 h-2.5" />
+                        <span>✓</span>
+                      </div>
+                    )}
+                  </div>
+                </label>
+                <label className="group cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setEndFrame(e.target.files?.[0] || null)}
+                  />
+                  <div className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-lg p-3 flex flex-col items-center group-hover:border-zinc-500 transition-colors">
+                    <ImageIcon className="w-6 h-6 text-zinc-500 group-hover:text-zinc-400 mb-1.5" />
+                    <p className="text-[11px] text-white font-medium">Последний кадр</p>
+                    <p className="text-[9px] text-zinc-500">Опционально</p>
+                    {endFrame && (
+                      <div className="mt-1 flex items-center gap-1 text-[9px] text-[#D4FF00]">
+                        <Check className="w-2.5 h-2.5" />
+                        <span>✓</span>
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
             )}
             
             {/* V2V Video Input (WAN) */}
@@ -766,7 +1055,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
               />
             </div>
             
-            {/* Audio Generation Toggle (Kling 2.6, Grok Video) */}
+            {/* Audio Generation Toggle (Only if model supports toggle) */}
             {supportsAudioGeneration && (
               <div className="flex items-center justify-between p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
                 <div className="flex items-center gap-2">
@@ -810,72 +1099,12 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
               </div>
             )}
             
-            {/* WAN Style Preset */}
-            {selectedModel === 'wan-2.6' && (
-              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Пресет стиля</div>
-                <select
-                  value={stylePreset}
-                  onChange={(e) => setStylePreset(e.target.value)}
-                  className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
-                >
-                  <option value="">По умолчанию</option>
-                  <option value="realistic">Реалистичный</option>
-                  <option value="anime">Аниме</option>
-                  <option value="cinematic">Кинематографичный</option>
-                  <option value="artistic">Художественный</option>
-                </select>
-              </div>
-            )}
-            
-            {/* Camera Motion (WAN) */}
-            {capability?.cameraMotionOptions && capability.cameraMotionOptions.length > 0 && (
-              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Движение камеры</div>
-                <select
-                  value={cameraMotion}
-                  onChange={(e) => setCameraMotion(e.target.value)}
-                  className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
-                >
-                  {capability.cameraMotionOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {c === 'static' ? 'Статичная' :
-                       c === 'pan_left' ? 'Панорама влево' :
-                       c === 'pan_right' ? 'Панорама вправо' :
-                       c === 'tilt_up' ? 'Наклон вверх' :
-                       c === 'tilt_down' ? 'Наклон вниз' :
-                       c === 'zoom_in' ? 'Приближение' :
-                       c === 'zoom_out' ? 'Отдаление' :
-                       c === 'orbit' ? 'Орбита' :
-                       c === 'follow' ? 'Следование' : c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            
-            {/* Motion Strength Slider (WAN) */}
-            {selectedModel === 'wan-2.6' && (
-              <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Сила движения</div>
-                  <div className="text-[13px] text-white font-medium">{motionStrength}%</div>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={motionStrength}
-                  onChange={(e) => setMotionStrength(Number(e.target.value))}
-                  className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#D4FF00]"
-                />
-              </div>
-            )}
+            {/* WAN-specific advanced motion/style controls are hidden unless API mapping exists */}
             
             {/* Settings Row (Quality, Ratio, Duration) - Apple Style */}
             <div className="flex gap-2">
               {/* Quality - only if model has resolution options */}
-              {hasResolutionOptions && (
+              {hasResolutionOptions && !isKling26 && !isKling25 && (
                 <Dropdown
                   label="Качество"
                   value={quality}
@@ -885,7 +1114,7 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
               )}
               
               {/* Ratio */}
-              {aspectRatioOptions.length > 0 && (
+              {aspectRatioOptions.length > 0 && !(aspectRatioOptions.length === 1 && aspectRatioOptions[0]?.value === 'source') && (
                 <Dropdown
                   label="Формат"
                   value={aspectRatio}
@@ -893,22 +1122,63 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
                   onChange={handleAspectRatioChange}
                 />
               )}
+              {aspectRatioOptions.length === 1 && aspectRatioOptions[0]?.value === 'source' && (
+                <div className="flex-1 p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Формат</div>
+                  <div className="text-[13px] font-medium text-white">Источник</div>
+                </div>
+              )}
               
               {/* Duration - locked if only one option, dropdown otherwise */}
               {capability?.fixedDuration || durationOptions.length === 1 ? (
                 <div className="flex-1 p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
                   <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Длина</div>
-                  <div className="text-[13px] font-medium text-white">{duration}s (фиксировано)</div>
+                  <div className="text-[13px] font-medium text-white">{normalizedDuration}s (фиксировано)</div>
                 </div>
               ) : durationOptions.length > 0 ? (
                 <Dropdown
                   label="Длина"
-                  value={duration}
+                  value={normalizedDuration}
                   options={durationOptions}
                   onChange={setDuration}
                 />
               ) : null}
             </div>
+
+            {/* Advanced Settings */}
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08] hover:border-white/20 transition-all duration-200">
+                <h3 className="text-[13px] font-medium text-white">Advanced Settings</h3>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-400 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div className="space-y-2">
+                  <label className="text-[12px] text-zinc-400">Negative Prompt</label>
+                  <textarea
+                    value={negativePrompt}
+                    onChange={(e) => setNegativePrompt(e.target.value)}
+                    placeholder="Что избегать в видео..."
+                    rows={3}
+                    className="w-full px-3 py-2 bg-black/20 border border-white/[0.08] rounded-lg text-white text-[12px] placeholder:text-zinc-500 focus:outline-none focus:border-white/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] text-zinc-400">CFG Scale</label>
+                    <span className="text-[12px] text-white">{cfgScale.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="20"
+                    step="0.5"
+                    value={cfgScale}
+                    onChange={(e) => setCfgScale(Number(e.target.value))}
+                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#D4FF00]"
+                  />
+                </div>
+              </div>
+            </details>
           </>
         )}
         
@@ -992,65 +1262,81 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
             </div>
             
             {/* Quality */}
-            <button className="w-full flex items-center justify-between p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08] hover:border-white/20 transition-all duration-200">
-              <div>
-                <div className="text-[11px] text-zinc-500 uppercase tracking-wide">Quality</div>
-                <div className="text-[13px] font-medium text-white">{quality}</div>
+            <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+              <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Качество</div>
+              <select
+                value={motionQuality}
+                onChange={(e) => setMotionQuality(e.target.value as '720p' | '1080p')}
+                className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
+              >
+                <option value="720p">720p — 10⭐/сек</option>
+                <option value="1080p">1080p — 20⭐/сек</option>
+              </select>
+            </div>
+
+            {/* Orientation */}
+            <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+              <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Ориентация персонажа</div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSceneControlMode('image')}
+                  className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                    sceneControlMode === 'image'
+                      ? 'bg-[#D4FF00] text-black'
+                      : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  Image-driven
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSceneControlMode('video')}
+                  className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                    sceneControlMode === 'video'
+                      ? 'bg-[#D4FF00] text-black'
+                      : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  Video-driven
+                </button>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
-            </button>
+              <div className="text-[11px] text-zinc-500 mt-2">
+                Лимит длительности: {sceneControlMode === 'image' ? '10с' : '30с'}
+              </div>
+            </div>
+
+            {/* Duration (clamped) */}
+            <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
+              <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Длительность</div>
+              <div className="text-[13px] text-white font-medium">
+                {effectiveMotionDuration != null ? `${Math.round(effectiveMotionDuration)}с` : '—'}
+              </div>
+              {motionVideoDurationSec != null && effectiveMotionDuration != null && motionVideoDurationSec > motionMaxDuration && (
+                <div className="text-[11px] text-amber-400 mt-1">
+                  Видео {Math.round(motionVideoDurationSec)}с будет ограничено до {motionMaxDuration}с
+                </div>
+              )}
+            </div>
             
             {/* Pricing Info */}
             <div className="p-3 bg-blue-500/10 backdrop-blur-xl border border-blue-400/20 rounded-xl">
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="text-xs text-blue-200">
-                  <span className="font-semibold">Price per second:</span> Price depends on your source video duration. 
-                  {quality === '720p' && ' 16 credits/sec for 720p'}
-                  {quality === '1080p' && ' 25 credits/sec for 1080p'}
-                  {!quality && ' 16-25 credits/second'}
+                  <span className="font-semibold">Цена за секунду:</span> зависит от длительности видео. 720p = 10⭐/сек, 1080p = 20⭐/сек.
+                  {motionVideoDurationSec != null && (
+                    <span className="block mt-1">Ваше видео: {motionVideoDurationSec} сек → {calcMotionControlStars(motionVideoDurationSec, motionQuality, true) ?? 0}⭐</span>
+                  )}
                 </div>
               </div>
             </div>
             
             {/* Scene Control Mode */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-white font-medium">Scene Control Mode</span>
-                <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#D4FF00]">
-                  <span className="inline-block h-5 w-5 transform rounded-full bg-black shadow-lg translate-x-6" />
-                </button>
-              </div>
-              
-              <div>
-                <div className="flex gap-1 p-1 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
-                  <button
-                    onClick={() => setSceneControlMode('video')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                      sceneControlMode === 'video'
-                        ? 'bg-white/10 text-white shadow-lg'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <span>🎥</span>
-                    <span className="text-[13px] font-medium">Video</span>
-                  </button>
-                  <button
-                    onClick={() => setSceneControlMode('image')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                      sceneControlMode === 'image'
-                        ? 'bg-white/10 text-white shadow-lg'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <span>🖼️</span>
-                    <span className="text-[13px] font-medium">Image</span>
-                  </button>
-                </div>
-                <p className="text-xs text-zinc-400 mt-2">
-                  Choose background source: character image or motion video
-                </p>
-              </div>
+              <p className="text-xs text-zinc-400">
+                Orientation определяет, откуда брать ориентацию персонажа (image/video).
+              </p>
             </div>
             
             {/* Advanced Settings */}
@@ -1059,6 +1345,43 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
                 <h3 className="text-[13px] font-medium text-white">Advanced Settings</h3>
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-400 transition-transform group-open:rotate-180" />
               </summary>
+              <div className="mt-3 space-y-3">
+                <div className="space-y-2">
+                  <label className="text-[12px] text-zinc-400">camera_control (JSON)</label>
+                  <textarea
+                    value={cameraControlJson}
+                    onChange={(e) => setCameraControlJson(e.target.value)}
+                    placeholder='{"key":"value"}'
+                    rows={4}
+                    className="w-full px-3 py-2 bg-black/20 border border-white/[0.08] rounded-lg text-white text-[12px] placeholder:text-zinc-500 focus:outline-none focus:border-white/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[12px] text-zinc-400">Negative Prompt</label>
+                  <textarea
+                    value={negativePrompt}
+                    onChange={(e) => setNegativePrompt(e.target.value)}
+                    placeholder="Что избегать в видео..."
+                    rows={3}
+                    className="w-full px-3 py-2 bg-black/20 border border-white/[0.08] rounded-lg text-white text-[12px] placeholder:text-zinc-500 focus:outline-none focus:border-white/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] text-zinc-400">CFG Scale</label>
+                    <span className="text-[12px] text-white">{cfgScale.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="20"
+                    step="0.5"
+                    value={cfgScale}
+                    onChange={(e) => setCfgScale(Number(e.target.value))}
+                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#D4FF00]"
+                  />
+                </div>
+              </div>
             </details>
           </>
         )}
@@ -1145,8 +1468,9 @@ const VideoGeneratorHiruComponent = ({ onGenerate, onRatioChange, isGeneratingPr
                     <button
                       key={model.id}
                       onClick={() => {
-                        setSelectedModel(model.id);
                         setShowModelSelector(false);
+                        const nextTab: Tab = model.id === 'kling-motion-control' ? 'motion' : 'create';
+                        switchToModel(model.id, nextTab);
                       }}
                       className={`w-full text-left px-4 py-4 rounded-xl transition-all ${
                         isSelected 

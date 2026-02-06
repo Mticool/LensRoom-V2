@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 import { getModelById, PHOTO_MODELS } from "@/config/models";
+import { uploadReferenceFiles } from "@/lib/supabase/upload-reference";
 
 interface GeneratorBottomSheetProps {
   modelId: string;
@@ -151,6 +152,18 @@ const GeneratorBottomSheetComponent = ({
         }
       }
       try {
+        let uploadedUrls: string[] = [];
+        try {
+          uploadedUrls = await uploadReferenceFiles(picked, { prefix: "ref" });
+        } catch (uploadErr) {
+          console.warn("[Reference] Upload failed, falling back to base64:", uploadErr);
+        }
+
+        if (uploadedUrls.length === picked.length) {
+          onReferenceImagesChange([...current, ...uploadedUrls].slice(0, maxInputImages));
+          return;
+        }
+
         const encoded = await Promise.all(picked.map((f) => readFileAsDataUrl(f)));
         onReferenceImagesChange([...current, ...encoded].slice(0, maxInputImages));
       } catch {

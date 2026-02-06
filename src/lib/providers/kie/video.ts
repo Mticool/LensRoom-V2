@@ -8,6 +8,100 @@ import type { GenerateVideoRequest, GenerateVideoResponse } from '@/lib/api/kie-
  * Translates unified VideoGenerationRequest to Kie-specific API format
  */
 
+export type KieVideoBuildParams = {
+  modelId: string;
+  mode: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'motion_control' | 'extend' | 'ref2v';
+  prompt: string;
+  durationSec: number;
+  aspectRatio?: string;
+  quality?: string;
+  resolution?: string;
+  sound?: boolean;
+  inputImageUrl?: string;
+  endImageUrl?: string;
+  referenceImages?: string[];
+  referenceVideoUrl?: string;
+  characterOrientation?: 'image' | 'video';
+  cfgScale?: number;
+  cameraControl?: Record<string, unknown> | string;
+  qualityTier?: 'standard' | 'pro' | 'master';
+  style?: string;
+  shots?: Array<{ prompt: string; duration?: number }>;
+};
+
+export function buildKieVideoPayload(params: KieVideoBuildParams): GenerateVideoRequest {
+  const capability = getModelCapability(params.modelId);
+  if (!capability) {
+    throw new Error(`Unknown model: ${params.modelId}`);
+  }
+
+  const provider =
+    capability.provider === 'kie' ? 'kie_market' :
+    capability.provider === 'laozhang' ? 'laozhang' :
+    'kie_market';
+
+  // Resolve API model ID by mode
+  let apiModelId = capability.apiId;
+  if (params.mode === 'i2v' && capability.apiIdI2v) apiModelId = capability.apiIdI2v;
+  if (params.mode === 'v2v' && capability.apiIdV2v) apiModelId = capability.apiIdV2v;
+  if (params.mode === 'start_end' && capability.apiIdI2v) apiModelId = capability.apiIdI2v;
+
+  // Kling 2.1: map quality tier to specific API model IDs
+  if (params.modelId === 'kling-2.1') {
+    const tier = (params.qualityTier || 'standard').toLowerCase();
+    if (tier === 'standard' || tier === 'pro' || tier === 'master') {
+      apiModelId =
+        params.mode === 'i2v'
+          ? `kling/v2-1-${tier}-image-to-video`
+          : `kling/v2-1-${tier}-text-to-video`;
+    }
+  }
+
+  const payload: GenerateVideoRequest = {
+    model: apiModelId,
+    provider: provider as any,
+    prompt: params.prompt,
+    mode: params.mode,
+    duration: params.durationSec,
+    aspectRatio: params.aspectRatio,
+  };
+
+  // Images
+  if (params.inputImageUrl) payload.imageUrl = params.inputImageUrl;
+  if (params.endImageUrl) payload.lastFrameUrl = params.endImageUrl;
+  if (params.referenceImages && params.referenceImages.length > 0) {
+    payload.referenceImages = params.referenceImages;
+  }
+
+  // Video
+  if (params.referenceVideoUrl) payload.videoUrl = params.referenceVideoUrl;
+
+  // Quality/Resolution
+  if (params.resolution) payload.resolution = params.resolution;
+  if (params.quality) payload.quality = params.quality;
+
+  // Audio
+  if (capability.audioSupport === 'toggle' && typeof params.sound === 'boolean') {
+    payload.sound = params.sound;
+  }
+
+  // Model-specific fields
+  if (params.modelId === 'grok-video' && params.style) {
+    payload.style = params.style;
+  }
+
+  if (params.modelId === 'kling-motion-control') {
+    payload.mode = 'motion_control';
+    if (params.characterOrientation) payload.characterOrientation = params.characterOrientation;
+    if (params.cameraControl) payload.cameraControl = params.cameraControl;
+  }
+
+  if (typeof params.cfgScale === 'number') payload.cfgScale = params.cfgScale;
+  if (params.shots) payload.shots = params.shots;
+
+  return payload;
+}
+
 export function mapRequestToKiePayload(
   request: VideoGenerationRequest
 ): GenerateVideoRequest {
@@ -108,6 +202,12 @@ export function mapRequestToKiePayload(
   // Motion Control: character orientation
   if (request.modelId === 'kling-motion-control') {
     (payload as any).characterOrientation = 'video'; // Default to video orientation
+  }
+  if (typeof (request as any).cfgScale === 'number') {
+    (payload as any).cfgScale = (request as any).cfgScale;
+  }
+  if ((request as any).cameraControl) {
+    (payload as any).cameraControl = (request as any).cameraControl;
   }
 
   return payload;

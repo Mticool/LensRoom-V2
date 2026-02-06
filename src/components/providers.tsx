@@ -9,6 +9,7 @@ import { TelegramAuthProvider } from "@/providers/telegram-auth-provider";
 import { ThemeProvider, useTheme } from "@/lib/theme-provider";
 import { ReferralHandler } from "@/components/referrals/ReferralHandler";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ChunkErrorRecoveryClear } from "@/components/ChunkErrorHandler";
 
 function ThemedToaster() {
   const { theme } = useTheme();
@@ -45,6 +46,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ErrorBoundary>
+          <ChunkErrorRecoveryClear />
           <TelegramAuthProvider>
             <AuthProvider>
               {children}

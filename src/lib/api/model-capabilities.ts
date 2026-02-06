@@ -3,7 +3,7 @@
  * Проверяет и кеширует поддерживаемые возможности каждой модели (aspect ratios, quality options)
  */
 
-import { getModelById } from '@/config/models';
+import { getImageModelCapability } from '@/lib/imageModels/capabilities';
 
 export interface ModelCapabilities {
   aspectRatios: string[];
@@ -123,9 +123,8 @@ async function fetchCapabilitiesFromAPI(modelId: string): Promise<ModelCapabilit
  * Получить capabilities из конфига models.ts (fallback)
  */
 function getCapabilitiesFromConfig(modelId: string): ModelCapabilities {
-  const model = getModelById(modelId);
-
-  if (!model || model.type !== 'photo') {
+  const cap = getImageModelCapability(modelId);
+  if (!cap) {
     console.warn('[Capabilities] Model not found or not a photo model:', modelId);
     return {
       aspectRatios: ['1:1'],
@@ -136,10 +135,10 @@ function getCapabilitiesFromConfig(modelId: string): ModelCapabilities {
   }
 
   return {
-    aspectRatios: model.aspectRatios || ['1:1'],
-    qualityOptions: model.qualityOptions || [],
-    supportsVariants: true, // Все модели поддерживают variants 1-4
-    supportsI2i: model.supportsI2i,
+    aspectRatios: cap.supportedAspectRatios || ['1:1'],
+    qualityOptions: cap.supportedQualities || [],
+    supportsVariants: !(cap.isTool || false),
+    supportsI2i: cap.supportsReferenceImages === true,
   };
 }
 

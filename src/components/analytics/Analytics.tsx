@@ -42,15 +42,15 @@ export function Analytics({ gaId, ymId }: AnalyticsProps) {
     <>
       {gaId && (
         <>
-          <Script strategy="afterInteractive" src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
-          <Script id="google-analytics" strategy="afterInteractive" dangerouslySetInnerHTML={{
+          <Script strategy="lazyOnload" src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+          <Script id="google-analytics" strategy="lazyOnload" dangerouslySetInnerHTML={{
             __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}',{page_path:window.location.pathname});`
           }} />
         </>
       )}
       {ymId && (
         <>
-          <Script id="yandex-metrika" strategy="afterInteractive" dangerouslySetInnerHTML={{
+          <Script id="yandex-metrika" strategy="lazyOnload" dangerouslySetInnerHTML={{
             __html: `(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=Date.now();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(${ymId},"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true});`
           }} />
           <noscript><div><img src={`https://mc.yandex.ru/watch/${ymId}`} style={{ position: 'absolute', left: '-9999px' }} alt="" /></div></noscript>

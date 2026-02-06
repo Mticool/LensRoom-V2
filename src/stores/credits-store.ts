@@ -1,6 +1,31 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// В приватном режиме localStorage может кидать — не ломаем первый рендер
+const safeStorage = {
+  getItem: (name: string): string | null => {
+    try {
+      return typeof window !== 'undefined' ? window.localStorage.getItem(name) : null;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    try {
+      if (typeof window !== 'undefined') window.localStorage.setItem(name, value);
+    } catch {
+      // ignore
+    }
+  },
+  removeItem: (name: string): void => {
+    try {
+      if (typeof window !== 'undefined') window.localStorage.removeItem(name);
+    } catch {
+      // ignore
+    }
+  },
+};
+
 // Thresholds for low balance warnings
 const LOW_BALANCE_THRESHOLDS = {
   critical: 5,   // Less than 5 stars - critical warning
@@ -139,6 +164,8 @@ export const useCreditsStore = create<CreditsState>()(
     }),
     {
       name: 'lensroom-credits',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      storage: { getItem: safeStorage.getItem, setItem: safeStorage.setItem, removeItem: safeStorage.removeItem } as any,
       partialize: (state) => ({ 
         lastLowBalanceNotification: state.lastLowBalanceNotification,
       }),

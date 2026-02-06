@@ -194,25 +194,45 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
             apiMode = 't2v';
         }
 
+        // Motion Control: API expects model kling-motion-control, referenceVideo, referenceImage, characterOrientation, videoDuration
+        const isMotion = params.mode === 'motion';
         const requestBody: any = {
-          model: params.selectedModel,
+          model: isMotion ? 'kling-motion-control' : params.selectedModel,
           prompt: params.prompt,
-          mode: apiMode,
+          mode: isMotion ? 'motion_control' : apiMode,
           duration: params.duration,
           quality: params.quality,
           aspectRatio: params.aspectRatio,
           audio: params.withSound,
           variants: 1,
         };
+        if (params.style) requestBody.style = params.style;
+        if (params.cameraMotion) requestBody.cameraMotion = params.cameraMotion;
+        if (params.stylePreset) requestBody.stylePreset = params.stylePreset;
+        if (typeof params.motionStrength === 'number') requestBody.motionStrength = params.motionStrength;
+        if (isMotion) {
+          requestBody.referenceVideo = params.motionVideo;
+          requestBody.referenceImage = params.characterImage;
+          if (params.characterOrientation) requestBody.characterOrientation = params.characterOrientation;
+          if (params.videoDuration != null) requestBody.videoDuration = params.videoDuration;
+          if (params.quality) requestBody.resolution = params.quality;
+          if (params.cameraControl) requestBody.cameraControl = params.cameraControl;
+        }
+        if (params.cfgScale !== undefined) {
+          requestBody.cfgScale = params.cfgScale;
+        }
+        if (params.qualityTier) {
+          requestBody.qualityTier = params.qualityTier;
+        }
 
         // Add reference files based on mode
         if (params.mode === 'image') {
-          // For i2v: use referenceImage OR startFrame (for Veo)
-          if (params.referenceImage) {
+          // For i2v: use start/end frames if provided, else referenceImage
+          if (params.startFrame || params.endFrame) {
+            if (params.startFrame) requestBody.startImage = params.startFrame;
+            if (params.endFrame) requestBody.endImage = params.endFrame;
+          } else if (params.referenceImage) {
             requestBody.referenceImage = params.referenceImage;
-          } else if (params.startFrame) {
-            // Veo i2v uses startFrame as first frame
-            requestBody.startImage = params.startFrame;
           }
         }
 
@@ -234,18 +254,10 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
 
         // V2V mode
         if (params.mode === 'v2v' && params.v2vInputVideo) {
-          requestBody.inputVideo = params.v2vInputVideo;
+          requestBody.videoUrl = params.v2vInputVideo;
         }
 
-        // Motion Control mode (Kling Motion)
-        if (params.mode === 'motion') {
-          if (params.motionVideo) {
-            requestBody.motionVideo = params.motionVideo;
-          }
-          if (params.characterImage) {
-            requestBody.characterImage = params.characterImage;
-          }
-        }
+        // Motion Control: referenceVideo and referenceImage already set above when isMotion
 
         // Video Edit mode (Kling O1 Edit)
         if (params.mode === 'edit') {

@@ -8,6 +8,7 @@ import { getOptimalImageQuality, isMobileDevice, prefersReducedMotion } from '@/
 interface OptimizedImageProps {
   src: string;
   alt: string;
+  generationId?: string; // Generation ID for fallback URL when external URLs fail
   className?: string;
   priority?: boolean;
   fill?: boolean;
@@ -32,6 +33,7 @@ function generateSrcSet(url: string, quality: 'low' | 'medium' | 'high' = 'mediu
 export const OptimizedImage = memo(function OptimizedImage({
   src,
   alt,
+  generationId,
   className = '',
   priority = false,
   fill = true,
@@ -58,7 +60,16 @@ export const OptimizedImage = memo(function OptimizedImage({
   
   const handleError = () => {
     console.warn('[OptimizedImage] Failed to load:', src?.substring(0, 100));
-    
+
+    // If external URL (tempfile.aiquickdraw.com) failed and we have generationId, try proxy endpoint
+    if (src && src.includes('tempfile.aiquickdraw.com') && generationId && !retryUrl) {
+      const fallbackUrl = `/api/generations/${encodeURIComponent(generationId)}/download?kind=original&proxy=1`;
+      console.log('[OptimizedImage] External URL failed, trying proxy:', fallbackUrl);
+      setRetryUrl(fallbackUrl);
+      setHasError(false);
+      return;
+    }
+
     // If URL is a download endpoint without proxy, try with proxy
     if (src && src.includes('/api/generations/') && src.includes('/download') && !src.includes('proxy=1')) {
       const newUrl = src.includes('?') ? `${src}&proxy=1` : `${src}?proxy=1`;
@@ -66,7 +77,7 @@ export const OptimizedImage = memo(function OptimizedImage({
       setHasError(false); // Reset error to try again
       return;
     }
-    
+
     // If URL is a download endpoint with proxy, try without proxy (fallback to redirect)
     if (src && src.includes('/api/generations/') && src.includes('/download') && src.includes('proxy=1')) {
       const newUrl = src.replace('&proxy=1', '').replace('?proxy=1', '');
@@ -74,7 +85,7 @@ export const OptimizedImage = memo(function OptimizedImage({
       setHasError(false);
       return;
     }
-    
+
     setHasError(true);
   };
   

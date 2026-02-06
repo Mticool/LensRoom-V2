@@ -27,6 +27,7 @@
     - фото: Nano Banana / Nano Banana Pro (ветка в `POST /api/generate/photo`)
     - видео: Veo 3.1 / Sora 2 (ветка в `POST /api/generate/video`)
   - **Симптомы отсутствия**: ошибки вида `LAOZHANG_API_KEY is not configured` или 5xx при генерации.
+  - **Veo 3.1 (в т.ч. видео с референсами)**: модели Veo 3.1 требуют **токен с типом pay-per-use** и настроенный биллинг в [консоли LaoZhang](https://api.laozhang.ai/). Если способ списания не выбран или ключ не pay-per-use, возможна ошибка вида «该令牌无权使用模型» (token does not have permission to use model). Подробнее: [Veo-3.1 Overview](https://docs.laozhang.ai/en/api-capabilities/veo/veo-31-overview). При такой ошибке клиент автоматически повторяет запрос со стандартной FL-моделью (`veo-3.1-fl` / `veo-3.1-landscape-fl`), если у токена есть к ней доступ.
 
 ## Fal.ai (Kling O1)
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
 import { ControlBarBottom } from './ControlBarBottom';
@@ -23,7 +23,6 @@ const QUALITY_MAPPING: Record<string, string> = {
 const COST_PER_IMAGE = 2;
 
 export function RecraftRemoveBGGenerator() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
   const { isOpen: popupIsOpen, showPopup, hidePopup } = useBotConnectPopup();
@@ -39,7 +38,9 @@ export function RecraftRemoveBGGenerator() {
   
   // Reference image for i2i
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  
+  // Gallery zoom (0.5–1.5)
+  const [galleryZoom, setGalleryZoom] = useState(1);
   
   // Advanced settings
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -50,11 +51,8 @@ export function RecraftRemoveBGGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [images, setImages] = useState<GenerationResult[]>([]);
   
-  // Polling cleanup ref
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
   // Load history (filter by current thread)
-  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
+  const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
   
   // Clear local images when thread changes (new chat = clean slate)
   useEffect(() => {
@@ -208,21 +206,22 @@ export function RecraftRemoveBGGenerator() {
         refreshHistory();
       }, 0);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
       }
-      toast.error(error.message || 'Ошибка при генерации');
+      const message = error instanceof Error ? error.message : 'Ошибка при генерации';
+      toast.error(message);
       
       // Remove pending images on error
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, aspectRatio, quality, quantity, negativePrompt, seed, steps, credits, estimatedCost, showPopup, refreshCredits, refreshHistory]);
+  }, [isAuthenticated, prompt, aspectRatio, quality, quantity, negativePrompt, seed, steps, credits, estimatedCost, showPopup, refreshCredits, refreshHistory, invalidateCache, pollJobStatus, referenceImage]);
 
   // Poll job status
-  const pollJobStatus = async (jobId: string, pendingIds: string[]) => {
+  const pollJobStatus = useCallback(async (jobId: string, pendingIds: string[]) => {
     const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
     let attempts = 0;
 
@@ -267,11 +266,12 @@ export function RecraftRemoveBGGenerator() {
         } else {
           throw new Error('Превышено время ожидания');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (process.env.NODE_ENV === 'development') {
           console.error('Polling error:', error);
         }
-        toast.error(error.message || 'Ошибка получения результата');
+        const message = error instanceof Error ? error.message : 'Ошибка получения результата';
+        toast.error(message);
         
         // Remove pending images
         setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
@@ -279,7 +279,7 @@ export function RecraftRemoveBGGenerator() {
     };
 
     poll();
-  };
+  }, [aspectRatio, prompt, quality]);
 
   // Regenerate handler
   const handleRegenerate = useCallback((regeneratePrompt: string, settings: GenerationSettings) => {
@@ -287,7 +287,7 @@ export function RecraftRemoveBGGenerator() {
     if (settings.size) setAspectRatio(settings.size);
     if (settings.quality) {
       // Find UI quality from API value
-      const uiQuality = Object.entries(QUALITY_MAPPING).find(([_, apiVal]) => apiVal === settings.quality)?.[0];
+      const uiQuality = Object.entries(QUALITY_MAPPING).find(([, apiVal]) => apiVal === settings.quality)?.[0];
       if (uiQuality) setQuality(uiQuality);
     }
     
@@ -321,19 +321,34 @@ export function RecraftRemoveBGGenerator() {
           </div>
         )}
         
-        {/* Image Gallery */}
-        <ImageGalleryMasonry
-          images={allImages}
-          isGenerating={isGenerating}
-          autoScrollToBottom
-          onRegenerate={handleRegenerate}
-          hasMore={hasMore}
-          onLoadMore={loadMore}
-          isLoadingMore={isLoadingMore}
-        />
+        {/* Image Gallery with zoom */}
+        <div
+          style={{
+            transform: `scale(${galleryZoom})`,
+            transformOrigin: 'top left',
+            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+          }}
+        >
+          <ImageGalleryMasonry
+            images={allImages}
+            isGenerating={isGenerating}
+            layout="grid"
+            fullWidth
+            autoScrollToBottom
+            autoScrollBehavior="always"
+            onRegenerate={handleRegenerate}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
+          />
+        </div>
 
         {/* Control Bar (Sticky Bottom) */}
         <ControlBarBottom
+          showGalleryZoom
+          galleryZoom={galleryZoom}
+          onGalleryZoomChange={setGalleryZoom}
           prompt={prompt}
           onPromptChange={setPrompt}
           aspectRatio={aspectRatio}

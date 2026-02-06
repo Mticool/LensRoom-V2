@@ -27,6 +27,7 @@ export const LibraryItemSchema = z.object({
   previewUrl: z.string().nullable(),
   posterUrl: z.string().nullable(),
   displayUrl: z.string().nullable(),
+  resultUrls: z.array(z.string()).nullable().optional(),
 });
 
 export type LibraryItem = z.infer<typeof LibraryItemSchema>;

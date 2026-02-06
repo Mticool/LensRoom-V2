@@ -1,16 +1,16 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable jsx-a11y/alt-text */
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  Loader2, ExternalLink, X, Globe, Download, RefreshCw, Heart, Repeat, 
-  Edit3, Clock, Upload, Home, Lightbulb, Check, Plus, Image, Video,
-  Sparkles, Filter, Grid3X3, LayoutGrid, Star, FolderOpen, Zap
+  Loader2, ExternalLink, X, Download, RefreshCw, Heart, Repeat, 
+  Edit3, Upload, Home, Lightbulb, Image, Video,
+  Sparkles, Grid3X3, LayoutGrid, FolderOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { detectWebView, openExternal } from "@/lib/telegram/webview";
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { toast } from "sonner";
@@ -46,9 +46,8 @@ export function LibraryClient() {
   
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<LibraryItem | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [imageError, setImageError] = useState<Set<string>>(new Set());
-  const [editPromptOpen, setEditPromptOpen] = useState(false);
-  const [editedPrompt, setEditedPrompt] = useState("");
 
   // Admin features
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -57,7 +56,6 @@ export function LibraryClient() {
   const [publishToHome, setPublishToHome] = useState(true);
   const [publishToInspiration, setPublishToInspiration] = useState(false);
   const [publishCategory, setPublishCategory] = useState("");
-  const [categories, setCategories] = useState<string[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishDescription, setPublishDescription] = useState("");
 
@@ -76,7 +74,6 @@ export function LibraryClient() {
   const prevStatusRef = useRef<Record<string, UiStatus>>({});
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<number>(0);
-  const isWebView = useMemo(() => detectWebView(), []);
   const LIMIT = 30; // Increased for better scrolling experience
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
@@ -95,9 +92,7 @@ export function LibraryClient() {
         if (res.ok) {
           const data = await res.json();
           setUserRole(data.role || "user");
-          if (data.role === "admin" || data.role === "manager") {
-            loadCategories();
-          }
+          // categories list is not used in UI yet
         }
       } catch (error) {
         handleError(error, 'Library - checkRole');
@@ -105,18 +100,6 @@ export function LibraryClient() {
     };
     checkRole();
   }, []);
-
-  const loadCategories = async () => {
-    try {
-      const res = await fetch("/api/admin/categories", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.categories)) setCategories(data.categories);
-      }
-    } catch (error) {
-      handleError(error, 'Library - loadCategories');
-    }
-  };
 
   const fetchGenerations = useCallback(async (offset = 0, append = false, silent = false) => {
     try {
@@ -184,6 +167,22 @@ export function LibraryClient() {
     videos: items.filter(i => i.type?.toLowerCase() === 'video' && normalizeStatus(i.status) === 'success').length,
     favorites: items.filter(i => safeIsFavorite(i.id)).length,
   }), [items, safeIsFavorite]);
+
+  const selectedImageUrls = useMemo(() => {
+    if (!selected) return [];
+    if (Array.isArray(selected.resultUrls) && selected.resultUrls.length > 0) {
+      return selected.resultUrls;
+    }
+    if (selected.originalUrl) return [selected.originalUrl];
+    if (selected.previewUrl) return [selected.previewUrl];
+    return [];
+  }, [selected]);
+
+  const activeImageUrl = selectedImageUrls[selectedIndex] || selectedImageUrls[0] || '';
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [selected?.id]);
 
   // Polling
   const pollingConfig = useMemo(() => {
@@ -378,7 +377,13 @@ export function LibraryClient() {
       // For videos: poster > preview > first frame of original video
       return item.posterUrl || item.previewUrl || item.originalUrl || null;
     }
-    return item.previewUrl || item.originalUrl || null;
+    if (item.previewUrl || item.originalUrl) {
+      return item.previewUrl || item.originalUrl || null;
+    }
+    if (Array.isArray(item.resultUrls) && item.resultUrls.length > 0) {
+      return item.resultUrls[0];
+    }
+    return null;
   };
 
   // Publish handlers (kept minimal for brevity)
@@ -548,7 +553,7 @@ export function LibraryClient() {
                   : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
               }`}
             >
-              {grid.map(({ item, st, isVideo, needsPreview, progress }, i) => {
+              {grid.map(({ item, st, isVideo, progress }, i) => {
                 const displayUrl = getDisplayUrl(item, isVideo);
                 const hasError = imageError.has(item.id);
                 const canDisplay = !!displayUrl && !hasError;
@@ -609,6 +614,13 @@ export function LibraryClient() {
                         </div>
                       </div>
 
+                      {/* Multi-image count badge */}
+                      {Array.isArray(item.resultUrls) && item.resultUrls.length > 1 && (
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/70 text-white">
+                          +{item.resultUrls.length - 1}
+                        </div>
+                      )}
+
                       {/* Favorite button */}
                       <button
                         onClick={(e) => handleToggleFavorite(item.id, e)}
@@ -625,7 +637,7 @@ export function LibraryClient() {
                       {hasContent && (
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                           <button
-                            onClick={() => { setSelected(item); setOpen(true); }}
+                            onClick={() => { setSelected(item); setSelectedIndex(0); setOpen(true); }}
                             className="p-2 rounded-lg bg-white text-black hover:bg-white/90"
                           >
                             <ExternalLink className="w-4 h-4" />
@@ -747,11 +759,28 @@ export function LibraryClient() {
                     poster={selected.posterUrl || undefined}
                   />
                 ) : (
-                  <img
-                    src={selected.originalUrl || selected.previewUrl || ""}
-                    alt=""
-                    className="max-w-full max-h-[60vh] object-contain"
-                  />
+                  <div className="w-full flex flex-col items-center gap-3">
+                    <img
+                      src={activeImageUrl}
+                      alt=""
+                      className="max-w-full max-h-[60vh] object-contain"
+                    />
+                    {selectedImageUrls.length > 1 && (
+                      <div className="flex gap-2 flex-wrap justify-center">
+                        {selectedImageUrls.map((url, idx) => (
+                          <button
+                            key={`${url}-${idx}`}
+                            onClick={() => setSelectedIndex(idx)}
+                            className={`w-14 h-14 rounded-lg overflow-hidden border ${
+                              idx === selectedIndex ? 'border-[var(--gold)]' : 'border-white/10'
+                            }`}
+                          >
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

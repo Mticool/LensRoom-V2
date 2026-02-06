@@ -3,6 +3,7 @@
 import { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { isChunkLoadError, reloadWithCacheBypass, tryChunkErrorReload } from '@/lib/chunk-error';
 
 interface Props {
   children: ReactNode;
@@ -20,30 +21,22 @@ export class ErrorBoundary extends Component<Props, State> {
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
-    
-    // Log to server (could send to Sentry when integrated)
-    if (typeof window !== 'undefined') {
-      fetch('/api/log-error', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: error.message,
-          stack: error.stack,
-          componentStack: errorInfo.componentStack,
-          url: window.location.href,
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch(() => {});
+    if (typeof window !== 'undefined' && isChunkLoadError(error)) {
+      tryChunkErrorReload();
     }
   }
 
-  handleReset = () => {
+  handleRetry = () => {
+    if (isChunkLoadError(this.state.error)) {
+      reloadWithCacheBypass();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 
@@ -52,6 +45,8 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) {
         return this.props.fallback;
       }
+
+      const chunkError = isChunkLoadError(this.state.error);
 
       return (
         <div className="min-h-[400px] flex items-center justify-center p-8">
@@ -62,32 +57,27 @@ export class ErrorBoundary extends Component<Props, State> {
             <h2 className="text-xl font-semibold text-[var(--text)] mb-2">
               Что-то пошло не так
             </h2>
-            <p className="text-[var(--muted)] mb-6">
-              Произошла ошибка при загрузке компонента. Попробуйте обновить страницу.
+            <p className="text-[var(--muted)] mb-4">
+              {chunkError
+                ? 'Не удалось загрузить часть страницы (часто после обновления сайта). Нажмите «Обновить страницу» — загрузка пойдёт заново без кэша.'
+                : 'Произошла ошибка. Попробуйте обновить страницу.'}
             </p>
-            <div className="flex gap-3 justify-center">
-              <Button
-                onClick={this.handleReset}
-                variant="outline"
-                className="gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Попробовать снова
-              </Button>
-              <Button
-                onClick={() => window.location.reload()}
-                className="gap-2"
-              >
-                Обновить страницу
-              </Button>
-            </div>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <pre className="mt-6 p-4 bg-red-500/10 rounded-lg text-left text-xs text-red-400 overflow-auto max-h-40">
+            {this.state.error?.message && (
+              <p className="text-sm text-[var(--muted)] bg-black/10 dark:bg-white/10 rounded-lg px-3 py-2 mb-6 font-mono break-words">
                 {this.state.error.message}
-                {'\n\n'}
-                {this.state.error.stack}
-              </pre>
+              </p>
             )}
+            <div className="flex gap-3 justify-center">
+              <Button onClick={this.handleRetry} variant="outline" className="gap-2">
+                <RefreshCw className="w-4 h-4" />
+                {chunkError ? 'Обновить страницу' : 'Попробовать снова'}
+              </Button>
+              {!chunkError && (
+                <Button onClick={reloadWithCacheBypass} className="gap-2">
+                  Обновить страницу
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -97,7 +87,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Hook-based error boundary wrapper
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   fallback?: ReactNode

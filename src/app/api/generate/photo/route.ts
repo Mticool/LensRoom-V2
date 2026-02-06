@@ -21,6 +21,8 @@ import {
 } from "@/lib/quota/nano-banana-pro";
 import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/lib/rate-limit';
 import { resolveAspectRatio, logAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
+import { getImageModelCapability, getDefaultImageParams, validateImageRequest, getAllowedAspectRatios } from '@/lib/imageModels/capabilities';
+import { buildKieImagePayload } from '@/lib/providers/kie/image';
 
 function mimeTypesFromFormats(formats?: Array<'jpeg' | 'png' | 'webp'>): string[] | null {
   if (!formats || formats.length === 0) return null;
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { prompt, negativePrompt, aspectRatio, variants = 1, mode = 't2i', referenceImage, referenceImages, outputFormat } = body;
+    const { prompt, negativePrompt, aspectRatio, variants = 1, mode: requestedMode, referenceImage, referenceImages, outputFormat } = body;
     const threadIdRaw = body?.threadId;
     const legacyModel = body?.model;
     const baseModelId = body?.modelId;
@@ -116,9 +118,9 @@ export async function POST(request: NextRequest) {
     const clientParams = body?.params;
 
     // Validate required fields
-    if ((!legacyModel && !(baseModelId && variantId)) || !prompt) {
+    if ((!legacyModel && !(baseModelId && variantId))) {
       return NextResponse.json(
-        { error: "Model (or modelId+variantId) and prompt are required" },
+        { error: "Model (or modelId+variantId) is required" },
         { status: 400 }
       );
     }
@@ -164,30 +166,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const requestedAspectRatio = String(aspectRatio || "").trim();
-    if (requestedAspectRatio && Array.isArray(modelInfo.aspectRatios) && modelInfo.aspectRatios.length > 0) {
-      if (!modelInfo.aspectRatios.includes(requestedAspectRatio)) {
+    const capability = getImageModelCapability(effectiveModelId);
+    if (!capability) {
+      return NextResponse.json(
+        { error: "Model capabilities not found", modelId: effectiveModelId },
+        { status: 400 }
+      );
+    }
+
+    const hasReferenceInput =
+      (Array.isArray(referenceImages) && referenceImages.length > 0) ||
+      (typeof referenceImage === "string" && referenceImage.trim().length > 0);
+
+    // Resolve mode: respect explicit mode, otherwise infer from reference input
+    let resolvedMode = String(requestedMode || "").trim().toLowerCase() as any;
+    if (!resolvedMode) {
+      resolvedMode = hasReferenceInput ? "i2i" : "t2i";
+    }
+    if (!capability.modes.includes(resolvedMode)) {
+      // Default to first supported mode if none requested; otherwise reject.
+      if (!requestedMode) {
+        resolvedMode = capability.modes[0] || "t2i";
+      } else {
         return NextResponse.json(
-          {
-            error: "Unsupported aspect ratio for this model",
-            aspectRatio: requestedAspectRatio,
-            allowed: modelInfo.aspectRatios,
-          },
+          { error: "Unsupported mode for this model", mode: resolvedMode, allowed: capability.modes },
           { status: 400 }
         );
       }
     }
 
-    console.log('[API] Photo request:', {
-      modelId: effectiveModelId,
-      provider: modelInfo.provider,
-      aspectRatio: requestedAspectRatio || null,
-      aspectRatioRaw: aspectRatio,
-      mode,
-      variants,
-      outputFormat,
-      hasReference: Array.isArray(referenceImages) ? referenceImages.length > 0 : !!referenceImage,
-    });
+    const requestedAspectRatio = String(aspectRatio || "").trim();
+    const allowedAspectRatios = getAllowedAspectRatios(capability, resolvedMode as any);
+    if (requestedAspectRatio && Array.isArray(allowedAspectRatios) && allowedAspectRatios.length > 0) {
+      if (!allowedAspectRatios.includes(requestedAspectRatio)) {
+        return NextResponse.json(
+          {
+            error: "Unsupported aspect ratio for this model",
+            aspectRatio: requestedAspectRatio,
+            allowed: allowedAspectRatios,
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     type OutputFormat = "png" | "jpg" | "webp";
     const rawOut = String(outputFormat || "").trim().toLowerCase();
@@ -217,11 +238,54 @@ export async function POST(request: NextRequest) {
         ? String(resolvedParams.resolution)
         : legacyResolution || undefined;
 
+    const defaults = getDefaultImageParams(effectiveModelId);
+    const finalQuality = quality ?? defaults.quality;
+    const finalResolution = resolution ?? defaults.resolution;
+    const defaultedAspectRatio = requestedAspectRatio || defaults.aspectRatio;
+    const finalVariants = Number(variants || defaults.variants || 1);
+
+    console.log('[API] Photo request:', {
+      modelId: effectiveModelId,
+      provider: modelInfo.provider,
+      aspectRatio: defaultedAspectRatio || null,
+      aspectRatioRaw: aspectRatio,
+      mode: resolvedMode,
+      variants: finalVariants,
+      outputFormat,
+      hasReference: Array.isArray(referenceImages) ? referenceImages.length > 0 : !!referenceImage,
+    });
+
+    const validation = validateImageRequest(capability, {
+      modelId: effectiveModelId,
+      mode: resolvedMode,
+      prompt,
+      negativePrompt,
+      aspectRatio: defaultedAspectRatio,
+      quality: finalQuality,
+      resolution: finalResolution,
+      variants: finalVariants,
+      referenceImages,
+      referenceImage,
+    });
+
+    if (!validation.success) {
+      const errors = validation.error.issues.map((i) => i.message);
+      console.error('[API] Invalid image request:', {
+        modelId: effectiveModelId,
+        mode: resolvedMode,
+        errors,
+      });
+      return NextResponse.json(
+        { error: "Invalid request", details: errors },
+        { status: 400 }
+      );
+    }
+
     // Build pricing options
     const pricingOptions: PricingOptions = {
-      quality,
-      resolution,
-      mode: mode as any,
+      quality: finalQuality,
+      resolution: finalResolution,
+      mode: resolvedMode as any,
     };
 
     // Generate SKU and get price
@@ -240,21 +304,21 @@ export async function POST(request: NextRequest) {
         creditCost = calculateTotalStars(sku);
         
         // For variants > 1, multiply the price
-        if (variants && variants > 1) {
-          creditCost = creditCost * variants;
+        if (finalVariants && finalVariants > 1) {
+          creditCost = creditCost * finalVariants;
         }
       }
     } catch (error) {
       console.error('[API] Pricing system error:', {
         modelId: effectiveModelId,
-        quality,
-        resolution,
-        mode,
+        quality: finalQuality,
+        resolution: finalResolution,
+        mode: resolvedMode,
         error: error instanceof Error ? error.message : String(error),
       });
       return NextResponse.json({ 
         error: "Pricing error: No price defined for this model/variant combination",
-        details: `Model: ${effectiveModelId}, Quality: ${quality || 'default'}, Resolution: ${resolution || 'default'}`,
+        details: `Model: ${effectiveModelId}, Quality: ${finalQuality || 'default'}, Resolution: ${finalResolution || 'default'}`,
         modelId: effectiveModelId,
       }, { status: 500 });
     }
@@ -262,16 +326,16 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(creditCost) || creditCost <= 0) {
       console.error('[API] Invalid price computed:', {
         modelId: effectiveModelId,
-        quality,
-        resolution,
-        variants,
+        quality: finalQuality,
+        resolution: finalResolution,
+        variants: finalVariants,
         sku,
         creditCost,
         resolvedVariantStars,
       });
       return NextResponse.json({ 
         error: "Invalid price for selected model/variant",
-        details: `Model: ${effectiveModelId}, Quality: ${quality || 'default'}, Resolution: ${resolution || 'default'}`,
+        details: `Model: ${effectiveModelId}, Quality: ${finalQuality || 'default'}, Resolution: ${finalResolution || 'default'}`,
       }, { status: 400 });
     }
 
@@ -336,7 +400,7 @@ export async function POST(request: NextRequest) {
     let nbpPlanId: string | null = null;
     
     if (!skipCredits && isNanoBananaPro(effectiveModelId)) {
-      const nbpCost = await calculateNBPCost(supabase, userId, quality);
+      const nbpCost = await calculateNBPCost(supabase, userId, finalQuality);
       actualCreditCost = nbpCost.stars;
       isIncludedByPlan = nbpCost.isIncluded;
       nbpVariantKey = nbpCost.variantKey;
@@ -386,8 +450,8 @@ export async function POST(request: NextRequest) {
             variantId: resolvedVariantId || 'default',
             sku,
             pricingVersion: PRICING_VERSION,
-            quality: quality || 'default',
-            resolution: resolution || 'default',
+            quality: finalQuality || 'default',
+            resolution: finalResolution || 'default',
             priceStars: actualCreditCost,
             deductedFromSubscription: deductResult.deductedFromSubscription,
             deductedFromPackage: deductResult.deductedFromPackage,
@@ -429,9 +493,9 @@ export async function POST(request: NextRequest) {
     let genError: any = null;
 
     // Resolve aspect ratio for DB and API calls
-    const finalAspectRatioForDb = resolveAspectRatio(aspectRatio, effectiveModelId);
+    const finalAspectRatioForDb = resolveAspectRatio(defaultedAspectRatio, effectiveModelId);
     console.log('[API] Aspect ratio resolution:', {
-      received: aspectRatio,
+      received: defaultedAspectRatio,
       resolved: finalAspectRatioForDb,
       modelId: effectiveModelId,
     });
@@ -467,11 +531,11 @@ export async function POST(request: NextRequest) {
       })();
 
       const paramsForDb: Record<string, unknown> = {
-        mode: String(mode || "t2i"),
-        variants: Number(variants || 1),
+        mode: String(resolvedMode || "t2i"),
+        variants: Number(finalVariants || 1),
         outputFormat: requestedOutputFormat,
-        quality: quality || null,
-        resolution: resolution || null,
+        quality: finalQuality || null,
+        resolution: finalResolution || null,
         provider: modelInfo.provider,
         apiModelId: modelInfo.apiId,
         baseModelId: baseModelId || null,
@@ -659,7 +723,7 @@ export async function POST(request: NextRequest) {
     let referenceForProvider: string | null = null;
     let kieImageInputs: string[] | undefined = undefined;
 
-    if (mode === "i2i") {
+    if (resolvedMode === "i2i") {
       console.log('[API] Processing i2i mode with references:', {
         rawRefsCount: rawRefs.length,
         maxRefs: maxRefs,
@@ -699,10 +763,21 @@ export async function POST(request: NextRequest) {
       // Provider ref:
       // - single ref: use it directly
       // - multiple refs: build a collage so that single-image edit APIs can still "see" all refs
-      referenceForProvider = rawRefs.length === 1
-        ? rawRefs[0]!
-        : await buildReferenceCollageDataUrl(rawRefs, { maxTiles: maxRefs });
-      
+      if (rawRefs.length === 1) {
+        referenceForProvider = rawRefs[0]!;
+      } else {
+        try {
+          referenceForProvider = await buildReferenceCollageDataUrl(rawRefs, { maxTiles: maxRefs });
+        } catch (collageErr: any) {
+          console.error('[API] Reference collage failed:', collageErr);
+          const msg = collageErr?.message || String(collageErr);
+          return NextResponse.json(
+            { error: `Не удалось объединить референсные фото. ${msg.includes('fetch') ? 'Проверьте, что файлы загружены корректно.' : ''} ${msg}`.trim() },
+            { status: 400 }
+          );
+        }
+      }
+
       console.log('[API] Reference prepared for provider:', {
         isCollage: rawRefs.length > 1,
         referenceLength: referenceForProvider?.length,
@@ -710,36 +785,50 @@ export async function POST(request: NextRequest) {
       });
 
       // For KIE-like providers, upload all refs to storage and pass URLs array.
-      // (Even if the underlying model uses only first, keeping an array is forward-compatible.)
-      const uploadedUrls = await Promise.all(
-        rawRefs.map(async (src, idx) => {
-          return await uploadDataUrlToStorage(src, `i2i_${idx}`);
-        })
-      );
-      kieImageInputs = uploadedUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+      try {
+        const uploadedUrls = await Promise.all(
+          rawRefs.map(async (src, idx) => {
+            return await uploadDataUrlToStorage(src, `i2i_${idx}`);
+          })
+        );
+        kieImageInputs = uploadedUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+      } catch (uploadErr: any) {
+        console.error('[API] Reference upload to storage failed:', uploadErr);
+        const msg = uploadErr?.message || String(uploadErr);
+        return NextResponse.json(
+          { error: `Не удалось загрузить референсные фото. ${msg}` },
+          { status: 400 }
+        );
+      }
+
+      // If provider expects URL or base64 size is too large, prefer uploading the provider reference
+      // (especially important for LaoZhang edit which can reject large data URLs).
+      if (referenceForProvider && referenceForProvider.startsWith('data:')) {
+        try {
+          const uploadedRef = await uploadDataUrlToStorage(referenceForProvider, `i2i_ref_${Date.now()}`);
+          if (uploadedRef && typeof uploadedRef === 'string') {
+            referenceForProvider = uploadedRef;
+            console.log('[API] Using uploaded reference URL for provider:', {
+              url: referenceForProvider,
+            });
+          }
+        } catch (e) {
+          console.warn('[API] Failed to upload reference collage for provider, falling back to data URL:', e);
+        }
+      }
     }
 
     const fixed = (modelInfo as any)?.fixedResolution as string | undefined;
-    const q = String(quality || '').toLowerCase();
-    const r = String(resolution || '').toLowerCase();
+    const q = String(finalQuality || '').toLowerCase();
+    const r = String(finalResolution || '').toLowerCase();
 
     // Some LensRoom model ids map to different KIE model ids depending on mode.
     // Keep a single LensRoom id, but choose the correct provider model per request.
     let apiModelId = String(modelInfo.apiId || "");
-    if (effectiveModelId === "flux-2-pro" && mode === "i2i" && (kieImageInputs?.length ?? 0) > 0) {
+    if (effectiveModelId === "flux-2-pro" && resolvedMode === "i2i" && (kieImageInputs?.length ?? 0) > 0) {
       apiModelId = "flux-2/pro-image-to-image";
     }
-
     const isFlux2 = apiModelId.includes("flux-2");
-    const isSeedream45 = apiModelId.startsWith("seedream/4.5");
-
-    // Safety: in this app Seedream 4.5 is T2I-only (edit model not wired).
-    if (effectiveModelId === "seedream-4.5" && mode === "i2i") {
-      return NextResponse.json(
-        { error: "Seedream 4.5 currently supports Text-to-Image only (no reference edit)." },
-        { status: 400 }
-      );
-    }
     // Map to KIE `resolution` ONLY when the model actually uses it.
     // (Some models like Seedream/Z-image do NOT accept `resolution` and will error if we pass e.g. "BALANCED".)
     let resolutionForKie: string | undefined;
@@ -768,8 +857,8 @@ export async function POST(request: NextRequest) {
         const genaiproClient = getGenAIProClient();
         
         // Resolve aspect ratio with model-specific default
-        const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
-        logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'GenAIPro');
+        const finalAspectRatio = resolveAspectRatio(defaultedAspectRatio, effectiveModelId);
+        logAspectRatioResolution(defaultedAspectRatio, finalAspectRatio, effectiveModelId, 'GenAIPro');
         
         // Map aspect ratio to GenAIPro format
         const genaiproAspectRatio = 
@@ -778,12 +867,12 @@ export async function POST(request: NextRequest) {
           IMAGE_ASPECT_RATIOS.SQUARE;
         
         // Number of images to generate
-        const numVariants = Math.min(Math.max(Number(variants) || 1, 1), 4);
+        const numVariants = Math.min(Math.max(Number(finalVariants) || 1, 1), 4);
         
         console.log('[API] GenAIPro request:', { 
           model: effectiveModelId,
           aspectRatio: genaiproAspectRatio,
-          mode,
+          mode: resolvedMode,
           hasReference: !!referenceForProvider,
           variants: numVariants,
         });
@@ -834,7 +923,7 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             provider: 'genaipro',
             provider_model: modelInfo.apiId,
-            variant_key: quality || 'default',
+            variant_key: finalQuality || 'default',
             stars_charged: creditCost,
             status: 'success',
           });
@@ -877,7 +966,7 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             provider: 'genaipro',
             provider_model: modelInfo.apiId,
-            variant_key: quality || 'default',
+            variant_key: finalQuality || 'default',
             stars_charged: 0,
             status: 'refunded',
           });
@@ -901,31 +990,42 @@ export async function POST(request: NextRequest) {
         
         // Select the right LaoZhang model based on resolution
         // For nano-banana-pro: 1k_2k -> gemini-3-pro-image-preview-2k, 4k -> gemini-3-pro-image-preview-4k
-        const laozhangModelId = getLaoZhangModelId(effectiveModelId, quality || resolution);
+        const laozhangModelId = getLaoZhangModelId(effectiveModelId, finalQuality || finalResolution);
         
         // Resolve aspect ratio with model-specific default
-        const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
-        logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'LaoZhang');
-        
+        const finalAspectRatio = resolveAspectRatio(defaultedAspectRatio, effectiveModelId);
+        console.log('[API NBP] ======== ASPECT RATIO DEBUG ========');
+        console.log('[API NBP] Input aspectRatio:', defaultedAspectRatio);
+        console.log('[API NBP] Final aspectRatio:', finalAspectRatio);
+        console.log('[API NBP] Quality:', finalQuality);
+        console.log('[API NBP] Model:', effectiveModelId);
+        logAspectRatioResolution(defaultedAspectRatio, finalAspectRatio, effectiveModelId, 'LaoZhang');
+
         let imageSize: string;
-        if (quality && ['1k', '1k_2k', '2k', '4k'].includes(quality.toLowerCase())) {
+        if (finalQuality && ['1k', '1k_2k', '2k', '4k'].includes(finalQuality.toLowerCase())) {
           // Resolution-based sizing
-          imageSize = resolutionToLaoZhangSize(quality, finalAspectRatio);
+          imageSize = resolutionToLaoZhangSize(finalQuality, finalAspectRatio);
+          console.log('[API NBP] Using resolution-based sizing:', imageSize);
         } else {
           // Default aspect ratio based sizing
           imageSize = aspectRatioToLaoZhangSize(finalAspectRatio);
+          console.log('[API NBP] Using aspect-ratio-based sizing:', imageSize);
         }
-        
+        console.log('[API NBP] Will send to LaoZhang API:');
+        console.log('[API NBP]   - size:', imageSize);
+        console.log('[API NBP]   - aspect_ratio:', finalAspectRatio);
+        console.log('[API NBP] ======== END DEBUG ========');
+
         // Number of images to generate (parallel generation)
-        const numVariants = Math.min(Math.max(Number(variants) || 1, 1), 4);
+        const numVariants = Math.min(Math.max(Number(finalVariants) || 1, 1), 4);
         
         console.log('[API] LaoZhang request:', { 
           model: laozhangModelId,
           originalModel: modelInfo.apiId,
           size: imageSize, 
           aspectRatio: finalAspectRatio,
-          quality,
-          mode,
+          quality: finalQuality,
+          mode: resolvedMode,
           hasReference: !!referenceForProvider,
           variants: numVariants,
         });
@@ -937,7 +1037,7 @@ export async function POST(request: NextRequest) {
             try {
               let laozhangResponse;
               
-              if (mode === 'i2i' && referenceForProvider) {
+              if (resolvedMode === 'i2i' && referenceForProvider) {
                 console.log('[API] Calling editImage with reference:', {
                   model: laozhangModelId,
                   hasImage: !!referenceForProvider,
@@ -951,6 +1051,7 @@ export async function POST(request: NextRequest) {
                   image: referenceForProvider,
                   n: 1,
                   size: imageSize,
+                  aspect_ratio: finalAspectRatio,
                   response_format: "b64_json",
                 });
               } else {
@@ -959,6 +1060,7 @@ export async function POST(request: NextRequest) {
                   prompt: prompt,
                   n: 1,
                   size: imageSize,
+                  aspect_ratio: finalAspectRatio,
                   response_format: "b64_json",
                 });
               }
@@ -1035,7 +1137,7 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             provider: 'laozhang',
             provider_model: modelInfo.apiId,
-            variant_key: quality || 'default',
+            variant_key: finalQuality || 'default',
             stars_charged: creditCost,
             status: 'success',
           });
@@ -1055,6 +1157,7 @@ export async function POST(request: NextRequest) {
           results: finalUrls.map(url => ({ url })),
         });
       } catch (laozhangError: any) {
+        const errMsg = laozhangError?.message || 'LaoZhang API error';
         console.error('[API] LaoZhang generation failed:', laozhangError);
         
         // Refund only if we actually charged stars (skip managers/admins and included-by-plan runs)
@@ -1067,7 +1170,7 @@ export async function POST(request: NextRequest) {
           .from('generations')
           .update({
             status: 'failed',
-            error: laozhangError.message || 'LaoZhang API error',
+            error: errMsg,
           })
           .eq('id', generation?.id);
         
@@ -1078,17 +1181,24 @@ export async function POST(request: NextRequest) {
             user_id: userId,
             provider: 'laozhang',
             provider_model: modelInfo.apiId,
-            variant_key: quality || 'default',
+            variant_key: finalQuality || 'default',
             stars_charged: 0,
             status: 'refunded',
           });
         } catch (logError) {
           console.error('[API] Failed to log failed run:', logError);
         }
+
+        // Client/validation errors (content policy, invalid image, size) → 400 so UI can show message
+        const isClientError = /content|policy|invalid|size|too large|unsupported|format|rejected/i.test(errMsg);
+        const status = isClientError ? 400 : 500;
+        const userMessage = isClientError
+          ? errMsg.replace(/^Video API Edit error:\s*/i, '').trim() || 'Запрос отклонён (проверьте фото или формулировку).'
+          : (errMsg || 'Ошибка генерации. Попробуйте позже.');
         
         return NextResponse.json(
-          { error: laozhangError.message || 'Failed to generate image' },
-          { status: 500 }
+          { error: userMessage },
+          { status }
         );
       }
     }
@@ -1102,13 +1212,13 @@ export async function POST(request: NextRequest) {
       let openaiQuality: 'medium' | 'high' = 'medium';
       if (resolvedParams?.quality) {
         openaiQuality = resolvedParams.quality === 'high' ? 'high' : 'medium';
-      } else if (quality) {
-        openaiQuality = quality === 'high' ? 'high' : 'medium';
+      } else if (finalQuality) {
+        openaiQuality = finalQuality === 'high' ? 'high' : 'medium';
       }
       
       // Resolve aspect ratio with model-specific default
-      const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
-      logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'OpenAI');
+      const finalAspectRatio = resolveAspectRatio(defaultedAspectRatio, effectiveModelId);
+      logAspectRatioResolution(defaultedAspectRatio, finalAspectRatio, effectiveModelId, 'OpenAI');
       
       // Get size from aspect ratio (user selection)
       const openaiSize = aspectRatioToOpenAISize(finalAspectRatio);
@@ -1119,13 +1229,13 @@ export async function POST(request: NextRequest) {
         const openaiClient = getOpenAIClient();
         
         // Number of images to generate (parallel generation)
-        const numVariants = Math.min(Math.max(Number(variants) || 1, 1), 4);
+        const numVariants = Math.min(Math.max(Number(finalVariants) || 1, 1), 4);
         
         console.log('[API] OpenAI request:', { 
           model: modelInfo.apiId, 
           quality: openaiQuality, 
           size: openaiSize, 
-          aspectRatio,
+          aspectRatio: finalAspectRatio,
           variants: numVariants,
         });
         
@@ -1287,47 +1397,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve aspect ratio with model-specific default (for KIE providers)
-    const finalAspectRatio = resolveAspectRatio(aspectRatio, effectiveModelId);
-    logAspectRatioResolution(aspectRatio, finalAspectRatio, effectiveModelId, 'KIE');
-    
-    // Standard photo generation
+    const finalAspectRatio = resolveAspectRatio(defaultedAspectRatio, effectiveModelId);
+    logAspectRatioResolution(defaultedAspectRatio, finalAspectRatio, effectiveModelId, 'KIE');
+
     const kieOutputFormat: "png" | "jpg" = requestedOutputFormat === "jpg" ? "jpg" : "png";
-    const generateParams: any = {
-      model: modelInfo.apiId,
-      prompt: negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt,
-      aspectRatio: aspectRatioMap[finalAspectRatio] || String(finalAspectRatio),
-      outputFormat: kieOutputFormat,
-    };
 
-    // Only set `resolution` for models that actually accept it (e.g. FLUX.2 Pro).
-    if (resolutionForKie) {
-      generateParams.resolution = resolutionForKie;
-    }
-    
-    // Add quality only if it's a valid quality option (not resolution-based)
-    // For Nano Banana Pro and similar models, quality is resolution-based ('1k_2k', '4k', etc.)
-    // Don't pass quality separately for these models - the API uses resolution parameter instead
-    // Also exclude generic quality values that shouldn't be passed for resolution-based models
-    const resolutionBasedQualityValues = ['1k_2k', '4k', '1k', '2k', '8k', 'fast', 'turbo', 'balanced', 'quality', 'ultra'];
-    const isResolutionBasedModel = effectiveModelId.includes('nano-banana') || effectiveModelId.includes('imagen') || apiModelId.includes("flux-2");
-    const isGptImage = effectiveModelId === "gpt-image" || String(apiModelId || "").includes("gpt-image");
-
-    // Seedream maps Turbo/Balanced/Quality -> basic/high inside kie-client, so pass it through.
-    if (isSeedream45 && quality) {
-      generateParams.quality = String(quality);
-    } else if (isGptImage) {
-      // GPT Image on KIE requires quality (medium/high). Default to medium if not provided.
-      generateParams.quality = String(quality || "medium");
-    } else if (quality && !resolutionBasedQualityValues.includes(quality.toLowerCase()) && !isResolutionBasedModel) {
-      // For other models: only pass non-resolution-like quality enums.
-      generateParams.quality = quality;
-    }
-    
-    if (kieImageInputs && kieImageInputs.length > 0) {
-      generateParams.imageInputs = kieImageInputs;
-    }
-
-    // Tool params: Topaz Upscale requires `scale` ("2x" | "4x")
+    // Tool params: Topaz Upscale requires `upscaleFactor`
+    let upscaleFactor: string | number | undefined;
     const isTopazUpscale =
       effectiveModelId === "topaz-image-upscale" || String(apiModelId || "").includes("topaz/image-upscale");
     if (isTopazUpscale) {
@@ -1345,21 +1421,45 @@ export async function POST(request: NextRequest) {
 
       const s = String(raw || "").trim().toLowerCase();
       // Accept: "8", "8x", "8k" => "8"; "4", "4x", "4k" => "4"; everything else defaults to "2"
-      const upscaleFactor = 
+      upscaleFactor =
         s === "8" || s === "8x" || s === "8k" ? "8" :
         s === "4" || s === "4x" || s === "4k" ? "4" : "2";
-      generateParams.upscaleFactor = upscaleFactor;
     }
-    
-    console.log('[API] Generating image with params:', {
-      model: generateParams.model,
-      resolution: generateParams.resolution,
-      quality: generateParams.quality,
-      aspectRatio: generateParams.aspectRatio,
+
+    const payload = buildKieImagePayload({
+      modelId: effectiveModelId,
+      mode: resolvedMode as any,
+      params: {
+        prompt,
+        negativePrompt,
+        aspectRatio: aspectRatioMap[finalAspectRatio] || String(finalAspectRatio),
+        quality: finalQuality,
+        resolution: resolutionForKie || undefined,
+        outputFormat: kieOutputFormat,
+        upscaleFactor,
+      },
+      assetUrls: {
+        referenceImages: kieImageInputs,
+      },
     });
-    
+
+    console.log('[API] 🔍 PROVIDER PAYLOAD AUDIT:', {
+      modelId: effectiveModelId,
+      apiModelId: payload.model,
+      provider: modelInfo.provider,
+      mode: resolvedMode,
+      quality: finalQuality || null,
+      resolution: resolutionForKie || finalResolution || null,
+      aspectRatio: aspectRatioMap[finalAspectRatio] || String(finalAspectRatio),
+      outputCount: capability.outputCount?.default ?? finalVariants,
+      requestVariants: finalVariants,
+      hasInputImage: !!(kieImageInputs && kieImageInputs.length > 0),
+      inputImageCount: kieImageInputs?.length || 0,
+      resultCount: 'pending',
+    });
+
     try {
-      response = await kieClient.generateImage(generateParams);
+      response = await kieClient.generateImage(payload);
     } catch (kieError: any) {
       const errMsg = kieError?.message || "KIE API error";
       console.error('[API] KIE generateImage error:', {

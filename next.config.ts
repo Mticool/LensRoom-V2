@@ -205,12 +205,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // HTML pages - short cache with revalidation
+        // HTML pages — не кэшируем документ, чтобы после деплоя всегда подтягивались новые чанки
         source: "/:path((?!api|_next).*)",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+            value: "no-store, must-revalidate",
           },
         ],
       },

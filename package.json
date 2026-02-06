@@ -13,16 +13,15 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:smoke:ui": "node scripts/smoke-ui.js",
+    "test:smoke:video": "RUN_LIVE_SMOKE=1 SMOKE_ALLOW_CHARGE=0 npx tsx scripts/live-smoke-video.ts",
     "clean": "rm -rf .next out node_modules/.cache",
     "backfill:previews": "node scripts/backfill-previews.js",
     "worker:previews": "node scripts/previews-worker.js",
     "worker:previews:oneshot": "PREVIEWS_WORKER_ONESHOT=1 node scripts/previews-worker.js",
     "previews:rebuild": "node scripts/previews-rebuild.js",
-    "previews:rebuild:dry": "node scripts/previews-rebuild.js --dry-run",
-    "test:veo": "npx tsx test-veo-models.ts",
-    "test:veo:check": "npx tsx check-veo-availability.ts",
-    "test:veo:correct": "npx tsx test-veo-correct.ts",
-    "test:veo:all": "npm run test:veo && npm run test:veo:check && npm run test:veo:correct"
+    "previews:rebuild:dry": "node scripts/previews-rebuild.js --dry-run"
   },
   "dependencies": {
     "@fal-ai/client": "^1.8.4",
@@ -63,8 +62,10 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.1.0",
+    "@playwright/test": "^1.58.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

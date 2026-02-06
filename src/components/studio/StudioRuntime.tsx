@@ -855,6 +855,8 @@ export function StudioRuntime({
           payload.referenceVideo = await fileToDataUrl(motionReferenceVideo);
           payload.videoDuration = motionReferenceVideoDurationSec || undefined;
           payload.autoTrim = true;
+          payload.characterOrientation = 'image';
+          payload.cameraControl = {};
         }
       }
 
@@ -1173,6 +1175,5 @@ export function StudioRuntime({
     </StudioShell>
   );
 }
-
 
 

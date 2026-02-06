@@ -1,15 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getKieClient } from '@/lib/api/kie-client';
 import { getFalClient } from '@/lib/api/fal-client';
 import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
-import { getSkuFromRequest, getPriceStars, calculateTotalStars, isPerSecondSku, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
+import { getSkuFromRequest, calculateTotalStars, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { 
-  calcMotionControlStars, 
-  validateMotionControlDuration, 
-  MOTION_CONTROL_CONFIG,
+  validateMotionControlDuration,
   type MotionControlResolution 
 } from '@/lib/pricing/motionControl';
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
@@ -21,12 +20,35 @@ import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/l
 import { resolveVideoAspectRatio, logVideoAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
 import { VideoGenerationRequestSchema, validateAgainstCapability } from '@/lib/videoModels/schema';
 import { getModelCapability } from '@/lib/videoModels/capabilities';
-import { z } from 'zod';
+import { buildKieVideoPayload } from '@/lib/providers/kie/video';
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 // Настройка в next.config.ts: experimental.middlewareClientMaxBodySize = '50mb'
 export const maxDuration = 60; // 60 seconds timeout
 export const dynamic = 'force-dynamic';
+
+async function updateGenerationWithRetry(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  id: string | number | undefined,
+  data: Record<string, unknown>,
+  label: string
+) {
+  if (!id) return;
+  const maxAttempts = 3;
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { error } = await supabase.from('generations').update(data).eq('id', id);
+    if (!error) return;
+    lastError = error;
+    console.error(`[API] ${label} update attempt ${attempt} failed:`, error);
+    await new Promise((r) => setTimeout(r, 250 * attempt));
+  }
+
+  if (lastError) {
+    console.error(`[API] ${label} update failed after retries:`, lastError);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,6 +91,8 @@ export async function POST(request: NextRequest) {
       motionStrength, // WAN 2.6: 0-100
       qualityTier, // Kling: 'standard' | 'pro' | 'master'
       referenceImages, // Veo 3.1: array of up to 3 reference images
+      cfgScale, // Kling: 0-20
+      cameraControl, // Motion Control: JSON
       // Extend mode
       sourceGenerationId, // ID записи generation для продления
       taskId, // Прямой taskId для extend (если фронт шлёт напрямую)
@@ -100,15 +124,19 @@ export async function POST(request: NextRequest) {
     const skipStrictValidation = model === 'veo-3.1-fast' || model === 'veo-3.1';
     if (capability && !skipStrictValidation) {
       try {
+        const modeKey = normalizedMode;
+        const modeAspectRatios = capability.modeAspectRatios?.[modeKey] || capability.supportedAspectRatios;
+        const modeDurations = capability.modeDurationsSec?.[modeKey] || capability.supportedDurationsSec;
         // Build validation request object
         const validationRequest = {
           modelId: model,
           mode: normalizedMode,
           prompt: prompt || '',
           negativePrompt,
-          aspectRatio: aspectRatioFromBody || capability.supportedAspectRatios[0],
-          durationSec: duration || capability.supportedDurationsSec[0],
+          aspectRatio: aspectRatioFromBody || modeAspectRatios[0],
+          durationSec: duration || modeDurations[0],
           quality: quality || resolution,
+          resolution: resolution,
           inputImage: referenceImage || startImage,
           referenceImages,
           referenceVideo: referenceVideo || v2vVideoUrl,
@@ -121,6 +149,9 @@ export async function POST(request: NextRequest) {
           stylePreset,
           motionStrength,
           qualityTier,
+          cfgScale,
+          cameraControl,
+          characterOrientation,
           variants,
           threadId: threadIdRaw,
         };
@@ -164,14 +195,18 @@ export async function POST(request: NextRequest) {
     // === END NEW VALIDATION ===
     
     // Normalize aspect ratio: UI may send "auto" which should mean "use model default"
+    const rawAspect = typeof aspectRatioFromBody === "string" ? aspectRatioFromBody.trim() : aspectRatioFromBody;
+    const useSourceAspect = rawAspect === "source";
     const normalizedAspectFromBody =
-      typeof aspectRatioFromBody === "string" && aspectRatioFromBody.trim() === "auto"
+      typeof rawAspect === "string" && (rawAspect === "auto" || rawAspect === "source")
         ? undefined
-        : aspectRatioFromBody;
+        : rawAspect;
 
     // Resolve aspect ratio with model-specific default
-    const aspectRatio = resolveVideoAspectRatio(normalizedAspectFromBody, model);
-    logVideoAspectRatioResolution(aspectRatioFromBody, aspectRatio, model, 'Video');
+    const aspectRatio = useSourceAspect ? undefined : resolveVideoAspectRatio(normalizedAspectFromBody, model);
+    if (!useSourceAspect) {
+      logVideoAspectRatioResolution(aspectRatioFromBody, aspectRatio as string, model, 'Video');
+    }
 
     if (!prompt && mode !== 'storyboard') {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -267,8 +302,6 @@ export async function POST(request: NextRequest) {
     const wanSoundPreset = typeof soundPreset === 'string' ? soundPreset.trim() : '';
     const soundEnabled =
       modelInfo.supportsAudio ? (typeof audio === 'boolean' ? audio : true) : false;
-    const audioForParams = model === "wan" ? !!wanSoundPreset : soundEnabled;
-
     // Validate WAN sound preset (if provided)
     if (model === "wan" && wanSoundPreset) {
       const allowedSound = (activeVariant?.soundOptions || []).map(String);
@@ -284,7 +317,7 @@ export async function POST(request: NextRequest) {
 
     // Validate Grok Video style
     if (model === 'grok-video' && style) {
-      const allowedStyles = ['realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'];
+      const allowedStyles = ['normal', 'fun', 'spicy'];
       if (!allowedStyles.includes(style)) {
         return NextResponse.json(
           { error: `Invalid style '${style}'. Allowed: ${allowedStyles.join(', ')}` },
@@ -326,13 +359,46 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate Kling quality tier
-    if (model === 'kling' && qualityTier) {
+    if (model === 'kling-2.1' && qualityTier) {
       const allowedTiers = ['standard', 'pro', 'master'];
       if (!allowedTiers.includes(qualityTier)) {
         return NextResponse.json(
           { error: `Invalid qualityTier '${qualityTier}'. Allowed: ${allowedTiers.join(', ')}` },
           { status: 400 }
         );
+      }
+    }
+
+    // Validate cfgScale (Kling models)
+    if (cfgScale !== undefined) {
+      if (typeof cfgScale !== 'number' || cfgScale < 0 || cfgScale > 20) {
+        return NextResponse.json(
+          { error: 'cfgScale must be a number between 0 and 20' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate cameraControl JSON for Motion Control
+    let cameraControlParsed: Record<string, unknown> | undefined;
+    if (model === 'kling-motion-control') {
+      if (!cameraControl) {
+        return NextResponse.json(
+          { error: 'cameraControl is required for Motion Control' },
+          { status: 400 }
+        );
+      }
+      if (typeof cameraControl === 'string') {
+        try {
+          cameraControlParsed = JSON.parse(cameraControl);
+        } catch {
+          return NextResponse.json(
+            { error: 'cameraControl must be valid JSON' },
+            { status: 400 }
+          );
+        }
+      } else if (typeof cameraControl === 'object') {
+        cameraControlParsed = cameraControl as Record<string, unknown>;
       }
     }
 
@@ -474,7 +540,7 @@ export async function POST(request: NextRequest) {
       userRole = auth.role;
       // Managers and admins don't pay credits when generating content for gallery
       skipCredits = userRole === "manager" || userRole === "admin";
-    } catch (error) {
+    } catch {
       // Fallback to old auth method
       const telegramSession = await getSession();
       if (!telegramSession) {
@@ -725,21 +791,20 @@ export async function POST(request: NextRequest) {
         console.log('[API] Extend successful, new taskId:', newTaskId);
         
         // Обновить generation с новым task_id
-        const { error: updateError } = await supabase
-          .from('generations')
-          .update({ 
+        await updateGenerationWithRetry(
+          supabase,
+          generation?.id,
+          {
             task_id: newTaskId,
             status: 'generating',
             metadata: {
               extend_from: sourceTaskId,
               extend_source_generation_id: sourceGenerationId,
-            }
-          })
-          .eq('id', generation?.id);
-        
-        if (updateError) {
-          console.error('[API] Failed to update generation with taskId:', updateError);
-        }
+              provider_task_id: newTaskId,
+            },
+          },
+          'extend_task_id'
+        );
         
         // Логирование generation run
         try {
@@ -825,6 +890,51 @@ export async function POST(request: NextRequest) {
     let imageUrl: string | undefined;
     let lastFrameUrl: string | undefined;
     let videoUrl: string | undefined; // For motion control reference video
+
+    // Basic file validation for data URLs (best-effort)
+    const capabilityFileConstraints = capability?.fileConstraints || {};
+    const validateDataUrl = (dataUrl: string, key: string): string | null => {
+      if (!dataUrl || !dataUrl.startsWith('data:')) return null;
+      const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+      if (!match) return `Invalid data URL for ${key}`;
+      const mime = match[1];
+      const b64 = match[2];
+      const sizeBytes = Math.ceil((b64.length * 3) / 4);
+      const sizeMb = sizeBytes / (1024 * 1024);
+      const ext = mime.split('/')[1]?.toLowerCase() || '';
+      const rules = (capabilityFileConstraints as any)[key];
+      if (rules?.formats && rules.formats.length > 0) {
+        const allowed = rules.formats.map((f: string) => f.toLowerCase());
+        if (!allowed.includes(ext)) {
+          return `Invalid ${key} format '${ext}'. Allowed: ${allowed.join(', ')}`;
+        }
+      }
+      if (rules?.maxSizeMb && sizeMb > rules.maxSizeMb) {
+        return `File too large for ${key} (${sizeMb.toFixed(1)} MB). Max: ${rules.maxSizeMb} MB`;
+      }
+      return null;
+    };
+
+    const dataUrlErrors: string[] = [];
+    const fileChecks: Array<[string | undefined, string]> = [
+      [referenceImage, 'inputImage'],
+      [startImage, 'startImage'],
+      [endImage, 'endImage'],
+      [referenceVideo, 'referenceVideo'],
+      [v2vVideoUrl, 'referenceVideo'],
+    ];
+    fileChecks.forEach(([val, key]) => {
+      if (val) {
+        const err = validateDataUrl(val, key);
+        if (err) dataUrlErrors.push(err);
+      }
+    });
+    if (dataUrlErrors.length > 0) {
+      return NextResponse.json(
+        { error: 'Invalid input file', details: dataUrlErrors },
+        { status: 400 }
+      );
+    }
     
     const uploadDataUrlToStorage = async (dataUrl: string, suffix: string) => {
       // data:image/png;base64,xxxx OR data:video/mp4;base64,xxxx
@@ -858,8 +968,16 @@ export async function POST(request: NextRequest) {
       return pub.publicUrl;
     };
 
-    if (mode === 'i2v' && referenceImage) {
-      imageUrl = await uploadDataUrlToStorage(referenceImage, 'i2v');
+    if (mode === 'i2v') {
+      if (referenceImage) {
+        imageUrl = await uploadDataUrlToStorage(referenceImage, 'i2v');
+      } else if (startImage) {
+        imageUrl = await uploadDataUrlToStorage(startImage, 'ref');
+      }
+      // Kling 2.5: optional tail image in i2v
+      if (endImage && model === 'kling-2.5') {
+        lastFrameUrl = await uploadDataUrlToStorage(endImage, 'tail');
+      }
     } else if (mode === 'start_end') {
       if (startImage) imageUrl = await uploadDataUrlToStorage(startImage, 'start');
       if (endImage) lastFrameUrl = await uploadDataUrlToStorage(endImage, 'end');
@@ -869,35 +987,30 @@ export async function POST(request: NextRequest) {
     }
     
     // Handle Veo 3.1 reference images (array)
-    // KIE API requires HTTP URLs, not base64 - upload to storage first
+    // Upload to storage for logging/other use; for LaoZhang pass base64 when available (API works better, no URL fetch)
     let referenceImageUrls: string[] | undefined;
+    let referenceImagesForLaoZhang: string[] | undefined; // base64 when from body, else URLs
     if (referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0) {
-      // Filter out empty strings first
       const validReferenceImages = referenceImages.filter(img => img && typeof img === 'string' && img.trim() !== '');
-
       if (validReferenceImages.length > 0) {
-        // Limit to 2 images for stability (Veo supports up to 3, but 2 is recommended)
         const maxRefs = 2;
         const imagesToUpload = validReferenceImages.slice(0, maxRefs);
         referenceImageUrls = [];
+        const allDataUrls = imagesToUpload.every((img) => img.startsWith('data:'));
         for (let i = 0; i < imagesToUpload.length; i++) {
           const img = imagesToUpload[i];
           if (img.startsWith('data:')) {
-            // Upload base64 to storage
             const uploadedUrl = await uploadDataUrlToStorage(img, `veo_ref_${i}`);
             referenceImageUrls.push(uploadedUrl);
-          } else {
-            // Already a URL - verify it's not empty
-            if (img.trim() !== '') {
-              referenceImageUrls.push(img);
-            }
+          } else if (img.trim() !== '') {
+            referenceImageUrls.push(img);
           }
         }
-        console.log('[API] Veo reference images uploaded:', {
+        referenceImagesForLaoZhang = allDataUrls ? imagesToUpload : referenceImageUrls;
+        console.log('[API] Veo reference images:', {
           total: referenceImages.length,
-          valid: validReferenceImages.length,
           using: referenceImageUrls.length,
-          format: 'HTTP URLs',
+          formatForLaoZhang: allDataUrls ? 'base64' : 'HTTP URLs',
         });
       }
     }
@@ -950,6 +1063,18 @@ export async function POST(request: NextRequest) {
     // Select correct API model ID based on mode and variant
     // If modelVariant is specified (for unified models like Kling), use variant's apiId
     let apiModelId = modelInfo.apiId;
+
+    // Kling 2.1: map quality tier to specific API model IDs
+    if (model === 'kling-2.1') {
+      const tier = (qualityTier || 'standard').toLowerCase();
+      if (tier === 'standard' || tier === 'pro' || tier === 'master') {
+        apiModelId =
+          mode === 'i2v'
+            ? `kling/v2-1-${tier}-image-to-video`
+            : `kling/v2-1-${tier}-text-to-video`;
+      }
+    }
+
     if (modelVariant && modelInfo.modelVariants) {
       const variant = modelInfo.modelVariants.find(v => v.id === modelVariant);
       if (variant) {
@@ -975,6 +1100,7 @@ export async function POST(request: NextRequest) {
       aspectRatio: aspectRatio,
       duration: duration,
       quality: quality || resolution,
+      resolution: resolution,
       sound: audio,
       // Reference assets
       hasReferenceImage: !!imageUrl,
@@ -999,7 +1125,7 @@ export async function POST(request: NextRequest) {
     let kieClient: any;
     try {
       kieClient = getKieClient();
-    } catch (e) {
+    } catch {
       return integrationNotConfigured("kie", [
         "KIE_API_KEY",
         "KIE_CALLBACK_SECRET",
@@ -1087,12 +1213,14 @@ export async function POST(request: NextRequest) {
         
         // Generate video (sync - returns URL directly)
         // Supports t2v, i2v (with startImageUrl), start_end (with both images), ref2v (with referenceImages)
+        // Prefer base64 when available so LaoZhang does not need to fetch our storage URLs
+        const refsForLaoZhang = referenceImagesForLaoZhang ?? referenceImageUrls;
         const videoGenResponse = await videoClient.generateVideo({
           model: videoModelId,
           prompt: fullPrompt,
           startImageUrl: startImageUrlForVideo,
           endImageUrl: endImageUrlForVideo,
-          referenceImages: referenceImageUrls, // Pass reference images as Base64 data URLs
+          referenceImages: refsForLaoZhang,
         });
         
         // Upload video to Supabase Storage for permanent storage
@@ -1148,28 +1276,20 @@ export async function POST(request: NextRequest) {
           resultUrl: finalVideoUrl.substring(0, 100),
         });
         
-        const { error: updateError } = await supabase
-          .from('generations')
-          .update({
+        await updateGenerationWithRetry(
+          supabase,
+          generation?.id,
+          {
             status: 'success',
             result_urls: [finalVideoUrl],
+            metadata: {
+              ...(generation?.metadata || {}),
+              provider_task_id: videoGenResponse.id,
+            },
             updated_at: new Date().toISOString(),
-          })
-          .eq('id', generation?.id);
-        
-        if (updateError) {
-          console.error('[API] ❌ CRITICAL: Failed to update generation to success:', {
-            generationId: generation?.id,
-            error: updateError,
-            errorCode: updateError.code,
-            errorMessage: updateError.message,
-            errorDetails: updateError.details,
-          });
-          // Don't fail the request - video was generated successfully
-          // But log prominently so we can debug RLS/permissions
-        } else {
-          console.log('[API] ✅ Generation record updated successfully:', generation?.id);
-        }
+          },
+          'video_success'
+        );
         
         // Log generation run
         try {
@@ -1369,23 +1489,30 @@ export async function POST(request: NextRequest) {
         const safeVideoUrl = videoUrl && videoUrl.trim() !== '' ? videoUrl : undefined;
         const safeReferenceImageUrls = referenceImageUrls?.filter(url => url && url.trim() !== '');
 
-        response = await kieClient.generateVideo({
-          model: apiModelId,
-          provider: modelInfo.provider,
+        const kiePayload = buildKieVideoPayload({
+          modelId: model,
+          mode: (model === 'kling-motion-control' ? 'motion_control' : mode) as any,
           prompt: fullPrompt,
-          imageUrl: safeImageUrl,
-          lastFrameUrl: safeLastFrameUrl,
-          videoUrl: safeVideoUrl, // For motion control
-          duration: duration || modelInfo.fixedDuration || 5,
+          durationSec: duration || modelInfo.fixedDuration || 5,
           aspectRatio: aspectRatio,
-          sound: model === 'wan' ? (wanSoundPreset || false) : (model === 'kling-motion-control' ? false : soundEnabled),
-          mode: model === 'kling-motion-control' ? 'motion_control' : mode,
-          resolution: resolution,
           quality: quality,
-          shots: shots, // For storyboard mode
+          resolution: resolution,
+          sound: model === 'wan'
+            ? !!wanSoundPreset
+            : (model === 'kling-motion-control' ? false : soundEnabled),
+          inputImageUrl: safeImageUrl,
+          endImageUrl: safeLastFrameUrl,
+          referenceImages: safeReferenceImageUrls && safeReferenceImageUrls.length > 0 ? safeReferenceImageUrls : undefined,
+          referenceVideoUrl: safeVideoUrl,
           characterOrientation: model === 'kling-motion-control' ? (characterOrientation || 'image') : undefined,
-          referenceImages: safeReferenceImageUrls && safeReferenceImageUrls.length > 0 ? safeReferenceImageUrls : undefined, // Veo 3.1 reference images
+          cfgScale: typeof cfgScale === 'number' ? cfgScale : undefined,
+          cameraControl: cameraControlParsed || cameraControl,
+          qualityTier: qualityTier,
+          style: style,
+          shots: shots,
         });
+
+        response = await kieClient.generateVideo(kiePayload);
       } catch (error: any) {
       // Обработка ошибки политики контента Google Veo
       const errorMessage = error?.message || String(error);
@@ -1470,10 +1597,19 @@ export async function POST(request: NextRequest) {
 
     // Update generation with task ID
     if (generation?.id) {
-      await supabase
-        .from('generations')
-        .update({ task_id: response.id, status: 'generating' })
-        .eq('id', generation.id);
+      await updateGenerationWithRetry(
+        supabase,
+        generation?.id,
+        {
+          task_id: response.id,
+          status: 'generating',
+          metadata: {
+            ...(generation?.metadata || {}),
+            provider_task_id: response.id,
+          },
+        },
+        'task_id'
+      );
     }
 
     return NextResponse.json({

@@ -27,16 +27,39 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
 
   // Helper function to get asset URL with fallback priority (similar to getSourceAssetUrl)
   const getAssetUrl = useCallback((gen: any): string => {
+    // Check if we have external URL from temporary domain (tempfile.aiquickdraw.com)
+    // These URLs expire over time, so prefer reliable proxy endpoint
+    const externalUrls = [
+      gen.asset_url,
+      gen.result_url,
+      gen.result_urls,
+      gen.thumbnail_url,
+      gen.preview_url
+    ].filter(Boolean);
+
+    const hasExpirableUrl = externalUrls.some(url => {
+      if (typeof url === 'string') {
+        return url.includes('tempfile.aiquickdraw.com');
+      }
+      return false;
+    });
+
+    // If we have expirable external URL and a valid ID, prefer proxy endpoint for reliability
+    if (hasExpirableUrl && gen.id && gen.status === 'success') {
+      return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=original&proxy=1`;
+    }
+
+    // Otherwise use normal priority chain
     // Priority 1: asset_url
     if (gen.asset_url && typeof gen.asset_url === 'string') {
       return gen.asset_url;
     }
-    
+
     // Priority 2: result_url
     if (gen.result_url && typeof gen.result_url === 'string') {
       return gen.result_url;
     }
-    
+
     // Priority 3: result_urls[0]
     if (gen.result_urls) {
       if (Array.isArray(gen.result_urls) && gen.result_urls.length > 0) {
@@ -56,17 +79,17 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
         }
       }
     }
-    
+
     // Priority 4: thumbnail_url
     if (gen.thumbnail_url && typeof gen.thumbnail_url === 'string') {
       return gen.thumbnail_url;
     }
-    
+
     // Priority 5: preview_url
     if (gen.preview_url && typeof gen.preview_url === 'string') {
       return gen.preview_url;
     }
-    
+
     // Priority 6: Parse JSON columns (output/result/data) for URLs
     const jsonColumns = [gen.output, gen.result, gen.data];
     for (const col of jsonColumns) {
@@ -75,29 +98,79 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       const urlMatch = str.match(/https:\/\/[^\s"']+/);
       if (urlMatch) return urlMatch[0];
     }
-    
+
     // Priority 7: Use download endpoint if we have an ID but no direct URL
     // Use proxy=1 to get direct image data instead of redirect
     if (gen.id && gen.status === 'success') {
       // Try preview first, fallback to original
       return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
     }
-    
+
     return '';
   }, []);
 
   // Transform API response to GenerationResult format
   const transformResults = useCallback((generations: any[]): GenerationResult[] => {
-    return (generations || []).map((gen: any): GenerationResult => {
+    return (generations || []).flatMap((gen: any): GenerationResult[] => {
+      // Check if this generation has multiple URLs (e.g. Grok returns 6 images)
+      let urls: string[] = [];
+
+      // Extract all URLs from result_urls array
+      if (gen.result_urls) {
+        if (Array.isArray(gen.result_urls)) {
+          urls = gen.result_urls.filter((url: any) => typeof url === 'string' && url.trim().length > 0);
+        } else if (typeof gen.result_urls === 'string') {
+          try {
+            const parsed = JSON.parse(gen.result_urls);
+            if (Array.isArray(parsed)) {
+              urls = parsed.filter((url: any) => typeof url === 'string' && url.trim().length > 0);
+            }
+          } catch {
+            // If not JSON, might be a single URL
+            urls = [gen.result_urls];
+          }
+        }
+      }
+
+      // If we have multiple URLs, create a GenerationResult for each one
+      if (urls.length > 1) {
+        const normalizedSize = normalizeAspectRatio(gen.aspect_ratio);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useHistory] Multi-URL generation:', {
+            id: gen.id,
+            model: gen.model_id,
+            aspect_ratio_raw: gen.aspect_ratio,
+            aspect_ratio_normalized: normalizedSize,
+          });
+        }
+        return urls.map((url, index) => ({
+          id: `${gen.id}-${index}`,
+          url: url,
+          previewUrl: url, // Use same URL for preview
+          prompt: gen.prompt || '',
+          mode: (gen.type === 'video' ? 'video' : 'image') as GeneratorMode,
+          settings: {
+            model: gen.model_id || '',
+            size: normalizedSize,
+            quality: gen?.params?.quality || undefined,
+            outputFormat: gen?.params?.outputFormat || undefined,
+            negativePrompt: gen.negative_prompt || undefined,
+          } as GenerationSettings,
+          timestamp: gen.created_at ? new Date(gen.created_at).getTime() : Date.now(),
+          status: (gen.status === 'success' || gen.status === 'completed') ? 'completed' : gen.status,
+        }));
+      }
+
+      // Otherwise, use normal single-URL logic
       const assetUrl = getAssetUrl(gen);
-      
+
       // For previewUrl, prefer preview_url, then assetUrl, then download endpoint with proxy
       let previewUrl = gen.preview_url || assetUrl;
       if (!previewUrl && gen.id && gen.status === 'success') {
         // Use download endpoint with proxy=1 to get direct image data
         previewUrl = `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
       }
-      
+
       // If we still don't have a URL but have an ID, use download endpoint with proxy for original
       // Also ensure we have at least some URL for display
       let finalUrl = assetUrl;
@@ -105,13 +178,13 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
         // Try original with proxy first
         finalUrl = `/api/generations/${encodeURIComponent(gen.id)}/download?kind=original&proxy=1`;
       }
-      
+
       // If previewUrl is empty but we have finalUrl, use it
       if (!previewUrl && finalUrl) {
         previewUrl = finalUrl;
       }
-      
-      return {
+
+      return [{
         id: gen.id,
         url: finalUrl,
         prompt: gen.prompt || '',
@@ -126,10 +199,12 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
         timestamp: new Date(gen.created_at).getTime(),
         previewUrl: previewUrl || finalUrl, // Ensure previewUrl is always set if we have any URL
         status: gen.status,
-      };
+      }];
     }).filter((r) => {
-      // Only show items with success status and either URL or ID (for download endpoint)
-      return r.status === 'success' && (r.url || r.previewUrl || r.id);
+      // Only show items with success/completed status and either URL or ID (for download endpoint)
+      const isSuccess = r.status === 'success' || r.status === 'completed';
+      const hasMedia = !!(r.url || r.previewUrl || r.id);
+      return isSuccess && hasMedia;
     });
   }, [getAssetUrl]);
 

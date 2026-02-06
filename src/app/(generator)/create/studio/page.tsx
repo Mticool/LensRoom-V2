@@ -38,9 +38,9 @@ function StudioContent() {
   const selectedPhotoModel = (searchParams.get("model") || "nano-banana-pro").trim();
 
   return (
-    <div className={`bg-[var(--bg)] pt-24 ${section === "photo" ? "h-[calc(100vh-6rem)] flex flex-col" : "min-h-screen"}`}>
+    <div className={`bg-[var(--bg)] ${section === "photo" ? "h-screen flex flex-col pt-0" : "min-h-screen pt-24"}`}>
       {section === "photo" && (
-        <div className="hidden md:block px-4 pb-3 flex-shrink-0">
+        <div className="hidden md:block px-4 pb-3 pt-2 flex-shrink-0">
           <ModelSelector
             value={selectedPhotoModel}
             onChange={(modelId) => {
@@ -64,7 +64,7 @@ function StudioContent() {
           <VoiceSection />
         </Suspense>
       ) : section === "video" ? (
-        <VideoGeneratorLight />
+        <VideoGeneratorLight initialModel={searchParams.get("model")?.trim() || undefined} />
       ) : section === "motion" ? (
         <StudioRuntime defaultKind="video" variant="motion" />
       ) : (

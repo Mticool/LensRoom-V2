@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react';
+import type { RefObject } from 'react';
 import { Download, Share2, RotateCcw, Loader2, Maximize2, AlertCircle, Heart, ImagePlus, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
@@ -11,7 +12,7 @@ interface ImageGalleryMasonryProps {
   images: GenerationResult[];
   isGenerating: boolean;
   layout?: 'masonry' | 'grid' | 'feed';
-  onRegenerate?: (prompt: string, settings: any) => void;
+  onRegenerate?: (prompt: string, settings: GenerationResult['settings']) => void;
   onImageClick?: (image: GenerationResult) => void;
   /** Use an existing image as a reference for i2i flows. */
   onUseAsReference?: (image: GenerationResult) => void;
@@ -21,6 +22,10 @@ interface ImageGalleryMasonryProps {
   autoScrollToBottom?: boolean;
   /** Consider user "near bottom" within this many pixels. Default: 240. */
   autoScrollThresholdPx?: number;
+  /** Auto-scroll behavior: always or only when near bottom. Default: near-bottom. */
+  autoScrollBehavior?: 'always' | 'near-bottom';
+  /** Optional external scroll container (e.g., Studio desktop). */
+  scrollContainerRef?: RefObject<HTMLDivElement | null>;
   // Pagination props
   hasMore?: boolean;
   onLoadMore?: () => void;
@@ -33,15 +38,6 @@ interface ImageGalleryMasonryProps {
   fullWidth?: boolean;
 }
 
-// Helper to check if image is ready to display
-const isImageReady = (image: GenerationResult): boolean => {
-  const status = image.status?.toLowerCase();
-  // Skip failed, error, or no-url images
-  if (status === 'failed' || status === 'error') return false;
-  if (!image.url && status !== 'pending') return false;
-  return true;
-};
-
 const ImageGalleryMasonryComponent = ({
   images,
   isGenerating,
@@ -53,6 +49,8 @@ const ImageGalleryMasonryComponent = ({
   emptyDescription,
   autoScrollToBottom = false,
   autoScrollThresholdPx = 240,
+  autoScrollBehavior = 'near-bottom',
+  scrollContainerRef,
   hasMore = false,
   onLoadMore,
   isLoadingMore = false,
@@ -121,14 +119,14 @@ const ImageGalleryMasonryComponent = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuId]);
 
-  // Auto-scroll to bottom when new images are appended (only if user is already near bottom).
+  // Auto-scroll to bottom when new images are appended.
   useEffect(() => {
     if (!autoScrollToBottom) {
       lastLenRef.current = images.length;
       return;
     }
 
-    const el = scrollRef.current;
+    const el = scrollContainerRef?.current || scrollRef.current;
     if (!el) {
       lastLenRef.current = images.length;
       return;
@@ -139,24 +137,37 @@ const ImageGalleryMasonryComponent = ({
     lastLenRef.current = nextLen;
     if (nextLen <= prevLen) return;
 
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const nearBottom = distanceFromBottom <= autoScrollThresholdPx;
-    if (!nearBottom) return;
+    if (autoScrollBehavior === 'near-bottom') {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const nearBottom = distanceFromBottom <= autoScrollThresholdPx;
+      if (!nearBottom) return;
+    }
 
     // Wait for layout to commit then scroll.
     requestAnimationFrame(() => {
-      if (!scrollRef.current) return;
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+      const target = scrollContainerRef?.current || scrollRef.current;
+      if (!target) return;
+      target.scrollTo({ top: target.scrollHeight, behavior: 'smooth' });
     });
-  }, [autoScrollToBottom, autoScrollThresholdPx, images.length]);
+  }, [autoScrollToBottom, autoScrollBehavior, autoScrollThresholdPx, images.length, scrollContainerRef]);
+
+  const normalizeGenerationId = useCallback((rawId: string | undefined | null): string | null => {
+    const id = String(rawId || "").trim();
+    if (!id) return null;
+    const m = id.match(
+      /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[-_]\d+)?$/i
+    );
+    return m ? m[1] : null;
+  }, []);
 
   const handleDownload = useCallback(async (image: GenerationResult) => {
     if (!image?.url) return;
     try {
       const isDemo = String(image.id || "").startsWith("demo-");
+      const normalizedId = normalizeGenerationId(image.id);
       // Always use proxy=1 to avoid CORS issues and work without VPN
-      const downloadUrl = !isDemo && image.id 
-        ? `/api/generations/${encodeURIComponent(image.id)}/download?kind=original&proxy=1` 
+      const downloadUrl = !isDemo && normalizedId
+        ? `/api/generations/${encodeURIComponent(normalizedId)}/download?kind=original&proxy=1&download=1`
         : image.url;
       
       console.log('[Download] Fetching:', downloadUrl);
@@ -168,7 +179,7 @@ const ImageGalleryMasonryComponent = ({
 
       const blob = await response.blob();
       const mime = String(blob.type || "").toLowerCase();
-      const preferred = String((image as any)?.settings?.outputFormat || "").toLowerCase();
+      const preferred = String(image.settings?.outputFormat || "").toLowerCase();
       const ext =
         mime.includes("png") ? "png" :
         mime.includes("webp") ? "webp" :
@@ -200,9 +211,16 @@ const ImageGalleryMasonryComponent = ({
       toast.success('Изображение скачано');
     } catch (error) {
       console.error('[Download] Error:', error);
+      const fallbackUrl = image?.url;
+      if (fallbackUrl) {
+        try {
+          window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+          return;
+        } catch {}
+      }
       toast.error('Ошибка при скачивании');
     }
-  }, []);
+  }, [normalizeGenerationId]);
 
   const handleShare = useCallback(async (image: GenerationResult) => {
     if (navigator.share) {
@@ -212,9 +230,7 @@ const ImageGalleryMasonryComponent = ({
           text: image.prompt,
           url: image.url,
         });
-      } catch (error) {
-        // User cancelled or error
-      }
+      } catch {}
     } else {
       // Fallback: copy link
       navigator.clipboard.writeText(image.url);
@@ -234,7 +250,7 @@ const ImageGalleryMasonryComponent = ({
   const handleRegenerate = useCallback((image: GenerationResult) => {
     if (onRegenerate) {
       onRegenerate(image.prompt, image.settings);
-      toast.info('Перегенерация...');
+      toast.info('Параметры подставлены. Нажмите «Сгенерировать».');
     }
   }, [onRegenerate]);
 
@@ -586,7 +602,7 @@ const ImageGalleryMasonryComponent = ({
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .masonry-grid {
           column-gap: 6px;
         }

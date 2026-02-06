@@ -92,7 +92,7 @@ describe('Video Model Capabilities', () => {
     });
 
     it('should have valid aspect ratio formats', () => {
-      const validFormats = /^(\d+:\d+|auto|portrait|landscape)$/;
+      const validFormats = /^(\d+:\d+|auto|portrait|landscape|source)$/;
       VIDEO_MODELS.forEach(model => {
         model.supportedAspectRatios.forEach(ratio => {
           expect(ratio).toMatch(validFormats);
@@ -216,6 +216,25 @@ describe('Video Model Capabilities', () => {
       expect(kling?.supportsSound).toBe(true);
     });
 
+    it('Kling 2.1 should use quality tiers (standard/pro/master)', () => {
+      const kling = getModelCapability('kling-2.1');
+      expect(kling).toBeDefined();
+      expect(kling?.supportedQualities).toEqual(['standard', 'pro', 'master']);
+      expect(kling?.supportedModes).not.toContain('start_end');
+    });
+
+    it('Kling 2.5 should support start/end in i2v', () => {
+      const kling = getModelCapability('kling-2.5');
+      expect(kling).toBeDefined();
+      expect(kling?.supportsStartEndFrames).toBe(true);
+    });
+
+    it('Kling Motion Control should use source aspect ratio', () => {
+      const motion = getModelCapability('kling-motion-control');
+      expect(motion).toBeDefined();
+      expect(motion?.supportedAspectRatios).toEqual(['source']);
+    });
+
     it('Grok Video should have correct styles', () => {
       const grok = getModelCapability('grok-video');
       expect(grok).toBeDefined();
@@ -238,8 +257,7 @@ describe('Video Model Capabilities', () => {
       expect(wan).toBeDefined();
       expect(wan?.supportedModes).toContain('v2v');
       expect(wan?.supportsReferenceVideo).toBe(true);
-      expect(wan?.cameraMotionOptions).toBeDefined();
-      expect(wan?.cameraMotionOptions?.length).toBeGreaterThan(0);
+      expect(wan?.supportedQualities).toEqual(['720p', '1080p']);
     });
   });
 });

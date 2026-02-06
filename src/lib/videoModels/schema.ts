@@ -17,6 +17,19 @@ export type ModelId = z.infer<typeof ModelIdEnum>;
 export const ModeEnum = z.enum(['t2v', 'i2v', 'start_end', 'v2v', 'motion_control', 'extend']);
 export type Mode = z.infer<typeof ModeEnum>;
 
+export const InputKeyEnum = z.enum([
+  'prompt',
+  'inputImage',
+  'startImage',
+  'endImage',
+  'referenceImages',
+  'referenceVideo',
+  'cameraControl',
+  'characterOrientation',
+  'resolution',
+]);
+export type InputKey = z.infer<typeof InputKeyEnum>;
+
 export const AspectRatioEnum = z.enum([
   'auto',
   '16:9',
@@ -26,6 +39,7 @@ export const AspectRatioEnum = z.enum([
   'landscape',
   '3:2',
   '2:3',
+  'source',
 ]);
 export type AspectRatio = z.infer<typeof AspectRatioEnum>;
 
@@ -38,6 +52,9 @@ export const QualityEnum = z.enum([
   'master',
 ]);
 export type Quality = z.infer<typeof QualityEnum>;
+
+export const AudioSupportEnum = z.enum(['toggle', 'always', 'none']);
+export type AudioSupport = z.infer<typeof AudioSupportEnum>;
 
 export const ProviderEnum = z.enum(['kie', 'laozhang', 'openai', 'fal', 'genaipro']);
 export type Provider = z.infer<typeof ProviderEnum>;
@@ -73,6 +90,28 @@ export const ModeConstraintSchema = z.object({
 
 export const ConstraintsByModeSchema = z.record(z.string(), ModeConstraintSchema).optional();
 
+export const ModeRequirementsSchema = z.object({
+  required: z.array(InputKeyEnum).optional(),
+  optional: z.array(InputKeyEnum).optional(),
+});
+
+export const RequirementsByModeSchema = z.record(z.string(), ModeRequirementsSchema).optional();
+
+export const FileConstraintSchema = z.object({
+  formats: z.array(z.string()).optional(),
+  maxSizeMb: z.number().optional(),
+  minWidthPx: z.number().optional(),
+  minHeightPx: z.number().optional(),
+  aspectRatio: z
+    .object({
+      min: z.number(),
+      max: z.number(),
+    })
+    .optional(),
+});
+
+export const FileConstraintsSchema = z.record(z.string(), FileConstraintSchema).optional();
+
 export type ConstraintsByMode = z.infer<typeof ConstraintsByModeSchema>;
 
 // ===== MODEL CAPABILITY =====
@@ -88,9 +127,13 @@ export const ModelCapabilitySchema = z.object({
   supportedAspectRatios: z.array(AspectRatioEnum),
   supportedDurationsSec: z.array(z.number()),
   supportedQualities: z.array(QualityEnum).optional(),
+  modeAspectRatios: z.record(z.string(), z.array(AspectRatioEnum)).optional(),
+  modeDurationsSec: z.record(z.string(), z.array(z.number())).optional(),
+  modeQualities: z.record(z.string(), z.array(QualityEnum)).optional(),
   
   // Feature flags
   supportsSound: z.boolean().optional(),
+  audioSupport: AudioSupportEnum.optional(),
   supportsReferenceVideo: z.boolean().optional(),
   supportsReferenceImages: z.boolean().optional(),
   maxReferenceImages: z.number().optional(),
@@ -104,6 +147,8 @@ export const ModelCapabilitySchema = z.object({
   
   // Constraints
   constraints: ConstraintsByModeSchema,
+  requiredInputsByMode: RequirementsByModeSchema,
+  fileConstraints: FileConstraintsSchema,
   
   // Duration config
   fixedDuration: z.number().optional(),
@@ -135,6 +180,7 @@ export const VideoGenerationRequestSchema = z.object({
   aspectRatio: AspectRatioEnum,
   durationSec: z.number().positive(),
   quality: QualityEnum.optional(),
+  resolution: z.string().optional(),
   
   // Media inputs
   inputImage: z.string().optional(), // base64 data URL
@@ -157,6 +203,9 @@ export const VideoGenerationRequestSchema = z.object({
   stylePreset: WANStylePresetEnum.optional(), // WAN style presets
   motionStrength: z.number().min(0).max(100).optional(),
   qualityTier: z.enum(['standard', 'pro', 'master']).optional(),
+  characterOrientation: z.enum(['image', 'video']).optional(),
+  cfgScale: z.number().min(0).max(20).optional(),
+  cameraControl: z.union([z.string(), z.record(z.string(), z.any())]).optional(),
   
   // Advanced
   seed: z.number().optional(),
@@ -190,6 +239,42 @@ export const VideoGenerationRequestSchema = z.object({
   }
 ).refine(
   (data) => {
+    // motion_control requires input image (character)
+    if (data.mode === 'motion_control' && !data.inputImage) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'inputImage is required for motion_control mode',
+    path: ['inputImage'],
+  }
+).refine(
+  (data) => {
+    // motion_control requires characterOrientation
+    if (data.mode === 'motion_control' && !data.characterOrientation) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'characterOrientation is required for motion_control mode',
+    path: ['characterOrientation'],
+  }
+).refine(
+  (data) => {
+    // motion_control requires cameraControl
+    if (data.mode === 'motion_control' && !data.cameraControl) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'cameraControl is required for motion_control mode',
+    path: ['cameraControl'],
+  }
+).refine(
+  (data) => {
     // extend requires sourceGenerationId or taskId
     if (data.mode === 'extend' && !data.sourceGenerationId && !data.taskId) {
       return false;
@@ -211,6 +296,10 @@ export function validateAgainstCapability(
   capability: ModelCapability
 ): { valid: boolean; errors: Array<{ path: string; message: string }> } {
   const errors: Array<{ path: string; message: string }> = [];
+  const modeKey = request.mode as string;
+  const modeDurations = capability.modeDurationsSec?.[modeKey] || capability.supportedDurationsSec;
+  const modeAspectRatios = capability.modeAspectRatios?.[modeKey] || capability.supportedAspectRatios;
+  const modeQualities = capability.modeQualities?.[modeKey] || capability.supportedQualities;
   
   // Check mode
   if (!capability.supportedModes.includes(request.mode)) {
@@ -221,10 +310,10 @@ export function validateAgainstCapability(
   }
   
   // Check aspect ratio
-  if (!capability.supportedAspectRatios.includes(request.aspectRatio)) {
+  if (!modeAspectRatios.includes(request.aspectRatio)) {
     errors.push({
       path: 'aspectRatio',
-      message: `Aspect ratio '${request.aspectRatio}' is not supported by ${capability.label}. Supported: ${capability.supportedAspectRatios.join(', ')}`,
+      message: `Aspect ratio '${request.aspectRatio}' is not supported by ${capability.label}. Supported: ${modeAspectRatios.join(', ')}`,
     });
   }
   
@@ -244,25 +333,41 @@ export function validateAgainstCapability(
         message: `Duration must be between ${min}s and ${max}s for ${capability.label}`,
       });
     }
-  } else if (!capability.supportedDurationsSec.includes(request.durationSec)) {
+  } else if (!modeDurations.includes(request.durationSec)) {
     errors.push({
       path: 'durationSec',
-      message: `Duration ${request.durationSec}s is not supported by ${capability.label}. Supported: ${capability.supportedDurationsSec.join(', ')}s`,
+      message: `Duration ${request.durationSec}s is not supported by ${capability.label}. Supported: ${modeDurations.join(', ')}s`,
     });
+  }
+  // Motion control: orientation-specific max duration
+  if (request.mode === 'motion_control' && request.characterOrientation) {
+    const maxByOrientation = request.characterOrientation === 'image' ? 10 : 30;
+    if (request.durationSec > maxByOrientation) {
+      errors.push({
+        path: 'durationSec',
+        message: `Duration ${request.durationSec}s exceeds max ${maxByOrientation}s for orientation '${request.characterOrientation}'`,
+      });
+    }
   }
   
   // Check quality
-  if (request.quality && capability.supportedQualities) {
-    if (!capability.supportedQualities.includes(request.quality)) {
+  if (request.quality && modeQualities) {
+    if (!modeQualities.includes(request.quality)) {
       errors.push({
         path: 'quality',
-        message: `Quality '${request.quality}' is not supported by ${capability.label}. Supported: ${capability.supportedQualities.join(', ')}`,
+        message: `Quality '${request.quality}' is not supported by ${capability.label}. Supported: ${modeQualities.join(', ')}`,
       });
     }
   }
   
   // Check sound
   if (request.sound && !capability.supportsSound) {
+    errors.push({
+      path: 'sound',
+      message: `Sound is not supported by ${capability.label}`,
+    });
+  }
+  if (capability.audioSupport === 'none' && request.sound) {
     errors.push({
       path: 'sound',
       message: `Sound is not supported by ${capability.label}`,
@@ -283,6 +388,27 @@ export function validateAgainstCapability(
       });
     }
   }
+
+  // Check required inputs by mode
+  const requiredInputs = capability.requiredInputsByMode?.[modeKey]?.required || [];
+  requiredInputs.forEach((key) => {
+    const isMissing =
+      (key === 'prompt' && !request.prompt) ||
+      (key === 'inputImage' && !request.inputImage && !request.startImage) ||
+      (key === 'startImage' && !request.startImage) ||
+      (key === 'endImage' && !request.endImage) ||
+      (key === 'referenceImages' && (!request.referenceImages || request.referenceImages.length === 0)) ||
+      (key === 'referenceVideo' && !request.referenceVideo) ||
+      (key === 'cameraControl' && !request.cameraControl) ||
+      (key === 'characterOrientation' && !request.characterOrientation) ||
+      (key === 'resolution' && !request.resolution && !request.quality);
+    if (isMissing) {
+      errors.push({
+        path: key,
+        message: `Missing required input '${key}' for ${capability.label} (${modeKey})`,
+      });
+    }
+  });
   
   return {
     valid: errors.length === 0,

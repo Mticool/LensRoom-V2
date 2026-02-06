@@ -3,8 +3,8 @@
 import { ArrowUpFromLine, RotateCcw, Sparkles, Loader2, Star } from 'lucide-react';
 
 interface UpscaleSidebarProps {
-  scale: '2x' | '4x';
-  onScaleChange: (scale: '2x' | '4x') => void;
+  scale: '2k' | '4k' | '8k';
+  onScaleChange: (scale: '2k' | '4k' | '8k') => void;
   onUpscale: () => void;
   onReset: () => void;
   isProcessing: boolean;
@@ -14,8 +14,9 @@ interface UpscaleSidebarProps {
 }
 
 const SCALE_OPTIONS = [
-  { value: '2x' as const, label: '2x', price: 17 },
-  { value: '4x' as const, label: '4x', price: 34 },
+  { value: '2k' as const, label: '2K', price: 17 },
+  { value: '4k' as const, label: '4K', price: 34 },
+  { value: '8k' as const, label: '8K', price: 68 },
 ];
 
 export function UpscaleSidebar({
@@ -76,7 +77,7 @@ export function UpscaleSidebar({
             ))}
           </div>
           <p className="text-xs text-[#6B6B6E]">
-            {scale === '2x' ? 'Увеличение в 2 раза' : 'Увеличение в 4 раза'}
+            {scale === '8k' ? 'Апскейл до 8K' : scale === '4k' ? 'Апскейл до 4K' : 'Апскейл до 2K'}
           </p>
         </div>
 

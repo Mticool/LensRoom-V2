@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
 import { ControlBarBottom } from './ControlBarBottom';
@@ -9,7 +8,7 @@ import { useAuth } from './hooks/useAuth';
 import { useHistory } from './hooks/useHistory';
 import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
-import type { GenerationResult, GenerationSettings } from './GeneratorV2';
+import type { GenerationResult } from './GeneratorV2';
 import './theme.css';
 
 // Quality mapping: UI labels → API values for Nano Banana
@@ -27,7 +26,6 @@ const COST_PER_IMAGE: Record<string, number> = {
 };
 
 export function NanoBananaGenerator() {
-  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
   const { isOpen: popupIsOpen, showPopup, hidePopup } = useBotConnectPopup();
   
@@ -39,7 +37,9 @@ export function NanoBananaGenerator() {
   
   // Reference image for i2i
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  
+  // Gallery zoom (0.5–1.5)
+  const [galleryZoom, setGalleryZoom] = useState(1);
   
   // Advanced settings
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -48,15 +48,13 @@ export function NanoBananaGenerator() {
   
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
-  const [filterModel, setFilterModel] = useState('all');
   
   // Polling cleanup ref
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [images, setImages] = useState<GenerationResult[]>([]);
   
   // Load history
-  const historyModelId = filterModel === 'all' ? undefined : filterModel;
-  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
+  const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image');
   
   // Use credits from auth hook
   const credits = authCredits;
@@ -222,24 +220,26 @@ export function NanoBananaGenerator() {
         invalidateCache();
         refreshHistory();
       }, 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
       }
-      toast.error(error.message || 'Ошибка при генерации');
+      const message = error instanceof Error ? error.message : 'Ошибка при генерации';
+      toast.error(message);
       
       // Remove pending placeholders on error
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, credits, estimatedCost, quality, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory]);
+  }, [isAuthenticated, prompt, credits, estimatedCost, quality, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory, invalidateCache]);
 
   // Cleanup polling on unmount
   useEffect(() => {
+    const timeout = pollingTimeoutRef.current;
     return () => {
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
+      if (timeout) {
+        clearTimeout(timeout);
       }
     };
   }, []);
@@ -256,13 +256,24 @@ export function NanoBananaGenerator() {
         </div>
       )}
 
-      {/* Gallery */}
-      <div className="pt-8">
+      {/* Gallery with zoom */}
+      <div className="pt-8 flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+        <div
+          style={{
+            transform: `scale(${galleryZoom})`,
+            transformOrigin: 'top left',
+            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : 'auto',
+          }}
+        >
         {allImages.length > 0 ? (
           <ImageGalleryMasonry 
             images={allImages} 
             isGenerating={isGenerating}
+            layout="grid"
+            fullWidth
             autoScrollToBottom
+            autoScrollBehavior="always"
             hasMore={hasMore}
             onLoadMore={loadMore}
             isLoadingMore={isLoadingMore}
@@ -279,10 +290,14 @@ export function NanoBananaGenerator() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Control Bar (Sticky Bottom) */}
       <ControlBarBottom
+        showGalleryZoom
+        galleryZoom={galleryZoom}
+        onGalleryZoomChange={setGalleryZoom}
         prompt={prompt}
         onPromptChange={setPrompt}
         aspectRatio={aspectRatio}

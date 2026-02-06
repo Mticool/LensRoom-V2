@@ -5,14 +5,17 @@ import { Play, Download } from 'lucide-react';
 import { VideoGeneratorHiru } from './VideoGeneratorHiru';
 import { useVideoGeneration } from '@/hooks/useVideoGeneration';
 import { toast } from 'sonner';
+import { extractVideoUrl, fileToBase64 } from './utils';
 
 type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3';
 
 interface VideoGeneratorLightProps {
   onGenerate?: (params: any) => void;
+  /** Model id from URL (e.g. from header dropdown) — opens generator with this model selected */
+  initialModel?: string;
 }
 
-export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
+export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGeneratorLightProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [generationHistory, setGenerationHistory] = useState<string[]>([]);
   const [currentRatio, setCurrentRatio] = useState<AspectRatio>('16:9');
@@ -23,39 +26,6 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
   useEffect(() => {
     loadHistory();
   }, []);
-
-  const extractVideoUrl = (gen: any) => {
-    if (!gen) return null;
-
-    if (gen.asset_url && typeof gen.asset_url === 'string') return gen.asset_url;
-    if (gen.result_url && typeof gen.result_url === 'string') return gen.result_url;
-
-    if (gen.result_urls) {
-      if (Array.isArray(gen.result_urls) && gen.result_urls.length > 0) {
-        const first = gen.result_urls[0];
-        if (typeof first === 'string') return first;
-      }
-      if (typeof gen.result_urls === 'string') {
-        try {
-          const parsed = JSON.parse(gen.result_urls);
-          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-            return parsed[0];
-          }
-        } catch {
-          return gen.result_urls;
-        }
-      }
-    }
-
-    if (gen.preview_url && typeof gen.preview_url === 'string') return gen.preview_url;
-    if (gen.thumbnail_url && typeof gen.thumbnail_url === 'string') return gen.thumbnail_url;
-
-    if (gen.id && (gen.status === 'success' || gen.status === 'completed')) {
-      return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
-    }
-
-    return null;
-  };
 
   const loadHistory = async () => {
     try {
@@ -104,16 +74,6 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  };
-
-  // Convert File to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
   };
 
   // Handle generation from panel
@@ -184,21 +144,33 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
       
       console.log('[VideoGeneratorLight] Calling generate with model:', params.model);
       
+      const effectiveQuality = params.qualityTier ? undefined : (params.quality || '720p');
+
       await generate({
         selectedModel: params.model,
         prompt: params.prompt || '',
         mode,
         duration: params.duration,
-        quality: params.quality || '720p',
+        quality: effectiveQuality,
         aspectRatio: params.aspectRatio,
         withSound: params.audioEnabled || false,
+        style: params.style,
+        cameraMotion: params.cameraMotion,
+        stylePreset: params.stylePreset,
+        motionStrength: params.motionStrength,
         referenceImage: referenceImageBase64,
         referenceImages: referenceImagesBase64, // Veo multiple refs
         startFrame: startFrameBase64,
         endFrame: endFrameBase64,
         motionVideo: motionVideoBase64,
         characterImage: characterImageBase64,
+        characterOrientation: params.characterOrientation ?? params.sceneControlMode,
+        videoDuration: params.videoDuration,
         sourceGenerationId: params.sourceGenerationId || null, // For extend mode
+        qualityTier: params.qualityTier,
+        negativePrompt: params.negativePrompt,
+        cfgScale: params.cfgScale,
+        cameraControl: params.cameraControl,
       });
       
       onGenerate?.(params);
@@ -256,6 +228,7 @@ export function VideoGeneratorLight({ onGenerate }: VideoGeneratorLightProps) {
           <div className="lg:w-[380px] lg:flex-shrink-0" style={{ zIndex: 10 }}>
             <div className="sticky top-24">
               <VideoGeneratorHiru 
+                initialModel={initialModel}
                 onGenerate={handleGenerate}
                 onRatioChange={handleRatioChange}
                 isGeneratingProp={isGenerating}

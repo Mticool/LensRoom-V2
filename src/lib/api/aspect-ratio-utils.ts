@@ -21,7 +21,7 @@ export function normalizeAspectRatio(input: string | undefined | null): string |
 
   // Keep non-numeric presets as-is (common for video models).
   const lower = raw.toLowerCase();
-  if (lower === "auto" || lower === "portrait" || lower === "landscape") return lower;
+  if (lower === "auto" || lower === "portrait" || lower === "landscape" || lower === "source") return lower;
 
   // Normalize separators (:, /, ., x, ×)
   const m = raw.match(/^(\d+)\s*[:/.\sx×]\s*(\d+)$/i);

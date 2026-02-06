@@ -58,7 +58,8 @@ const TelegramAuthContext = createContext<TelegramAuthContextType | undefined>(u
 
 export function TelegramAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<TelegramUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Стейт не блокирует первый рендер: проверка сессии в фоне
+  const [loading, setLoading] = useState(false);
 
   // Sign in with Telegram Login Widget payload
   const signInWithTelegram = useCallback(async (payload: any) => {
@@ -92,7 +93,7 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   const refreshSession = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/session', {
-        signal: AbortSignal.timeout(10000), // 10 second timeout
+        signal: AbortSignal.timeout(5000), // 5s — при VPN/блокировке не зависаем
       });
       const data = await response.json();
       setUser(data.user || null);
@@ -148,11 +149,8 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
 
     refreshSession();
     
-    // Safety timeout: if loading is still true after 15 seconds, force it to false
-    const timeoutId = setTimeout(() => {
-      console.warn('[TelegramAuth] Loading timeout - forcing loading to false');
-      setLoading(false);
-    }, 15000);
+    // Safety timeout: через 5s показываем страницу даже если /api/auth/session не ответил
+    const timeoutId = setTimeout(() => setLoading(false), 5000);
     
     return () => clearTimeout(timeoutId);
   }, [refreshSession, signInWithTelegram]);

@@ -64,6 +64,8 @@ export default function CreatePage() {
         return <FluxProGenerator />;
       case 'seedream-4.5':
         return <SeedreamGenerator />;
+      case 'seedream-4.5-edit':
+        return <SeedreamGenerator modelId="seedream-4.5-edit" />;
       case 'gpt-image':
         return <GPTImageGenerator />;
       case 'grok-imagine':

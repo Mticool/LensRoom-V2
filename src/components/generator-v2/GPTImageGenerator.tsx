@@ -9,42 +9,41 @@ import { useHistory } from './hooks/useHistory';
 import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import type { GenerationResult } from './GeneratorV2';
+import { getDefaultImageParams, getImageModelCapability } from '@/lib/imageModels/capabilities';
 import './theme.css';
 
-const QUALITY_MAPPING: Record<string, string> = {
-  'Стандарт': 'medium',
-  'Премиум': 'high',
-};
-
 const COST_PER_IMAGE: Record<string, number> = {
-  'Стандарт': 5,   // medium (from models.ts)
-  'Премиум': 35,   // high (from models.ts)
+  medium: 5,
+  high: 35,
 };
 
 export function GPTImageGenerator() {
   const { isAuthenticated, isLoading: authLoading, credits: authCredits, refreshCredits } = useAuth();
   const { isOpen: popupIsOpen, showPopup, hidePopup } = useBotConnectPopup();
   
+  const capability = useMemo(() => getImageModelCapability('gpt-image'), []);
+  const defaults = useMemo(() => getDefaultImageParams('gpt-image'), []);
+
   const [prompt, setPrompt] = useState('');
-  const [aspectRatio, setAspectRatio] = useState('1:1');
-  const [quality, setQuality] = useState('Стандарт');
+  const [aspectRatio, setAspectRatio] = useState(defaults.aspectRatio || '1:1');
+  const [quality, setQuality] = useState(defaults.quality || 'medium');
   const [quantity, setQuantity] = useState(1);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [galleryZoom, setGalleryZoom] = useState(1);
   const [negativePrompt, setNegativePrompt] = useState('');
   const [seed, setSeed] = useState<number | null>(null);
   const [steps, setSteps] = useState(25);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [filterModel, setFilterModel] = useState('all');
   
   // Polling cleanup ref
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [images, setImages] = useState<GenerationResult[]>([]);
   
-  const historyModelId = filterModel === 'all' ? undefined : filterModel;
-  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', historyModelId);
+  const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined);
   const credits = authCredits;
   const estimatedCost = useMemo(() => COST_PER_IMAGE[quality] * quantity, [quality, quantity]);
+  const aspectRatioOptions = useMemo(() => capability?.supportedAspectRatios || ['1:1'], [capability]);
+  const qualityOptions = useMemo(() => capability?.supportedQualities || ['medium', 'high'], [capability]);
 
   const demoImages = useMemo<GenerationResult[]>(() => {
     if (isAuthenticated || images.length > 0 || history.length > 0) return [];
@@ -85,7 +84,7 @@ export function GPTImageGenerator() {
         url: '',
         prompt,
         mode: 'image' as const,
-        settings: { model: 'gpt-image', size: aspectRatio, quality: QUALITY_MAPPING[quality] },
+        settings: { model: 'gpt-image', size: aspectRatio, quality },
         timestamp: Date.now(),
         status: 'pending',
       }));
@@ -101,7 +100,7 @@ export function GPTImageGenerator() {
           prompt,
           negativePrompt: negativePrompt || undefined,
           aspectRatio,
-          quality: QUALITY_MAPPING[quality],
+          quality,
           variants: quantity,
           seed: seed || undefined,
           steps,
@@ -132,7 +131,7 @@ export function GPTImageGenerator() {
           url: result.url,
           prompt,
           mode: 'image' as const,
-          settings: { model: 'gpt-image', size: aspectRatio, quality: QUALITY_MAPPING[quality] },
+          settings: { model: 'gpt-image', size: aspectRatio, quality },
           timestamp: Date.now(),
           status: 'completed',
         }));
@@ -147,7 +146,7 @@ export function GPTImageGenerator() {
           url: data.imageUrl,
           prompt,
           mode: 'image',
-          settings: { model: 'gpt-image', size: aspectRatio, quality: QUALITY_MAPPING[quality] },
+          settings: { model: 'gpt-image', size: aspectRatio, quality },
           timestamp: Date.now(),
           status: 'completed',
         };
@@ -163,23 +162,23 @@ export function GPTImageGenerator() {
         invalidateCache();
         refreshHistory();
       }, 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
       }
-      toast.error(error.message || 'Ошибка при генерации');
+      const message = error instanceof Error ? error.message : 'Ошибка при генерации';
+      toast.error(message);
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, credits, estimatedCost, quality, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory]);
+  }, [isAuthenticated, prompt, credits, estimatedCost, quality, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory, invalidateCache]);
 
   // Cleanup polling on unmount
   useEffect(() => {
+    const timeout = pollingTimeoutRef.current;
     return () => {
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
-      }
+      if (timeout) clearTimeout(timeout);
     };
   }, []);
 
@@ -195,11 +194,22 @@ export function GPTImageGenerator() {
       )}
 
       <div className="pt-8">
+        <div
+          style={{
+            transform: `scale(${galleryZoom})`,
+            transformOrigin: 'top left',
+            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : 'auto',
+          }}
+        >
         {allImages.length > 0 ? (
           <ImageGalleryMasonry 
             images={allImages} 
             isGenerating={isGenerating}
+            layout="grid"
+            fullWidth
             autoScrollToBottom
+            autoScrollBehavior="always"
             hasMore={hasMore}
             onLoadMore={loadMore}
             isLoadingMore={isLoadingMore}
@@ -212,9 +222,13 @@ export function GPTImageGenerator() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       <ControlBarBottom
+        showGalleryZoom
+        galleryZoom={galleryZoom}
+        onGalleryZoomChange={setGalleryZoom}
         prompt={prompt}
         onPromptChange={setPrompt}
         aspectRatio={aspectRatio}
@@ -229,11 +243,11 @@ export function GPTImageGenerator() {
         credits={credits}
         estimatedCost={estimatedCost}
         modelId="gpt-image"
-        qualityOptions={['Стандарт', 'Премиум']}
-        aspectRatioOptions={['1:1', '3:2', '2:3']}
+        qualityOptions={qualityOptions}
+        aspectRatioOptions={aspectRatioOptions}
+        quantityMaxOverride={capability?.requestVariants?.max}
         referenceImage={referenceImage}
         onReferenceImageChange={setReferenceImage}
-        onReferenceFileChange={setReferenceFile}
         negativePrompt={negativePrompt}
         onNegativePromptChange={setNegativePrompt}
         seed={seed}

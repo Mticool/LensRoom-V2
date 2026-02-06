@@ -35,7 +35,7 @@ export function FluxProGenerator() {
   const [quality, setQuality] = useState('1K');
   const [quantity, setQuantity] = useState(1);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [galleryZoom, setGalleryZoom] = useState(1);
   const [negativePrompt, setNegativePrompt] = useState('');
   const [seed, setSeed] = useState<number | null>(null);
   const [steps, setSteps] = useState(25);
@@ -46,7 +46,7 @@ export function FluxProGenerator() {
   const [images, setImages] = useState<GenerationResult[]>([]);
   
   // Load history (filter by current thread)
-  const { history, isLoading: historyLoading, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
+  const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
   
   // Clear local images when thread changes (new chat = clean slate)
   useEffect(() => {
@@ -158,23 +158,23 @@ export function FluxProGenerator() {
       
       celebrateGeneration();
       toast.success('Изображение создано!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
       }
-      toast.error(error.message || 'Ошибка при генерации');
+      const message = error instanceof Error ? error.message : 'Ошибка при генерации';
+      toast.error(message);
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
     } finally {
       setIsGenerating(false);
     }
-  }, [isAuthenticated, prompt, credits, estimatedCost, quality, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory]);
+  }, [isAuthenticated, prompt, credits, estimatedCost, quality, aspectRatio, quantity, negativePrompt, seed, steps, referenceImage, showPopup, refreshCredits, refreshHistory, invalidateCache]);
 
   // Cleanup polling on unmount
   useEffect(() => {
+    const timeout = pollingTimeoutRef.current;
     return () => {
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
-      }
+      if (timeout) clearTimeout(timeout);
     };
   }, []);
 
@@ -190,11 +190,22 @@ export function FluxProGenerator() {
       )}
 
       <div className="pt-8">
+        <div
+          style={{
+            transform: `scale(${galleryZoom})`,
+            transformOrigin: 'top left',
+            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
+            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : 'auto',
+          }}
+        >
         {allImages.length > 0 ? (
           <ImageGalleryMasonry 
             images={allImages} 
             isGenerating={isGenerating}
+            layout="grid"
+            fullWidth
             autoScrollToBottom
+            autoScrollBehavior="always"
             hasMore={hasMore}
             onLoadMore={loadMore}
             isLoadingMore={isLoadingMore}
@@ -207,9 +218,13 @@ export function FluxProGenerator() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       <ControlBarBottom
+        showGalleryZoom
+        galleryZoom={galleryZoom}
+        onGalleryZoomChange={setGalleryZoom}
         prompt={prompt}
         onPromptChange={setPrompt}
         aspectRatio={aspectRatio}
@@ -228,7 +243,6 @@ export function FluxProGenerator() {
         aspectRatioOptions={['1:1', '16:9', '9:16', '4:3']}
         referenceImage={referenceImage}
         onReferenceImageChange={setReferenceImage}
-        onReferenceFileChange={setReferenceFile}
         negativePrompt={negativePrompt}
         onNegativePromptChange={setNegativePrompt}
         seed={seed}

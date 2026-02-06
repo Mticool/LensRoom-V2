@@ -201,6 +201,7 @@ export interface GenerateVideoRequest {
   mode?: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'storyboard' | 'motion_control' | 'ref2v' | 'extend';
   resolution?: string; // For bytedance: 480p/720p/1080p; For motion control: 720p/1080p
   quality?: string; // For sora-pro: standard/high
+  style?: string; // Grok Video style preset
   // For Veo 3.1 reference-to-video: array of reference images with weights
   referenceImages?: Array<{
     url?: string;
@@ -211,6 +212,8 @@ export interface GenerateVideoRequest {
   // 'image' = use orientation from reference image (max 10s video)
   // 'video' = use orientation from reference video (max 30s video)
   characterOrientation?: 'image' | 'video';
+  cfgScale?: number;
+  cameraControl?: Record<string, unknown> | string;
   // For storyboard mode
   shots?: Array<{
     prompt: string;
@@ -1033,6 +1036,9 @@ export class KieAIClient {
       if (params.characterOrientation) {
         input.character_orientation = params.characterOrientation;
       }
+      if (params.cameraControl) {
+        input.camera_control = params.cameraControl;
+      }
       console.log('[KIE Motion Control] Request params:', {
         input_urls: !!params.imageUrl,
         video_urls: !!params.videoUrl,
@@ -1058,6 +1064,14 @@ export class KieAIClient {
       // For i2v: image_urls array
       if ((params.mode === 'i2v' || params.mode === 'start_end') && params.imageUrl) {
         input.image_urls = [params.imageUrl];
+      }
+      // Tail image for pro models (start/end in i2v)
+      if (params.lastFrameUrl) {
+        input.tail_image_url = params.lastFrameUrl;
+      }
+      // Advanced: cfg scale
+      if (typeof params.cfgScale === 'number') {
+        input.cfg_scale = params.cfgScale;
       }
     }
 
@@ -1161,9 +1175,11 @@ export class KieAIClient {
         input.aspect_ratio = params.aspectRatio;
       }
       
-      // Style preset (realistic, fantasy, sci-fi, cinematic, anime, cartoon)
-      // Can be passed via quality parameter from UI
-      if (params.quality && typeof params.quality === 'string') {
+      // Style preset (normal, fun, spicy)
+      if (params.style && typeof params.style === 'string') {
+        input.style_preset = params.style;
+      } else if (params.quality && typeof params.quality === 'string') {
+        // Backward compatibility: allow quality to pass style
         input.style_preset = params.quality;
       }
       

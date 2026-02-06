@@ -18,7 +18,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Стейт не блокирует первый рендер: проверка сессии в фоне
+  const [loading, setLoading] = useState(false);
   const [supabase] = useState(() => createClient());
 
   useEffect(() => {
@@ -30,9 +31,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check both Supabase auth and Telegram session
     const checkAuth = async () => {
       try {
-        // First, check Supabase session
-        const { data: { session } } = await supabase.auth.getSession();
-        
+        // First, check Supabase session (5s timeout — при блокировке VPN/регион не зависаем)
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Auth timeout')), 5000)
+        );
+        let session: Session | null = null;
+        try {
+          const result = await Promise.race([sessionPromise, timeoutPromise]);
+          session = result?.data?.session ?? null;
+        } catch {
+          // Supabase недоступен (VPN, блокировка) — показываем страницу без сессии
+        }
+
         if (session?.user) {
           setUser(session.user);
           setLoading(false);
@@ -44,11 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (telegramCookie) {
           // Fetch user info from API (which validates Telegram session)
-          // Use /api/auth/session which returns both user info and balance in one call
           try {
             const response = await fetch('/api/auth/session', {
               credentials: 'include',
-              signal: AbortSignal.timeout(10000), // 10 second timeout
+              signal: AbortSignal.timeout(5000), // 5s — не блокируем первую отрисовку
             });
             
             if (response.ok) {
@@ -86,11 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkAuth();
     
-    // Safety timeout: if loading is still true after 15 seconds, force it to false
+    // Safety timeout: если Supabase/сеть зависли — через 5s показываем страницу
     const timeoutId = setTimeout(() => {
-      console.warn('[Auth] Loading timeout - forcing loading to false');
       setLoading(false);
-    }, 15000);
+    }, 5000);
 
     // Listen for Supabase auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

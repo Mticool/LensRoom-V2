@@ -911,7 +911,7 @@ export const KIE_VIDEO_MODELS: Record<string, KieModelSettings> = {
   // - Лимиты: 3-30 сек
   "kling-motion-control": {
     name: "Kling Motion Control",
-    apiModel: "kling-2.6-motion-control/standard",
+    apiModel: "kling-2.6/motion-control",
     // Цена рассчитывается динамически в src/lib/pricing/motionControl.ts
     // baseCost не используется - цена зависит от длительности видео
     settings: {

@@ -19,16 +19,13 @@ const ThemeContext = createContext<ThemeContextType>({
 const STORAGE_KEY = 'theme';
 
 function getInitialTheme(): Theme {
-  // This runs only on client
   if (typeof window === 'undefined') return 'dark';
-  
-  // Check localStorage first
-  const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
-  if (saved === 'light' || saved === 'dark') {
-    return saved;
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    if (saved === 'light' || saved === 'dark') return saved;
+  } catch {
+    // Приватный режим / отключённый storage — не ломаем рендер
   }
-  
-  // Default to dark (ignore prefers-color-scheme)
   return 'dark';
 }
 

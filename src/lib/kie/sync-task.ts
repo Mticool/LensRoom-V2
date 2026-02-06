@@ -27,7 +27,7 @@ function getKieMarketConfig() {
 
 export type KieTaskState = "waiting" | "queuing" | "generating" | "success" | "fail";
 
-function parseResultJsonToUrls(resultJson: string): string[] {
+export function parseResultJsonToUrls(resultJson: string): string[] {
   // First try normal JSON parse
   try {
     const parsed = JSON.parse(resultJson);
@@ -722,6 +722,11 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
   if (info.state === "success") {
     const urls = info.resultJson ? parseResultJsonToUrls(info.resultJson) : [];
     if (!urls.length) {
+      console.error('[KIE sync-task] Unexpected resultJson shape:', {
+        taskId,
+        modelId: generation?.model_id,
+        resultJsonSnippet: info.resultJson ? info.resultJson.slice(0, 200) : null,
+      });
       await safeUpdateGeneration(supabase, generation.id, {
         status: "failed",
         error: "No results returned from KIE recordInfo",
@@ -733,6 +738,12 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     }
 
     const kind: "image" | "video" = String(generation.type || "").toLowerCase() === "video" ? "video" : "image";
+
+    console.log('[KIE sync-task] Result summary:', {
+      taskId,
+      modelId: generation?.model_id,
+      resultCount: urls.length,
+    });
 
     let assetUrl: string | null = null;
     let originalPath: string | null = null;

@@ -8,13 +8,14 @@ import { celebrateGeneration } from '@/lib/confetti';
 import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '@/components/notifications';
 import { UpscaleEmptyState, UpscaleSidebar, UpscaleImagePreview } from './upscale';
 import { ImageGalleryMasonry } from './ImageGalleryMasonry';
-import type { GenerationResult } from './GeneratorV2';
 import './theme.css';
 
 // Cost calculation for Topaz Upscale (from config/models.ts)
-const COST_PER_SCALE: Record<'2x' | '4x', number> = {
-  '2x': 17,
-  '4x': 34,
+type TopazScale = '2k' | '4k' | '8k';
+const COST_PER_SCALE: Record<TopazScale, number> = {
+  '2k': 17,
+  '4k': 34,
+  '8k': 68,
 };
 
 // Maximum file size: 10MB
@@ -25,9 +26,8 @@ export function TopazUpscaleGenerator() {
   const { isOpen: popupIsOpen, showPopup, hidePopup } = useBotConnectPopup();
   
   // State
-  const [scale, setScale] = useState<'2x' | '4x'>('2x');
+  const [scale, setScale] = useState<TopazScale>('2k');
   const [sourceImage, setSourceImage] = useState<string | null>(null);
-  const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -37,7 +37,6 @@ export function TopazUpscaleGenerator() {
   // History
   const { 
     history, 
-    isLoading: historyLoading, 
     isLoadingMore, 
     hasMore, 
     loadMore, 
@@ -67,7 +66,6 @@ export function TopazUpscaleGenerator() {
     reader.onload = (e) => {
       const base64 = e.target?.result as string;
       setSourceImage(base64);
-      setSourceFile(file);
       setResultImage(null);
       toast.success('Изображение загружено');
     };
@@ -80,9 +78,8 @@ export function TopazUpscaleGenerator() {
   // Handle reset
   const handleReset = useCallback(() => {
     setSourceImage(null);
-    setSourceFile(null);
     setResultImage(null);
-    setScale('2x');
+    setScale('2k');
   }, []);
 
   // Poll job status
@@ -95,8 +92,16 @@ export function TopazUpscaleGenerator() {
         const response = await fetch(`/api/jobs/${jobId}`);
         const data = await response.json();
 
-        if (data.status === 'completed' && data.urls && data.urls[0]) {
-          setResultImage(data.urls[0]);
+        const results = Array.isArray(data?.results) ? data.results : [];
+        const urls: string[] = results
+          .map((r) => {
+            if (!r || typeof r !== 'object') return '';
+            const urlValue = (r as { url?: unknown }).url;
+            return String(urlValue || '');
+          })
+          .filter((u) => !!u);
+        if (data.status === 'completed' && urls[0]) {
+          setResultImage(urls[0]);
           setIsProcessing(false);
           celebrateGeneration();
           toast.success('Апскейл завершён!');
@@ -120,9 +125,10 @@ export function TopazUpscaleGenerator() {
         } else {
           throw new Error('Превышено время ожидания');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         setIsProcessing(false);
-        toast.error(error.message || 'Ошибка получения результата');
+        const message = error instanceof Error ? error.message : 'Ошибка получения результата';
+        toast.error(message);
       }
     };
 
@@ -157,7 +163,7 @@ export function TopazUpscaleGenerator() {
           referenceImage: sourceImage,
           mode: 'i2i',
           scale: scale,
-          upscaleFactor: scale === '4x' ? '4' : '2',
+          upscaleFactor: scale === '8k' ? '8' : scale === '4k' ? '4' : '2',
         }),
       });
 
@@ -192,9 +198,10 @@ export function TopazUpscaleGenerator() {
       } else {
         throw new Error('Неожиданный ответ сервера');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsProcessing(false);
-      toast.error(error.message || 'Ошибка при обработке');
+      const message = error instanceof Error ? error.message : 'Ошибка при обработке';
+      toast.error(message);
     }
   }, [isAuthenticated, sourceImage, credits, estimatedCost, scale, showPopup, pollJobStatus, refreshCredits, invalidateCache, refreshHistory]);
 
@@ -214,7 +221,7 @@ export function TopazUpscaleGenerator() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       toast.success('Изображение скачано');
-    } catch (error) {
+    } catch {
       toast.error('Не удалось скачать изображение');
     }
   }, [resultImage, scale]);
@@ -298,6 +305,9 @@ export function TopazUpscaleGenerator() {
                 images={history}
                 isGenerating={false}
                 layout="grid"
+                fullWidth
+                autoScrollToBottom
+                autoScrollBehavior="always"
                 hasMore={hasMore}
                 onLoadMore={loadMore}
                 isLoadingMore={isLoadingMore}

@@ -49,8 +49,8 @@ describe('ImageGalleryMasonry', () => {
       />
     );
     
-    expect(screen.getByText('Начните создавать')).toBeInTheDocument();
-    expect(screen.getByText(/Введите описание изображения/)).toBeInTheDocument();
+    expect(screen.getByText('Создайте изображение')).toBeInTheDocument();
+    expect(screen.getByText(/Опишите картинку и нажмите/)).toBeInTheDocument();
   });
 
   it('renders custom empty state messages', () => {
@@ -102,7 +102,7 @@ describe('ImageGalleryMasonry', () => {
       />
     );
     
-    expect(screen.getByText('Загрузить ещё')).toBeInTheDocument();
+    expect(screen.getByText('Загрузить предыдущие')).toBeInTheDocument();
   });
 
   it('hides "Load more" button when hasMore is false', () => {
@@ -115,7 +115,7 @@ describe('ImageGalleryMasonry', () => {
       />
     );
     
-    expect(screen.queryByText('Загрузить ещё')).not.toBeInTheDocument();
+    expect(screen.queryByText('Загрузить предыдущие')).not.toBeInTheDocument();
   });
 
   it('calls onLoadMore when button is clicked', () => {
@@ -130,7 +130,7 @@ describe('ImageGalleryMasonry', () => {
       />
     );
     
-    const loadMoreButton = screen.getByText('Загрузить ещё');
+    const loadMoreButton = screen.getByText('Загрузить предыдущие');
     fireEvent.click(loadMoreButton);
     
     expect(mockLoadMore).toHaveBeenCalledTimes(1);

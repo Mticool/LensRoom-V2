@@ -53,6 +53,32 @@ export const LAOZHANG_MODELS = {
   SORA_VIDEO2_LANDSCAPE: "sora_video2-landscape",
 } as const;
 
+/**
+ * When API returns "token does not have permission to use model" for a -fast-fl model,
+ * retry with the standard -fl model (same refs support, different billing tier).
+ */
+function getFallbackModelForPermissionError(model: string): string | null {
+  if (model === 'veo-3.1-fast-fl') return LAOZHANG_MODELS.VEO_31_FL;
+  if (model === 'veo-3.1-landscape-fast-fl') return LAOZHANG_MODELS.VEO_31_LANDSCAPE_FL;
+  if (model.endsWith('-fast-fl')) return model.replace(/-fast-fl$/, '-fl');
+  return null;
+}
+
+/**
+ * When token has no access to any -fl model, try image2video with base model and first ref only.
+ * Returns { model, startImageUrl } or null.
+ */
+function getFallbackNoFlModel(
+  model: string,
+  referenceImages: string[]
+): { model: string; startImageUrl: string } | null {
+  if (!referenceImages.length) return null;
+  const firstRef = referenceImages[0];
+  if (!firstRef?.startsWith('data:image/') && !firstRef?.startsWith('http')) return null;
+  if (model.includes('landscape')) return { model: LAOZHANG_MODELS.VEO_31_LANDSCAPE_FAST, startImageUrl: firstRef };
+  return { model: LAOZHANG_MODELS.VEO_31_FAST, startImageUrl: firstRef };
+}
+
 // ===== TYPES =====
 
 export interface LaoZhangImageRequest {
@@ -60,6 +86,7 @@ export interface LaoZhangImageRequest {
   prompt: string;
   n?: number; // Number of images (default 1)
   size?: string; // e.g., "1024x1024", "1024x1536", "1536x1024"
+  aspect_ratio?: string; // e.g., "1:1", "9:16", "16:9" (for models that require it)
   quality?: "standard" | "hd"; // For some models
   response_format?: "url" | "b64_json";
 }
@@ -71,6 +98,7 @@ export interface LaoZhangImageEditRequest {
   mask?: string; // Optional mask for inpainting
   n?: number;
   size?: string;
+  aspect_ratio?: string; // e.g., "1:1", "9:16", "16:9" (for models that require it)
   response_format?: "url" | "b64_json";
 }
 
@@ -204,13 +232,19 @@ export function resolutionToLaoZhangSize(
 }
 
 // ===== API CLIENT =====
+//
+// LaoZhang = OpenAI-compatible API: same chat/completions format, only base_url and API key differ.
+// - base_url: https://api.laozhang.ai/v1 (not openai.com)
+// - Auth: Authorization: Bearer LAOZHANG_API_KEY
+// - Video: POST /v1/chat/completions with model (e.g. veo-3.1-fl, sora_video2)
+// - Images in content: type "image_url", image_url.url = data:image/...;base64,... or https://...
+//   No need to upload to our storage when client sends data URL — pass it as-is in image_url.url.
 
 export class LaoZhangClient {
   private apiKey: string;
   private baseUrl: string;
 
   constructor(apiKey?: string) {
-    // Use provided key or fall back to env
     const key = apiKey || env.optional("LAOZHANG_API_KEY");
     if (!key) {
       throw new Error(
@@ -236,6 +270,9 @@ export class LaoZhangClient {
 
     if (request.size) {
       body.size = request.size;
+    }
+    if (request.aspect_ratio) {
+      body.aspect_ratio = request.aspect_ratio;
     }
     if (request.quality) {
       body.quality = request.quality;
@@ -314,6 +351,9 @@ export class LaoZhangClient {
     if (request.size) {
       formData.append("size", request.size);
     }
+    if (request.aspect_ratio) {
+      formData.append("aspect_ratio", request.aspect_ratio);
+    }
     if (request.response_format) {
       formData.append("response_format", request.response_format);
     }
@@ -371,6 +411,7 @@ export class LaoZhangClient {
 
     const responseText = await response.text();
     console.log("[Video API Edit] Response status:", response.status);
+    console.log("[Video API Edit] Response preview:", responseText.substring(0, 500));
 
     if (!response.ok) {
       let errorMessage = response.statusText;
@@ -440,7 +481,62 @@ export class LaoZhangClient {
     // IMPORTANT: Always use chat/completions format for Veo
     // The /video/generations endpoint is async-only (returns taskId, not URL)
     // chat/completions returns URL directly in response
-    return this.generateVideoChatFormat(params);
+    try {
+      return await this.generateVideoChatFormat(params);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isPermissionError =
+        msg.includes('无权使用模型') ||
+        msg.includes('该令牌无权使用模型') ||
+        /token.*(?:does not have|has no).*permission/i.test(msg) ||
+        /permission.*model|model.*permission/i.test(msg) ||
+        (msg.includes('permission') && msg.includes('model'));
+      const fallbackModel = getFallbackModelForPermissionError(params.model);
+      if (
+        isPermissionError &&
+        fallbackModel &&
+        params.referenceImages &&
+        params.referenceImages.length > 0
+      ) {
+        console.log('[Video API] Retrying with', fallbackModel, '(token may not have', params.model + ')');
+        try {
+          return await this.generateVideoChatFormat({ ...params, model: fallbackModel });
+        } catch (err2: unknown) {
+          const msg2 = err2 instanceof Error ? err2.message : String(err2);
+          const isPermissionError2 =
+            msg2.includes('无权使用模型') ||
+            msg2.includes('该令牌无权使用模型') ||
+            /token.*(?:does not have|has no).*permission/i.test(msg2) ||
+            (msg2.includes('permission') && msg2.includes('model'));
+          const noFlFallback = getFallbackNoFlModel(params.model, params.referenceImages);
+          if (isPermissionError2 && noFlFallback) {
+            console.log('[Video API] Token has no -fl access; trying image2video with', noFlFallback.model, '(first ref only)');
+            return await this.generateVideoChatFormat({
+              model: noFlFallback.model,
+              prompt: params.prompt,
+              startImageUrl: noFlFallback.startImageUrl,
+              referenceImages: [],
+            });
+          }
+          throw err2;
+        }
+      }
+      const noFlFallback = getFallbackNoFlModel(params.model, params.referenceImages ?? []);
+      if (isPermissionError && noFlFallback && params.referenceImages?.length) {
+        console.log('[Video API] Token may not have -fl; trying image2video with', noFlFallback.model, '(first ref only)');
+        try {
+          return await this.generateVideoChatFormat({
+            model: noFlFallback.model,
+            prompt: params.prompt,
+            startImageUrl: noFlFallback.startImageUrl,
+            referenceImages: [],
+          });
+        } catch {
+          throw err;
+        }
+      }
+      throw err;
+    }
   }
 
   /**
@@ -558,8 +654,11 @@ export class LaoZhangClient {
   }
 
   /**
-   * Generate video using chat/completions format
-   * Works for all Veo models (fast and standard) and Sora
+   * Veo 3.1: same as generic LaoZhang — POST /v1/chat/completions.
+   * - Model: "veo-3.1" (text-only) or "veo-3.1-fl" (with refs); structure is the same.
+   * - Content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl } }, ... ].
+   * - dataUrl must be data:image/<png|jpeg>;base64,<BASE64> or HTTP URL.
+   * Sora and other video models use the same format.
    */
   private async generateVideoChatFormat(params: {
     model: string;

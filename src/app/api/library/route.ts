@@ -24,6 +24,24 @@ export const revalidate = 0;
 // URL TTL in seconds (60 minutes)
 const SIGNED_URL_TTL = 3600;
 
+type GenerationRow = {
+  id?: string;
+  user_id?: string;
+  type?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  prompt?: string | null;
+  model_name?: string | null;
+  preview_status?: string | null;
+  original_path?: string | null;
+  preview_path?: string | null;
+  poster_path?: string | null;
+  asset_url?: string | null;
+  result_url?: string | null;
+  result_urls?: string[] | string | null;
+};
+
 /**
  * Extract storage path from Supabase public URL
  * https://<project>.supabase.co/storage/v1/object/public/generations/<path>
@@ -41,7 +59,7 @@ function extractStoragePath(url: string | null): string | null {
  * 2. Extract from asset_url
  * 3. Extract from result_urls[0]
  */
-function getOriginalPath(gen: any): string | null {
+function getOriginalPath(gen: GenerationRow): string | null {
   // Priority 1: explicit original_path
   if (gen.original_path) {
     return gen.original_path;
@@ -67,7 +85,7 @@ function getOriginalPath(gen: any): string | null {
 /**
  * Get direct URL (non-storage) for fallback
  */
-function getDirectUrl(gen: any): string | null {
+function getDirectUrl(gen: GenerationRow): string | null {
   if (gen.asset_url && !gen.asset_url.includes('/storage/v1/')) {
     return gen.asset_url;
   }
@@ -135,9 +153,9 @@ export async function GET(request: NextRequest) {
 
     // 6. Build URLs for each generation
     const items = await Promise.all(
-      (generations || []).map(async (gen: any) => {
+      (generations || []).map(async (gen: GenerationRow) => {
         try {
-          const isVideo = gen.type === "video";
+        const isVideo = gen.type === "video";
           let originalUrl: string | null = null;
           let previewUrl: string | null = null;
           let posterUrl: string | null = null;
@@ -201,7 +219,7 @@ export async function GET(request: NextRequest) {
 
         // Debug logging for videos with previews
         if (isVideo && gen.preview_path) {
-          console.log(`[Library API] Video preview: id=${gen.id.substring(0, 8)} preview_path=${gen.preview_path} previewUrl=${previewUrl ? 'OK' : 'NULL'} posterUrl=${posterUrl ? 'OK' : 'NULL'}`);
+          console.log(`[Library API] Video preview: id=${String(gen.id || '').substring(0, 8)} preview_path=${gen.preview_path} previewUrl=${previewUrl ? 'OK' : 'NULL'} posterUrl=${posterUrl ? 'OK' : 'NULL'}`);
         }
 
           return {
@@ -214,6 +232,18 @@ export async function GET(request: NextRequest) {
             prompt: gen.prompt || null,
             model_name: gen.model_name || null,
             preview_status: gen.preview_status || "none",
+            resultUrls: Array.isArray(gen.result_urls)
+              ? gen.result_urls
+              : typeof gen.result_urls === "string"
+                ? (() => {
+                    try {
+                      const parsed = JSON.parse(gen.result_urls);
+                      return Array.isArray(parsed) ? parsed : [gen.result_urls];
+                    } catch {
+                      return [gen.result_urls];
+                    }
+                  })()
+                : null,
             // URLs - Library is NEVER empty now!
             originalUrl,     // Always present for success
             previewUrl,      // For photos (null if not ready)
@@ -237,6 +267,7 @@ export async function GET(request: NextRequest) {
             previewUrl: null,
             posterUrl: null,
             displayUrl: null,
+            resultUrls: null,
           };
         }
       })
@@ -278,5 +309,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
