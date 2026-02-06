@@ -189,20 +189,13 @@ export function FluxProGenerator() {
       )}
 
       <div className="pt-8">
-        <div
-          style={{
-            transform: `scale(${galleryZoom})`,
-            transformOrigin: 'top left',
-            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : 'auto',
-          }}
-        >
         {allImages.length > 0 ? (
           <ImageGalleryMasonry 
             images={allImages} 
             isGenerating={isGenerating}
             layout="grid"
             fullWidth
+            galleryZoom={galleryZoom}
             autoScrollToBottom
             autoScrollBehavior="always"
             hasMore={hasMore}
@@ -217,7 +210,6 @@ export function FluxProGenerator() {
             </div>
           </div>
         )}
-        </div>
       </div>
 
       <ControlBarBottom

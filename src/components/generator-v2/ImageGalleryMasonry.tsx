@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react';
-import type { RefObject } from 'react';
+import type { RefObject, CSSProperties } from 'react';
 import { Download, Share2, RotateCcw, Loader2, Maximize2, AlertCircle, Heart, ImagePlus, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
@@ -18,6 +18,8 @@ interface ImageGalleryMasonryProps {
   onUseAsReference?: (image: GenerationResult) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Gallery zoom factor (0.5..1.5). Used to change tile size (more/less items visible). */
+  galleryZoom?: number;
   /** Auto-scroll to the bottom when new items appear (only if user is near bottom). */
   autoScrollToBottom?: boolean;
   /** Consider user "near bottom" within this many pixels. Default: 240. */
@@ -47,6 +49,7 @@ const ImageGalleryMasonryComponent = ({
   onUseAsReference,
   emptyTitle,
   emptyDescription,
+  galleryZoom = 1,
   autoScrollToBottom = false,
   autoScrollThresholdPx = 240,
   autoScrollBehavior = 'near-bottom',
@@ -63,6 +66,16 @@ const ImageGalleryMasonryComponent = ({
   const { toggleFavorite, isFavorite: isFavoriteId } = useFavoritesStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastLenRef = useRef<number>(images.length);
+  const gridVars = useMemo(() => {
+    const z = Number.isFinite(galleryZoom) ? galleryZoom : 1;
+    // Smaller zoom -> smaller tiles -> more columns. Larger zoom -> fewer columns.
+    const tileMin = Math.max(160, Math.min(560, Math.round(300 * z)));
+    const gap = Math.max(4, Math.min(14, Math.round(6 * z)));
+    return {
+      ["--higgs-tile-min" as unknown as keyof CSSProperties]: `${tileMin}px`,
+      ["--higgs-gap" as unknown as keyof CSSProperties]: `${gap}px`,
+    } as CSSProperties;
+  }, [galleryZoom]);
 
   const cardClassName = useMemo(() =>
     layout === "grid" || layout === "feed"
@@ -340,7 +353,12 @@ const ImageGalleryMasonryComponent = ({
       )}
 
       {(layout === 'grid' || layout === 'feed') ? (
-        <div className={layout === 'feed' ? 'feed-grid' : fullWidth ? 'higgs-grid higgs-grid-fullwidth' : 'higgs-grid'} data-layout={layout}>
+        <div
+          className={layout === 'feed' ? 'feed-grid' : fullWidth ? 'higgs-grid higgs-grid-fullwidth' : 'higgs-grid'}
+          data-layout={layout}
+          // CSS variables consumed by globals.css to tune columns/gap.
+          style={layout === 'feed' ? undefined : gridVars}
+        >
           {isGenerating && renderSkeletons()}
           {images.map((image) => {
             const isDemo = image.id.startsWith('demo-');

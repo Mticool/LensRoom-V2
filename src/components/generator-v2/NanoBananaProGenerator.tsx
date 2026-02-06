@@ -470,28 +470,20 @@ export function NanoBananaProGenerator() {
         
         {/* Image Gallery with zoom */}
         <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-          <div
-            style={{
-              transform: `scale(${galleryZoom})`,
-              transformOrigin: 'top left',
-              width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-              minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-            }}
-          >
-            <ImageGalleryMasonry
-              images={allImages}
-              isGenerating={isGenerating}
-              layout="grid"
-              fullWidth
-              autoScrollToBottom
-              autoScrollBehavior="always"
-              onRegenerate={handleRegenerate}
-              onUseAsReference={handleUseAsReference}
-              hasMore={hasMore}
-              onLoadMore={loadMore}
-              isLoadingMore={isLoadingMore}
-            />
-          </div>
+          <ImageGalleryMasonry
+            images={allImages}
+            isGenerating={isGenerating}
+            layout="grid"
+            fullWidth
+            galleryZoom={galleryZoom}
+            autoScrollToBottom
+            autoScrollBehavior="always"
+            onRegenerate={handleRegenerate}
+            onUseAsReference={handleUseAsReference}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
+          />
         </div>
 
         {/* Control Bar (Sticky Bottom) */}

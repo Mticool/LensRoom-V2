@@ -255,20 +255,13 @@ export function NanoBananaGenerator() {
 
       {/* Gallery with zoom */}
       <div className="pt-8 flex-1 min-h-0 overflow-y-auto overflow-x-auto">
-        <div
-          style={{
-            transform: `scale(${galleryZoom})`,
-            transformOrigin: 'top left',
-            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : 'auto',
-          }}
-        >
         {allImages.length > 0 ? (
           <ImageGalleryMasonry 
             images={allImages} 
             isGenerating={isGenerating}
             layout="grid"
             fullWidth
+            galleryZoom={galleryZoom}
             autoScrollToBottom
             autoScrollBehavior="always"
             hasMore={hasMore}
@@ -287,7 +280,6 @@ export function NanoBananaGenerator() {
             </div>
           </div>
         )}
-        </div>
       </div>
 
       {/* Control Bar (Sticky Bottom) */}

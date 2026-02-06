@@ -1355,19 +1355,12 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
         {/* Desktop: full-screen gallery with zoom */}
         <div className="hidden md:flex flex-col flex-1 min-h-0">
           <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pb-44">
-            <div
-              style={{
-                transform: `scale(${galleryZoom})`,
-                transformOrigin: 'top left',
-                width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-                minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-              }}
-            >
             <ImageGalleryMasonry
               images={effectiveImages}
               isGenerating={false}
               layout="grid"
               fullWidth
+              galleryZoom={galleryZoom}
               autoScrollToBottom
               autoScrollBehavior="always"
               scrollContainerRef={desktopGalleryRef}
@@ -1388,7 +1381,6 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
               onLoadMore={isToolModel ? undefined : loadMore}
               isLoadingMore={isLoadingMore}
             />
-            </div>
           </div>
         </div>
 

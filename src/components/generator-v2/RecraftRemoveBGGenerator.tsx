@@ -319,28 +319,19 @@ export function RecraftRemoveBGGenerator() {
           </div>
         )}
         
-        {/* Image Gallery with zoom */}
-        <div
-          style={{
-            transform: `scale(${galleryZoom})`,
-            transformOrigin: 'top left',
-            width: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-            minHeight: galleryZoom !== 1 ? `${100 / galleryZoom}%` : '100%',
-          }}
-        >
-          <ImageGalleryMasonry
-            images={allImages}
-            isGenerating={isGenerating}
-            layout="grid"
-            fullWidth
-            autoScrollToBottom
-            autoScrollBehavior="always"
-            onRegenerate={handleRegenerate}
-            hasMore={hasMore}
-            onLoadMore={loadMore}
-            isLoadingMore={isLoadingMore}
-          />
-        </div>
+        <ImageGalleryMasonry
+          images={allImages}
+          isGenerating={isGenerating}
+          layout="grid"
+          fullWidth
+          galleryZoom={galleryZoom}
+          autoScrollToBottom
+          autoScrollBehavior="always"
+          onRegenerate={handleRegenerate}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          isLoadingMore={isLoadingMore}
+        />
 
         {/* Control Bar (Sticky Bottom) */}
         <ControlBarBottom
