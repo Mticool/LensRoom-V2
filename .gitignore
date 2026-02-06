@@ -60,5 +60,6 @@ supabase/.temp/
 # Root-level helper scripts - keep maintained scripts in /scripts/
 /*.sh
 !DEPLOY.sh
+!deploy-direct.sh
 lensroom-v2/
 dev.log

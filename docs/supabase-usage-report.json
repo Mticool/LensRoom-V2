@@ -1,0 +1,942 @@
+{
+  "generated_at": "2026-02-06T10:41:03.148Z",
+  "since": "2026-01-07T10:40:05.503Z",
+  "project_url": "https://ndhykojwzazgmgvjaqgt.supabase.co",
+  "inventory": [
+    {
+      "table": "academy_waitlist",
+      "timestamp_col": "created_at",
+      "total": 2,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": false,
+      "code_ops": [],
+      "code_files": []
+    },
+    {
+      "table": "affiliate_applications",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/partners/route.ts",
+        "src/app/api/affiliate/apply/route.ts"
+      ]
+    },
+    {
+      "table": "affiliate_earnings",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/affiliate/earnings/route.ts",
+        "src/app/api/affiliate/earnings/me/route.ts",
+        "src/lib/referrals/process-affiliate-commission.ts"
+      ]
+    },
+    {
+      "table": "affiliate_earnings_summary",
+      "timestamp_col": null,
+      "total": 0,
+      "recent30": null,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "select"
+      ],
+      "code_files": [
+        "src/app/api/admin/affiliate/earnings/route.ts"
+      ]
+    },
+    {
+      "table": "affiliate_tiers",
+      "timestamp_col": "updated_at",
+      "total": 1,
+      "recent30": 1,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/admin/partners/manual/route.ts",
+        "src/app/api/admin/partners/remove/route.ts",
+        "src/app/api/admin/partners/route.ts",
+        "src/app/api/admin/partners/tiers/route.ts",
+        "src/app/api/admin/partners/update/route.ts",
+        "src/app/api/affiliate/earnings/me/route.ts",
+        "src/lib/referrals/process-affiliate-commission.ts",
+        "src/lib/referrals/referral-helper.ts"
+      ]
+    },
+    {
+      "table": "articles",
+      "timestamp_col": "created_at",
+      "total": 1,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/articles/[id]/route.ts",
+        "src/app/api/admin/articles/route.ts",
+        "src/app/blog/[slug]/page.tsx",
+        "src/app/blog/page.tsx",
+        "src/app/sitemap.ts"
+      ]
+    },
+    {
+      "table": "audio_history",
+      "timestamp_col": "created_at",
+      "total": 4,
+      "recent30": 4,
+      "error": null,
+      "used_in_code": false,
+      "code_ops": [],
+      "code_files": []
+    },
+    {
+      "table": "credit_transactions",
+      "timestamp_col": "created_at",
+      "total": 523,
+      "recent30": 302,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/credits/grant/route.ts",
+        "src/app/api/admin/grant-registration-bonus/route.ts",
+        "src/app/api/admin/subscription/grant/route.ts",
+        "src/app/api/audio/voices/clone/route.ts",
+        "src/app/api/cron/reset-subscription-stars/route.ts",
+        "src/app/api/generate/audio/route.ts",
+        "src/app/api/generate/batch/route.ts",
+        "src/app/api/generate/photo/route.ts",
+        "src/app/api/generate/products/route.ts",
+        "src/app/api/generate/video/route.ts",
+        "src/app/api/notifications/bonus/route.ts",
+        "src/app/api/notifications/check/route.ts",
+        "src/app/api/subscription/cancel/route.ts",
+        "src/app/api/webhooks/fal/route.ts",
+        "src/app/api/webhooks/payform/route.ts",
+        "src/app/api/webhooks/prodamus/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts",
+        "src/app/api/webhooks/robokassa/route.ts",
+        "src/lib/credits/refund.ts",
+        "src/lib/kie/sync-task.ts",
+        "src/lib/quota/nano-banana-pro.ts"
+      ]
+    },
+    {
+      "table": "credits",
+      "timestamp_col": "created_at",
+      "total": 33,
+      "recent30": 18,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "rpc",
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/admin/broadcast/route.ts",
+        "src/app/api/admin/credits/grant/route.ts",
+        "src/app/api/admin/grant-registration-bonus/route.ts",
+        "src/app/api/admin/users/route.ts",
+        "src/app/api/admin/users/search/route.ts",
+        "src/app/api/auth/telegram/route.ts",
+        "src/app/api/auth/telegram/status/route.ts",
+        "src/app/api/generate/batch/route.ts",
+        "src/app/api/generate/products/route.ts",
+        "src/app/api/kie/createTask/route.ts",
+        "src/app/api/notifications/bonus/route.ts",
+        "src/app/api/notifications/check/route.ts",
+        "src/app/api/telegram/auth/route.ts",
+        "src/app/api/webhooks/prodamus/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts",
+        "src/app/auth/callback/route.ts",
+        "src/lib/credits/refund.ts",
+        "src/lib/credits/split-credits.ts",
+        "src/lib/kie/sync-task.ts",
+        "src/lib/quota/nano-banana-pro.ts",
+        "src/lib/telegram/handlers/auth.ts",
+        "src/lib/telegram/menus/main-menu.ts"
+      ]
+    },
+    {
+      "table": "effects_gallery",
+      "timestamp_col": "created_at",
+      "total": 29,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/categories/route.ts",
+        "src/app/api/admin/gallery/route.ts",
+        "src/app/api/content/route.ts"
+      ]
+    },
+    {
+      "table": "embeddings",
+      "timestamp_col": "created_at",
+      "total": 4,
+      "recent30": 4,
+      "error": null,
+      "used_in_code": false,
+      "code_ops": [],
+      "code_files": []
+    },
+    {
+      "table": "generation_queue",
+      "timestamp_col": "created_at",
+      "total": 10,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select"
+      ],
+      "code_files": [
+        "src/lib/queue/add-to-queue.ts"
+      ]
+    },
+    {
+      "table": "generation_runs",
+      "timestamp_col": "created_at",
+      "total": 438,
+      "recent30": 400,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert"
+      ],
+      "code_files": [
+        "src/app/api/generate/lipsync/route.ts",
+        "src/app/api/generate/photo/route.ts",
+        "src/app/api/generate/video/route.ts",
+        "src/lib/quota/nano-banana-pro.ts"
+      ]
+    },
+    {
+      "table": "generations",
+      "timestamp_col": "created_at",
+      "total": 1114,
+      "recent30": 523,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "scripts/backfill-previews.js",
+        "scripts/previews-rebuild.js",
+        "scripts/previews-worker.js",
+        "src/app/api/admin/analytics/funnel/route.ts",
+        "src/app/api/admin/analytics/generations/route.ts",
+        "src/app/api/admin/broadcast/route.ts",
+        "src/app/api/admin/laozhang-stats/route.ts",
+        "src/app/api/cron/cleanup-stuck-generations/route.ts",
+        "src/app/api/generate/audio/route.ts",
+        "src/app/api/generate/batch/route.ts",
+        "src/app/api/generate/lipsync/route.ts",
+        "src/app/api/generate/photo/route.ts",
+        "src/app/api/generate/products/route.ts",
+        "src/app/api/generate/video/route.ts",
+        "src/app/api/generations/[id]/download/route.ts",
+        "src/app/api/generations/[id]/route.ts",
+        "src/app/api/generations/route.ts",
+        "src/app/api/health/route.ts",
+        "src/app/api/jobs/[jobId]/route.ts",
+        "src/app/api/kie/createTask/route.ts",
+        "src/app/api/kie/sync-manual/route.ts",
+        "src/app/api/library/route.ts",
+        "src/app/api/previews/requeue/route.ts",
+        "src/app/api/upload/voice-assets/route.ts",
+        "src/app/api/video/status/route.ts",
+        "src/app/api/webhooks/fal/route.ts",
+        "src/app/api/webhooks/kie/route.ts",
+        "src/app/api/webhooks/veo/route.ts",
+        "src/lib/credits/refund.ts",
+        "src/lib/kie/sync-task.ts",
+        "src/lib/previews/index.ts",
+        "src/lib/referrals/track-first-generation.ts",
+        "src/lib/supabase/upload-reference.ts"
+      ]
+    },
+    {
+      "table": "inspiration_styles",
+      "timestamp_col": "created_at",
+      "total": 12,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "scripts/apply-migration.mjs",
+        "src/app/api/admin/styles/route.ts",
+        "src/app/api/styles/route.ts"
+      ]
+    },
+    {
+      "table": "payments",
+      "timestamp_col": "created_at",
+      "total": 3,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "rpc",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/analytics/funnel/route.ts",
+        "src/app/api/admin/broadcast/route.ts",
+        "src/app/api/admin/overview/route.ts",
+        "src/app/api/admin/payments/route.ts",
+        "src/app/api/checkout/route.ts",
+        "src/app/api/payments/create/route.ts",
+        "src/app/api/webhooks/payform/route.ts",
+        "src/app/api/webhooks/prodamus/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts",
+        "src/app/api/webhooks/robokassa/route.ts",
+        "src/lib/referrals/process-affiliate-commission.ts"
+      ]
+    },
+    {
+      "table": "profiles",
+      "timestamp_col": "created_at",
+      "total": 15,
+      "recent30": 8,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/grant-registration-bonus/route.ts",
+        "src/app/api/admin/managers/route.ts",
+        "src/app/api/admin/overview/route.ts",
+        "src/app/api/admin/payments/route.ts",
+        "src/app/api/checkout/route.ts",
+        "src/app/api/webhooks/payform/route.ts",
+        "src/app/api/webhooks/prodamus/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts",
+        "src/app/api/webhooks/robokassa/route.ts",
+        "src/lib/supabase/ensure-profile.ts"
+      ]
+    },
+    {
+      "table": "promocode_usages",
+      "timestamp_col": "used_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "select"
+      ],
+      "code_files": [
+        "src/app/api/admin/promocodes/[id]/route.ts"
+      ]
+    },
+    {
+      "table": "promocodes",
+      "timestamp_col": "created_at",
+      "total": 4,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/promocodes/[id]/route.ts",
+        "src/app/api/admin/promocodes/route.ts",
+        "src/app/api/promocodes/validate/route.ts"
+      ]
+    },
+    {
+      "table": "push_subscriptions",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "select",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/push/subscribe/route.ts",
+        "src/app/api/push/unsubscribe/route.ts",
+        "src/lib/push/send-push.ts"
+      ]
+    },
+    {
+      "table": "referral_attributions",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select"
+      ],
+      "code_files": [
+        "src/app/api/referrals/health/route.ts",
+        "src/app/api/referrals/invites/route.ts",
+        "src/app/api/referrals/me/route.ts",
+        "src/lib/referrals/referral-helper.ts"
+      ]
+    },
+    {
+      "table": "referral_codes",
+      "timestamp_col": "created_at",
+      "total": 22,
+      "recent30": 16,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select"
+      ],
+      "code_files": [
+        "src/app/api/referrals/health/route.ts",
+        "src/app/api/referrals/me/route.ts",
+        "src/lib/referrals/referral-helper.ts"
+      ]
+    },
+    {
+      "table": "referral_events",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select"
+      ],
+      "code_files": [
+        "src/app/api/referrals/health/route.ts",
+        "src/lib/referrals/referral-helper.ts"
+      ]
+    },
+    {
+      "table": "referral_rewards",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "rpc",
+        "select"
+      ],
+      "code_files": [
+        "src/lib/referrals/referral-helper.ts"
+      ]
+    },
+    {
+      "table": "referrals",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": false,
+      "code_ops": [],
+      "code_files": []
+    },
+    {
+      "table": "studio_threads",
+      "timestamp_col": "created_at",
+      "total": 101,
+      "recent30": 101,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/generate/audio/route.ts",
+        "src/app/api/generate/photo/route.ts",
+        "src/app/api/generate/video/route.ts",
+        "src/app/api/studio/threads/route.ts"
+      ]
+    },
+    {
+      "table": "subscription_emails",
+      "timestamp_col": "created_at",
+      "total": 6,
+      "recent30": 4,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/checkout/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts"
+      ]
+    },
+    {
+      "table": "subscriptions",
+      "timestamp_col": "created_at",
+      "total": 1,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/admin/payments/route.ts",
+        "src/app/api/admin/subscription/grant/route.ts",
+        "src/app/api/cron/reset-subscription-stars/route.ts",
+        "src/app/api/subscription/cancel/route.ts",
+        "src/app/api/subscription/current/route.ts",
+        "src/app/api/subscription/status/route.ts",
+        "src/app/api/webhooks/payform/route.ts",
+        "src/app/api/webhooks/prodamus/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts",
+        "src/lib/quota/nano-banana-pro.ts"
+      ]
+    },
+    {
+      "table": "support_tickets",
+      "timestamp_col": "created_at",
+      "total": 1,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": false,
+      "code_ops": [],
+      "code_files": []
+    },
+    {
+      "table": "telegram_bot_links",
+      "timestamp_col": "updated_at",
+      "total": 16,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "rpc",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/admin/broadcast/route.ts",
+        "src/app/api/admin/stats/route.ts",
+        "src/app/api/auth/session/route.ts",
+        "src/app/api/auth/telegram/route.ts",
+        "src/app/api/auth/telegram/status/route.ts",
+        "src/app/api/notifications/bonus/route.ts",
+        "src/app/api/notifications/check/route.ts",
+        "src/app/api/telegram/broadcast/route.ts",
+        "src/app/api/waitlist/subscribe/route.ts"
+      ]
+    },
+    {
+      "table": "telegram_favorites",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select"
+      ],
+      "code_files": [
+        "src/lib/telegram/state/user-state.ts"
+      ]
+    },
+    {
+      "table": "telegram_login_codes",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/auth/telegram/init/route.ts",
+        "src/app/api/auth/telegram/status/route.ts",
+        "src/lib/telegram/handlers/auth.ts"
+      ]
+    },
+    {
+      "table": "telegram_notifications",
+      "timestamp_col": null,
+      "total": 203,
+      "recent30": null,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert"
+      ],
+      "code_files": [
+        "src/lib/telegram/notify.ts"
+      ]
+    },
+    {
+      "table": "telegram_profiles",
+      "timestamp_col": "created_at",
+      "total": 29,
+      "recent30": 16,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "rpc",
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/admin/affiliate/earnings/route.ts",
+        "src/app/api/admin/analytics/funnel/route.ts",
+        "src/app/api/admin/analytics/generations/route.ts",
+        "src/app/api/admin/articles/[id]/route.ts",
+        "src/app/api/admin/articles/route.ts",
+        "src/app/api/admin/broadcast/route.ts",
+        "src/app/api/admin/credits/grant/route.ts",
+        "src/app/api/admin/partners/manual/route.ts",
+        "src/app/api/admin/partners/remove/route.ts",
+        "src/app/api/admin/partners/route.ts",
+        "src/app/api/admin/partners/tiers/route.ts",
+        "src/app/api/admin/partners/update/route.ts",
+        "src/app/api/admin/promocodes/[id]/route.ts",
+        "src/app/api/admin/promocodes/route.ts",
+        "src/app/api/admin/referrals/overview/route.ts",
+        "src/app/api/admin/stats/route.ts",
+        "src/app/api/admin/subscription/grant/route.ts",
+        "src/app/api/admin/users/search/route.ts",
+        "src/app/api/affiliate/earnings/me/route.ts",
+        "src/app/api/auth/session/route.ts",
+        "src/app/api/auth/telegram/route.ts",
+        "src/app/api/auth/telegram/status/route.ts",
+        "src/app/api/dev/impersonate/route.ts",
+        "src/app/api/generations/[id]/route.ts",
+        "src/app/api/promocodes/apply/route.ts",
+        "src/app/api/promocodes/validate/route.ts",
+        "src/app/api/referrals/invites/route.ts",
+        "src/app/api/subscription/current/route.ts",
+        "src/app/api/telegram/auth/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts",
+        "src/app/api/webhooks/robokassa/route.ts",
+        "src/lib/auth/requireRole.ts",
+        "src/lib/kie/sync-task.ts",
+        "src/lib/telegram/auth.ts",
+        "src/lib/telegram/flows/photo-generation.ts",
+        "src/lib/telegram/flows/video-generation.ts",
+        "src/lib/telegram/handlers/auth.ts",
+        "src/lib/telegram/menus/balance-menu.ts",
+        "src/lib/telegram/menus/main-menu.ts",
+        "src/lib/telegram/notify.ts"
+      ]
+    },
+    {
+      "table": "telegram_user_settings",
+      "timestamp_col": "created_at",
+      "total": 1,
+      "recent30": 1,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/lib/telegram/flows/photo-generation.ts",
+        "src/lib/telegram/flows/video-generation.ts",
+        "src/lib/telegram/notify.ts",
+        "src/lib/telegram/state/user-state.ts"
+      ]
+    },
+    {
+      "table": "tts_jobs",
+      "timestamp_col": "created_at",
+      "total": 36,
+      "recent30": 36,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "update"
+      ],
+      "code_files": [
+        "src/app/api/tts/audio/[jobId]/route.ts",
+        "src/app/api/tts/generate-audio/route.ts",
+        "src/app/api/tts/history/route.ts",
+        "src/app/api/tts/regenerate-audio/route.ts"
+      ]
+    },
+    {
+      "table": "user_api_keys",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/profile/api-keys/page.tsx"
+      ]
+    },
+    {
+      "table": "user_quota_usage",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "select",
+        "upsert"
+      ],
+      "code_files": [
+        "src/lib/quota/nano-banana-pro.ts"
+      ]
+    },
+    {
+      "table": "user_roles",
+      "timestamp_col": "created_at",
+      "total": 3,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/admin/managers/route.ts",
+        "src/app/api/admin/users/role/route.ts",
+        "src/app/api/admin/users/route.ts",
+        "src/lib/auth/requireRole.ts"
+      ]
+    },
+    {
+      "table": "user_voices",
+      "timestamp_col": "created_at",
+      "total": 2,
+      "recent30": 2,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "insert",
+        "select"
+      ],
+      "code_files": [
+        "src/app/api/audio/voices/clone/route.ts",
+        "src/app/api/audio/voices/route.ts"
+      ]
+    },
+    {
+      "table": "users",
+      "timestamp_col": "created_at",
+      "total": 38,
+      "recent30": 18,
+      "error": null,
+      "used_in_code": false,
+      "code_ops": [],
+      "code_files": []
+    },
+    {
+      "table": "voices",
+      "timestamp_col": "created_at",
+      "total": 16,
+      "recent30": 16,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "delete",
+        "insert",
+        "select"
+      ],
+      "code_files": [
+        "src/app/api/tts/clone-voice/route.ts",
+        "src/app/api/tts/generate-audio/route.ts",
+        "src/app/api/tts/system-voices/route.ts",
+        "src/app/api/tts/voices/[voiceId]/route.ts",
+        "src/app/api/tts/voices/route.ts"
+      ]
+    },
+    {
+      "table": "waitlist_subscriptions",
+      "timestamp_col": "created_at",
+      "total": 0,
+      "recent30": 0,
+      "error": null,
+      "used_in_code": true,
+      "code_ops": [
+        "select",
+        "update",
+        "upsert"
+      ],
+      "code_files": [
+        "src/app/api/admin/stats/route.ts",
+        "src/app/api/admin/waitlist/route.ts",
+        "src/app/api/telegram/broadcast/route.ts",
+        "src/app/api/waitlist/subscribe/route.ts"
+      ]
+    }
+  ],
+  "rpc": [
+    {
+      "fn": "add_credits",
+      "files": [
+        "src/app/api/notifications/bonus/route.ts"
+      ]
+    },
+    {
+      "fn": "add_stars",
+      "files": [
+        "src/lib/referrals/referral-helper.ts"
+      ]
+    },
+    {
+      "fn": "adjust_credits",
+      "files": [
+        "src/app/api/generate/video/route.ts",
+        "src/app/api/webhooks/robokassa-subscription/route.ts"
+      ]
+    },
+    {
+      "fn": "apply_promocode",
+      "files": [
+        "src/app/api/promocodes/apply/route.ts"
+      ]
+    },
+    {
+      "fn": "claim_referral",
+      "files": [
+        "src/app/api/auth/telegram/route.ts",
+        "src/app/api/auth/telegram/status/route.ts"
+      ]
+    },
+    {
+      "fn": "credits_balance",
+      "files": [
+        "src/app/api/notifications/bonus/route.ts"
+      ]
+    },
+    {
+      "fn": "deduct_credits",
+      "files": [
+        "src/app/api/kie/createTask/route.ts"
+      ]
+    },
+    {
+      "fn": "exec",
+      "files": [
+        "scripts/apply-migration.mjs",
+        "src/app/api/admin/migrate/route.ts"
+      ]
+    },
+    {
+      "fn": "get_quota_usage",
+      "files": [
+        "src/lib/quota/nano-banana-pro.ts"
+      ]
+    },
+    {
+      "fn": "has_role",
+      "files": [
+        "src/lib/auth/requireRole.ts"
+      ]
+    },
+    {
+      "fn": "increment_quota_usage",
+      "files": [
+        "src/lib/quota/nano-banana-pro.ts"
+      ]
+    },
+    {
+      "fn": "validate_promocode",
+      "files": [
+        "src/app/api/promocodes/apply/route.ts",
+        "src/app/api/promocodes/validate/route.ts"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,350 @@
+{
+  "generated_at": "2026-02-06T10:19:08.028Z",
+  "since": "2026-01-07T10:18:07.285Z",
+  "rows": [
+    {
+      "table": "academy_waitlist",
+      "total": 2,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": false,
+      "error": null
+    },
+    {
+      "table": "affiliate_applications",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "affiliate_earnings",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "affiliate_earnings_summary",
+      "total": 0,
+      "recent30": null,
+      "timestamp_col": null,
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "affiliate_tiers",
+      "total": 1,
+      "recent30": 1,
+      "timestamp_col": "updated_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "articles",
+      "total": 1,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "audio_history",
+      "total": 4,
+      "recent30": 4,
+      "timestamp_col": "created_at",
+      "used_in_code": false,
+      "error": null
+    },
+    {
+      "table": "credit_transactions",
+      "total": 523,
+      "recent30": 302,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "credits",
+      "total": 33,
+      "recent30": 18,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "effects_gallery",
+      "total": 29,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "embeddings",
+      "total": 4,
+      "recent30": 4,
+      "timestamp_col": "created_at",
+      "used_in_code": false,
+      "error": null
+    },
+    {
+      "table": "generation_queue",
+      "total": 10,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "generation_runs",
+      "total": 438,
+      "recent30": 400,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "generations",
+      "total": 1114,
+      "recent30": 523,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "inspiration_styles",
+      "total": 12,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "payments",
+      "total": 3,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "profiles",
+      "total": 15,
+      "recent30": 8,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "promocode_usages",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "used_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "promocodes",
+      "total": 4,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "push_subscriptions",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "referral_attributions",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "referral_codes",
+      "total": 22,
+      "recent30": 16,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "referral_events",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "referral_rewards",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "referrals",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": false,
+      "error": null
+    },
+    {
+      "table": "studio_threads",
+      "total": 101,
+      "recent30": 101,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "subscription_emails",
+      "total": 6,
+      "recent30": 4,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "subscriptions",
+      "total": 1,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "support_tickets",
+      "total": 1,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": false,
+      "error": null
+    },
+    {
+      "table": "telegram_bot_links",
+      "total": 16,
+      "recent30": 0,
+      "timestamp_col": "updated_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "telegram_favorites",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "telegram_login_codes",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "telegram_notifications",
+      "total": 203,
+      "recent30": null,
+      "timestamp_col": null,
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "telegram_profiles",
+      "total": 29,
+      "recent30": 16,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "telegram_user_settings",
+      "total": 1,
+      "recent30": 1,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "tts_jobs",
+      "total": 36,
+      "recent30": 36,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "user_api_keys",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "user_quota_usage",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "user_roles",
+      "total": 3,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "user_voices",
+      "total": 2,
+      "recent30": 2,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "users",
+      "total": 38,
+      "recent30": 18,
+      "timestamp_col": "created_at",
+      "used_in_code": false,
+      "error": null
+    },
+    {
+      "table": "voices",
+      "total": 16,
+      "recent30": 16,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    },
+    {
+      "table": "waitlist_subscriptions",
+      "total": 0,
+      "recent30": 0,
+      "timestamp_col": "created_at",
+      "used_in_code": true,
+      "error": null
+    }
+  ]
+}
