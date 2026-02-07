@@ -6,6 +6,7 @@ import { isTempfileUrl, persistExternalMediaToContentBucket } from '@/lib/server
 type EffectRow = {
   id: string;
   preset_id: string | null;
+  content_type?: string | null;
   status?: string | null;
   published?: boolean | null;
   placement?: string | null;
@@ -27,11 +28,12 @@ export async function POST(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const placement = searchParams.get('placement'); // optional
     const dryRun = searchParams.get('dryRun') === '1';
+    const republish = searchParams.get('republish') === '1';
     const limit = Math.min(500, Math.max(1, Number(searchParams.get('limit') || '200')));
 
     let query = supabase
       .from('effects_gallery')
-      .select('id,preset_id,status,published,placement,preview_url,preview_image,asset_url,poster_url')
+      .select('id,preset_id,content_type,status,published,placement,preview_url,preview_image,asset_url,poster_url')
       .limit(limit);
 
     if (placement) query = query.eq('placement', placement);
@@ -46,13 +48,15 @@ export async function POST(req: NextRequest) {
       scanned: effects.length,
       targets: targets.length,
       updated: 0,
+      republished: 0,
       disabled: 0,
       skipped: 0,
       dryRun,
+      republish,
       details: [] as Array<{
         id: string;
         preset_id: string | null;
-        action: 'updated' | 'disabled' | 'skipped';
+        action: 'updated' | 'disabled' | 'skipped' | 'republished';
         notes: string[];
       }>,
     };
@@ -88,18 +92,27 @@ export async function POST(req: NextRequest) {
       if (nextAssetUrl) next.asset_url = nextAssetUrl;
       if (nextPosterUrl) next.poster_url = nextPosterUrl;
 
-      // If media is still missing/expired, disable this card to avoid breaking the public page.
-      const remainingTempfile = [next.preview_url ?? e.preview_url, next.preview_image ?? e.preview_image, next.asset_url ?? e.asset_url, next.poster_url ?? e.poster_url]
-        .some((u) => isTempfileUrl(u));
+      const isStable = (u: unknown): boolean => {
+        const s = String(u || '').trim();
+        return !!s && !isTempfileUrl(s);
+      };
 
-      const anyStable = [next.preview_url ?? e.preview_url, next.preview_image ?? e.preview_image, next.asset_url ?? e.asset_url, next.poster_url ?? e.poster_url]
-        .some((u) => {
-          const s = String(u || '').trim();
-          return s && !isTempfileUrl(s);
-        });
+      const contentType = String((e as any).content_type || '').toLowerCase();
+      const isVideo = contentType === 'video';
+
+      const previewUrlFinal = next.preview_url ?? e.preview_url;
+      const previewImageFinal = next.preview_image ?? e.preview_image;
+      const posterUrlFinal = next.poster_url ?? e.poster_url;
+      const assetUrlFinal = next.asset_url ?? e.asset_url;
+
+      // Public pages only need a stable preview (and preferably poster for video).
+      // Do NOT disable a card just because some secondary URL is expiring.
+      const hasStablePreview = isStable(previewUrlFinal) || isStable(previewImageFinal);
+      const hasStableVideoPosterOrPreview = isStable(posterUrlFinal) || hasStablePreview;
+      const hasEnoughForPublic = isVideo ? hasStableVideoPosterOrPreview : hasStablePreview;
 
       if (!dryRun) {
-        if (!anyStable || remainingTempfile) {
+        if (!hasEnoughForPublic) {
           // Downgrade to draft so it won't show publicly.
           const patch: any = { status: 'draft', published: false };
           // Keep any successfully persisted URLs.
@@ -114,35 +127,62 @@ export async function POST(req: NextRequest) {
             continue;
           }
           summary.disabled++;
-          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'disabled', notes: notes.length ? notes : ['disabled (no stable media)'] });
+          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'disabled', notes: notes.length ? notes : ['disabled (no stable preview)'] });
           continue;
         }
 
-        // Apply URL updates when at least one field changed.
-        const changed =
-          (next.preview_url && next.preview_url !== e.preview_url) ||
-          (next.preview_image && next.preview_image !== e.preview_image) ||
-          (next.asset_url && next.asset_url !== e.asset_url) ||
-          (next.poster_url && next.poster_url !== e.poster_url);
+        // If some remaining fields are still tempfile, null them out to avoid broken loads.
+        const patch: any = { ...next };
+        const remaining = {
+          preview_url: previewUrlFinal,
+          preview_image: previewImageFinal,
+          asset_url: assetUrlFinal,
+          poster_url: posterUrlFinal,
+        } as const;
 
-        if (changed) {
-          const { error: updErr } = await supabase.from('effects_gallery').update(next as any).eq('id', e.id);
-          if (updErr) {
-            notes.push(`update failed: ${updErr.message}`);
-            summary.skipped++;
-            summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'skipped', notes });
-            continue;
-          }
-          summary.updated++;
-          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'updated', notes });
-        } else {
+        for (const k of Object.keys(remaining) as Array<keyof typeof remaining>) {
+          const v = remaining[k];
+          if (isTempfileUrl(v)) patch[k] = null;
+        }
+
+        const wantsRepublish = republish && String(e.status || '').toLowerCase() !== 'published';
+        if (wantsRepublish) {
+          patch.status = 'published';
+          patch.published = true;
+        }
+
+        // Apply patch only when something changed.
+        const changedKeys = Object.keys(patch).filter((k) => (patch as any)[k] !== (e as any)[k]);
+        if (!changedKeys.length) {
           summary.skipped++;
           summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'skipped', notes: notes.length ? notes : ['no changes'] });
+          continue;
+        }
+
+        const { error: updErr } = await supabase.from('effects_gallery').update(patch).eq('id', e.id);
+        if (updErr) {
+          notes.push(`update failed: ${updErr.message}`);
+          summary.skipped++;
+          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'skipped', notes });
+          continue;
+        }
+
+        if (wantsRepublish) {
+          summary.republished++;
+          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'republished', notes });
+        } else {
+          summary.updated++;
+          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'updated', notes });
         }
       } else {
         // Dry run mode: just report what we would do.
-        if (!anyStable || remainingTempfile) summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'disabled', notes: notes.length ? notes : ['would disable'] });
-        else summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'updated', notes: notes.length ? notes : ['would update'] });
+        if (!hasEnoughForPublic) {
+          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'disabled', notes: notes.length ? notes : ['would disable'] });
+        } else if (republish && String(e.status || '').toLowerCase() !== 'published') {
+          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'republished', notes: notes.length ? notes : ['would republish'] });
+        } else {
+          summary.details.push({ id: e.id, preset_id: e.preset_id, action: 'updated', notes: notes.length ? notes : ['would update'] });
+        }
       }
     }
 
@@ -152,4 +192,3 @@ export async function POST(req: NextRequest) {
     return respondAuthError(e);
   }
 }
-

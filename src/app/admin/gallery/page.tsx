@@ -122,16 +122,18 @@ export default function AdminGalleryPage() {
     setMigrating(true);
     try {
       const placement = filterPlacement !== "all" ? filterPlacement : null;
-      const mkUrl = (dryRun: boolean) => {
+      const mkUrl = (dryRun: boolean, republish: boolean) => {
         const qs = new URLSearchParams();
         if (placement) qs.set("placement", placement);
         if (dryRun) qs.set("dryRun", "1");
+        if (republish) qs.set("republish", "1");
         qs.set("limit", "200");
         return `/api/admin/gallery/migrate-media?${qs.toString()}`;
       };
 
       toast.loading("Проверяю tempfile ссылки...", { id: "migrate" });
-      const dryRes = await fetch(mkUrl(true), { method: "POST", credentials: "include" });
+      // Dry run with republish=1 to show how many drafts could be restored after fixing URLs.
+      const dryRes = await fetch(mkUrl(true, true), { method: "POST", credentials: "include" });
       const dryJson = await dryRes.json().catch(() => null);
       if (!dryRes.ok) throw new Error(dryJson?.error || `Ошибка проверки (${dryRes.status})`);
 
@@ -140,24 +142,28 @@ export default function AdminGalleryPage() {
       const wouldDisable = Array.isArray(dryJson?.details)
         ? dryJson.details.filter((d: any) => d?.action === "disabled").length
         : 0;
+      const wouldRepublish = Array.isArray(dryJson?.details)
+        ? dryJson.details.filter((d: any) => d?.action === "republished").length
+        : 0;
 
       toast.success(`Проверка готова: scanned=${scanned}, targets=${targets}`, { id: "migrate" });
       if (!targets) return;
 
       const ok = confirm(
         `Найдено ${targets} карточек с tempfile URL.\n` +
-        `Потенциально будет скрыто: ${wouldDisable}.\n\n` +
+        `Потенциально будет скрыто: ${wouldDisable}.\n` +
+        `Потенциально будет восстановлено (опубликовано): ${wouldRepublish}.\n\n` +
         `Запустить миграцию сейчас?`
       );
       if (!ok) return;
 
       toast.loading("Мигрирую медиа в Storage...", { id: "migrate" });
-      const res = await fetch(mkUrl(false), { method: "POST", credentials: "include" });
+      const res = await fetch(mkUrl(false, true), { method: "POST", credentials: "include" });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || `Ошибка миграции (${res.status})`);
 
       toast.success(
-        `Миграция готова: updated=${json?.updated || 0}, disabled=${json?.disabled || 0}, skipped=${json?.skipped || 0}`,
+        `Миграция готова: updated=${json?.updated || 0}, republished=${json?.republished || 0}, disabled=${json?.disabled || 0}, skipped=${json?.skipped || 0}`,
         { id: "migrate" }
       );
       // Reload list so disabled items disappear from "published" views etc.
@@ -957,7 +963,6 @@ export default function AdminGalleryPage() {
     </div>
   );
 }
-
 
 
 
