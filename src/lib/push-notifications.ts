@@ -229,7 +229,7 @@ export function createNotificationPayload(
       return {
         title: "⚠️ Ошибка генерации",
         body: "Попробуйте ещё раз или выберите другую модель",
-        url: "/create",
+        url: "/create/studio?section=photo",
       };
 
     case "new_feature":
@@ -261,4 +261,3 @@ export function createNotificationPayload(
       };
   }
 }
-

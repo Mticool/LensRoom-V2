@@ -83,7 +83,7 @@ export function PromptModal({ prompt, isOpen, onClose, open, onOpenChange }: Pro
               Копировать
             </Button>
             <Button asChild className="flex-1">
-              <Link href={`/create?prompt=${encodeURIComponent(prompt.prompt)}`}>
+              <Link href={`/create/studio?section=photo&prompt=${encodeURIComponent(prompt.prompt)}`}>
                 <Wand2 className="w-4 h-4 mr-2" />
                 Использовать
               </Link>
@@ -94,4 +94,3 @@ export function PromptModal({ prompt, isOpen, onClose, open, onOpenChange }: Pro
     </Dialog>
   );
 }
-

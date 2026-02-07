@@ -57,7 +57,7 @@ export function GeneratorV2() {
       <div className="text-center">
         <h1 className="text-2xl font-bold mb-4">GeneratorV2 is deprecated</h1>
         <p className="text-gray-400">
-          Please use specialized generators from /create page
+          Please use the unified Studio generator: /create/studio
         </p>
       </div>
     </div>

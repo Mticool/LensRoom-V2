@@ -1,5 +1,5 @@
 // ===== EFFECTS GALLERY PRESETS =====
-// Config for homepage gallery - each preset routes to /create with params
+// Config for homepage gallery - each preset routes to /create/studio with params
 
 export type TileRatio = '9:16' | '1:1' | '16:9';
 export type ContentType = 'photo' | 'video';
@@ -421,7 +421,6 @@ export function getOrderedPresetsForMasonry(presets: EffectPreset[]): EffectPres
 export const EFFECTS_GALLERY = EFFECT_PRESETS;
 export const EFFECT_CATEGORIES = ['Visual Effects', 'Portrait', 'Product', 'Cinematic', 'Trending'] as const;
 export type EffectCategory = typeof EFFECT_CATEGORIES[number];
-
 
 
 

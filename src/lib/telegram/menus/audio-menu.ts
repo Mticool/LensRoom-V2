@@ -169,7 +169,7 @@ export async function showUserVoices(
 `;
 
   const buttons = [
-    [{ text: '🎤 Открыть голоса', web_app: { url: `${WEBAPP_URL}/create?section=audio` } }],
+    [{ text: '🎤 Открыть голоса', web_app: { url: `${WEBAPP_URL}/create/studio?section=voice` } }],
     [{ text: '🆕 Клонировать голос', callback_data: 'audio:clone' }],
     [{ text: '⬅️ Назад', callback_data: 'audio:tts' }],
   ];

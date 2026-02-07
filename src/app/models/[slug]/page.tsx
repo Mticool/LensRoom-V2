@@ -39,7 +39,8 @@ export default async function ModelLandingPage({ params }: Props) {
   const ctaHref = (() => {
     if (!m.generatorModelId) return categoryUrl;
     const params = new URLSearchParams();
-    params.set("section", m.category === "video" ? "video" : "image");
+    // Unified generator is /create/studio; section names are "photo" | "video" | "music" | "voice" | ...
+    params.set("section", m.category === "video" ? "video" : "photo");
     params.set("model", m.generatorModelId);
     if (m.generatorVariant) params.set("variant", m.generatorVariant);
     if (m.generatorParams) {
@@ -47,7 +48,7 @@ export default async function ModelLandingPage({ params }: Props) {
         if (v != null && String(v).length > 0) params.set(k, String(v));
       }
     }
-    return `/create?${params.toString()}`;
+    return `/create/studio?${params.toString()}`;
   })();
 
   return (
@@ -143,5 +144,4 @@ export default async function ModelLandingPage({ params }: Props) {
     </main>
   );
 }
-
 

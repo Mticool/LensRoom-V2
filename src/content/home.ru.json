@@ -68,12 +68,11 @@
     "cta": "Создать"
   },
   "links": {
-    "create": "/create",
+    "create": "/create/studio?section=photo",
     "inspiration": "/inspiration",
     "pricing": "/pricing",
     "academy": "/academy"
   }
 }
-
 
 

@@ -9,7 +9,7 @@ import { useEffect } from "react";
 export function CriticalResources() {
   useEffect(() => {
     // Предзагрузка критических маршрутов
-    const criticalRoutes = ["/create", "/pricing"];
+    const criticalRoutes = ["/create/studio?section=photo", "/pricing"];
     
     criticalRoutes.forEach((route) => {
       const link = document.createElement("link");
@@ -85,4 +85,3 @@ export function ConnectionHints() {
     </>
   );
 }
-

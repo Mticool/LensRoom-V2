@@ -116,7 +116,7 @@ export async function handleLoginCode(
       '✅ <b>Авторизация успешна!</b>\n\n' +
         '🎉 Вы вошли в LensRoom через Telegram.\n\n' +
         'Вернитесь на сайт — страница обновится автоматически.\n\n' +
-        '🌐 <a href="https://lensroom.ru/create">Открыть LensRoom</a>',
+        '🌐 <a href="https://lensroom.ru/create/studio?section=photo">Открыть LensRoom</a>',
       {
         replyMarkup: createInlineKeyboard([
           [{ text: '🌐 Открыть сайт', url: 'https://lensroom.ru/create/studio' }],
