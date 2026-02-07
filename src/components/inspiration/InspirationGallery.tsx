@@ -8,6 +8,22 @@ import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { navigateWithFallback } from '@/lib/client/navigate';
 
+function proxifyExternalMediaUrl(raw: string): string {
+  const src = String(raw || '').trim();
+  if (!src) return '';
+  if (!src.startsWith('http://') && !src.startsWith('https://')) return src;
+  try {
+    const u = new URL(src);
+    // tempfile.aiquickdraw.com can be blocked in Chromium via ORB when loaded cross-origin.
+    if (u.hostname.toLowerCase() === 'tempfile.aiquickdraw.com') {
+      return `/api/media/proxy?url=${encodeURIComponent(src)}`;
+    }
+  } catch {
+    // ignore invalid URL
+  }
+  return src;
+}
+
 // ===== CONSTANTS =====
 const INITIAL_LOAD = 15; // Increased for better initial experience
 const LOAD_MORE = 12; // Increased for smoother scrolling
@@ -73,7 +89,8 @@ const ContentCardComponent = memo(function ContentCardComponent({
     src = (card.preview_url || card.preview_image || card.asset_url || '').trim();
   }
   
-  const posterSrc = isVideo ? (card.poster_url || '').trim() : '';
+  src = proxifyExternalMediaUrl(src);
+  const posterSrc = isVideo ? proxifyExternalMediaUrl((card.poster_url || '').trim()) : '';
   
   // Transition duration based on reduced motion
   const transitionDuration = reducedMotion ? 'duration-200' : 'duration-500';
