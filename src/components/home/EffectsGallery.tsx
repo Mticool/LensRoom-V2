@@ -12,6 +12,7 @@ import {
 } from '@/config/effectsGallery';
 import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 // ===== CONSTANTS =====
 const INITIAL_LOAD = 15; // Increased for better initial experience
@@ -263,7 +264,9 @@ export function EffectsGallery() {
       setLoading(true);
       try {
         // Load content from effects_gallery with placement=home
-        const res = await fetch('/api/content?placement=home&status=published&limit=100');
+        const res = await fetchWithTimeout('/api/content?placement=home&status=published&limit=100', {
+          timeout: 15_000,
+        });
         if (!res.ok) {
           console.warn('[EffectsGallery] Failed to load content:', res.status);
           setAllPresets([]);

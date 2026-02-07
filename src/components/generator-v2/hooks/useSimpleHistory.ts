@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GenerationResult, GeneratorMode, GenerationSettings } from '../GeneratorV2';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 const PAGE_SIZE = 20;
 
@@ -90,7 +91,8 @@ export function useSimpleHistory({ modelId, threadId }: UseSimpleHistoryOptions 
       // IMPORTANT: Request ASC order so we get [oldest, ..., newest]
       qs.set("order", "asc");
 
-      const response = await fetch(`/api/generations?${qs.toString()}`, {
+      const response = await fetchWithTimeout(`/api/generations?${qs.toString()}`, {
+        timeout: 15_000,
         signal: abortControllerRef.current.signal,
       });
 
@@ -107,6 +109,9 @@ export function useSimpleHistory({ modelId, threadId }: UseSimpleHistoryOptions 
       setHasMore((data.generations || []).length >= PAGE_SIZE);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
+        if (error instanceof FetchTimeoutError) {
+          console.warn('[useSimpleHistory] History request timed out');
+        }
         console.error('Failed to fetch history:', error);
       }
     } finally {
@@ -133,7 +138,7 @@ export function useSimpleHistory({ modelId, threadId }: UseSimpleHistoryOptions 
       if (threadId) qs.set("thread_id", threadId);
       qs.set("order", "asc");
 
-      const response = await fetch(`/api/generations?${qs.toString()}`);
+      const response = await fetchWithTimeout(`/api/generations?${qs.toString()}`, { timeout: 15_000 });
 
       if (!response.ok) {
         throw new Error('Failed to load more history');

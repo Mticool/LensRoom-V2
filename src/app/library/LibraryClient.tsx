@@ -25,6 +25,7 @@ import {
 } from "@/lib/validation/library";
 import { handleError } from "@/lib/errors/error-handler";
 import { navigateWithFallback } from "@/lib/client/navigate";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 function getAgeSeconds(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
@@ -121,7 +122,8 @@ export function LibraryClient() {
       setError(null);
       setUnauthorized(false);
 
-      const res = await fetch(`/api/library?limit=${LIMIT}&offset=${offset}&_t=${Date.now()}`, {
+      const res = await fetchWithTimeout(`/api/library?limit=${LIMIT}&offset=${offset}&_t=${Date.now()}`, {
+        timeout: 20_000,
         cache: 'no-store',
         credentials: 'include'
       });
@@ -143,6 +145,10 @@ export function LibraryClient() {
       setHasMore(json?.meta?.hasMore || newItems.length === LIMIT);
       lastFetchRef.current = Date.now();
     } catch (error) {
+      if (error instanceof FetchTimeoutError) {
+        if (!silent) setError("Сервер долго отвечает. Попробуйте обновить страницу.");
+        return;
+      }
       const errorMessage = handleError(error, 'Library - fetchGenerations');
       if (!silent) setError(errorMessage);
     } finally {

@@ -5,7 +5,7 @@
 
 export interface FetchWithTimeoutOptions extends RequestInit {
   timeout?: number; // Timeout in ms (default: 60000 = 60s)
-  abortSignal?: AbortSignal; // External abort signal
+  abortSignal?: AbortSignal; // External abort signal (preferred over RequestInit.signal)
 }
 
 export class FetchTimeoutError extends Error {
@@ -50,8 +50,12 @@ export async function fetchWithTimeout(
   const {
     timeout = 60000, // Default 60s for API requests
     abortSignal,
+    // Allow callers to pass `signal` (native fetch option). We treat it as the external abort signal.
+    signal,
     ...fetchOptions
-  } = options;
+  } = options as FetchWithTimeoutOptions & { signal?: AbortSignal };
+
+  const externalAbortSignal = abortSignal ?? signal;
 
   // Create internal abort controller for timeout
   const timeoutController = new AbortController();
@@ -59,9 +63,9 @@ export async function fetchWithTimeout(
   // Combine with external abort signal if provided
   let combinedSignal: AbortSignal;
 
-  if (abortSignal) {
+  if (externalAbortSignal) {
     // If external signal already aborted, throw immediately
-    if (abortSignal.aborted) {
+    if (externalAbortSignal.aborted) {
       throw new FetchAbortedError('Request was aborted before fetch');
     }
 
@@ -70,13 +74,16 @@ export async function fetchWithTimeout(
 
     const abortHandler = () => {
       // Abort when either signal is aborted.
-      if (!anyAbortController.signal.aborted && (abortSignal.aborted || timeoutController.signal.aborted)) {
+      if (
+        !anyAbortController.signal.aborted &&
+        (externalAbortSignal.aborted || timeoutController.signal.aborted)
+      ) {
         anyAbortController.abort();
       }
     };
 
     // Use `once` so listeners auto-cleanup and do not leak across repeated calls.
-    abortSignal.addEventListener('abort', abortHandler, { once: true });
+    externalAbortSignal.addEventListener('abort', abortHandler, { once: true });
     timeoutController.signal.addEventListener('abort', abortHandler, { once: true });
 
     combinedSignal = anyAbortController.signal;
@@ -101,12 +108,12 @@ export async function fetchWithTimeout(
     clearTimeout(timeoutId);
 
     // Check if it was a timeout
-    if (timeoutController.signal.aborted && !abortSignal?.aborted) {
+    if (timeoutController.signal.aborted && !externalAbortSignal?.aborted) {
       throw new FetchTimeoutError(`Request timeout after ${timeout}ms`);
     }
 
     // Check if it was an external abort
-    if (abortSignal?.aborted) {
+    if (externalAbortSignal?.aborted) {
       throw new FetchAbortedError('Request was cancelled');
     }
 

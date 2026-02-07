@@ -3,6 +3,7 @@
  */
 
 import logger from '@/lib/logger';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 export interface RetryOptions {
   maxRetries?: number;
@@ -53,10 +54,13 @@ export async function fetchWithRetry(
   const config = { ...DEFAULT_OPTIONS, ...retryOptions };
   let lastError: Error | null = null;
   let lastResponse: Response | undefined;
+  const DEFAULT_TIMEOUT_MS = 20_000;
 
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {
-      const response = await fetch(url, options);
+      // Ensure we never hang indefinitely on a dead connection.
+      // If you need a longer timeout for a specific call, prefer using fetchWithTimeout directly.
+      const response = await fetchWithTimeout(url, { ...(options || {}), timeout: DEFAULT_TIMEOUT_MS });
 
       // Check if response status code should trigger retry
       if (config.retryOn.includes(response.status)) {

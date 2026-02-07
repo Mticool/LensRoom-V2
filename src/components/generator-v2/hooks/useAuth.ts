@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiFetch } from '@/lib/api-fetch';
 import logger from '@/lib/logger';
 import { useCreditsStore } from '@/stores/credits-store';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -100,7 +101,7 @@ export function useAuth() {
 
   const refreshCredits = useCallback(async () => {
     try {
-      const response = await fetch('/api/credits/balance', { credentials: 'include' });
+      const response = await fetchWithTimeout('/api/credits/balance', { timeout: 10_000, credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         const nextCredits = data.balance || data.credits || 0;
@@ -121,6 +122,7 @@ export function useAuth() {
         }
       }
     } catch (error) {
+      if (error instanceof FetchTimeoutError) return;
       console.error('Credits refresh failed:', error);
     }
   }, []);
@@ -130,4 +132,3 @@ export function useAuth() {
     [auth, refreshCredits, checkAuth]
   );
 }
-

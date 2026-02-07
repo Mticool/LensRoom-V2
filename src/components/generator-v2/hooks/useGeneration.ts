@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { GeneratorMode, GenerationSettings, GenerationResult } from '../GeneratorV2';
 import logger from '@/lib/logger';
 import { apiFetch } from '@/lib/api-fetch';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 interface UseGenerationOptions {
   onSuccess?: (result: GenerationResult) => void;
@@ -116,7 +117,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         if (settings.resolution) body.resolution = settings.resolution;
       }
 
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
+        timeout: 30_000,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -230,6 +232,12 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       return result;
 
     } catch (e: unknown) {
+      if (e instanceof FetchTimeoutError) {
+        const msg = 'Сервер долго отвечает. Попробуйте еще раз.';
+        setError(msg);
+        optionsRef.current.onError?.(msg, pendingId);
+        return null;
+      }
       const errorMessage = e instanceof Error ? e.message : 'Неизвестная ошибка';
       setError(errorMessage);
       optionsRef.current.onError?.(errorMessage, pendingId);

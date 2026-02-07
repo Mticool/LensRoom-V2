@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { navigateWithFallback } from '@/lib/client/navigate';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 function proxifyExternalMediaUrl(raw: string): string {
   const src = String(raw || '').trim();
@@ -269,7 +270,9 @@ export function InspirationGallery() {
       
       setLoading(true);
       try {
-        const res = await fetch('/api/content?placement=inspiration&status=published&limit=100');
+        const res = await fetchWithTimeout('/api/content?placement=inspiration&status=published&limit=100', {
+          timeout: 15_000,
+        });
         if (!res.ok) throw new Error('Failed to load content');
         const data = await res.json();
         const effects = Array.isArray(data?.effects) ? data.effects : [];
@@ -299,6 +302,9 @@ export function InspirationGallery() {
         cacheRef.current = mapped;
         setAllContent(mapped);
       } catch (error) {
+        if (error instanceof FetchTimeoutError) {
+          toast.error('Сервер долго отвечает. Попробуйте обновить страницу.');
+        }
         console.error('Failed to load inspiration content:', error);
         toast.error('Не удалось загрузить контент');
       } finally {

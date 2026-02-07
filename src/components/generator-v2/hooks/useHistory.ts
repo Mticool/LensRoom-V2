@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cachedJson, invalidateCached } from '@/lib/client/generations-cache';
 import { GenerationResult, GeneratorMode, GenerationSettings } from '../GeneratorV2';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 const PAGE_SIZE = 20;
 
@@ -237,7 +238,8 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
           return `/api/generations?${qs.toString()}`;
         })();
         
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
+          timeout: 15_000,
           signal: abortControllerRef.current?.signal,
         });
         
@@ -256,6 +258,9 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       setHasMore((data.generations || []).length >= PAGE_SIZE);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
+        if (error instanceof FetchTimeoutError) {
+          console.warn('[useHistory] History request timed out');
+        }
         console.error('Failed to fetch history:', error);
       }
     } finally {
@@ -279,7 +284,7 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       if (modelId) qs.set("model_id", modelId);
       if (threadId) qs.set("thread_id", threadId);
       
-      const response = await fetch(`/api/generations?${qs.toString()}`);
+      const response = await fetchWithTimeout(`/api/generations?${qs.toString()}`, { timeout: 15_000 });
       
       if (!response.ok) {
         throw new Error('Failed to load more history');
