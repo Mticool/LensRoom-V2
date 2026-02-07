@@ -133,6 +133,9 @@ export async function GET(request: NextRequest) {
     // 5. Query generations for current user
     // Include ALL success generations (Library is never empty!)
     // Exclude failed generations - they should not appear in Library
+    // Fetch 1 extra row to compute hasMore robustly even when some cards are "broken"
+    // and need safe fallbacks on the server.
+    const fetchLimit = Math.min(limit + 1, 101);
     const { data: generations, error } = await supabase
       .from("generations")
       .select(
@@ -144,7 +147,7 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .neq("status", "failed")  // Hide failed generations from Library
       .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + fetchLimit - 1);
 
     if (error) {
       console.error("[Library API] Error fetching generations:", error);
@@ -154,9 +157,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const raw = Array.isArray(generations) ? generations : [];
+    const rawHasMore = raw.length > limit;
+    const page = raw.slice(0, limit);
+
     // 6. Build URLs for each generation
     const items = await Promise.all(
-      (generations || []).map(async (gen: GenerationRow) => {
+      page.map(async (gen: GenerationRow) => {
         try {
         const isVideo = gen.type === "video";
           let originalUrl: string | null = null;
@@ -259,10 +266,11 @@ export async function GET(request: NextRequest) {
             displayUrl,      // For grid display (previewUrl/posterUrl or originalUrl)
           };
         } catch (itemError) {
-          console.error('[Library API] Error processing generation:', gen?.id, itemError);
+          const id = gen?.id ? String(gen.id) : "";
+          console.error('[Library API] Error processing generation:', id, itemError);
           // Return safe fallback
           return {
-            id: gen?.id || '',
+            id,
             user_id: gen?.user_id || userId,
             type: gen?.type || 'photo',
             status: gen?.status || 'failed',
@@ -271,18 +279,21 @@ export async function GET(request: NextRequest) {
             prompt: gen?.prompt || null,
             model_name: gen?.model_name || null,
             preview_status: 'none',
-            originalUrl: null,
+            // Stable authenticated download endpoint to avoid empty/broken success cards.
+            // Note: if the upstream object is missing, the download route will return an error,
+            // but the UI will handle it without crashing.
+            originalUrl: id ? `/api/generations/${encodeURIComponent(id)}/download?kind=original&proxy=1` : null,
             previewUrl: null,
             posterUrl: null,
-            displayUrl: null,
+            displayUrl: id ? `/api/generations/${encodeURIComponent(id)}/download?kind=original&proxy=1` : null,
             resultUrls: null,
           };
         }
       })
     );
 
-    // Filter out invalid items (без ID)
-    const validItems = items.filter(item => item.id && item.user_id);
+    // Keep pagination stable: do not drop rows silently (only guard against missing IDs).
+    const validItems = items.filter(item => item.id);
     
     // Log for debugging
     const successWithUrl = validItems.filter(i => i.status === "success" && i.originalUrl).length;
@@ -298,7 +309,7 @@ export async function GET(request: NextRequest) {
         meta: {
           limit,
           offset,
-          hasMore: validItems.length === limit,
+          hasMore: rawHasMore,
         }
       },
       {

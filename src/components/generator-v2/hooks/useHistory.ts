@@ -24,7 +24,10 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // Avoid AbortController here: fetchHistory uses cachedJson() which dedupes in-flight requests.
+  // Aborting the first request can make the second (deduped) call inherit the aborted promise,
+  // leaving the gallery empty (especially in Next dev / React strict-mode double effects).
+  const requestSeqRef = useRef(0);
 
   // Helper function to get asset URL with fallback priority (similar to getSourceAssetUrl)
   const getAssetUrl = useCallback((gen: any): string => {
@@ -211,13 +214,7 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
 
   const fetchHistory = useCallback(async () => {
     try {
-      // Cancel previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      abortControllerRef.current = new AbortController();
-      
+      const seq = ++requestSeqRef.current;
       setIsLoading(true);
       setOffset(0);
       
@@ -240,7 +237,6 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
         
         const response = await fetchWithTimeout(url, {
           timeout: 15_000,
-          signal: abortControllerRef.current?.signal,
         });
         
         if (!response.ok) {
@@ -249,6 +245,9 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
 
         return response.json();
       });
+
+      // Ignore stale responses (e.g. rapid model/thread switching).
+      if (seq !== requestSeqRef.current) return;
       
       const results = transformResults(data.generations);
       // Reverse so oldest items are at top (beginning of array)
@@ -310,10 +309,8 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
     fetchHistory();
 
     return () => {
-      // Cleanup on unmount
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      // Mark current request as stale to prevent late setState after unmount.
+      requestSeqRef.current += 1;
     };
   }, [fetchHistory]);
 
