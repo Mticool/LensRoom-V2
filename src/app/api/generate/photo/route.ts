@@ -23,6 +23,7 @@ import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/l
 import { resolveAspectRatio, logAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
 import { getImageModelCapability, getDefaultImageParams, validateImageRequest, getAllowedAspectRatios } from '@/lib/imageModels/capabilities';
 import { buildKieImagePayload } from '@/lib/providers/kie/image';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 function mimeTypesFromFormats(formats?: Array<'jpeg' | 'png' | 'webp'>): string[] | null {
   if (!formats || formats.length === 0) return null;
@@ -69,7 +70,7 @@ async function buildReferenceCollageDataUrl(
       if (parsed) {
         buffer = Buffer.from(parsed.base64, "base64");
       } else {
-        const res = await fetch(src);
+        const res = await fetchWithTimeout(src, { timeout: 15_000 });
         if (!res.ok) throw new Error(`Failed to fetch reference image (${res.status})`);
         buffer = Buffer.from(await res.arrayBuffer());
       }
@@ -916,7 +917,7 @@ export async function POST(request: NextRequest) {
 
         // Download and upload images to our storage
         const uploadPromises = imageUrls.map(async (imageUrl, index) => {
-          const dl = await fetch(imageUrl);
+          const dl = await fetchWithTimeout(imageUrl, { timeout: 30_000 });
           if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
           const sourceBuffer = Buffer.from(await dl.arrayBuffer());
           return await uploadGeneratedImageBuffer(sourceBuffer, `genaipro_${index}`, requestedOutputFormat);
@@ -1102,7 +1103,7 @@ export async function POST(request: NextRequest) {
               if (b64Json) {
                 sourceBuffer = Buffer.from(b64Json, "base64");
               } else {
-                const dl = await fetch(imageUrlFromProvider!);
+                const dl = await fetchWithTimeout(imageUrlFromProvider!, { timeout: 30_000 });
                 if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
                 sourceBuffer = Buffer.from(await dl.arrayBuffer());
               }
@@ -1286,7 +1287,7 @@ export async function POST(request: NextRequest) {
             if (b64Json) {
               sourceBuffer = Buffer.from(b64Json, "base64");
             } else {
-              const dl = await fetch(imageUrlFromProvider!);
+              const dl = await fetchWithTimeout(imageUrlFromProvider!, { timeout: 30_000 });
               if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
               sourceBuffer = Buffer.from(await dl.arrayBuffer());
             }
@@ -1556,9 +1557,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[API] Photo generation error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
+    const isTimeout = error instanceof FetchTimeoutError;
     return NextResponse.json(
-      { error: message },
-      { status: 500 }
+      { error: message, errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR" },
+      { status: isTimeout ? 504 : 500 }
     );
   }
 }

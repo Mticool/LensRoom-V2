@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 function isPrivateOrLocalHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
@@ -51,7 +52,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const upstream = await fetch(target.toString(), {
+    const upstream = await fetchWithTimeout(target.toString(), {
+      timeout: 20_000,
       redirect: 'follow',
       headers: {
         'User-Agent': 'LensRoom/1.0 (public-media-proxy)',
@@ -82,8 +84,10 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (e) {
+    if (e instanceof FetchTimeoutError) {
+      return NextResponse.json({ error: 'Upstream timeout' }, { status: 504 });
+    }
     console.error('[Media Proxy] Error:', e);
     return NextResponse.json({ error: 'Proxy error' }, { status: 500 });
   }
 }
-

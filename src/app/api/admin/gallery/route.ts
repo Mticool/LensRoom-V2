@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { requireRole, respondAuthError } from "@/lib/auth/requireRole";
+import { isTempfileUrl, persistExternalMediaToContentBucket } from '@/lib/server/media/persistExternalMedia';
 
 // GET - Fetch all gallery effects
 export async function GET(request: Request) {
@@ -103,6 +104,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: presetId, title' }, { status: 400 });
     }
 
+    // Persist expiring/temp external media to Supabase Storage for stability.
+    // This prevents public galleries from breaking when tempfile.aiquickdraw.com links expire.
+    const maybePersist = async (raw: any, kind: string): Promise<string | null> => {
+      const url = String(raw || '').trim();
+      if (!url) return null;
+      if (!isTempfileUrl(url)) return url;
+      const res = await persistExternalMediaToContentBucket({
+        url,
+        keyPrefix: `effects/${encodeURIComponent(String(presetId))}/${kind}`,
+        maxBytes: kind === 'asset' ? 80 * 1024 * 1024 : 25 * 1024 * 1024,
+        timeoutMs: 25_000,
+      });
+      if (res.ok) return res.publicUrl;
+      // If we can't persist it (404), keep the original to avoid blocking save;
+      // migration endpoint can later downgrade status to draft.
+      console.warn('[Admin Gallery] Failed to persist media', { presetId, kind, url: url.slice(0, 120), ...res });
+      return url;
+    };
+
+    const stablePreviewUrl = await maybePersist(previewUrl || previewImage, 'preview');
+    const stablePreviewImage = await maybePersist(previewImage || previewUrl, 'preview_image');
+    const stableAssetUrl = await maybePersist(assetUrl, 'asset');
+    const stablePosterUrl = await maybePersist(posterUrl, 'poster');
+
     const effectData: any = {
       preset_id: presetId,
       title,
@@ -112,8 +137,8 @@ export async function POST(request: Request) {
       cost_stars: costStars || 0,
       mode: mode || 't2i',
       variant_id: variantId || 'default',
-      preview_image: previewImage || '',
-      preview_url: (previewUrl || previewImage || '') || null,
+      preview_image: stablePreviewImage || '',
+      preview_url: stablePreviewUrl || null,
       template_prompt: templatePrompt || '',
       featured: featured || false,
       // Keep legacy `published` in sync with new `status`
@@ -126,8 +151,8 @@ export async function POST(request: Request) {
       category: category || null,
       priority: priority !== undefined ? priority : 0,
       type: type || (contentType === 'video' ? 'video' : 'image'),
-      asset_url: assetUrl || null,
-      poster_url: posterUrl || null,
+      asset_url: stableAssetUrl || null,
+      poster_url: stablePosterUrl || null,
       aspect: aspect || tileRatio || '1:1',
       short_description: shortDescription || null,
     };
@@ -249,6 +274,5 @@ export async function DELETE(request: Request) {
     return respondAuthError(error);
   }
 }
-
 
 

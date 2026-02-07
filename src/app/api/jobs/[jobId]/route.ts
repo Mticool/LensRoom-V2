@@ -8,6 +8,7 @@ import { syncKieTaskToDb } from "@/lib/kie/sync-task";
 import { refundCredits } from "@/lib/credits/refund";
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
 
 export async function GET(
   request: NextRequest,
@@ -44,9 +45,10 @@ export async function GET(
           let videoUrl: string | null = null;
           let contentType: string | null = null;
           try {
-            const resultResponse = await fetch(
+            const resultResponse = await fetchWithTimeout(
               `https://queue.fal.run/fal-ai/kling-video/requests/${jobId}`,
               {
+                timeout: 15_000,
                 headers: {
                   'Authorization': `Key ${process.env.FAL_KEY}`,
                 },
@@ -66,7 +68,7 @@ export async function GET(
           let storagePath: string | null = null;
           if (videoUrl && dbGen?.user_id) {
             try {
-              const dl = await fetch(videoUrl);
+              const dl = await fetchWithTimeout(videoUrl, { timeout: 90_000 });
               if (!dl.ok) throw new Error(`Failed to download FAL video: ${dl.status}`);
 
               const arrayBuf = await dl.arrayBuffer();
@@ -121,9 +123,10 @@ export async function GET(
           // Try to get error details
           let errorDetail = 'FAL generation failed';
           try {
-            const resultResponse = await fetch(
+            const resultResponse = await fetchWithTimeout(
               `https://queue.fal.run/fal-ai/kling-video/requests/${jobId}`,
               {
+                timeout: 15_000,
                 headers: {
                   'Authorization': `Key ${process.env.FAL_KEY}`,
                 },

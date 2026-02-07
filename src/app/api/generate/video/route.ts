@@ -21,6 +21,7 @@ import { resolveVideoAspectRatio, logVideoAspectRatioResolution } from '@/lib/ap
 import { VideoGenerationRequestSchema, validateAgainstCapability } from '@/lib/videoModels/schema';
 import { getModelCapability } from '@/lib/videoModels/capabilities';
 import { buildKieVideoPayload } from '@/lib/providers/kie/video';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 // Настройка в next.config.ts: experimental.middlewareClientMaxBodySize = '50mb'
@@ -1254,7 +1255,7 @@ export async function POST(request: NextRequest) {
         console.log('[API] Downloading video for storage upload...');
 
         // Download video and upload to our storage
-        const videoResponse = await fetch(videoGenResponse.videoUrl);
+        const videoResponse = await fetchWithTimeout(videoGenResponse.videoUrl, { timeout: 90_000 });
         if (!videoResponse.ok) {
           throw new Error(`Failed to download video: ${videoResponse.status}`);
         }
@@ -1644,9 +1645,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[API] Video generation error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const isTimeout = error instanceof FetchTimeoutError;
     return NextResponse.json(
-      { error: message },
-      { status: 500 }
+      { error: message, errorCode: isTimeout ? 'UPSTREAM_TIMEOUT' : 'INTERNAL_ERROR' },
+      { status: isTimeout ? 504 : 500 }
     );
   }
 }

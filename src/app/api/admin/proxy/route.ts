@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole, respondAuthError } from '@/lib/auth/requireRole';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 function isPrivateOrLocalHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
@@ -47,7 +48,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Blocked host' }, { status: 400 });
     }
 
-    const upstream = await fetch(target.toString(), {
+    const upstream = await fetchWithTimeout(target.toString(), {
+      timeout: 20_000,
       redirect: 'follow',
       // Some CDNs require a user-agent
       headers: {
@@ -73,8 +75,10 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    if (error instanceof FetchTimeoutError) {
+      return NextResponse.json({ error: 'Upstream timeout' }, { status: 504 });
+    }
     console.error('[Admin Proxy] Error:', error);
     return respondAuthError(error);
   }
 }
-

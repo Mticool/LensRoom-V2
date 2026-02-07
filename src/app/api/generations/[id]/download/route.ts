@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getSourceAssetUrl } from '@/lib/previews/asset-url';
 import { getAuthUserId, getSession } from '@/lib/telegram/auth';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -177,7 +178,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: 'Asset URL not found' }, { status: 404 });
       }
 
-      const upstream = await fetch(finalUrl);
+      const upstream = await fetchWithTimeout(finalUrl, { timeout: 90_000 });
       if (!upstream.ok) {
         console.error(`[Download] Upstream fetch failed: ${upstream.status} ${upstream.statusText}`);
         return NextResponse.json({ error: 'Failed to fetch asset' }, { status: 502 });
@@ -254,6 +255,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     // Redirect to signed URL
     return NextResponse.redirect(signedData.signedUrl);
   } catch (error) {
+    if (error instanceof FetchTimeoutError) {
+      return NextResponse.json({ error: 'Upstream timeout' }, { status: 504 });
+    }
     console.error('[Download] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
