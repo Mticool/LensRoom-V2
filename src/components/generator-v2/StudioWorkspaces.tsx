@@ -19,6 +19,7 @@ import { getModelById } from "@/config/models";
 import { computePrice } from "@/lib/pricing/pricing";
 import { openExternal } from "@/lib/telegram/webview";
 import { useFavoritesStore } from "@/stores/favorites-store";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 function buildSearchParams(
   base: ReadonlyURLSearchParams,
@@ -502,7 +503,7 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       const url = !isDemo && genId
         ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original&proxy=1`
         : image.url;
-      const resp = await fetch(url, { credentials: "include" });
+      const resp = await fetchWithTimeout(url, { timeout: 30_000, credentials: "include" });
       if (!resp.ok) throw new Error("download_failed");
       const blob = await resp.blob();
       return await readBlobAsDataUrl(blob);
@@ -557,17 +558,35 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
 
   const pollJob = useCallback(async (jobId: string, provider?: string) => {
     const encodedProvider = provider ? encodeURIComponent(provider) : "";
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 5;
     for (let attempts = 0; attempts < 180; attempts++) {
       await new Promise((r) => setTimeout(r, 1500));
-      const res = await fetch(
-        `/api/jobs/${encodeURIComponent(jobId)}?kind=image${encodedProvider ? `&provider=${encodedProvider}` : ""}`,
-        { credentials: "include" }
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Не удалось проверить статус");
-      const status = String(data?.status || "").toLowerCase();
-      if (status === "completed" || status === "success") return data;
-      if (status === "failed") throw new Error(data?.error || "Генерация не удалась");
+      try {
+        const res = await fetchWithTimeout(
+          `/api/jobs/${encodeURIComponent(jobId)}?kind=image${encodedProvider ? `&provider=${encodedProvider}` : ""}`,
+          { timeout: 15_000, credentials: "include" }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          consecutiveErrors++;
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            throw new Error(data?.error || "Не удалось проверить статус");
+          }
+          continue;
+        }
+        consecutiveErrors = 0;
+        const status = String(data?.status || "").toLowerCase();
+        if (status === "completed" || status === "success") return data;
+        if (status === "failed") throw new Error(data?.error || "Генерация не удалась");
+      } catch (e) {
+        consecutiveErrors++;
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          const msg =
+            e instanceof FetchTimeoutError ? "Сервис генерации не отвечает. Попробуйте позже." : (e instanceof Error ? e.message : "Ошибка");
+          throw new Error(msg);
+        }
+      }
     }
     throw new Error("Таймаут генерации");
   }, []);
@@ -602,7 +621,8 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       if (refImages && refImages.length > 0) body.referenceImages = refImages;
       if (extraParams && Object.keys(extraParams).length > 0) body.params = extraParams;
 
-      const resp = await fetch(endpoint, {
+      const resp = await fetchWithTimeout(endpoint, {
+        timeout: 30_000,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -751,7 +771,8 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
   const fetchThreads = useCallback(async () => {
     setThreadsLoading(true);
     try {
-      const res = await fetch(`/api/studio/threads`, {
+      const res = await fetchWithTimeout(`/api/studio/threads`, {
+        timeout: 15_000,
         credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
@@ -771,7 +792,8 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
 
   const createThread = useCallback(async (): Promise<StudioThread | null> => {
     try {
-      const res = await fetch("/api/studio/threads", {
+      const res = await fetchWithTimeout("/api/studio/threads", {
+        timeout: 15_000,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -790,7 +812,8 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
   const renameThread = useCallback(
     async (threadId: string, title: string) => {
       try {
-        const res = await fetch("/api/studio/threads", {
+        const res = await fetchWithTimeout("/api/studio/threads", {
+          timeout: 15_000,
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -814,7 +837,8 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     if (isAuthenticated) return;
 
     try {
-      const initResponse = await fetch("/api/auth/telegram/init", {
+      const initResponse = await fetchWithTimeout("/api/auth/telegram/init", {
+        timeout: 15_000,
         method: "POST",
         credentials: "include",
       });
@@ -842,7 +866,8 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
           return;
         }
         try {
-          const statusRes = await fetch(`/api/auth/telegram/status?code=${encodeURIComponent(code)}`, {
+          const statusRes = await fetchWithTimeout(`/api/auth/telegram/status?code=${encodeURIComponent(code)}`, {
+            timeout: 10_000,
             credentials: "include",
           });
           if (!statusRes.ok) return;
@@ -862,6 +887,10 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
         }
       }, 2000);
     } catch (e) {
+      if (e instanceof FetchTimeoutError) {
+        toast.error("Сервер долго отвечает. Попробуйте еще раз.");
+        return;
+      }
       const msg = e instanceof Error ? e.message : "Не удалось открыть Telegram";
       toast.error(msg);
     }

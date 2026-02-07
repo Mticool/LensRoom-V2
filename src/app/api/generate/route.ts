@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSkuFromRequest, calculateTotalStars } from '@/lib/pricing/pricing';
 import { VIDEO_MODELS } from '@/config/models';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 export const maxDuration = 300; // 5 minutes
 
@@ -106,14 +107,26 @@ export async function POST(request: NextRequest) {
       switch (body.type) {
         case 'image':
           // Delegate to existing photo generation
-          const photoRes = await fetch(`${request.nextUrl.origin}/api/generate/photo`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...body,
-              userId,
-            }),
-          });
+          let photoRes: Response;
+          try {
+            photoRes = await fetchWithTimeout(`${request.nextUrl.origin}/api/generate/photo`, {
+              timeout: 45_000,
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...body,
+                userId,
+              }),
+            });
+          } catch (e) {
+            if (e instanceof FetchTimeoutError) {
+              return NextResponse.json(
+                { status: 'failed' as const, error: 'Upstream timeout', costStars },
+                { status: 200 }
+              );
+            }
+            throw e;
+          }
           
           if (photoRes.ok) {
             const photoData = await photoRes.json();
@@ -124,14 +137,26 @@ export async function POST(request: NextRequest) {
 
         case 'video':
           // Delegate to existing video generation
-          const videoRes = await fetch(`${request.nextUrl.origin}/api/generate/video`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...body,
-              userId,
-            }),
-          });
+          let videoRes: Response;
+          try {
+            videoRes = await fetchWithTimeout(`${request.nextUrl.origin}/api/generate/video`, {
+              timeout: 60_000,
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...body,
+                userId,
+              }),
+            });
+          } catch (e) {
+            if (e instanceof FetchTimeoutError) {
+              return NextResponse.json(
+                { status: 'failed' as const, error: 'Upstream timeout', costStars },
+                { status: 200 }
+              );
+            }
+            throw e;
+          }
           
           if (videoRes.ok) {
             const videoData = await videoRes.json();

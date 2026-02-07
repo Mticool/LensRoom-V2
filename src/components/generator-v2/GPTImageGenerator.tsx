@@ -11,6 +11,7 @@ import { BotConnectPopup, useBotConnectPopup, NotificationBannerCompact } from '
 import type { GenerationResult } from './GeneratorV2';
 import { getDefaultImageParams, getImageModelCapability } from '@/lib/imageModels/capabilities';
 import { computePrice } from '@/lib/pricing/pricing';
+import { fetchWithTimeout, FetchTimeoutError, FetchAbortedError } from '@/lib/api/fetch-with-timeout';
 import './theme.css';
 
 export function GPTImageGenerator() {
@@ -88,7 +89,8 @@ export function GPTImageGenerator() {
       // Add pending placeholders at the end (bottom of gallery)
       setImages(prev => [...prev, ...pendingImages]);
 
-      const response = await fetch('/api/generate/photo', {
+      const response = await fetchWithTimeout('/api/generate/photo', {
+        timeout: 30_000,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,11 +113,15 @@ export function GPTImageGenerator() {
           setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
           return;
         }
-        const error = await response.json();
-        throw new Error(error.error || 'Generation failed');
+        const raw = await response.text().catch(() => "");
+        let err: any = null;
+        try { err = raw ? JSON.parse(raw) : null; } catch { err = { error: raw }; }
+        throw new Error(err?.error || err?.message || 'Generation failed');
       }
 
-      const data = await response.json();
+      const rawOk = await response.text().catch(() => "");
+      let data: any = null;
+      try { data = rawOk ? JSON.parse(rawOk) : null; } catch { data = { error: rawOk }; }
 
       // Remove pending placeholders
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
@@ -161,6 +167,15 @@ export function GPTImageGenerator() {
     } catch (error: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
+      }
+      if (error instanceof FetchTimeoutError) {
+        toast.error("Сервер долго отвечает. Попробуйте еще раз.");
+        setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
+        return;
+      }
+      if (error instanceof FetchAbortedError) {
+        setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
+        return;
       }
       const message = error instanceof Error ? error.message : 'Ошибка при генерации';
       toast.error(message);

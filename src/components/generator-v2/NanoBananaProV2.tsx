@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { SimpleGallery } from './components/SimpleGallery';
 import { PromptInput } from './components/PromptInput';
@@ -9,6 +9,7 @@ import { useAuth } from './hooks/useAuth';
 import { useSimpleHistory } from './hooks/useSimpleHistory';
 import { useCostCalculation } from './hooks/useCostCalculation';
 import type { GenerationResult, GenerationSettings } from './GeneratorV2';
+import { fetchWithTimeout, FetchTimeoutError, FetchAbortedError } from '@/lib/api/fetch-with-timeout';
 
 interface NanoBananaProV2Props {
   threadId?: string;
@@ -30,10 +31,21 @@ export function NanoBananaProV2({ threadId }: NanoBananaProV2Props) {
 
   // Hooks
   const { isAuthenticated, credits, refreshCredits } = useAuth();
-  const { history, isLoading, isLoadingMore, hasMore, loadMore, addNew } = useSimpleHistory({
+  const { history, isLoading, isLoadingMore, hasMore, loadMore, addNew, refresh: refreshHistory } = useSimpleHistory({
     modelId: 'nano-banana-pro',
     threadId,
   });
+  const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    };
+  }, []);
 
   // Cost calculation
   const settings: GenerationSettings = {
@@ -64,6 +76,10 @@ export function NanoBananaProV2({ threadId }: NanoBananaProV2Props) {
     setIsGenerating(true);
 
     try {
+      // Cancel any in-flight run
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+
       // Create pending placeholders
       const pendingImages: GenerationResult[] = Array.from({ length: variants }, (_, i) => ({
         id: `pending-${Date.now()}-${i}`,
@@ -79,7 +95,9 @@ export function NanoBananaProV2({ threadId }: NanoBananaProV2Props) {
       pendingImages.forEach(img => addNew(img));
 
       // Call API directly (simpler than using useGeneration hook)
-      const response = await fetch('/api/generate/photo', {
+      const response = await fetchWithTimeout('/api/generate/photo', {
+        timeout: 30_000,
+        abortSignal: abortControllerRef.current.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,75 +117,112 @@ export function NanoBananaProV2({ threadId }: NanoBananaProV2Props) {
           toast.error('Слишком много запросов. Подождите минуту и попробуйте снова.');
           return;
         }
-        const error = await response.json();
-        throw new Error(error.error || 'Ошибка генерации');
+        const raw = await response.text().catch(() => "");
+        let err: any = null;
+        try { err = raw ? JSON.parse(raw) : null; } catch { err = { error: raw }; }
+        throw new Error(err?.error || err?.message || 'Ошибка генерации');
       }
 
-      const data = await response.json();
+      const rawOk = await response.text().catch(() => "");
+      let data: any = null;
+      try { data = rawOk ? JSON.parse(rawOk) : null; } catch { data = { error: rawOk }; }
 
       // Poll for completion
       const jobId = data.jobId;
       const generationId = data.generationId;
       const provider = data.provider || 'kie_market';
 
-      let attempts = 0;
-      const maxAttempts = 120; // 4 minutes
-      const pollInterval = 2000; // 2 seconds
+      if (data.status === 'completed' && data.results?.[0]?.url) {
+        addNew({
+          id: generationId,
+          url: data.results[0].url,
+          prompt,
+          mode: 'image' as const,
+          settings,
+          timestamp: Date.now(),
+          status: 'success',
+        });
+        toast.success('Готово!');
+        await refreshCredits();
+        refreshHistory();
+        return;
+      }
 
-      const poll = async (): Promise<void> => {
-        attempts++;
+      // If no jobId - nothing to poll
+      if (!jobId) {
+        throw new Error('Нет jobId для отслеживания');
+      }
 
-        if (attempts > maxAttempts) {
-          toast.error('Таймаут генерации');
-          return;
-        }
+      await new Promise<void>((resolve) => {
+        let attempts = 0;
+        let consecutiveErrors = 0;
+        const maxAttempts = 120; // ~4 minutes at 2s
+        const maxConsecutiveErrors = 5;
 
-        try {
-          const res = await fetch(`/api/jobs/${jobId}?provider=${provider}`);
-          const jobData = await res.json();
+        const poll = async () => {
+          try {
+            if (abortControllerRef.current?.signal.aborted) return resolve();
+            attempts++;
 
-          if (jobData.status === 'completed' || jobData.status === 'success') {
-            // Success! Update pending images with real results
-            const resultUrl = jobData.results?.[0]?.url || jobData.url;
-
-            if (resultUrl) {
-              // Note: In real app, we'd update each variant individually
-              // For simplicity, we'll just add the successful result
-              const successResult: GenerationResult = {
-                id: generationId,
-                url: resultUrl,
-                prompt,
-                mode: 'image' as const,
-                settings,
-                timestamp: Date.now(),
-                status: 'success',
-              };
-
-              addNew(successResult);
-              toast.success('Готово!');
+            if (attempts > maxAttempts) {
+              toast.error('Таймаут генерации');
+              return resolve();
             }
 
-            // Refresh credits
-            await refreshCredits();
-            return;
+            const res = await fetchWithTimeout(`/api/jobs/${jobId}?provider=${encodeURIComponent(provider)}`, {
+              timeout: 15_000,
+              abortSignal: abortControllerRef.current?.signal,
+            });
+            const raw = await res.text().catch(() => "");
+            let jobData: any = null;
+            try { jobData = raw ? JSON.parse(raw) : null; } catch { jobData = { error: raw }; }
+            if (!res.ok) throw new Error(jobData?.error || `Job status error (${res.status})`);
+
+            consecutiveErrors = 0;
+
+            if (jobData.status === 'completed' || jobData.status === 'success') {
+              const resultUrl = jobData.results?.[0]?.url || jobData.url;
+              if (resultUrl) {
+                addNew({
+                  id: generationId,
+                  url: resultUrl,
+                  prompt,
+                  mode: 'image' as const,
+                  settings,
+                  timestamp: Date.now(),
+                  status: 'success',
+                });
+                toast.success('Готово!');
+              }
+              return resolve();
+            }
+
+            if (jobData.status === 'failed') {
+              toast.error(jobData.error || 'Генерация не удалась');
+              return resolve();
+            }
+
+            // Continue polling
+            pollingTimeoutRef.current = setTimeout(poll, 2000);
+          } catch (e) {
+            if (e instanceof FetchAbortedError) return resolve();
+            consecutiveErrors++;
+            if (consecutiveErrors >= maxConsecutiveErrors) {
+              const msg =
+                e instanceof FetchTimeoutError ? 'Сервис генерации не отвечает. Попробуйте позже.' : (e instanceof Error ? e.message : 'Ошибка');
+              toast.error(msg);
+              return resolve();
+            }
+            const backoff = Math.min(2000 * Math.pow(2, consecutiveErrors - 1), 8000);
+            pollingTimeoutRef.current = setTimeout(poll, backoff);
           }
+        };
 
-          if (jobData.status === 'failed') {
-            toast.error(jobData.error || 'Генерация не удалась');
-            return;
-          }
+        poll();
+      });
 
-          // Continue polling
-          setTimeout(poll, pollInterval);
-        } catch (e) {
-          console.error('Poll error:', e);
-          // Retry
-          setTimeout(poll, pollInterval);
-        }
-      };
-
-      // Start polling
-      poll();
+      await refreshCredits();
+      refreshHistory(); // also removes local pending placeholders (API returns only success)
 
     } catch (error) {
       console.error('Generation error:', error);
@@ -187,6 +242,7 @@ export function NanoBananaProV2({ threadId }: NanoBananaProV2Props) {
     threadId,
     addNew,
     refreshCredits,
+    refreshHistory,
   ]);
 
   return (
