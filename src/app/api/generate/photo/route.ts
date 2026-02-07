@@ -24,13 +24,6 @@ import { resolveAspectRatio, logAspectRatioResolution } from '@/lib/api/aspect-r
 import { getImageModelCapability, getDefaultImageParams, validateImageRequest, getAllowedAspectRatios } from '@/lib/imageModels/capabilities';
 import { buildKieImagePayload } from '@/lib/providers/kie/image';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
-import { Semaphore, SemaphoreTimeoutError } from "@/lib/server/semaphore";
-
-// Keep provider calls bounded: a slow upstream should not create unbounded in-flight requests.
-const KIE_PHOTO_SEM = new Semaphore(
-  Number(process.env.GEN_PHOTO_KIE_CONCURRENCY || "4"),
-  "gen:photo:kie"
-);
 
 function mimeTypesFromFormats(formats?: Array<'jpeg' | 'png' | 'webp'>): string[] | null {
   if (!formats || formats.length === 0) return null;
@@ -1488,12 +1481,7 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      const release = await KIE_PHOTO_SEM.acquire({ timeoutMs: 5_000, label: effectiveModelId });
-      try {
-        response = await kieClient.generateImage(payload);
-      } finally {
-        release();
-      }
+      response = await kieClient.generateImage(payload);
     } catch (kieError: any) {
       const errMsg = kieError?.message || "KIE API error";
       console.error('[API] KIE generateImage error:', {
@@ -1501,14 +1489,6 @@ export async function POST(request: NextRequest) {
         code: kieError?.code,
         errorCode: kieError?.errorCode,
       });
-
-      if (kieError instanceof SemaphoreTimeoutError) {
-        // Server is busy with other generations: do not crash, fail fast.
-        return NextResponse.json(
-          { error: "Сервер занят генерациями. Попробуйте еще раз через 10-20 секунд.", errorCode: "SERVER_BUSY" },
-          { status: 429 }
-        );
-      }
 
       // Refund only if we actually charged stars (skip managers/admins and included-by-plan runs)
       if (!skipCredits && !isIncludedByPlan && actualCreditCost > 0) {
@@ -1578,10 +1558,9 @@ export async function POST(request: NextRequest) {
     console.error("[API] Photo generation error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     const isTimeout = error instanceof FetchTimeoutError;
-    const isBusy = error instanceof SemaphoreTimeoutError;
     return NextResponse.json(
-      { error: isBusy ? "Сервер занят генерациями. Попробуйте еще раз." : message, errorCode: isBusy ? "SERVER_BUSY" : (isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR") },
-      { status: isBusy ? 429 : (isTimeout ? 504 : 500) }
+      { error: message, errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR" },
+      { status: isTimeout ? 504 : 500 }
     );
   }
 }

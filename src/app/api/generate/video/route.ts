@@ -22,35 +22,11 @@ import { VideoGenerationRequestSchema, validateAgainstCapability } from '@/lib/v
 import { getModelCapability } from '@/lib/videoModels/capabilities';
 import { buildKieVideoPayload } from '@/lib/providers/kie/video';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
-import { Semaphore, SemaphoreTimeoutError } from "@/lib/server/semaphore";
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 // Настройка в next.config.ts: experimental.middlewareClientMaxBodySize = '50mb'
 export const maxDuration = 60; // 60 seconds timeout
 export const dynamic = 'force-dynamic';
-
-// Keep provider calls bounded: a slow upstream should not create unbounded in-flight requests.
-const KIE_VIDEO_SEM = new Semaphore(
-  Number(process.env.GEN_VIDEO_KIE_CONCURRENCY || "2"),
-  "gen:video:kie"
-);
-const FAL_VIDEO_SEM = new Semaphore(
-  Number(process.env.GEN_VIDEO_FAL_CONCURRENCY || "2"),
-  "gen:video:fal"
-);
-const LAOZHANG_VIDEO_SEM = new Semaphore(
-  Number(process.env.GEN_VIDEO_LAOZHANG_CONCURRENCY || "2"),
-  "gen:video:laozhang"
-);
-
-async function runBounded<T>(sem: Semaphore, label: string, fn: () => Promise<T>): Promise<T> {
-  const release = await sem.acquire({ timeoutMs: 5_000, label });
-  try {
-    return await fn();
-  } finally {
-    release();
-  }
-}
 
 async function updateGenerationWithRetry(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -820,13 +796,11 @@ export async function POST(request: NextRequest) {
           hasCallback: !!callBackUrl,
         });
         
-        const extendResponse = await runBounded(KIE_VIDEO_SEM, "veoExtend", async () =>
-          kieClient.veoExtend({
-            taskId: sourceTaskId,
-            prompt: prompt,
-            callBackUrl,
-          })
-        );
+        const extendResponse = await kieClient.veoExtend({
+          taskId: sourceTaskId,
+          prompt: prompt,
+          callBackUrl,
+        });
         
         const newTaskId = extendResponse.data?.taskId;
         if (!newTaskId) {
@@ -1260,15 +1234,13 @@ export async function POST(request: NextRequest) {
         // Supports t2v, i2v (with startImageUrl), start_end (with both images), ref2v (with referenceImages)
         // Prefer base64 when available so LaoZhang does not need to fetch our storage URLs
         const refsForLaoZhang = referenceImagesForLaoZhang ?? referenceImageUrls;
-        const videoGenResponse = await runBounded(LAOZHANG_VIDEO_SEM, "laozhang:generateVideo", async () =>
-          videoClient.generateVideo({
-            model: videoModelId,
-            prompt: fullPrompt,
-            startImageUrl: startImageUrlForVideo,
-            endImageUrl: endImageUrlForVideo,
-            referenceImages: refsForLaoZhang,
-          })
-        );
+        const videoGenResponse = await videoClient.generateVideo({
+          model: videoModelId,
+          prompt: fullPrompt,
+          startImageUrl: startImageUrlForVideo,
+          endImageUrl: endImageUrlForVideo,
+          referenceImages: refsForLaoZhang,
+        });
         
         // Upload video to Supabase Storage for permanent storage
         console.log('[API] Video generation successful from LaoZhang');
@@ -1283,9 +1255,7 @@ export async function POST(request: NextRequest) {
         console.log('[API] Downloading video for storage upload...');
 
         // Download video and upload to our storage
-        const videoResponse = await runBounded(LAOZHANG_VIDEO_SEM, "laozhang:download", async () =>
-          fetchWithTimeout(videoGenResponse.videoUrl, { timeout: 90_000 })
-        );
+        const videoResponse = await fetchWithTimeout(videoGenResponse.videoUrl, { timeout: 90_000 });
         if (!videoResponse.ok) {
           throw new Error(`Failed to download video: ${videoResponse.status}`);
         }
@@ -1453,15 +1423,13 @@ export async function POST(request: NextRequest) {
             priceStars: creditCost,
           });
           
-          const falResponse = await runBounded(FAL_VIDEO_SEM, "fal:submitKlingO1ImageToVideo", async () =>
-            falClient.submitKlingO1ImageToVideo({
-              prompt: fullPrompt,
-              start_image_url: startImageUrl,
-              end_image_url: endImageUrl || undefined,
-              duration: String(durationSec) as '5' | '10',
-              aspect_ratio: (aspectRatio as '16:9' | '9:16' | '1:1') || '16:9',
-            })
-          );
+          const falResponse = await falClient.submitKlingO1ImageToVideo({
+            prompt: fullPrompt,
+            start_image_url: startImageUrl,
+            end_image_url: endImageUrl || undefined,
+            duration: String(durationSec) as '5' | '10',
+            aspect_ratio: (aspectRatio as '16:9' | '9:16' | '1:1') || '16:9',
+          });
           
           console.log('[API] FAL response:', falResponse);
           
@@ -1493,14 +1461,12 @@ export async function POST(request: NextRequest) {
             imageUrls = [uploadedImage];
           }
           
-          const falResponse = await runBounded(FAL_VIDEO_SEM, "fal:submitKlingO1Job", async () =>
-            falClient.submitKlingO1Job({
-              prompt: fullPrompt,
-              video_url: videoUrl,
-              image_urls: imageUrls,
-              keep_audio: typeof keepAudio === "boolean" ? keepAudio : true,
-            })
-          );
+          const falResponse = await falClient.submitKlingO1Job({
+            prompt: fullPrompt,
+            video_url: videoUrl,
+            image_urls: imageUrls,
+            keep_audio: typeof keepAudio === "boolean" ? keepAudio : true,
+          });
           
           response = {
             id: falResponse.request_id,
@@ -1565,9 +1531,7 @@ export async function POST(request: NextRequest) {
           shots: shots,
         });
 
-        response = await runBounded(KIE_VIDEO_SEM, `${model}:${String(mode || "")}`, async () =>
-          kieClient.generateVideo(kiePayload)
-        );
+        response = await kieClient.generateVideo(kiePayload);
       } catch (error: any) {
       // Обработка ошибки политики контента Google Veo
       const errorMessage = error?.message || String(error);
@@ -1593,18 +1557,16 @@ export async function POST(request: NextRequest) {
             
             console.log('[API] Using fallback model:', fallbackModel.name, fallbackApiId);
             
-            response = await runBounded(KIE_VIDEO_SEM, "kie:fallback", async () =>
-              kieClient.generateVideo({
-                model: fallbackApiId,
-                provider: 'kie_market',
-                prompt: fullPrompt,
-                imageUrl: imageUrl,
-                duration: duration || 5,
-                aspectRatio: aspectRatio,
-                sound: false,
-                mode: mode,
-              })
-            );
+            response = await kieClient.generateVideo({
+              model: fallbackApiId,
+              provider: 'kie_market',
+              prompt: fullPrompt,
+              imageUrl: imageUrl,
+              duration: duration || 5,
+              aspectRatio: aspectRatio,
+              sound: false,
+              mode: mode,
+            });
             
             usedFallback = true;
             
@@ -1684,13 +1646,12 @@ export async function POST(request: NextRequest) {
     console.error('[API] Video generation error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     const isTimeout = error instanceof FetchTimeoutError;
-    const isBusy = error instanceof SemaphoreTimeoutError;
     return NextResponse.json(
       {
-        error: isBusy ? "Сервер занят генерациями. Попробуйте еще раз через 10-20 секунд." : message,
-        errorCode: isBusy ? "SERVER_BUSY" : (isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR"),
+        error: message,
+        errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR",
       },
-      { status: isBusy ? 429 : (isTimeout ? 504 : 500) }
+      { status: isTimeout ? 504 : 500 }
     );
   }
 }
