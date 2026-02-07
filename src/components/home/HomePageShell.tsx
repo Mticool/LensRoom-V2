@@ -51,7 +51,7 @@ export function HomePageShell() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/create"
+              href="/create/studio?section=photo"
               className="group relative px-10 py-5 rounded-2xl bg-[#f59e0b] text-black font-bold text-lg inline-flex items-center gap-3"
             >
               Начать создавать

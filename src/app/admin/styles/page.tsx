@@ -240,7 +240,7 @@ export default function AdminStylesPage() {
         <div className="mb-6 p-4 rounded-2xl bg-[#00D9FF]/10 border border-[#00D9FF]/30">
           <p className="text-sm text-white/80">
             💡 <strong>Как добавить контент:</strong> Перейдите в{" "}
-            <Link href="/create" className="text-[#00D9FF] underline">Генератор</Link>
+            <Link href="/create/studio?section=photo" className="text-[#00D9FF] underline">Генератор</Link>
             {" "}→ создайте фото/видео →{" "}
             <Link href="/library" className="text-[#00D9FF] underline">Библиотека</Link>
             {" "}→ нажмите кнопку <span className="text-[#00D9FF]">📤 Опубликовать</span>

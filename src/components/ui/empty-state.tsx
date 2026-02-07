@@ -68,7 +68,7 @@ export function NoGenerationsEmpty({ onGenerate }: { onGenerate?: () => void }) 
       icon={<Sparkles className="w-8 h-8 text-[var(--gold)]" />}
       title="Пока нет генераций"
       description="Создайте свой первый контент с помощью AI"
-      action={onGenerate ? { label: 'Создать', onClick: onGenerate } : { label: 'Создать', href: '/create' }}
+      action={onGenerate ? { label: 'Создать', onClick: onGenerate } : { label: 'Создать', href: '/create/studio?section=photo' }}
     />
   );
 }
@@ -109,7 +109,7 @@ export function NoImagesEmpty() {
       icon={<ImageOff className="w-8 h-8 text-[var(--muted)]" />}
       title="Нет изображений"
       description="Загрузите изображение или создайте новое"
-      action={{ label: 'Создать фото', href: '/create' }}
+      action={{ label: 'Создать фото', href: '/create/studio?section=photo' }}
     />
   );
 }
@@ -120,7 +120,7 @@ export function NoVideosEmpty() {
       icon={<VideoOff className="w-8 h-8 text-[var(--muted)]" />}
       title="Нет видео"
       description="Создайте своё первое AI видео"
-      action={{ label: 'Создать видео', href: '/create/video' }}
+      action={{ label: 'Создать видео', href: '/create/studio?section=video' }}
     />
   );
 }

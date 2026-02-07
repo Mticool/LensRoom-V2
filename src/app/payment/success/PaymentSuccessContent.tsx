@@ -181,7 +181,7 @@ export default function PaymentSuccessContent() {
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
               <Button asChild variant="default" size="lg" className="min-w-[200px]">
-                <Link href="/create">
+                <Link href="/create/studio?section=photo">
                   Начать создавать
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>

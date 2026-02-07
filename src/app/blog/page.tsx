@@ -180,7 +180,7 @@ export default async function BlogPage() {
             Создайте первое изображение бесплатно уже сейчас
           </p>
           <Link
-            href="/create"
+            href="/create/studio?section=photo"
             className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-colors"
           >
             Начать создавать
@@ -191,4 +191,3 @@ export default async function BlogPage() {
     </div>
   );
 }
-

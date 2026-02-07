@@ -285,7 +285,7 @@ export default function HomePageContent() {
             transition={{ delay: 0.5 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Link href="/create">
+            <Link href="/create/studio?section=photo">
               <motion.button
                 whileHover={{ scale: 1.03, y: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -781,7 +781,7 @@ export default function HomePageContent() {
             Присоединяйся к тысячам креаторов. Первые 50⭐ — в подарок.
           </p>
           
-          <Link href="/create">
+          <Link href="/create/studio?section=photo">
             <motion.button
               whileHover={{ scale: 1.03, y: -3 }}
               whileTap={{ scale: 0.98 }}

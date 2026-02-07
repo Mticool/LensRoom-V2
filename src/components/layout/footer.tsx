@@ -6,7 +6,7 @@ import { Sparkles } from "lucide-react";
 
 const footerLinks = {
   product: [
-    { label: "AI Фото", href: "/create" },
+    { label: "AI Фото", href: "/create/studio?section=photo" },
     { label: "AI Видео", href: "/create/studio?section=video" },
   ],
   resources: [

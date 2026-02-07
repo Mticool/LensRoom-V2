@@ -368,7 +368,7 @@ export default async function ArticlePage({
               Создайте профессиональные фото и видео прямо сейчас
             </p>
             <Link
-              href="/create"
+              href="/create/studio?section=photo"
               className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-colors"
             >
               Начать бесплатно
@@ -379,4 +379,3 @@ export default async function ArticlePage({
     </>
   );
 }
-

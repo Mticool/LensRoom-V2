@@ -206,7 +206,7 @@ export default function UpscalePage() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-white/5">
         <button
-          onClick={() => router.push('/create')}
+          onClick={() => router.push('/create/studio?section=photo')}
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />

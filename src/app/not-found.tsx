@@ -68,7 +68,7 @@ export default function NotFound() {
             </Link>
           </Button>
           <Button asChild variant="outline" className="border-[var(--border)] text-[var(--text)]">
-            <Link href="/create">
+            <Link href="/create/studio?section=photo">
               <Sparkles className="w-4 h-4 mr-2" />
               Создать контент
             </Link>
@@ -88,7 +88,6 @@ export default function NotFound() {
     </div>
   );
 }
-
 
 
 
