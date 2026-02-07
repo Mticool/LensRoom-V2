@@ -312,6 +312,8 @@ export function InspirationGallery() {
 
   // Optimized infinite scroll - load more when reaching bottom
   useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
@@ -319,8 +321,9 @@ export function InspirationGallery() {
           setLoadingMore(true);
           
           // Use requestIdleCallback for non-blocking UI updates
-          if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => {
+          const ric = (window as any).requestIdleCallback;
+          if (typeof ric === 'function') {
+            ric(() => {
               setDisplayCount(prev => Math.min(prev + LOAD_MORE, filteredContent.length));
               setLoadingMore(false);
             }, { timeout: 2000 });

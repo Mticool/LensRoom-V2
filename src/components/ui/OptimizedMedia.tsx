@@ -22,6 +22,21 @@ interface OptimizedImageProps {
 // Generate srcset for responsive images with different quality levels
 function generateSrcSet(url: string, quality: 'low' | 'medium' | 'high' = 'medium'): string {
   if (!url || url.includes('?')) return ''; // Skip if URL has params
+
+  // Some external hosts do not support width params ("?w=") and may return HTML,
+  // which Chromium blocks via ORB. Avoid generating srcset for these.
+  if (url.includes('tempfile.aiquickdraw.com')) return '';
+
+  // Only generate srcset for same-origin, relative URLs, or known storage/CDN URLs.
+  // This prevents broken thumbnails for arbitrary external links.
+  if (url.startsWith('http')) {
+    const allowed = [
+      'lensroom.ru',
+      '/storage/v1/object/',
+      'supabase.co',
+    ];
+    if (!allowed.some((s) => url.includes(s))) return '';
+  }
   
   const widths = quality === 'low' ? [320, 640] : 
                  quality === 'high' ? [640, 1024, 1920] : 
@@ -343,4 +358,3 @@ export const OptimizedMediaCard = memo(function OptimizedMediaCard({
     </div>
   );
 });
-
