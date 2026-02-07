@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { GeneratorMode, GenerationSettings, GenerationResult } from '../GeneratorV2';
 import logger from '@/lib/logger';
 import { apiFetch } from '@/lib/api-fetch';
-import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
+import { fetchWithTimeout, FetchTimeoutError, FetchAbortedError } from '@/lib/api/fetch-with-timeout';
 
 interface UseGenerationOptions {
   onSuccess?: (result: GenerationResult) => void;
@@ -24,6 +24,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
   // Track if currently generating
   const isGeneratingRef = useRef(false);
   const pollIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -32,12 +33,24 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     }
   }, []);
 
+  const abortInFlight = useCallback(() => {
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch {
+        // ignore
+      }
+      abortControllerRef.current = null;
+    }
+  }, []);
+
   // Cleanup polling interval on unmount
   useEffect(() => {
     return () => {
       stopPolling();
+      abortInFlight();
     };
-  }, [stopPolling]);
+  }, [stopPolling, abortInFlight]);
 
   const generate = useCallback(async (
     prompt: string,
@@ -58,6 +71,11 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     isGeneratingRef.current = true;
     setIsGenerating(true);
     setError(null);
+
+    // Ensure previous request/poll is cancelled (defensive).
+    stopPolling();
+    abortInFlight();
+    abortControllerRef.current = new AbortController();
 
     // Create a pending placeholder ID
     const pendingId = `pending_${Date.now()}`;
@@ -119,6 +137,7 @@ export function useGeneration(options: UseGenerationOptions = {}) {
 
       const response = await fetchWithTimeout(endpoint, {
         timeout: 30_000,
+        abortSignal: abortControllerRef.current.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -156,6 +175,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       const result = await new Promise<GenerationResult | null>((resolve) => {
         let attempts = 0;
         const maxAttempts = 120;
+        let consecutiveErrors = 0;
+        const maxConsecutiveErrors = 5;
         const jobId = data.jobId;
         const generationId = data.generationId;
         const provider = data.provider || 'kie_market';
@@ -163,9 +184,17 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         const poll = async () => {
           attempts++;
 
+          if (abortControllerRef.current?.signal.aborted) {
+            stopPolling();
+            resolve(null);
+            return;
+          }
+
           if (attempts > maxAttempts) {
             stopPolling();
-            setError('Таймаут генерации');
+            const msg = 'Таймаут генерации';
+            setError(msg);
+            optionsRef.current.onError?.(msg, pendingId);
             resolve(null);
             return;
           }
@@ -173,12 +202,29 @@ export function useGeneration(options: UseGenerationOptions = {}) {
           try {
             // Use optimized fetch with retry and deduplication
             const res = await apiFetch(`/api/jobs/${jobId}?provider=${provider}`, {
+              signal: abortControllerRef.current?.signal,
               retry: {
                 maxRetries: 2,
                 initialDelay: 500,
               },
             });
-            const jobData = await res.json();
+            const raw = await res.text().catch(() => '');
+            let jobData: any = null;
+            try {
+              jobData = raw ? JSON.parse(raw) : null;
+            } catch {
+              jobData = { error: raw };
+            }
+
+            if (!res.ok) {
+              const msg =
+                typeof jobData?.error === 'string' && jobData.error.trim()
+                  ? jobData.error
+                  : `Job status error (${res.status})`;
+              throw new Error(msg);
+            }
+
+            consecutiveErrors = 0;
 
             if (jobData.status === 'completed' || jobData.status === 'success') {
               stopPolling();
@@ -197,7 +243,9 @@ export function useGeneration(options: UseGenerationOptions = {}) {
 
             if (jobData.status === 'failed') {
               stopPolling();
-              setError(jobData.error || 'Генерация не удалась');
+              const msg = jobData.error || 'Генерация не удалась';
+              setError(msg);
+              optionsRef.current.onError?.(msg, pendingId);
               resolve(null);
               return;
             }
@@ -213,10 +261,31 @@ export function useGeneration(options: UseGenerationOptions = {}) {
             // Schedule next poll
             pollIntervalRef.current = setTimeout(poll, nextInterval);
           } catch (e) {
+            if (abortControllerRef.current?.signal.aborted) {
+              stopPolling();
+              resolve(null);
+              return;
+            }
+
+            consecutiveErrors++;
             logger.error('Poll error:', e);
 
-            // On error, retry with exponential backoff
-            const errorBackoff = Math.min(1000 * Math.pow(2, attempts), 5000);
+            if (consecutiveErrors >= maxConsecutiveErrors) {
+              stopPolling();
+              const msg =
+                e instanceof FetchTimeoutError
+                  ? 'Сервис генерации не отвечает. Попробуйте позже.'
+                  : e instanceof Error
+                    ? e.message
+                    : 'Ошибка получения результата';
+              setError(msg);
+              optionsRef.current.onError?.(msg, pendingId);
+              resolve(null);
+              return;
+            }
+
+            // On transient error, retry with exponential backoff (capped).
+            const errorBackoff = Math.min(1000 * Math.pow(2, Math.min(consecutiveErrors, 6)), 8000);
             pollIntervalRef.current = setTimeout(poll, errorBackoff);
           }
         };
@@ -238,6 +307,9 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         optionsRef.current.onError?.(msg, pendingId);
         return null;
       }
+      if (e instanceof FetchAbortedError) {
+        return null;
+      }
       const errorMessage = e instanceof Error ? e.message : 'Неизвестная ошибка';
       setError(errorMessage);
       optionsRef.current.onError?.(errorMessage, pendingId);
@@ -245,14 +317,16 @@ export function useGeneration(options: UseGenerationOptions = {}) {
     } finally {
       isGeneratingRef.current = false;
       setIsGenerating(false);
+      abortControllerRef.current = null;
     }
-  }, [stopPolling]);
+  }, [stopPolling, abortInFlight]);
 
   const cancel = useCallback(() => {
     stopPolling();
+    abortInFlight();
     isGeneratingRef.current = false;
     setIsGenerating(false);
-  }, [stopPolling]);
+  }, [stopPolling, abortInFlight]);
 
   return {
     generate,

@@ -4,6 +4,7 @@ import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getKieModel, validateModelInput } from '@/config/kieModels';
 import { env } from "@/lib/env";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 // ===== TYPES =====
 
@@ -38,7 +39,8 @@ async function uploadImageToKie(params: {
   try {
     // If we have URL, use url-upload endpoint
     if (imageData.url) {
-      const response = await fetch(`${uploadBaseUrl}/api/file-url-upload`, {
+      const response = await fetchWithTimeout(`${uploadBaseUrl}/api/file-url-upload`, {
+        timeout: 30_000,
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -63,7 +65,8 @@ async function uploadImageToKie(params: {
 
     // If we have base64, use base64-upload endpoint
     if (imageData.base64) {
-      const response = await fetch(`${uploadBaseUrl}/api/file-base64-upload`, {
+      const response = await fetchWithTimeout(`${uploadBaseUrl}/api/file-base64-upload`, {
+        timeout: 30_000,
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -88,6 +91,9 @@ async function uploadImageToKie(params: {
 
     throw new Error('No image data provided');
   } catch (error) {
+    if (error instanceof FetchTimeoutError) {
+      throw new Error("KIE upload timeout");
+    }
     console.error('[KIE Upload] Error:', error);
     throw error;
   }
@@ -228,14 +234,23 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Generation] Calling upstream API with payload`);
 
-    const response = await fetch(`${marketBaseUrl}/api/v1/jobs/createTask`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(kiePayload),
-    });
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(`${marketBaseUrl}/api/v1/jobs/createTask`, {
+        timeout: 30_000,
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(kiePayload),
+      });
+    } catch (e) {
+      if (e instanceof FetchTimeoutError) {
+        return NextResponse.json({ error: "KIE API timeout" }, { status: 504 });
+      }
+      throw e;
+    }
 
     const responseText = await response.text();
     let responseData: any;
@@ -340,5 +355,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 

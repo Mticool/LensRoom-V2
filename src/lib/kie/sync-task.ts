@@ -7,6 +7,7 @@ import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generatio
 import { generateImagePreview, generateVideoPoster, generateVideoAnimatedPreview } from "@/lib/previews";
 import { getSourceAssetUrl, validateAssetUrl } from "@/lib/previews/asset-url";
 import { refundGenerationCredits } from "@/lib/credits/refund";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 /**
  * INSTANT PREVIEWS VERSION
@@ -70,15 +71,10 @@ async function fetchRecordInfo(taskId: string, retries = 3): Promise<{ state: Ki
   
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
-      
-      const res = await fetch(`${cfg.baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
+      const res = await fetchWithTimeout(`${cfg.baseUrl}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
+        timeout: 30_000,
         headers: { Authorization: `Bearer ${cfg.apiKey}` },
-        signal: controller.signal,
       });
-      
-      clearTimeout(timeout);
 
       const text = await res.text();
       if (!res.ok) throw new Error(`KIE recordInfo error (${res.status}): ${text.slice(0, 200)}`);
@@ -144,7 +140,10 @@ async function fetchRecordInfo(taskId: string, retries = 3): Promise<{ state: Ki
         failCode: data.failCode,
       };
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      lastError =
+        err instanceof FetchTimeoutError
+          ? new Error("KIE recordInfo timeout")
+          : (err instanceof Error ? err : new Error(String(err)));
       
       // Don't retry on non-retryable errors
       if (lastError.message.includes('KIE recordInfo returned error')) {

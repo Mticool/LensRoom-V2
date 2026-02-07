@@ -11,6 +11,7 @@ import { celebrateGeneration } from '@/lib/confetti';
 import { LoginDialog } from '@/components/auth/login-dialog';
 import type { GenerationResult, GenerationSettings } from './GeneratorV2';
 import { computePrice } from '@/lib/pricing/pricing';
+import { fetchWithTimeout, FetchTimeoutError, FetchAbortedError } from '@/lib/api/fetch-with-timeout';
 import './theme.css';
 
 // Quality mapping: UI labels → API values
@@ -54,6 +55,7 @@ export function NanoBananaProGenerator() {
   
   // Polling cleanup ref
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   // Load history (filter by current thread)
   const { history, isLoadingMore, hasMore, loadMore, refresh: refreshHistory, invalidateCache } = useHistory('image', undefined, currentThreadId || undefined);
@@ -65,11 +67,11 @@ export function NanoBananaProGenerator() {
 
   // Cleanup polling timeout on unmount
   useEffect(() => {
-    const timeout = pollingTimeoutRef.current;
     return () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
+      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     };
   }, []);
   
@@ -152,9 +154,9 @@ export function NanoBananaProGenerator() {
       const genId = extractGenerationUuid(img.id);
       // Prefer same-origin proxy (avoids CORS).
       if (genId) {
-        const resp = await fetch(
+        const resp = await fetchWithTimeout(
           `/api/generations/${encodeURIComponent(genId)}/download?kind=original&proxy=1`,
-          { credentials: "include" }
+          { timeout: 30_000, credentials: "include" }
         );
         if (!resp.ok) throw new Error("download_failed");
         const blob = await resp.blob();
@@ -163,7 +165,7 @@ export function NanoBananaProGenerator() {
 
       // Fallback: try direct fetch (may fail on CORS for some providers).
       if (!img.url) throw new Error("no_url");
-      const resp = await fetch(img.url);
+      const resp = await fetchWithTimeout(img.url, { timeout: 20_000 });
       if (!resp.ok) throw new Error("fetch_failed");
       const blob = await resp.blob();
       return await readBlobAsDataUrl(blob);
@@ -201,69 +203,108 @@ export function NanoBananaProGenerator() {
     capturedAspectRatio?: string,
     capturedQuality?: string
   ) => {
-    const maxAttempts = 60; // 60 attempts * 2s = 2 minutes
+    const maxAttempts = 60; // ~2 minutes at 2s base interval
     let attempts = 0;
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 5;
 
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/jobs/${jobId}`);
-        const data = await response.json();
+    return await new Promise<void>((resolve) => {
+      const poll = async () => {
+        try {
+          if (abortControllerRef.current?.signal.aborted) return resolve();
 
-        if (data.status === 'completed' && data.urls) {
-          console.log('[NBP] Poll completed, creating images with aspect ratio:', capturedAspectRatio);
-          const newImages: GenerationResult[] = data.urls.map((url: string, i: number) => ({
-            id: `${generationId || Date.now()}-${i}`,
-            url,
-            prompt: capturedPrompt || '',
-            mode: 'image' as const,
-            settings: {
-              model: 'nano-banana-pro',
-              size: capturedAspectRatio || aspectRatio || '1:1', // Use current state as fallback
-              quality: capturedQuality ? QUALITY_MAPPING[capturedQuality] : quality ? QUALITY_MAPPING[quality] : '1k_2k',
-            },
-            timestamp: Date.now(),
-          }));
-
-          // Replace pending with real images
-          setImages(prev => {
-            const filtered = prev.filter(img => !pendingIds.includes(img.id));
-            return [...filtered, ...newImages];
+          const response = await fetchWithTimeout(`/api/jobs/${jobId}`, {
+            timeout: 15_000,
+            abortSignal: abortControllerRef.current?.signal,
           });
-
-          celebrateGeneration();
-          toast.success(`Сгенерировано ${newImages.length} изображений!`);
-          return;
-        }
-
-        if (data.status === 'failed') {
-          throw new Error(data.error || 'Генерация не удалась');
-        }
-
-        // Continue polling
-        if (attempts < maxAttempts) {
-          attempts++;
-          const timeoutId = setTimeout(poll, 2000);
-          // Store timeout ID in ref for cleanup
-          if (pollingTimeoutRef.current) {
-            clearTimeout(pollingTimeoutRef.current);
+          const raw = await response.text().catch(() => "");
+          let data: any = null;
+          try {
+            data = raw ? JSON.parse(raw) : null;
+          } catch {
+            data = { error: raw };
           }
-          pollingTimeoutRef.current = timeoutId;
-        } else {
+
+          if (!response.ok) {
+            throw new Error(data?.error || `Job status error (${response.status})`);
+          }
+
+          consecutiveErrors = 0;
+
+          // Support both shapes: { urls: [] } and { results: [{url}] }
+          const urls: string[] =
+            Array.isArray(data?.urls) ? data.urls :
+            Array.isArray(data?.results) ? data.results.map((r: any) => r?.url).filter(Boolean) :
+            [];
+
+          if ((data?.status === "completed" || data?.status === "success") && urls.length) {
+            console.log('[NBP] Poll completed, creating images with aspect ratio:', capturedAspectRatio);
+            const newImages: GenerationResult[] = urls.map((url: string, i: number) => ({
+              id: `${generationId || Date.now()}-${i}`,
+              url,
+              prompt: capturedPrompt || '',
+              mode: 'image' as const,
+              settings: {
+                model: 'nano-banana-pro',
+                size: capturedAspectRatio || aspectRatio || '1:1',
+                quality: capturedQuality ? QUALITY_MAPPING[capturedQuality] : quality ? QUALITY_MAPPING[quality] : '1k_2k',
+              },
+              timestamp: Date.now(),
+            }));
+
+            setImages(prev => {
+              const filtered = prev.filter(img => !pendingIds.includes(img.id));
+              return [...filtered, ...newImages];
+            });
+
+            celebrateGeneration();
+            toast.success(`Сгенерировано ${newImages.length} изображений!`);
+            return resolve();
+          }
+
+          if (data?.status === 'failed') {
+            throw new Error(data?.error || 'Генерация не удалась');
+          }
+
+          // Continue polling
+          if (attempts < maxAttempts) {
+            attempts++;
+            const nextDelay = 2000;
+            const timeoutId = setTimeout(poll, nextDelay);
+            if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+            pollingTimeoutRef.current = timeoutId;
+            return;
+          }
+
           throw new Error('Превышено время ожидания');
-        }
-      } catch (error: unknown) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Polling error:', error);
-        }
-        const message = error instanceof Error ? error.message : 'Ошибка получения результата';
-        toast.error(message);
+        } catch (error: unknown) {
+          if (error instanceof FetchAbortedError) return resolve();
 
-        // Remove pending images
-        setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
-      }
-    };
+          consecutiveErrors++;
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Polling error:', error);
+          }
 
-    poll();
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            const message =
+              error instanceof FetchTimeoutError
+                ? "Сервис генерации не отвечает. Попробуйте позже."
+                : (error instanceof Error ? error.message : 'Ошибка получения результата');
+            toast.error(message);
+
+            setImages(prev => prev.filter(img => !pendingIds.includes(img.id)));
+            return resolve();
+          }
+
+          const backoff = Math.min(2000 * Math.pow(2, consecutiveErrors - 1), 8000);
+          const timeoutId = setTimeout(poll, backoff);
+          if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+          pollingTimeoutRef.current = timeoutId;
+        }
+      };
+
+      poll();
+    });
   }, [aspectRatio, quality]);
 
   // Generate handler
@@ -286,6 +327,10 @@ export function NanoBananaProGenerator() {
     setIsGenerating(true);
 
     try {
+      // Cancel any inflight requests/polls from previous runs.
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+
       // Create pending placeholders
       const pendingImages: GenerationResult[] = Array.from({ length: quantity }, (_, i) => ({
         id: `pending-${Date.now()}-${i}`,
@@ -304,7 +349,9 @@ export function NanoBananaProGenerator() {
       // Add pending placeholders at the end (bottom of gallery)
       setImages(prev => [...prev, ...pendingImages]);
 
-      const response = await fetch('/api/generate/photo', {
+      const response = await fetchWithTimeout('/api/generate/photo', {
+        timeout: 30_000,
+        abortSignal: abortControllerRef.current.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -327,11 +374,15 @@ export function NanoBananaProGenerator() {
           toast.error('Слишком много запросов. Подождите минуту и попробуйте снова.');
           return;
         }
-        const error = await response.json();
-        throw new Error(error.error || 'Ошибка генерации');
+        const raw = await response.text().catch(() => "");
+        let errJson: any = null;
+        try { errJson = raw ? JSON.parse(raw) : null; } catch { errJson = { error: raw }; }
+        throw new Error(errJson?.error || errJson?.message || 'Ошибка генерации');
       }
 
-      const data = await response.json();
+      const rawOk = await response.text().catch(() => "");
+      let data: any = null;
+      try { data = rawOk ? JSON.parse(rawOk) : null; } catch { data = { error: rawOk }; }
       const baseGenerationId = String(data.generationId || "");
 
       // Check if results are immediately available (parallel generation)
@@ -404,6 +455,15 @@ export function NanoBananaProGenerator() {
       if (process.env.NODE_ENV === 'development') {
         console.error('Generation error:', error);
       }
+      if (error instanceof FetchTimeoutError) {
+        toast.error("Сервер долго отвечает. Попробуйте еще раз.");
+        setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
+        return;
+      }
+      if (error instanceof FetchAbortedError) {
+        setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Ошибка при генерации';
       toast.error(message);
 
@@ -411,6 +471,7 @@ export function NanoBananaProGenerator() {
       setImages(prev => prev.filter(img => !img.id.startsWith('pending-')));
     } finally {
       setIsGenerating(false);
+      abortControllerRef.current = null;
     }
   }, [
     isAuthenticated, 

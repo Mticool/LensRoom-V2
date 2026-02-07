@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 /**
  * POST /api/kie/sync-manual
@@ -33,12 +34,21 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Fetch KIE task info
-    const kieRes = await fetch(
-      `https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`,
-      {
-        headers: { Authorization: `Bearer ${kieKey}` }
+    let kieRes: Response;
+    try {
+      kieRes = await fetchWithTimeout(
+        `https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`,
+        {
+          timeout: 20_000,
+          headers: { Authorization: `Bearer ${kieKey}` }
+        }
+      );
+    } catch (e) {
+      if (e instanceof FetchTimeoutError) {
+        return NextResponse.json({ error: "KIE API timeout" }, { status: 504 });
       }
-    );
+      throw e;
+    }
 
     if (!kieRes.ok) {
       return NextResponse.json({ error: "KIE API error", status: kieRes.status }, { status: 500 });
@@ -130,5 +140,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 

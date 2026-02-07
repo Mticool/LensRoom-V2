@@ -16,6 +16,7 @@ import { calcMotionControlStars, validateMotionControlDuration, type MotionContr
 import { invalidateCached } from "@/lib/client/generations-cache";
 import { usePreferencesStore } from "@/stores/preferences-store";
 import { useHistory } from "@/components/generator-v2/hooks/useHistory";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 import type { Aspect, Duration, Mode, Quality } from "@/config/studioModels";
 import { getStudioModelByKey, STUDIO_PHOTO_MODELS, STUDIO_VIDEO_MODELS } from "@/config/studioModels";
@@ -95,6 +96,10 @@ async function safeReadJson(response: Response): Promise<any> {
   } catch {
     return { error: text };
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 export function StudioRuntime({
@@ -536,20 +541,43 @@ export function StudioRuntime({
 
   const pollJob = useCallback(async (jobId: string, kind: "image" | "video") => {
     const maxAttempts = 180;
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 5;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const qs = new URLSearchParams();
       qs.set("kind", kind);
 
-      const res = await fetch(`/api/jobs/${jobId}?${qs.toString()}`);
-      const data = await safeReadJson(res);
+      let res: Response;
+      let data: any;
+      try {
+        res = await fetchWithTimeout(`/api/jobs/${jobId}?${qs.toString()}`, { timeout: 15_000 });
+        data = await safeReadJson(res);
+      } catch (e) {
+        consecutiveErrors++;
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          const msg =
+            e instanceof FetchTimeoutError ? "Сервис генерации не отвечает. Попробуйте позже." : (e instanceof Error ? e.message : "Ошибка");
+          throw new Error(msg);
+        }
+        await sleep(Math.min(2000 * Math.pow(2, consecutiveErrors - 1), 8000));
+        continue;
+      }
+
       if (!res.ok) {
         if (res.status === 500 && (data?.error === "Integration is not configured" || data?.hint)) {
           const base = "Интеграция не настроена. Обратитесь в поддержку.";
           const tech = process.env.NODE_ENV !== "production" ? ` (${data?.hint || data?.error || "missing env"})` : "";
           throw new Error(base + tech);
         }
-        throw new Error(data?.error || `Job status error (${res.status})`);
+        consecutiveErrors++;
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          throw new Error(data?.error || `Job status error (${res.status})`);
+        }
+        await sleep(Math.min(2000 * Math.pow(2, consecutiveErrors - 1), 8000));
+        continue;
       }
+
+      consecutiveErrors = 0;
 
       if (typeof data?.progress === "number") setProgress(Math.max(0, Math.min(100, data.progress)));
 
@@ -569,7 +597,7 @@ export function StudioRuntime({
       if (data.status === "queued") setStatus("queued");
       else setStatus("generating");
 
-      await new Promise((r) => setTimeout(r, 2000));
+      await sleep(2000);
     }
     throw new Error("Timeout");
   }, []);
@@ -580,12 +608,39 @@ export function StudioRuntime({
       (async () => {
         try {
           const maxAttempts = 180;
+          let consecutiveErrors = 0;
+          const maxConsecutiveErrors = 5;
           for (let attempt = 0; attempt < maxAttempts; attempt++) {
             const qs = new URLSearchParams();
             qs.set("kind", job.kind);
-            const res = await fetch(`/api/jobs/${job.jobId}?${qs.toString()}`);
-            const data = await safeReadJson(res);
-            if (!res.ok) throw new Error(data?.error || `Job status error (${res.status})`);
+            let res: Response;
+            let data: any;
+            try {
+              res = await fetchWithTimeout(`/api/jobs/${job.jobId}?${qs.toString()}`, { timeout: 15_000 });
+              data = await safeReadJson(res);
+            } catch (e) {
+              consecutiveErrors++;
+              if (consecutiveErrors >= maxConsecutiveErrors) {
+                throw new Error(
+                  e instanceof FetchTimeoutError
+                    ? "Сервис генерации не отвечает. Попробуйте позже."
+                    : (e instanceof Error ? e.message : "Ошибка")
+                );
+              }
+              await sleep(Math.min(2000 * Math.pow(2, consecutiveErrors - 1), 8000));
+              continue;
+            }
+
+            if (!res.ok) {
+              consecutiveErrors++;
+              if (consecutiveErrors >= maxConsecutiveErrors) {
+                throw new Error(data?.error || `Job status error (${res.status})`);
+              }
+              await sleep(Math.min(2000 * Math.pow(2, consecutiveErrors - 1), 8000));
+              continue;
+            }
+
+            consecutiveErrors = 0;
 
             const p = typeof data?.progress === "number" ? Math.max(0, Math.min(100, data.progress)) : 0;
             const st: RuntimeStatus =
@@ -684,7 +739,7 @@ export function StudioRuntime({
               return;
             }
 
-            await new Promise((r) => setTimeout(r, 2000));
+            await sleep(2000);
           }
           throw new Error("Timeout");
         } catch (e) {
@@ -751,7 +806,8 @@ export function StudioRuntime({
           payload.referenceImage = await fileToDataUrl(referenceImage);
         }
 
-        const res = await fetch("/api/generate/photo", {
+        const res = await fetchWithTimeout("/api/generate/photo", {
+          timeout: 30_000,
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -871,7 +927,9 @@ export function StudioRuntime({
         payload.videoUrl = referenceVideoUrl.trim();
       }
 
-      const res = await fetch("/api/generate/video", {
+      const res = await fetchWithTimeout("/api/generate/video", {
+        // Video job submission should be fast, but protect UI from hanging connections.
+        timeout: 45_000,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1175,5 +1233,3 @@ export function StudioRuntime({
     </StudioShell>
   );
 }
-
-

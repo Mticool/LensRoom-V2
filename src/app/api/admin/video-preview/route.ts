@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { spawn } from 'node:child_process';
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 
 function isPrivateOrLocalHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
@@ -92,10 +93,19 @@ export async function POST(req: NextRequest) {
     const posterPath = join(tmpdir(), `lensroom-preview-poster-${id}.jpg`);
 
     try {
-      const upstream = await fetch(target.toString(), {
-        redirect: 'follow',
-        headers: { 'User-Agent': 'LensRoom/1.0 (video-preview)' },
-      });
+      let upstream: Response;
+      try {
+        upstream = await fetchWithTimeout(target.toString(), {
+          timeout: 60_000,
+          redirect: 'follow',
+          headers: { 'User-Agent': 'LensRoom/1.0 (video-preview)' },
+        });
+      } catch (e) {
+        if (e instanceof FetchTimeoutError) {
+          return NextResponse.json({ error: 'Upstream timeout' }, { status: 504 });
+        }
+        throw e;
+      }
 
       if (!upstream.ok || !upstream.body) {
         const txt = await upstream.text().catch(() => '');

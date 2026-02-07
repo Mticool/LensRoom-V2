@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from "@/lib/env";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 /**
  * GET /api/kie/recordInfo?taskId=xxx
@@ -28,15 +29,24 @@ export async function GET(request: NextRequest) {
 
     console.log(`[KIE recordInfo] Checking task: ${taskId}`);
 
-    const response = await fetch(
-      `${baseUrl}/api/v1/jobs/recordInfo?taskId=${taskId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(
+        `${baseUrl}/api/v1/jobs/recordInfo?taskId=${taskId}`,
+        {
+          timeout: 15_000,
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+          },
+        }
+      );
+    } catch (e) {
+      if (e instanceof FetchTimeoutError) {
+        return NextResponse.json({ error: "KIE API timeout" }, { status: 504 });
       }
-    );
+      throw e;
+    }
 
     const responseText = await response.text();
     let responseData: any;
@@ -86,5 +96,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 

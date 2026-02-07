@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from "@/lib/env";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 interface DownloadUrlRequest {
   url: string;
@@ -42,17 +43,26 @@ export async function POST(request: NextRequest) {
 
     console.log(`[KIE downloadUrl] Getting download URL for: ${url}`);
 
-    const response = await fetch(
-      `${baseUrl}/api/v1/common/download-url`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(
+        `${baseUrl}/api/v1/common/download-url`,
+        {
+          timeout: 20_000,
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
+        }
+      );
+    } catch (e) {
+      if (e instanceof FetchTimeoutError) {
+        return NextResponse.json({ error: "KIE API timeout" }, { status: 504 });
       }
-    );
+      throw e;
+    }
 
     const responseText = await response.text();
     let responseData: DownloadUrlResponse;
@@ -102,5 +112,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 
