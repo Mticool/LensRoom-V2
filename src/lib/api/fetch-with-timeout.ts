@@ -69,16 +69,15 @@ export async function fetchWithTimeout(
     const anyAbortController = new AbortController();
 
     const abortHandler = () => {
-      if (abortSignal.aborted) {
-        anyAbortController.abort();
-      }
-      if (timeoutController.signal.aborted) {
+      // Abort when either signal is aborted.
+      if (!anyAbortController.signal.aborted && (abortSignal.aborted || timeoutController.signal.aborted)) {
         anyAbortController.abort();
       }
     };
 
-    abortSignal.addEventListener('abort', abortHandler);
-    timeoutController.signal.addEventListener('abort', abortHandler);
+    // Use `once` so listeners auto-cleanup and do not leak across repeated calls.
+    abortSignal.addEventListener('abort', abortHandler, { once: true });
+    timeoutController.signal.addEventListener('abort', abortHandler, { once: true });
 
     combinedSignal = anyAbortController.signal;
   } else {
