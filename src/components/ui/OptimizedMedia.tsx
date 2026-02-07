@@ -67,7 +67,11 @@ export const OptimizedImage = memo(function OptimizedImage({
   const optimalQuality = quality || getOptimalImageQuality();
   const reducedMotion = prefersReducedMotion();
   const isMobile = isMobileDevice();
-  
+
+  // Use retry URL if available, otherwise use original src.
+  // Keep this above hooks that depend on it so hook order is stable.
+  const imageSrc = retryUrl || src;
+
   const handleLoad = () => {
     setIsLoaded(true);
     onLoad?.();
@@ -104,31 +108,13 @@ export const OptimizedImage = memo(function OptimizedImage({
     setHasError(true);
   };
   
-  // No src - show placeholder
-  if (!src) {
-    return (
-      <div className={`w-full h-full bg-[var(--surface2)] flex items-center justify-center ${className}`}>
-        <span className="text-xs text-[var(--muted)]">Нет изображения</span>
-      </div>
-    );
-  }
-  
-  // Error state - show placeholder
-  if (hasError) {
-    return (
-      <div className={`w-full h-full bg-[var(--surface2)] flex items-center justify-center ${className}`}>
-        <span className="text-xs text-[var(--muted)]">Ошибка загрузки</span>
-      </div>
-    );
-  }
-  
-  // Use retry URL if available, otherwise use original src
-  const imageSrc = retryUrl || src;
-  
-  // Intersection Observer for lazy loading (only for non-priority images)
+  // Intersection Observer for lazy loading (only for non-priority images).
+  // IMPORTANT: this hook must always be called (even when src is missing or hasError is true),
+  // otherwise React will throw "Rendered fewer hooks than expected" (minified error #300).
   useEffect(() => {
     if (priority || !imgRef.current) return;
-    
+    if (!imageSrc || hasError) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -147,13 +133,28 @@ export const OptimizedImage = memo(function OptimizedImage({
         threshold: 0.01,
       }
     );
-    
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
-    }
-    
+
+    observer.observe(imgRef.current);
     return () => observer.disconnect();
-  }, [priority]);
+  }, [priority, imageSrc, hasError]);
+
+  // No src - show placeholder
+  if (!src) {
+    return (
+      <div className={`w-full h-full bg-[var(--surface2)] flex items-center justify-center ${className}`}>
+        <span className="text-xs text-[var(--muted)]">Нет изображения</span>
+      </div>
+    );
+  }
+  
+  // Error state - show placeholder
+  if (hasError) {
+    return (
+      <div className={`w-full h-full bg-[var(--surface2)] flex items-center justify-center ${className}`}>
+        <span className="text-xs text-[var(--muted)]">Ошибка загрузки</span>
+      </div>
+    );
+  }
   
   // Generate srcset for responsive loading
   const srcSet = generateSrcSet(imageSrc, optimalQuality);
