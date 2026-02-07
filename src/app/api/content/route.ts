@@ -85,14 +85,17 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('effects_gallery')
       .select('*');
-    
-    // Filter by status (default: published for public access)
-    const status = searchParams.get('status');
-    if (status) {
-      query = query.eq('status', status);
-    } else {
-      query = query.eq('status', 'published');
+
+    // Public endpoint: NEVER allow fetching drafts/unpublished content.
+    // Some older rows used legacy boolean `published` and had `status` NULL.
+    // Treat "published" as:
+    // - status = 'published'
+    // - OR (status IS NULL AND published = true)
+    const statusRaw = String(searchParams.get('status') || '').trim().toLowerCase();
+    if (statusRaw && statusRaw !== 'published') {
+      return NextResponse.json({ error: 'Unsupported status for public endpoint' }, { status: 400 });
     }
+    query = query.or('status.eq.published,and(status.is.null,published.eq.true)');
     
     if (placement) {
       query = query.eq('placement', placement);
