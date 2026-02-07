@@ -91,7 +91,7 @@ function ImageGeneratorContent() {
       setSelectedQuality(model.qualityOptions[0]);
     }
     // Обновляем URL
-    router.push(`/create/image?model=${model.id}`, { scroll: false });
+    router.push(`/create/studio?section=photo&model=${encodeURIComponent(model.id)}`, { scroll: false });
   };
 
   const handleImageUpload = (imageUrl: string) => {

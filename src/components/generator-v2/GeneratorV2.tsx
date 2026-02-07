@@ -4,16 +4,7 @@
  * GeneratorV2 - Legacy component (replaced by specialized generators)
  * 
  * This file is kept ONLY for type exports used by other components.
- * For actual generation, use:
- * - NanoBananaProGenerator
- * - NanoBananaGenerator
- * - ZImageGenerator
- * - FluxProGenerator
- * - SeedreamGenerator
- * - GPTImageGenerator
- * - GrokImagineGenerator
- * - TopazUpscaleGenerator
- * - RecraftRemoveBGGenerator
+ * For actual generation UI, use the unified Studio page: `/create/studio`.
  */
 
 export type GeneratorMode = 'image' | 'video';

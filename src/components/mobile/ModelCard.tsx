@@ -73,7 +73,9 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
     // Haptic feedback on click
     light();
     // Переходим на страницу генератора с выбранной моделью
-    const path = isPhoto ? `/create/image?model=${model.id}` : `/create/studio?model=${model.id}`;
+    const path = isPhoto
+      ? `/create/studio?section=photo&model=${encodeURIComponent(model.id)}`
+      : `/create/studio?section=video&model=${encodeURIComponent(model.id)}`;
     router.push(path);
   };
 

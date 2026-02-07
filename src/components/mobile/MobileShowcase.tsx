@@ -64,14 +64,14 @@ export function MobileShowcase() {
       title: 'Создать фото',
       icon: ImageIcon,
       color: 'from-emerald-500 to-teal-500',
-      path: '/create/image',
+      path: '/create/studio?section=photo',
     },
     {
       id: 'create-video',
       title: 'Создать видео',
       icon: Play,
       color: 'from-violet-500 to-purple-500',
-      path: '/create/studio?type=video',
+      path: '/create/studio?section=video',
     },
     {
       id: 'library',
