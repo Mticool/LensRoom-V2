@@ -1,6 +1,29 @@
 export function extractVideoUrl(gen: any): string | null {
   if (!gen) return null;
 
+  const status = String(gen.status || '').toLowerCase();
+  const isDone = status === 'success' || status === 'completed';
+  const id = gen.id ? String(gen.id) : '';
+
+  const candidates = [
+    gen.asset_url,
+    gen.result_url,
+    gen.result_urls,
+    gen.preview_url,
+    gen.thumbnail_url,
+  ].filter(Boolean);
+
+  const hasExpirableUrl = candidates.some((url) => {
+    if (typeof url !== 'string') return false;
+    // tempfile.aiquickdraw.com URLs expire; Supabase signed URLs expire too.
+    return url.includes('tempfile.aiquickdraw.com') || url.includes('/storage/v1/object/sign/');
+  });
+
+  // Prefer our stable download proxy for expirable URLs when possible.
+  if (isDone && id && hasExpirableUrl) {
+    return `/api/generations/${encodeURIComponent(id)}/download?kind=original&proxy=1`;
+  }
+
   if (gen.asset_url && typeof gen.asset_url === 'string') return gen.asset_url;
   if (gen.result_url && typeof gen.result_url === 'string') return gen.result_url;
 
@@ -24,7 +47,7 @@ export function extractVideoUrl(gen: any): string | null {
   if (gen.preview_url && typeof gen.preview_url === 'string') return gen.preview_url;
   if (gen.thumbnail_url && typeof gen.thumbnail_url === 'string') return gen.thumbnail_url;
 
-  if (gen.id && (gen.status === 'success' || gen.status === 'completed')) {
+  if (id && isDone) {
     return `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
   }
 

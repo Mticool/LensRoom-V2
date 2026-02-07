@@ -167,13 +167,11 @@ export async function GET(request: NextRequest) {
         headers: {
           // Optimized caching: Cache for 15 minutes (URLs valid for 1 hour)
           // stale-while-revalidate allows serving stale content while refreshing in background
-          'Cache-Control': 'public, max-age=900, stale-while-revalidate=1800, immutable',
-          // Enable compression
-          'Content-Encoding': 'gzip',
-          // Add ETag for better cache validation
-          'ETag': `W/"${Date.now()}-${refreshedData.length}"`,
-          // Optimize for mobile
-          'Vary': 'Accept-Encoding, User-Agent',
+          'Cache-Control': 'public, max-age=900, stale-while-revalidate=1800',
+          // IMPORTANT: do not set Content-Encoding manually unless you actually compress the body.
+          // Setting it to "gzip" while returning plain JSON will break clients with
+          // net::ERR_CONTENT_DECODING_FAILED.
+          'Vary': 'Accept-Encoding',
         },
       }
     );
@@ -185,4 +183,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -95,7 +95,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     let storagePath: string | null = null;
-    const bucket = 'generations';
+    let bucket = 'generations';
     let directUrl: string | null = null;
 
     // Determine which file to download based on kind
@@ -130,10 +130,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
       // Check if it's a Supabase Storage URL
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
       if (assetUrl.includes(supabaseUrl) && assetUrl.includes('/storage/v1/object/')) {
-        // Extract storage path from URL
-        const match = assetUrl.match(/\/storage\/v1\/object\/[^\/]+\/(.+?)(?:\?|$)/);
+        // Extract bucket + path from URL:
+        // /storage/v1/object/public/<bucket>/<path>
+        // /storage/v1/object/sign/<bucket>/<path>?token=...
+        const match = assetUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^\/]+)\/([^?]+)/);
         if (match) {
-          storagePath = decodeURIComponent(match[1]);
+          bucket = decodeURIComponent(match[1] || bucket);
+          storagePath = decodeURIComponent(match[2] || '');
         }
       }
 
@@ -154,6 +157,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       if (directUrl) {
         finalUrl = directUrl;
       } else if (storagePath) {
+        // Some callers may accidentally pass "bucket/path" as storagePath.
+        // Normalize to keep `storagePath` inside `bucket`.
+        if (storagePath.startsWith(`${bucket}/`)) {
+          storagePath = storagePath.slice(bucket.length + 1);
+        }
         const { data: signedData, error: signedError } = await supabase.storage
           .from(bucket)
           .createSignedUrl(storagePath, 300);
@@ -225,6 +233,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     console.log(`[Download] Generating signed URL for ${generationId}: ${storagePath}`);
 
+    if (storagePath.startsWith(`${bucket}/`)) {
+      storagePath = storagePath.slice(bucket.length + 1);
+    }
     const { data: signedData, error: signedError } = await supabase.storage
       .from(bucket)
       .createSignedUrl(storagePath, 300); // 5 minutes expiry
@@ -250,4 +261,3 @@ export async function GET(request: NextRequest, context: RouteContext) {
     );
   }
 }
-

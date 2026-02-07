@@ -17,15 +17,24 @@ import { toast } from "sonner";
 import { getModelById } from "@/config/models";
 import { NoGenerationsEmpty } from "@/components/ui/empty-state";
 import { GenerationGridSkeleton } from "@/components/ui/skeleton";
+import { LoginDialog } from "@/components/auth/login-dialog";
 import {
   type LibraryItem,
   type UiStatus,
   normalizeStatus
 } from "@/lib/validation/library";
 import { handleError } from "@/lib/errors/error-handler";
+import { navigateWithFallback } from "@/lib/client/navigate";
 
 function getAgeSeconds(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
+}
+
+function calculateProgressPercent(createdAt: string, type: string): number {
+  if (!createdAt) return 0;
+  const ageSeconds = getAgeSeconds(createdAt);
+  const { min, max } = String(type || "").toLowerCase() === "video" ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
+  return Math.min(95, Math.round((ageSeconds / ((min + max) / 2)) * 100));
 }
 
 const ESTIMATED_TIMES = {
@@ -38,6 +47,8 @@ export function LibraryClient() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,11 +119,21 @@ export function LibraryClient() {
         else setLoadingMore(true);
       }
       setError(null);
+      setUnauthorized(false);
 
       const res = await fetch(`/api/library?limit=${LIMIT}&offset=${offset}&_t=${Date.now()}`, {
         cache: 'no-store',
         credentials: 'include'
       });
+
+      // Logged-out: show a friendly CTA instead of raw "Unauthorized".
+      if (res.status === 401) {
+        setUnauthorized(true);
+        setItems([]);
+        setHasMore(false);
+        lastFetchRef.current = Date.now();
+        return;
+      }
       
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || `Ошибка загрузки (${res.status})`);
@@ -155,7 +176,7 @@ export function LibraryClient() {
       const st = normalizeStatus(item?.status);
       const isVideo = item?.type?.toLowerCase() === "video";
       const needsPreview = st === "success" && item?.preview_status !== "ready";
-      const progress = (st === "generating" || st === "queued") ? calculateProgress(item?.created_at || '', item?.type || 'photo') : 0;
+      const progress = (st === "generating" || st === "queued") ? calculateProgressPercent(item?.created_at || '', item?.type || 'photo') : 0;
       return { item, st, isVideo, needsPreview, progress };
     });
   }, [items, filter, safeIsFavorite]);
@@ -329,10 +350,10 @@ export function LibraryClient() {
     
     if (type === "video") {
       // Use generationId for full parameter restoration
-      router.push(`/create/studio?section=video&generationId=${item.id}`);
+      navigateWithFallback(router, `/create/studio?section=video&generationId=${encodeURIComponent(item.id)}`);
     } else if (type === "audio") {
       // Audio doesn't support parameter restoration yet
-      router.push(`/create/studio?section=music`);
+      navigateWithFallback(router, `/create/studio?section=music`);
       toast.info("Откройте аудио-генератор");
       return;
     } else {
@@ -340,7 +361,7 @@ export function LibraryClient() {
       const params = new URLSearchParams();
       if (item.prompt) params.set("prompt", item.prompt);
       if (item.model_name) params.set("model", item.model_name);
-      router.push(`/create/studio?${params.toString()}`);
+      navigateWithFallback(router, `/create/studio?${params.toString()}`);
     }
     toast.success("Открываю в генераторе...");
   };
@@ -349,10 +370,10 @@ export function LibraryClient() {
     const type = item.type?.toLowerCase();
     
     if (type === "video") {
-      router.push(`/create/studio?section=video&generationId=${item.id}`);
+      navigateWithFallback(router, `/create/studio?section=video&generationId=${encodeURIComponent(item.id)}`);
     } else if (type === "audio") {
       // Audio doesn't support parameter restoration yet
-      router.push(`/create/studio?section=music`);
+      navigateWithFallback(router, `/create/studio?section=music`);
       toast.info("Откройте аудио-генератор");
       return;
     } else {
@@ -360,16 +381,9 @@ export function LibraryClient() {
       const params = new URLSearchParams();
       if (item.prompt) params.set("prompt", item.prompt);
       if (item.model_name) params.set("model", item.model_name);
-      router.push(`/create/studio?${params.toString()}`);
+      navigateWithFallback(router, `/create/studio?${params.toString()}`);
     }
     toast.success("Открываю в генераторе...");
-  };
-
-  const calculateProgress = (createdAt: string, type: string): number => {
-    if (!createdAt) return 0;
-    const ageSeconds = getAgeSeconds(createdAt);
-    const { min, max } = type?.toLowerCase() === "video" ? ESTIMATED_TIMES.video : ESTIMATED_TIMES.photo;
-    return Math.min(95, Math.round((ageSeconds / ((min + max) / 2)) * 100));
   };
 
   const getDisplayUrl = (item: LibraryItem, isVideo: boolean): string | null => {
@@ -535,6 +549,22 @@ export function LibraryClient() {
         {/* Content */}
         {loading ? (
           <GenerationGridSkeleton count={12} />
+        ) : unauthorized ? (
+          <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-8 text-center">
+            <p className="text-[var(--text)] font-medium">Войдите, чтобы увидеть ваши результаты</p>
+            <p className="text-[var(--muted)] mt-1">После входа здесь появятся ваши фото и видео генерации.</p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <Button
+                onClick={() => setLoginOpen(true)}
+                className="bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
+              >
+                Войти
+              </Button>
+              <Button variant="outline" onClick={handleRefresh} className="border-[var(--border)]">
+                Обновить
+              </Button>
+            </div>
+          </div>
         ) : error ? (
           <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-8 text-center">
             <p className="text-[var(--muted)]">{error}</p>
@@ -567,6 +597,12 @@ export function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.02 }}
                     className="group rounded-xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden hover:border-[var(--gold)]/30 transition-all"
+                    onClick={() => {
+                      if (!hasContent) return;
+                      setSelected(item);
+                      setSelectedIndex(0);
+                      setOpen(true);
+                    }}
                   >
                     <div className="relative aspect-square bg-black/20">
                       {canDisplay ? (
@@ -637,25 +673,25 @@ export function LibraryClient() {
                       {hasContent && (
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                           <button
-                            onClick={() => { setSelected(item); setSelectedIndex(0); setOpen(true); }}
+                            onClick={(e) => { e.stopPropagation(); setSelected(item); setSelectedIndex(0); setOpen(true); }}
                             className="p-2 rounded-lg bg-white text-black hover:bg-white/90"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDownload(item.id)}
+                            onClick={(e) => { e.stopPropagation(); handleDownload(item.id); }}
                             className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
                           >
                             <Download className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleRegenerateSimilar(item)}
+                            onClick={(e) => { e.stopPropagation(); handleRegenerateSimilar(item); }}
                             className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
                           >
                             <Repeat className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleOpenInGenerator(item)}
+                            onClick={(e) => { e.stopPropagation(); handleOpenInGenerator(item); }}
                             className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
                             title="Открыть в генераторе"
                           >
@@ -663,7 +699,7 @@ export function LibraryClient() {
                           </button>
                           {isAdminOrManager && (
                             <button
-                              onClick={() => handleOpenPublish(item)}
+                              onClick={(e) => { e.stopPropagation(); handleOpenPublish(item); }}
                               className="p-2 rounded-lg bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90"
                             >
                               <Upload className="w-4 h-4" />
@@ -733,16 +769,16 @@ export function LibraryClient() {
                   <button onClick={() => handleToggleFavorite(selected.id)} className={`p-2 rounded-lg ${safeIsFavorite(selected.id) ? 'text-rose-400' : 'text-[var(--muted)]'} hover:bg-white/5`}>
                     <Heart className={`w-5 h-5 ${safeIsFavorite(selected.id) ? 'fill-current' : ''}`} />
                   </button>
-                  <button onClick={() => handleRegenerateSimilar(selected)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
+                  <button aria-label="Пересоздать" onClick={() => handleRegenerateSimilar(selected)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
                     <Repeat className="w-5 h-5" />
                   </button>
-                  <button onClick={() => handleDownload(selected.id)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
+                  <button aria-label="Скачать" onClick={() => handleDownload(selected.id)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
                     <Download className="w-5 h-5" />
                   </button>
-                  <button onClick={() => handleOpenInGenerator(selected)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5" title="Открыть в генераторе">
+                  <button aria-label="Открыть в генераторе" onClick={() => handleOpenInGenerator(selected)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5" title="Открыть в генераторе">
                     <Edit3 className="w-5 h-5" />
                   </button>
-                  <button onClick={() => setOpen(false)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
+                  <button aria-label="Закрыть" onClick={() => setOpen(false)} className="p-2 rounded-lg text-[var(--muted)] hover:bg-white/5">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -864,6 +900,8 @@ export function LibraryClient() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }

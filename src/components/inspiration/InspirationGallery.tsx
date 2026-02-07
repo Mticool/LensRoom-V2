@@ -6,6 +6,7 @@ import { Sparkles, RefreshCw, Copy, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { OptimizedImage, LazyVideo } from '@/components/ui/OptimizedMedia';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
+import { navigateWithFallback } from '@/lib/client/navigate';
 
 // ===== CONSTANTS =====
 const INITIAL_LOAD = 15; // Increased for better initial experience
@@ -57,9 +58,10 @@ const ContentCardComponent = memo(function ContentCardComponent({
   onRepeat, 
   onCopyPrompt, 
   priority = false,
+  isTouch = false,
   quality = 'medium',
   reducedMotion = false,
-}: ContentCardProps & { quality?: 'low' | 'medium' | 'high'; reducedMotion?: boolean }) {
+}: ContentCardProps & { isTouch?: boolean; quality?: 'low' | 'medium' | 'high'; reducedMotion?: boolean }) {
   const isVideo = card.content_type === 'video';
   
   // For videos: prioritize animated preview (WebM) > poster > asset
@@ -76,14 +78,19 @@ const ContentCardComponent = memo(function ContentCardComponent({
   // Transition duration based on reduced motion
   const transitionDuration = reducedMotion ? 'duration-200' : 'duration-500';
   const hoverTransform = reducedMotion ? '' : 'group-hover:scale-105';
+  const actionsClass = isTouch ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
   
   return (
     <div className="break-inside-avoid mb-3">
       <div
+        onClick={onRepeat}
+        role="button"
+        tabIndex={0}
         className={`group relative w-full overflow-hidden rounded-xl bg-[var(--surface)] 
                    border border-[var(--border)]
                    transition-all ${transitionDuration} ease-out
                    ${reducedMotion ? '' : 'hover:translate-y-[-2px]'}
+                   cursor-pointer
                    hover:border-white/50
                    hover:shadow-[0_0_20px_rgba(214,179,106,0.08),inset_0_0_20px_rgba(214,179,106,0.03)]`}
       >
@@ -140,9 +147,9 @@ const ContentCardComponent = memo(function ContentCardComponent({
                 {card.model_key}
               </span>
             </div>
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className={`flex gap-2 transition-opacity ${actionsClass}`}>
               <button
-                onClick={onCopyPrompt}
+                onClick={(e) => { e.stopPropagation(); onCopyPrompt(); }}
                 className="flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg bg-white/10 backdrop-blur-sm text-white font-medium text-xs
                            hover:bg-white/20 transition-all
                            flex items-center justify-center gap-1 border border-white/20"
@@ -151,7 +158,7 @@ const ContentCardComponent = memo(function ContentCardComponent({
                 Промпт
               </button>
               <button
-                onClick={onRepeat}
+                onClick={(e) => { e.stopPropagation(); onRepeat(); }}
                 className="flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg bg-[var(--gold)] text-black font-semibold text-xs
                            hover:bg-[var(--gold)]/90 transition-all
                            flex items-center justify-center gap-1"
@@ -370,7 +377,7 @@ export function InspirationGallery() {
     const params = new URLSearchParams();
     params.set('section', section);
     params.set('model', card.model_key);
-    router.push(`/create/studio?${params.toString()}`);
+    navigateWithFallback(router, `/create/studio?${params.toString()}`);
 
     toast.success('Открываем генератор', {
       description: `${card.model_key} • Промпт применён`,
@@ -425,6 +432,7 @@ export function InspirationGallery() {
             onRepeat={() => handleRepeat(card)}
             onCopyPrompt={() => handleCopyPrompt(card)}
             priority={index < (isMobile ? 6 : 8)}
+            isTouch={isTouch}
             quality={imageQuality}
             reducedMotion={reducedMotion}
           />

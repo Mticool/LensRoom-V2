@@ -49,8 +49,11 @@ type GenerationRow = {
  */
 function extractStoragePath(url: string | null): string | null {
   if (!url) return null;
-  const match = url.match(/\/storage\/v1\/object\/public\/generations\/(.+)$/);
-  return match ? match[1] : null;
+  // Accept both public and signed storage URLs:
+  // - /storage/v1/object/public/generations/<path>
+  // - /storage/v1/object/sign/generations/<path>?token=...
+  const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/generations\/([^?]+)/);
+  return match ? decodeURIComponent(match[1] || "") : null;
 }
 
 /**
@@ -181,6 +184,11 @@ export async function GET(request: NextRequest) {
         // Last resort: use public URL if asset_url exists
         if (!originalUrl && gen.asset_url) {
           originalUrl = gen.asset_url;
+        }
+
+        // Final fallback: stable authenticated download endpoint (avoids "empty" success cards)
+        if (!originalUrl && gen.id && String(gen.status || "").toLowerCase() === "success") {
+          originalUrl = `/api/generations/${encodeURIComponent(String(gen.id))}/download?kind=original&proxy=1`;
         }
 
         // --- PREVIEW URL ---
