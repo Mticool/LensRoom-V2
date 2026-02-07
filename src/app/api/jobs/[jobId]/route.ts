@@ -9,6 +9,21 @@ import { refundCredits } from "@/lib/credits/refund";
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
+import { Semaphore, SemaphoreTimeoutError } from "@/lib/server/semaphore";
+import { SingleFlight } from "@/lib/server/singleflight";
+
+const JOB_KIE_SEM = new Semaphore(Number(process.env.JOB_STATUS_KIE_CONCURRENCY || "8"), "jobs:kie");
+const JOB_FAL_SEM = new Semaphore(Number(process.env.JOB_STATUS_FAL_CONCURRENCY || "8"), "jobs:fal");
+const JOB_SF = new SingleFlight();
+
+async function runBounded<T>(sem: Semaphore, key: string, fn: () => Promise<T>): Promise<T> {
+  const release = await sem.acquire({ timeoutMs: 3_000, label: key });
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -38,21 +53,22 @@ export async function GET(
           .maybeSingle();
 
         const falClient = getFalClient();
-        const falStatus = await falClient.queryKlingO1I2VStatus(jobId);
+        const falStatus = await JOB_SF.run(`fal:status:${jobId}`, async () =>
+          runBounded(JOB_FAL_SEM, `fal:status:${jobId}`, async () => falClient.queryKlingO1I2VStatus(jobId))
+        );
         
         if (falStatus.status === 'COMPLETED') {
           // Fetch the actual result from response endpoint
           let videoUrl: string | null = null;
           let contentType: string | null = null;
           try {
-            const resultResponse = await fetchWithTimeout(
-              `https://queue.fal.run/fal-ai/kling-video/requests/${jobId}`,
-              {
-                timeout: 15_000,
-                headers: {
-                  'Authorization': `Key ${process.env.FAL_KEY}`,
-                },
-              }
+            const resultResponse = await JOB_SF.run(`fal:result:${jobId}`, async () =>
+              runBounded(JOB_FAL_SEM, `fal:result:${jobId}`, async () =>
+                fetchWithTimeout(`https://queue.fal.run/fal-ai/kling-video/requests/${jobId}`, {
+                  timeout: 15_000,
+                  headers: { Authorization: `Key ${process.env.FAL_KEY}` },
+                })
+              )
             );
             if (resultResponse.ok) {
               const resultData = await resultResponse.json();
@@ -68,7 +84,9 @@ export async function GET(
           let storagePath: string | null = null;
           if (videoUrl && dbGen?.user_id) {
             try {
-              const dl = await fetchWithTimeout(videoUrl, { timeout: 90_000 });
+              const dl = await runBounded(JOB_FAL_SEM, `fal:download:${jobId}`, async () =>
+                fetchWithTimeout(videoUrl!, { timeout: 90_000 })
+              );
               if (!dl.ok) throw new Error(`Failed to download FAL video: ${dl.status}`);
 
               const arrayBuf = await dl.arrayBuffer();
@@ -194,6 +212,19 @@ export async function GET(
         });
       } catch (falErr: any) {
         console.error('[API] FAL status error:', falErr);
+        if (falErr instanceof SemaphoreTimeoutError) {
+          // Do not fail polling: return "processing" so UI keeps working even under load.
+          return NextResponse.json({
+            success: true,
+            jobId,
+            status: "processing",
+            progress: 10,
+            results: [],
+            kind: "video",
+            provider: "fal",
+            busy: true,
+          });
+        }
         return NextResponse.json({
           success: false,
           jobId,
@@ -261,7 +292,11 @@ export async function GET(
       // Still processing - try sync-task for more reliable result
       if (dbGen.status === 'generating' || dbGen.status === 'queued' || dbGen.status === 'pending') {
         try {
-          const syncResult = await syncKieTaskToDb({ supabase, taskId: dbGen.task_id });
+          const syncResult = await JOB_SF.run(`kie:sync:${jobId}`, async () =>
+            runBounded(JOB_KIE_SEM, `kie:sync:${jobId}`, async () =>
+              syncKieTaskToDb({ supabase, taskId: dbGen.task_id })
+            )
+          );
           if (syncResult.ok && syncResult.status === 'success') {
             // Re-fetch to get updated URLs
             const { data: updated } = await supabase
@@ -295,6 +330,18 @@ export async function GET(
             });
           }
         } catch (syncErr) {
+          if (syncErr instanceof SemaphoreTimeoutError) {
+            return NextResponse.json({
+              success: true,
+              jobId,
+              status: "processing",
+              progress: 50,
+              results: [],
+              kind: dbGen.type || kind,
+              provider: provider || null,
+              busy: true,
+            });
+          }
           console.warn('[API] Job sync-task failed, falling back to direct API:', syncErr);
         }
       }
@@ -305,21 +352,47 @@ export async function GET(
 
     try {
       if (kind === "video" || provider === "kie_veo") {
-        status = await kieClient.getVideoGenerationStatus(jobId, provider);
+        status = await JOB_SF.run(`kie:status:${jobId}:${provider || "video"}`, async () =>
+          runBounded(JOB_KIE_SEM, `kie:status:${jobId}`, async () =>
+            kieClient.getVideoGenerationStatus(jobId, provider)
+          )
+        );
       } else if (kind === "image") {
-        status = await kieClient.getGenerationStatus(jobId);
+        status = await JOB_SF.run(`kie:status:${jobId}:image`, async () =>
+          runBounded(JOB_KIE_SEM, `kie:status:${jobId}`, async () => kieClient.getGenerationStatus(jobId))
+        );
       } else {
         try {
-          status = await kieClient.getGenerationStatus(jobId);
+          status = await JOB_SF.run(`kie:status:${jobId}:auto:image`, async () =>
+            runBounded(JOB_KIE_SEM, `kie:status:${jobId}`, async () => kieClient.getGenerationStatus(jobId))
+          );
         } catch (e1) {
           try {
-            status = await kieClient.getVideoGenerationStatus(jobId);
+            status = await JOB_SF.run(`kie:status:${jobId}:auto:video`, async () =>
+              runBounded(JOB_KIE_SEM, `kie:status:${jobId}`, async () => kieClient.getVideoGenerationStatus(jobId))
+            );
           } catch (e2) {
-            status = await kieClient.getVideoGenerationStatus(jobId, "kie_veo");
+            status = await JOB_SF.run(`kie:status:${jobId}:auto:veo`, async () =>
+              runBounded(JOB_KIE_SEM, `kie:status:${jobId}`, async () =>
+                kieClient.getVideoGenerationStatus(jobId, "kie_veo")
+              )
+            );
           }
         }
       }
     } catch (kieErr: any) {
+      if (kieErr instanceof SemaphoreTimeoutError) {
+        return NextResponse.json({
+          success: true,
+          jobId,
+          status: "processing",
+          progress: 50,
+          results: [],
+          kind: kind || null,
+          provider: provider || null,
+          busy: true,
+        });
+      }
       // If KIE API fails with JSON error, return "processing" status
       if (kieErr?.message?.includes('JSON') || kieErr?.message?.includes('Unterminated')) {
         console.warn('[API] KIE returned truncated JSON, returning processing status');
