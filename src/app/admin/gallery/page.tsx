@@ -35,6 +35,7 @@ export default function AdminGalleryPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [migrating, setMigrating] = useState(false);
   
   // Filters
   const [filterPlacement, setFilterPlacement] = useState<"all" | "home" | "inspiration">("all");
@@ -115,6 +116,58 @@ export default function AdminGalleryPage() {
       setLoading(false);
     }
   }, []);
+
+  const runTempfileMigration = useCallback(async () => {
+    if (migrating) return;
+    setMigrating(true);
+    try {
+      const placement = filterPlacement !== "all" ? filterPlacement : null;
+      const mkUrl = (dryRun: boolean) => {
+        const qs = new URLSearchParams();
+        if (placement) qs.set("placement", placement);
+        if (dryRun) qs.set("dryRun", "1");
+        qs.set("limit", "200");
+        return `/api/admin/gallery/migrate-media?${qs.toString()}`;
+      };
+
+      toast.loading("Проверяю tempfile ссылки...", { id: "migrate" });
+      const dryRes = await fetch(mkUrl(true), { method: "POST", credentials: "include" });
+      const dryJson = await dryRes.json().catch(() => null);
+      if (!dryRes.ok) throw new Error(dryJson?.error || `Ошибка проверки (${dryRes.status})`);
+
+      const scanned = Number(dryJson?.scanned || 0);
+      const targets = Number(dryJson?.targets || 0);
+      const wouldDisable = Array.isArray(dryJson?.details)
+        ? dryJson.details.filter((d: any) => d?.action === "disabled").length
+        : 0;
+
+      toast.success(`Проверка готова: scanned=${scanned}, targets=${targets}`, { id: "migrate" });
+      if (!targets) return;
+
+      const ok = confirm(
+        `Найдено ${targets} карточек с tempfile URL.\n` +
+        `Потенциально будет скрыто: ${wouldDisable}.\n\n` +
+        `Запустить миграцию сейчас?`
+      );
+      if (!ok) return;
+
+      toast.loading("Мигрирую медиа в Storage...", { id: "migrate" });
+      const res = await fetch(mkUrl(false), { method: "POST", credentials: "include" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || `Ошибка миграции (${res.status})`);
+
+      toast.success(
+        `Миграция готова: updated=${json?.updated || 0}, disabled=${json?.disabled || 0}, skipped=${json?.skipped || 0}`,
+        { id: "migrate" }
+      );
+      // Reload list so disabled items disappear from "published" views etc.
+      await loadItems();
+    } catch (e: any) {
+      toast.error(e?.message || "Ошибка миграции", { id: "migrate" });
+    } finally {
+      setMigrating(false);
+    }
+  }, [filterPlacement, loadItems, migrating]);
 
   useEffect(() => {
     if (userRole) loadItems();
@@ -376,6 +429,15 @@ export default function AdminGalleryPage() {
             <Button onClick={() => setShowCreateModal(true)} className="bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90">
               <Plus className="w-4 h-4 mr-2" />
               Добавить контент
+            </Button>
+            <Button
+              onClick={runTempfileMigration}
+              disabled={loading || migrating}
+              variant="outline"
+              title="Переносит expiring tempfile.aiquickdraw.com в Supabase Storage и скрывает битые карточки"
+            >
+              <Upload className={`w-4 h-4 mr-2 ${migrating ? 'animate-spin' : ''}`} />
+              Починить tempfile
             </Button>
             <Button onClick={loadItems} disabled={loading} variant="outline">
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -895,7 +957,6 @@ export default function AdminGalleryPage() {
     </div>
   );
 }
-
 
 
 
