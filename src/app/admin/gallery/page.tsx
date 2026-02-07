@@ -101,7 +101,8 @@ export default function AdminGalleryPage() {
           poster_url: e.poster_url || "",
           placement: e.placement || "home",
           category: e.category || "",
-          status: e.status || "published",
+          // Old rows may have `published` boolean without `status`.
+          status: (e.status || (e.published === true ? "published" : "draft")) as any,
           featured: e.featured || false,
           priority: e.priority || 0,
           display_order: e.display_order || 0,
@@ -963,7 +964,6 @@ export default function AdminGalleryPage() {
     </div>
   );
 }
-
 
 
 
