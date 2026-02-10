@@ -12,13 +12,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function GeneratorsPage({
+export default async function GeneratorsPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const sp = searchParams ? await searchParams : undefined;
   const get = (k: string) => {
-    const v = searchParams?.[k];
+    const v = sp?.[k];
     return Array.isArray(v) ? v[0] : v;
   };
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { getKieClient } from '@/lib/api/kie-client';
+import { getKieClient, pickKieKeySlot } from '@/lib/api/kie-client';
 import { getModelById } from '@/config/models';
 import { getSkuFromRequest, calculateTotalStars, PRICING_VERSION } from '@/lib/pricing/pricing';
 import { integrationNotConfigured } from '@/lib/http/integration-error';
@@ -164,6 +164,12 @@ export async function POST(request: NextRequest) {
     // Вставить запись в generations
     let generation: any = null;
     let genError: any = null;
+    const omittedCols = new Set<string>();
+
+    const extractMissingColumn = (message: string): string | null => {
+      const m = message.match(/Could not find the '([^']+)' column/i);
+      return m ? m[1] : null;
+    };
 
     const insertOnce = async () => {
       const r = await supabase
@@ -175,18 +181,23 @@ export async function POST(request: NextRequest) {
           model_name: modelInfo.name,
           section: 'voice',
           status: 'queued',
-          image_url: imageUrl,
-          audio_url: audioUrl,
-          audio_duration: audioDuration,
-          resolution: finalResolution,
+          ...(omittedCols.has('image_url') ? {} : { image_url: imageUrl }),
+          ...(omittedCols.has('audio_url') ? {} : { audio_url: audioUrl }),
+          ...(omittedCols.has('audio_duration') ? {} : { audio_duration: audioDuration }),
+          ...(omittedCols.has('resolution') ? {} : { resolution: finalResolution }),
           credits_used: creditCost,
-          charged_stars: creditCost,
-          sku: sku,
-          pricing_version: PRICING_VERSION,
-          metadata: {
-            prompt: prompt || null,
-            seed: seed || null,
-          },
+          ...(omittedCols.has('charged_stars') ? {} : { charged_stars: creditCost }),
+          ...(omittedCols.has('sku') ? {} : { sku }),
+          ...(omittedCols.has('pricing_version') ? {} : { pricing_version: PRICING_VERSION }),
+          ...(omittedCols.has('metadata')
+            ? {}
+            : {
+                metadata: {
+                  kie_key_scope: "video",
+                  prompt: prompt || null,
+                  seed: seed || null,
+                },
+              }),
         })
         .select()
         .single();
@@ -195,18 +206,47 @@ export async function POST(request: NextRequest) {
       genError = r.error;
     };
 
-    await insertOnce();
-    if (genError) {
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      await insertOnce();
+      if (!genError) break;
+
       const code = genError?.code ? String(genError.code) : '';
       const msg = genError?.message ? String(genError.message) : String(genError);
+
+      if (code === 'PGRST204') {
+        const missing = extractMissingColumn(msg);
+        if (missing && !omittedCols.has(missing)) {
+          omittedCols.add(missing);
+          continue;
+        }
+        if (/metadata/i.test(msg) && !omittedCols.has('metadata')) {
+          omittedCols.add('metadata');
+          continue;
+        }
+        if (/charged_stars/i.test(msg) && !omittedCols.has('charged_stars')) {
+          omittedCols.add('charged_stars');
+          continue;
+        }
+        if (/sku/i.test(msg) && !omittedCols.has('sku')) {
+          omittedCols.add('sku');
+          continue;
+        }
+        if (/pricing_version/i.test(msg) && !omittedCols.has('pricing_version')) {
+          omittedCols.add('pricing_version');
+          continue;
+        }
+      }
+
       if (code === '23503' || /foreign key/i.test(msg)) {
         try {
           await ensureProfileExists(supabase, userId);
-          await insertOnce();
+          continue;
         } catch (e) {
           console.error('[Lip Sync] Retry after ensureProfileExists failed:', e);
         }
       }
+
+      break;
     }
 
     if (genError || !generation) {
@@ -254,7 +294,16 @@ export async function POST(request: NextRequest) {
     // Получить KIE client
     let kieClient: any;
     try {
-      kieClient = getKieClient();
+      const pool = String(process.env.KIE_API_KEY_VIDEO_POOL || "").trim();
+      const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+      const kieSlot = pickKieKeySlot("video", poolSize);
+      if (generation?.id && kieSlot != null) {
+        await supabase
+          .from('generations')
+          .update({ metadata: { ...(generation as any).metadata, kie_key_slot: kieSlot } })
+          .eq('id', generation.id);
+      }
+      kieClient = getKieClient({ scope: "video", slot: kieSlot });
     } catch (error) {
       console.error('[Lip Sync] KIE client error:', error);
 
@@ -269,7 +318,7 @@ export async function POST(request: NextRequest) {
         .update({ status: 'failed', error_message: 'KIE API недоступен' })
         .eq('id', generation.id);
 
-      return integrationNotConfigured('kie', ['KIE_API_KEY', 'KIE_CALLBACK_SECRET', 'KIE_CALLBACK_URL']);
+      return integrationNotConfigured('kie', ['KIE_API_KEY']);
     }
 
     // Подготовить KIE request

@@ -6,7 +6,7 @@
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
-import { getKieClient } from '@/lib/api/kie-client';
+import { getKieClient, pickKieKeySlot } from '@/lib/api/kie-client';
 import {
   sendMessage,
   sendPhoto,
@@ -110,7 +110,10 @@ ${model.emoji} ${model.name}
     }
 
     // Generate
-    const kieClient = getKieClient();
+    const pool = String(process.env.KIE_API_KEY_PHOTO_POOL || "").trim();
+    const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+    const slot = pickKieKeySlot("photo", poolSize);
+    const kieClient = getKieClient({ scope: "photo", slot });
     if (!kieClient) {
       await editMessageText(chatId, statusMsg!.message_id, '❌ Сервис временно недоступен');
       return;
@@ -292,7 +295,10 @@ ${model.emoji} ${model.name}
     }
 
     // Generate
-    const kieClient = getKieClient();
+    const pool = String(process.env.KIE_API_KEY_PHOTO_POOL || "").trim();
+    const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+    const slot = pickKieKeySlot("photo", poolSize);
+    const kieClient = getKieClient({ scope: "photo", slot });
     if (!kieClient) {
       await editMessageText(chatId, statusMsg!.message_id, '❌ Сервис недоступен');
       return;

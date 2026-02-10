@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getSourceAssetUrl } from '@/lib/previews/asset-url';
 import { getAuthUserId, getSession } from '@/lib/telegram/auth';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
+import { getModelById } from "@/config/models";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -79,12 +80,27 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch generation
-    const { data: generation, error: fetchError } = await supabase
-      .from('generations')
-      .select('id, user_id, type, status, asset_url, result_url, result_urls, thumbnail_url, preview_path, poster_path, output, result, data')
-      .eq('id', generationId)
-      .single();
+    // Fetch generation (schema-compatible: older prod DB may not have optional columns).
+    const legacyBaseFields =
+      'id, user_id, type, status, asset_url, result_url, result_urls, thumbnail_url, preview_path, poster_path';
+    const baseFieldsV2 = `${legacyBaseFields}, original_path`;
+    const baseFieldsV3 = `${baseFieldsV2}, model_id, task_id, metadata`;
+    const extraFieldsV3 = `${baseFieldsV3}, output, result, data`;
+
+    let generation: any = null;
+    let fetchError: any = null;
+
+    const selectAttempts = [extraFieldsV3, baseFieldsV3, baseFieldsV2, legacyBaseFields];
+    for (const fields of selectAttempts) {
+      const r = await supabase.from('generations').select(fields).eq('id', generationId).single();
+      generation = r.data;
+      fetchError = r.error;
+      if (!fetchError) break;
+      // If schema mismatch (missing column), try the next, smaller selection.
+      if (String((fetchError as any)?.code || '') === 'PGRST204') continue;
+      // If the row doesn't exist or any other error, don't loop forever.
+      break;
+    }
 
     if (fetchError || !generation) {
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 });
@@ -118,10 +134,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
       storagePath = generation.poster_path;
     } else {
       // kind === 'original'
+      // Prefer explicit storage path when available (most reliable when provider URLs expire).
+      if (generation.original_path && typeof generation.original_path === 'string') {
+        storagePath = generation.original_path;
+      }
+
       // Try to get asset from storage path or use external URL
-      const assetUrl = getSourceAssetUrl(generation);
+      const assetUrl = storagePath ? null : getSourceAssetUrl(generation);
       
-      if (!assetUrl) {
+      if (!assetUrl && !storagePath) {
         return NextResponse.json(
           { error: 'Asset URL not found' },
           { status: 404 }
@@ -130,7 +151,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
       // Check if it's a Supabase Storage URL
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-      if (assetUrl.includes(supabaseUrl) && assetUrl.includes('/storage/v1/object/')) {
+      if (assetUrl && assetUrl.includes(supabaseUrl) && assetUrl.includes('/storage/v1/object/')) {
         // Extract bucket + path from URL:
         // /storage/v1/object/public/<bucket>/<path>
         // /storage/v1/object/sign/<bucket>/<path>?token=...
@@ -143,16 +164,60 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
       // If not storage URL, redirect directly
       if (!storagePath) {
-        directUrl = assetUrl;
+        const direct = assetUrl as string; // assetUrl is guaranteed by earlier guard when storagePath is null
+        directUrl = direct;
         if (!proxy) {
-          console.log(`[Download] Direct redirect for ${generationId}: ${assetUrl.substring(0, 60)}...`);
-          return NextResponse.redirect(assetUrl);
+          console.log(`[Download] Direct redirect for ${generationId}: ${direct.substring(0, 60)}...`);
+          return NextResponse.redirect(direct);
         }
       }
     }
 
     // Proxy mode or force download: stream file bytes from server
     if (proxy || forceDownload) {
+      const metaProvider =
+        typeof (generation as any)?.metadata === "object"
+          ? String((generation as any)?.metadata?.provider || "").toLowerCase()
+          : "";
+      const modelId = typeof (generation as any)?.model_id === "string" ? String((generation as any).model_id) : "";
+      const modelInfo = modelId ? (getModelById(modelId) as any) : null;
+      const isLaoZhang = metaProvider === "laozhang" || String(modelInfo?.provider || "").toLowerCase() === "laozhang";
+
+      // LaoZhang videos: /v1/videos/:id/content requires auth and may return raw mp4 bytes.
+      // Serve it through our proxy using the server-side LAOZHANG_API_KEY.
+      if (isLaoZhang && kind === "original") {
+        const taskId = typeof (generation as any)?.task_id === "string" ? String((generation as any).task_id) : "";
+        if (!taskId) {
+          return NextResponse.json({ error: "Missing task_id for LaoZhang generation" }, { status: 404 });
+        }
+        const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
+        const lz = getLaoZhangClient();
+        const upstream = await lz.fetchVideoContent(taskId);
+        if (!upstream.ok) {
+          const t = await upstream.text().catch(() => "");
+          console.error("[Download] LaoZhang content fetch failed:", upstream.status, t.slice(0, 200));
+          return NextResponse.json({ error: "Failed to fetch upstream video" }, { status: 502 });
+        }
+
+        const contentType = upstream.headers.get("content-type") || "video/mp4";
+        const disposition = forceDownload
+          ? `attachment; filename="lensroom_${generationId.substring(0, 8)}_${kind}.mp4"`
+          : "inline";
+
+        // Stream bytes to the client (avoid buffering large mp4s in memory).
+        return new NextResponse(upstream.body, {
+          status: 200,
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "private, no-cache, no-store, must-revalidate",
+            "Content-Disposition": disposition,
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
       // Resolve final URL (signed for storage, or direct external URL).
       let finalUrl: string | null = null;
       if (directUrl) {
@@ -178,7 +243,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: 'Asset URL not found' }, { status: 404 });
       }
 
-      const upstream = await fetchWithTimeout(finalUrl, { timeout: 90_000 });
+      const fetchUpstream = (url: string) => fetchWithTimeout(url, { timeout: 90_000 });
+
+      let upstream = await fetchUpstream(finalUrl);
       if (!upstream.ok) {
         console.error(`[Download] Upstream fetch failed: ${upstream.status} ${upstream.statusText}`);
         return NextResponse.json({ error: 'Failed to fetch asset' }, { status: 502 });

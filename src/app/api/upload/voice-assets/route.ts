@@ -149,11 +149,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Получить публичный URL
-    const { data: publicUrlData } = supabase.storage
-      .from('generations')
-      .getPublicUrl(storagePath);
+    // voice-assets can be private; return a signed URL so generators/providers can fetch it.
+    let url: string | null = null;
+    try {
+      const { data: signedData, error: signedErr } = await supabase.storage
+        .from("generations")
+        .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+      if (!signedErr && signedData?.signedUrl) url = signedData.signedUrl;
+    } catch {
+      // ignore
+    }
 
-    const url = publicUrlData.publicUrl;
+    if (!url) {
+      const { data: publicUrlData } = supabase.storage
+        .from("generations")
+        .getPublicUrl(storagePath);
+      url = publicUrlData.publicUrl;
+    }
 
     console.log('[Voice Upload] Success:', { url });
 

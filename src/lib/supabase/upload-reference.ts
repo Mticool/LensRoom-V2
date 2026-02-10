@@ -23,12 +23,15 @@ export async function uploadReferenceFiles(
 
   const supabase = createClient();
   if (!supabase) {
-    throw new Error("supabase_not_ready");
+    // Common in mis-built/cached client bundles where NEXT_PUBLIC_ vars were not inlined.
+    // Callers will fall back to base64 references.
+    return [];
   }
 
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userData?.user?.id) {
-    throw new Error("user_not_authenticated");
+    // Callers will fall back to base64 references.
+    return [];
   }
 
   const userId = userData.user.id;
@@ -46,8 +49,20 @@ export async function uploadReferenceFiles(
           upsert: true,
         });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("generations").getPublicUrl(path);
-      return pub.publicUrl;
+
+      // References are stored under `${userId}/inputs/` which may be private.
+      // Use a signed URL so external providers can fetch it without Supabase auth headers.
+      try {
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("generations")
+          .createSignedUrl(path, 60 * 60 * 24 * 7); // 7 days
+        if (!signErr && signed?.signedUrl) return signed.signedUrl;
+        // If we cannot create a signed URL, do not fall back to public URL: for private paths it breaks providers.
+        // Throw to let callers fall back to base64 upload.
+        throw signErr || new Error("signed_url_failed");
+      } catch {
+        throw new Error("signed_url_failed");
+      }
     })
   );
 

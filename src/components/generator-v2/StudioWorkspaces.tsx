@@ -13,7 +13,7 @@ import { GeneratorBottomSheet } from "@/components/generator-v2/GeneratorBottomS
 import { ThreadSidebar, type StudioThread } from "@/components/generator-v2/ThreadSidebar";
 import { useAuth } from "@/components/generator-v2/hooks/useAuth";
 import { useHistory } from "@/components/generator-v2/hooks/useHistory";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import type { GenerationResult, GenerationSettings } from "@/components/generator-v2/GeneratorV2";
 import { getModelById } from "@/config/models";
 import { computePrice } from "@/lib/pricing/pricing";
@@ -403,11 +403,28 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     try {
       const isDemo = String(image.id || "").startsWith("demo-");
       const genId = extractGenerationUuid(image.id);
-      const downloadUrl = !isDemo && genId
-        ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original`
-        : image.url;
-      const response = await fetch(downloadUrl, { credentials: "include" });
-      if (!response.ok) throw new Error("download_failed");
+      const fallbackProxyUrl = `/api/media/proxy?url=${encodeURIComponent(String(image.url || ""))}&download=1&filename=${encodeURIComponent(`lensroom-${image.id}`)}`;
+      const primaryUrl = !isDemo && genId
+        ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original&proxy=1&download=1`
+        : fallbackProxyUrl;
+
+      let response = await fetch(primaryUrl, { credentials: "include" });
+      if (!response.ok) {
+        // If user is not the owner (e.g., inspiration/public cards) or cookies are missing,
+        // fallback to a tightly scoped proxy to avoid opening new tabs.
+        response = await fetch(fallbackProxyUrl, { credentials: "include" });
+      }
+      if (!response.ok) {
+        // Last resort: let browser handle download endpoint directly (same-tab).
+        const a = document.createElement("a");
+        a.href = primaryUrl;
+        a.download = "";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        throw new Error("download_failed");
+      }
       const blob = await response.blob();
       const mime = String(blob.type || "").toLowerCase();
       const preferred = String(image.settings?.outputFormat || "").toLowerCase();
@@ -428,9 +445,6 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       window.URL.revokeObjectURL(url);
       toast.success("Изображение скачано");
     } catch {
-      try {
-        window.open(image.url, "_blank");
-      } catch {}
       toast.error("Ошибка при скачивании");
     }
   }, [viewerImage]);
@@ -500,10 +514,15 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
     async (image: GenerationResult): Promise<string> => {
       const isDemo = String(image.id || "").startsWith("demo-");
       const genId = extractGenerationUuid(image.id);
-      const url = !isDemo && genId
+      const primaryUrl = !isDemo && genId
         ? `/api/generations/${encodeURIComponent(genId)}/download?kind=original&proxy=1`
         : image.url;
-      const resp = await fetchWithTimeout(url, { timeout: 30_000, credentials: "include" });
+      const fallbackProxyUrl = `/api/media/proxy?url=${encodeURIComponent(String(image.url || ""))}`;
+
+      let resp = await fetchWithTimeout(primaryUrl, { timeout: 90_000, credentials: "include" });
+      if (!resp.ok && image.url) {
+        resp = await fetchWithTimeout(fallbackProxyUrl, { timeout: 90_000, credentials: "include" });
+      }
       if (!resp.ok) throw new Error("download_failed");
       const blob = await resp.blob();
       return await readBlobAsDataUrl(blob);
@@ -622,7 +641,7 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       if (extraParams && Object.keys(extraParams).length > 0) body.params = extraParams;
 
       const resp = await fetchWithTimeout(endpoint, {
-        timeout: 30_000,
+        timeout: 90_000,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -1002,6 +1021,7 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
       return;
     }
     try {
+      // Use a data URL so server-side generation doesn't depend on auth cookies to fetch `/api/generations/.../download`.
       const dataUrl = await fetchGenerationAsDataUrl(image);
       setReferenceImages([dataUrl]);
       setPrompt(String(image.prompt || ""));
@@ -1312,7 +1332,8 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
             ref={mobileGalleryRef}
             className="flex-1 overflow-y-auto min-h-0"
             style={{
-              paddingBottom: "calc(220px + env(safe-area-inset-bottom, 0px))",
+              // Give enough space for the fixed bottom sheet even when advanced settings are expanded.
+              paddingBottom: "calc(var(--studio-bottomsheet-h, 180px) + env(safe-area-inset-bottom, 0px))",
             }}
           >
             <ImageGalleryMasonry
@@ -1320,6 +1341,9 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
               isGenerating={false}
               layout="grid"
               fullWidth
+              // Mobile: make gallery feel more fullscreen by showing slightly larger tiles.
+              galleryZoom={1.15}
+              mobileEdgeToEdge
               autoScrollToBottom
               autoScrollBehavior="always"
               onImageClick={(img) => {
@@ -1383,7 +1407,7 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
 
         {/* Desktop: full-screen gallery with zoom */}
         <div className="hidden md:flex flex-col flex-1 min-h-0">
-          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pb-44">
+          <div ref={desktopGalleryRef} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 pb-[90px]">
             <ImageGalleryMasonry
               images={effectiveImages}
               isGenerating={false}
@@ -1421,6 +1445,9 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
             onGalleryZoomChange={setGalleryZoom}
             prompt={prompt}
             onPromptChange={setPrompt}
+            onModelChange={(id) => {
+              router.push(`/create/studio${buildSearchParams(searchParams, { model: id, section: "photo" })}`, { scroll: false });
+            }}
             aspectRatio={aspectRatio}
             onAspectRatioChange={(v) => setAspectRatio(normalizeAspect(v) || "1:1")}
             quality={qualityLabel}
@@ -1460,6 +1487,10 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
             className="max-w-none max-h-[calc(100vh-2rem)] p-0 gap-0 border border-white/10 bg-[#0B0B0C] shadow-2xl overflow-hidden"
             style={{ width: 'min(96vw, 1200px)' }}
           >
+            <DialogTitle className="sr-only">Просмотр результата</DialogTitle>
+            <DialogDescription className="sr-only">
+              Просмотр изображения и действия: скачать, поделиться, добавить в избранное или использовать как референс.
+            </DialogDescription>
             <div className="flex flex-col md:flex-row items-stretch">
               <div
                 className="relative flex items-center justify-center md:flex-1 bg-black"

@@ -6,7 +6,7 @@
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
-import { getKieClient } from '@/lib/api/kie-client';
+import { getKieClient, pickKieKeySlot } from '@/lib/api/kie-client';
 import {
   sendMessage,
   sendVideo,
@@ -113,7 +113,10 @@ ${model.emoji} ${model.name}
     }
 
     // Generate
-    const kieClient = getKieClient();
+    const pool = String(process.env.KIE_API_KEY_VIDEO_POOL || "").trim();
+    const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+    const slot = pickKieKeySlot("video", poolSize);
+    const kieClient = getKieClient({ scope: "video", slot });
     if (!kieClient) {
       await editMessageText(chatId, statusMsg!.message_id, '❌ Сервис временно недоступен');
       return;

@@ -9,6 +9,19 @@ import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeou
  */
 export async function POST(request: NextRequest) {
   try {
+    const providedSecret =
+      (request.headers.get("x-sync-secret") || "").trim() ||
+      (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+    const expectedSecret =
+      (env.optional("KIE_MANUAL_SYNC_SECRET") || "").trim() ||
+      (env.optional("KIE_CALLBACK_SECRET") || "").trim();
+    if (!expectedSecret) {
+      return NextResponse.json({ error: "Manual sync disabled" }, { status: 403 });
+    }
+    if (!providedSecret || providedSecret !== expectedSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { taskId } = await request.json();
     
     if (!taskId) {
@@ -140,4 +153,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -168,8 +168,15 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
       // Otherwise, use normal single-URL logic
       const assetUrl = getAssetUrl(gen);
 
+      const isVideo = String(gen.type || "").toLowerCase() === "video";
+      const posterUrl =
+        typeof (gen as any).poster_url === "string" && (gen as any).poster_url.trim().length
+          ? String((gen as any).poster_url).trim()
+          : "";
+
       // For previewUrl, prefer preview_url, then assetUrl, then download endpoint with proxy
-      let previewUrl = gen.preview_url || assetUrl;
+      // For videos: prefer poster_url (static poster) so history doesn't show black <video> frames.
+      let previewUrl = isVideo ? posterUrl : (gen.preview_url || assetUrl);
       if (!previewUrl && gen.id && gen.status === 'success') {
         // Use download endpoint with proxy=1 to get direct image data
         previewUrl = `/api/generations/${encodeURIComponent(gen.id)}/download?kind=preview&proxy=1`;
@@ -201,7 +208,8 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
           negativePrompt: gen.negative_prompt || undefined,
         } as GenerationSettings,
         timestamp: new Date(gen.created_at).getTime(),
-        previewUrl: previewUrl || finalUrl, // Ensure previewUrl is always set if we have any URL
+        // For videos, do not fall back to the mp4 URL as preview (it renders as a black tile).
+        previewUrl: isVideo ? previewUrl : (previewUrl || finalUrl),
         status: gen.status,
       }];
     }).filter((r) => {
@@ -230,6 +238,8 @@ export function useHistory(mode: GeneratorMode, modelId?: string, threadId?: str
           qs.set("type", type);
           qs.set("limit", String(PAGE_SIZE));
           qs.set("offset", "0");
+          // Best-effort backfill: generate missing video posters in background (small, capped on server).
+          if (type === "video") qs.set("ensure_posters", "1");
           if (modelId) qs.set("model_id", modelId);
           if (threadId) qs.set("thread_id", threadId);
           return `/api/generations?${qs.toString()}`;

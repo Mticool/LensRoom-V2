@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKieClient } from '@/lib/api/kie-client';
 import { integrationNotConfigured } from "@/lib/http/integration-error";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * Get 1080p version of Veo video
@@ -11,17 +12,6 @@ export async function GET(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
-    let kieClient: any;
-    try {
-      kieClient = getKieClient();
-    } catch (e) {
-      return integrationNotConfigured("kie", [
-        "KIE_API_KEY",
-        "KIE_CALLBACK_SECRET",
-        "KIE_CALLBACK_URL",
-      ]);
-    }
-
     const { taskId } = await params;
 
     if (!taskId) {
@@ -29,6 +19,30 @@ export async function GET(
         { error: 'Task ID is required' },
         { status: 400 }
       );
+    }
+
+    // Use the same KIE key slot that created this task, if we can find it.
+    const supabase = getSupabaseAdmin();
+    const { data: dbGen } = await supabase
+      .from("generations")
+      .select("metadata")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const slot = (() => {
+      const meta = (dbGen as any)?.metadata || {};
+      const n = Number(meta?.kie_key_slot);
+      return Number.isFinite(n) ? n : null;
+    })();
+
+    let kieClient: any;
+    try {
+      kieClient = getKieClient({ scope: "video", slot });
+    } catch (e) {
+      return integrationNotConfigured("kie", [
+        "KIE_API_KEY",
+      ]);
     }
 
     // Get 1080p video from Veo API
@@ -59,5 +73,3 @@ export async function GET(
     );
   }
 }
-
-

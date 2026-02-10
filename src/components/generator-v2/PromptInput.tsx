@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,43 +19,21 @@ export function PromptInput({
   disabled = false,
   onSubmit
 }: PromptInputProps) {
-  const [localValue, setLocalValue] = useState(value);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Update local value when prop changes
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
-  // Debounced onChange
-  const handleChange = (newValue: string) => {
-    setLocalValue(newValue);
-    
-    // Clear previous timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
-    // Set new timer (300ms debounce)
-    debounceTimerRef.current = setTimeout(() => {
-      onChange(newValue);
-    }, 300);
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl/Cmd + Enter to submit
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && onSubmit) {
+    if (!onSubmit) return;
+
+    // Ctrl/Cmd + Enter always submits.
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      onSubmit();
+      return;
+    }
+
+    // Enter submits; Shift+Enter inserts a newline.
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
     }
@@ -67,23 +45,24 @@ export function PromptInput({
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [localValue]);
+  }, [value]);
 
   return (
     <div className="relative flex-1">
       <textarea
         ref={textareaRef}
-        value={localValue}
-        onChange={(e) => handleChange(e.target.value)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
+        data-testid="studio-prompt-textarea"
         className={cn(
           "w-full px-4 py-3 pr-10 rounded-lg resize-none overflow-hidden",
           "bg-[#1a1a1a] text-white placeholder:text-gray-500",
           "border border-[#2a2a2a] focus:border-[#f59e0b] focus:outline-none",
-          "transition-all duration-200",
+          "transition-colors duration-200 transition-[height] duration-150 ease-out",
           "min-h-[44px] max-h-[120px]",
           disabled && "opacity-50 cursor-not-allowed"
         )}

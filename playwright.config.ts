@@ -7,7 +7,7 @@ export default defineConfig({
   timeout: 120_000,
   expect: { timeout: 15_000 },
   // Next dev server is heavy; fewer workers reduces flakes/timeouts.
-  workers: 2,
+  workers: 1,
   use: {
     baseURL,
     trace: 'retain-on-failure',

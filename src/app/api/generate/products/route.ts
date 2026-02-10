@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getKieClient } from "@/lib/api/kie-client";
+import { getKieClient, pickKieKeySlot } from "@/lib/api/kie-client";
 import { getApiModelId, getPackCost, getSingleCost, PACK_SLIDES_DEFAULT } from "@/config/productImageModes";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 
@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
         prompt: slidePrompts[0] || "product",
         credits_used: totalCost,
         status: "queued",
+        metadata: { kie_key_scope: "photo" },
       })
       .select()
       .single();
@@ -149,12 +150,20 @@ export async function POST(request: NextRequest) {
     const apiModelId = getApiModelId(modelKey);
     let kieClient: any;
     try {
-      kieClient = getKieClient();
+      // Product generation uses photo KIE keys.
+      const pool = String(process.env.KIE_API_KEY_PHOTO_POOL || "").trim();
+      const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+      const kieSlot = pickKieKeySlot("photo", poolSize);
+      if (generation?.id && kieSlot != null) {
+        await supabase
+          .from("generations")
+          .update({ metadata: { ...(generation as any).metadata, kie_key_slot: kieSlot } })
+          .eq("id", generation.id);
+      }
+      kieClient = getKieClient({ scope: "photo", slot: kieSlot });
     } catch (e) {
       return integrationNotConfigured("kie", [
         "KIE_API_KEY",
-        "KIE_CALLBACK_SECRET",
-        "KIE_CALLBACK_URL",
       ]);
     }
 
@@ -199,4 +208,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getKieClient } from "@/lib/api/kie-client";
+import { getKieClient, pickKieKeySlot } from "@/lib/api/kie-client";
 import { PHOTO_MODELS, getModelById } from "@/config/models";
 import { getSkuFromRequest, getPriceStars, calculateTotalStars, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
@@ -24,6 +24,11 @@ import { resolveAspectRatio, logAspectRatioResolution } from '@/lib/api/aspect-r
 import { getImageModelCapability, getDefaultImageParams, validateImageRequest, getAllowedAspectRatios } from '@/lib/imageModels/capabilities';
 import { buildKieImagePayload } from '@/lib/providers/kie/image';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
+import { CircuitOpenError } from "@/lib/server/circuit-breaker";
+
+// Some providers (and large outputs) can be slow to return/download.
+// Keep this above the historical 30s default to avoid user-facing timeouts.
+const PHOTO_UPSTREAM_DOWNLOAD_TIMEOUT_MS = 120_000;
 
 function mimeTypesFromFormats(formats?: Array<'jpeg' | 'png' | 'webp'>): string[] | null {
   if (!formats || formats.length === 0) return null;
@@ -521,8 +526,16 @@ export async function POST(request: NextRequest) {
       modelId: effectiveModelId,
     });
     
-    const insertOnce = async (opts?: { includeParams?: boolean }) => {
-      const includeParams = opts?.includeParams !== false;
+    const omittedCols = new Set<string>();
+
+    const extractMissingColumn = (message: string): string | null => {
+      const m = String(message || "").match(/Could not find the '([^']+)' column/i);
+      return m ? m[1] : null;
+    };
+
+    const insertOnce = async (opts?: { includeParams?: boolean; includeMetadata?: boolean }) => {
+      const includeParams = opts?.includeParams !== false && !omittedCols.has("params");
+      const includeMetadata = opts?.includeMetadata !== false && !omittedCols.has("metadata");
       // Persist minimal generation params for UI (avoid storing large blobs like base64 images).
       const safeClientParams = (() => {
         if (!clientParams || typeof clientParams !== "object") return null;
@@ -571,15 +584,23 @@ export async function POST(request: NextRequest) {
         model_id: effectiveModelId,
         model_name: baseTitle || modelInfo.name,
         prompt: prompt,
-        negative_prompt: negativePrompt,
         credits_used: creditCost,
-        charged_stars: actualCreditCost, // Actual stars charged (may be 0 if included)
-        sku: sku, // SKU for pricing tracking
-        pricing_version: PRICING_VERSION, // Pricing version for audit
         status: "queued",
-        aspect_ratio: finalAspectRatioForDb, // Now saving aspect_ratio (migration applied)
-        thread_id: threadId || null,
       };
+      if (!omittedCols.has("negative_prompt")) payload.negative_prompt = negativePrompt;
+      if (!omittedCols.has("charged_stars")) payload.charged_stars = actualCreditCost; // may be 0 if included
+      if (!omittedCols.has("sku")) payload.sku = sku;
+      if (!omittedCols.has("pricing_version")) payload.pricing_version = PRICING_VERSION;
+      if (!omittedCols.has("aspect_ratio")) payload.aspect_ratio = finalAspectRatioForDb;
+      if (!omittedCols.has("thread_id")) payload.thread_id = threadId || null;
+      let kieSlot: number | null = null;
+      if (includeMetadata && (modelInfo.provider === "kie_market" || modelInfo.provider === "kie_veo")) {
+        // If a key pool is configured, pick a slot round-robin for new tasks.
+        const pool = String(process.env.KIE_API_KEY_PHOTO_POOL || "").trim();
+        const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+        kieSlot = pickKieKeySlot("photo", poolSize);
+        payload.metadata = { kie_key_scope: "photo", ...(kieSlot != null ? { kie_key_slot: kieSlot } : {}) };
+      }
       if (includeParams) payload.params = paramsForDb;
 
       const r = await supabase.from("generations").insert(payload).select().single();
@@ -587,27 +608,47 @@ export async function POST(request: NextRequest) {
       genError = r.error;
     };
 
-    await insertOnce({ includeParams: true });
-    if (genError) {
+    // Insert with fallback for older DB schemas (missing columns).
+    // PGRST204 is not queued and won't fix itself; retry by dropping the missing column.
+    let includeParams = true;
+    let includeMetadata = true;
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      await insertOnce({ includeParams, includeMetadata });
+      if (!genError) break;
+
       const code = genError?.code ? String(genError.code) : "";
       const msg = genError?.message ? String(genError.message) : String(genError);
 
-      // Backward compatibility: production DB may not have `generations.params` yet.
-      // PostgREST: PGRST204 "Could not find the 'params' column ..."
-      if (code === "PGRST204" && /params/i.test(msg)) {
-        await insertOnce({ includeParams: false });
+      if (code === "PGRST204") {
+        const missing = extractMissingColumn(msg);
+        if (missing && !omittedCols.has(missing)) {
+          omittedCols.add(missing);
+          continue;
+        }
+        // If we can't parse, fall back to common offenders.
+        if (/metadata/i.test(msg) && !omittedCols.has("metadata")) {
+          omittedCols.add("metadata");
+          continue;
+        }
+        if (/params/i.test(msg) && !omittedCols.has("params")) {
+          omittedCols.add("params");
+          includeParams = false;
+          continue;
+        }
       }
 
       // Common root cause: FK violation to profiles.id (23503). Retry after ensuring profile.
       if (code === "23503" || /foreign key/i.test(msg)) {
         try {
           await ensureProfileExists(supabase, userId);
-          await insertOnce({ includeParams: true });
+          continue;
         } catch (e) {
-          // keep original error below if still failing
           console.error("[API] Retry after ensureProfileExists failed:", e);
         }
       }
+
+      // Non-retryable (or retries exhausted).
+      break;
     }
 
     if (genError) {
@@ -685,7 +726,16 @@ export async function POST(request: NextRequest) {
         .from('generations')
         .upload(path, buffer, { contentType: mime, upsert: true });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('generations').getPublicUrl(path);
+      // Inputs can be private. Return a signed URL so providers can fetch it.
+      try {
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("generations")
+          .createSignedUrl(path, 60 * 60 * 24 * 7);
+        if (!signErr && signed?.signedUrl) return signed.signedUrl;
+      } catch {
+        // ignore
+      }
+      const { data: pub } = supabase.storage.from("generations").getPublicUrl(path);
       return pub.publicUrl;
     };
 
@@ -917,7 +967,7 @@ export async function POST(request: NextRequest) {
 
         // Download and upload images to our storage
         const uploadPromises = imageUrls.map(async (imageUrl, index) => {
-          const dl = await fetchWithTimeout(imageUrl, { timeout: 30_000 });
+          const dl = await fetchWithTimeout(imageUrl, { timeout: PHOTO_UPSTREAM_DOWNLOAD_TIMEOUT_MS });
           if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
           const sourceBuffer = Buffer.from(await dl.arrayBuffer());
           return await uploadGeneratedImageBuffer(sourceBuffer, `genaipro_${index}`, requestedOutputFormat);
@@ -1005,7 +1055,12 @@ export async function POST(request: NextRequest) {
     
     // Handle LaoZhang provider (Nano Banana / Nano Banana Pro)
     if (modelInfo.provider === 'laozhang') {
-      const { getLaoZhangClient, getLaoZhangModelId, aspectRatioToLaoZhangSize, resolutionToLaoZhangSize } = await import("@/lib/api/laozhang-client");
+      const {
+        getLaoZhangClient,
+        getLaoZhangModelId,
+        aspectRatioToLaoZhangSize,
+        resolutionToLaoZhangSize,
+      } = await import("@/lib/api/laozhang-client");
       
       try {
         const laozhangClient = getLaoZhangClient();
@@ -1052,48 +1107,151 @@ export async function POST(request: NextRequest) {
           variants: numVariants,
         });
         
+        const normalizeAspectForNative = (ar: string): string => {
+          const v = String(ar || '').trim();
+          const allowed = new Set(['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '4:5', '5:4', '21:9']);
+          return allowed.has(v) ? v : '1:1';
+        };
+
+        const pickImageSizeForPro = (q: string | null | undefined): "1K" | "2K" | "4K" | undefined => {
+          const s = String(q || '').toLowerCase();
+          if (s === '4k') return '4K';
+          if (s === '2k' || s === '1k_2k' || s === '1k') return '2K';
+          return undefined;
+        };
+
+        const referenceUrlsForLaoZhang = (kieImageInputs || []).filter(Boolean).slice(0, maxRefs);
+
         // Helper function to generate a single image with retries
         const generateSingleImage = async (index: number): Promise<{ url: string; storagePath: string } | null> => {
-          const maxAttempts = 3;
-          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          const isTransientProviderError = (e: any): boolean => {
+            const msg = String(e?.message || e || '').toLowerCase();
+            // LaoZhang sometimes returns 429 "upstream load saturated" (message can be CN).
+            // Treat these as transient and retry with longer backoff.
+            return (
+              msg.includes('429') ||
+              msg.includes('rate limit') ||
+              msg.includes('too many') ||
+              msg.includes('upstream') ||
+              msg.includes('saturat') ||
+              msg.includes('负载') ||
+              msg.includes('饱和') ||
+              msg.includes('稍后') ||
+              msg.includes('请求过于频繁')
+            );
+          };
+
+          const baseAttempts = 3;
+          const maxAttemptsTransient = 7;
+          for (let attempt = 1; attempt <= maxAttemptsTransient; attempt++) {
             try {
               let laozhangResponse;
               
               if (resolvedMode === 'i2i' && referenceForProvider) {
-                console.log('[API] Calling editImage with reference:', {
-                  model: laozhangModelId,
-                  hasImage: !!referenceForProvider,
-                  imageLength: referenceForProvider.length,
-                  imageSize: imageSize,
-                  prompt: prompt.substring(0, 50) + '...',
-                });
-                laozhangResponse = await laozhangClient.editImage({
-                  model: laozhangModelId,
-                  prompt: prompt,
-                  image: referenceForProvider,
-                  n: 1,
-                  size: imageSize,
-                  aspect_ratio: finalAspectRatio,
-                  response_format: "b64_json",
-                });
+                // LaoZhang Gemini image editing is NOT /images/edits for Nano Banana models.
+                // Use:
+                // - nano-banana: /chat/completions with image_url blocks
+                // - nano-banana-pro: /v1beta ...:generateContent (native) for aspect ratios / 2K/4K
+                if (effectiveModelId === 'nano-banana-pro') {
+                  try {
+                    const imgSize = pickImageSizeForPro(finalQuality || finalResolution);
+                    const native = await laozhangClient.editNanoBananaProViaNative({
+                      prompt,
+                      imageUrls: referenceUrlsForLaoZhang.length ? referenceUrlsForLaoZhang : [referenceForProvider],
+                      aspectRatio: normalizeAspectForNative(finalAspectRatio),
+                      imageSize: imgSize,
+                    });
+                    laozhangResponse = { data: [{ b64_json: native.base64 }] };
+                  } catch (e) {
+                    // Some LaoZhang tokens do not allow the v1beta native endpoint; fall back to OpenAI-style /images/edits.
+                    // Important: /images/edits usually supports only square sizes up to 1024.
+                    console.warn('[API] LaoZhang native edit failed; falling back to /images/edits:', e);
+                    laozhangResponse = await laozhangClient.editImage({
+                      model: laozhangModelId,
+                      prompt,
+                      image: referenceForProvider,
+                      n: 1,
+                      size: '1024x1024',
+                      response_format: 'b64_json',
+                    });
+                  }
+                } else {
+                  try {
+                    const chat = await laozhangClient.editNanoBananaViaChat({
+                      prompt,
+                      imageUrls: referenceUrlsForLaoZhang.length ? referenceUrlsForLaoZhang : [referenceForProvider],
+                    });
+                    laozhangResponse = { data: [{ b64_json: chat.base64 }] };
+                  } catch (e) {
+                    console.warn('[API] LaoZhang chat edit failed; falling back to /images/edits:', e);
+                    laozhangResponse = await laozhangClient.editImage({
+                      model: laozhangModelId,
+                      prompt,
+                      image: referenceForProvider,
+                      n: 1,
+                      size: '1024x1024',
+                      response_format: 'b64_json',
+                    });
+                  }
+                }
               } else {
-                laozhangResponse = await laozhangClient.generateImage({
-                  model: laozhangModelId,
-                  prompt: prompt,
-                  n: 1,
-                  size: imageSize,
-                  aspect_ratio: finalAspectRatio,
-                  response_format: "b64_json",
-                });
+                // Text-to-image: prefer LaoZhang docs-recommended endpoints for Gemini image models.
+                // - Chat format: typically square images (1:1)
+                // - Native (v1beta): required for custom aspect ratios and (usually) for 2K/4K output
+                const aspectNative = normalizeAspectForNative(finalAspectRatio);
+                const isSquare = aspectNative === "1:1";
+                const wantsProNative =
+                  effectiveModelId === "nano-banana-pro" &&
+                  (!isSquare || !!pickImageSizeForPro(finalQuality || finalResolution));
+
+                try {
+                  if (wantsProNative) {
+                    const imgSize = pickImageSizeForPro(finalQuality || finalResolution);
+                    const native = await laozhangClient.generateGeminiImageViaNative({
+                      prompt,
+                      model: "gemini-3-pro-image-preview",
+                      aspectRatio: aspectNative,
+                      imageSize: imgSize,
+                    });
+                    laozhangResponse = { data: [{ b64_json: native.base64 }] };
+                  } else if (!isSquare && effectiveModelId === "nano-banana") {
+                    const native = await laozhangClient.generateGeminiImageViaNative({
+                      prompt,
+                      model: "gemini-2.5-flash-image",
+                      aspectRatio: aspectNative,
+                    });
+                    laozhangResponse = { data: [{ b64_json: native.base64 }] };
+                  } else {
+                    // Square: chat format is fastest + simplest.
+                    const chat = await laozhangClient.generateGeminiImageViaChat({
+                      prompt,
+                      model: effectiveModelId === "nano-banana-pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image",
+                    });
+                    laozhangResponse = { data: [{ b64_json: chat.base64 }] };
+                  }
+                } catch (e) {
+                  // Fallback to OpenAI-compatible /images/generations (works for many tokens, but may be limited to 1:1 for some models).
+                  console.warn("[API] LaoZhang chat/native generation failed; falling back to /images/generations:", e);
+                  laozhangResponse = await laozhangClient.generateImage({
+                    model: laozhangModelId,
+                    prompt: prompt,
+                    n: 1,
+                    size: imageSize,
+                    aspect_ratio: finalAspectRatio,
+                    response_format: "b64_json",
+                  });
+                }
               }
 
               const imageUrlFromProvider = laozhangResponse?.data?.[0]?.url;
               const b64Json = laozhangResponse?.data?.[0]?.b64_json;
 
               if (!imageUrlFromProvider && !b64Json) {
-                if (attempt < maxAttempts) {
-                  console.warn(`[API] LaoZhang image ${index + 1} empty, retrying (${attempt}/${maxAttempts})...`);
-                  await new Promise((r) => setTimeout(r, 800));
+                if (attempt < maxAttemptsTransient) {
+                  console.warn(`[API] LaoZhang image ${index + 1} empty, retrying (${attempt}/${maxAttemptsTransient})...`);
+                  // Empty responses are usually transient.
+                  const delay = Math.min(12_000, 800 * attempt);
+                  await new Promise((r) => setTimeout(r, delay));
                   continue;
                 }
                 return null;
@@ -1103,7 +1261,7 @@ export async function POST(request: NextRequest) {
               if (b64Json) {
                 sourceBuffer = Buffer.from(b64Json, "base64");
               } else {
-                const dl = await fetchWithTimeout(imageUrlFromProvider!, { timeout: 30_000 });
+                const dl = await fetchWithTimeout(imageUrlFromProvider!, { timeout: PHOTO_UPSTREAM_DOWNLOAD_TIMEOUT_MS });
                 if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
                 sourceBuffer = Buffer.from(await dl.arrayBuffer());
               }
@@ -1111,13 +1269,19 @@ export async function POST(request: NextRequest) {
               const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, `laozhang_${index}`, requestedOutputFormat);
               return { url: uploaded.publicUrl, storagePath: uploaded.storagePath };
             } catch (err) {
-              if (attempt < maxAttempts) {
-                console.warn(`[API] LaoZhang image ${index + 1} failed, retrying (${attempt}/${maxAttempts})...`, err);
-                await new Promise((r) => setTimeout(r, 800));
-              } else {
-                console.error(`[API] LaoZhang image ${index + 1} failed after ${maxAttempts} attempts:`, err);
-                return null;
+              const transient = isTransientProviderError(err);
+              const allowedAttempts = transient ? maxAttemptsTransient : baseAttempts;
+              if (attempt < allowedAttempts) {
+                const delay = transient ? Math.min(20_000, 1_500 * attempt * attempt) : Math.min(5_000, 800 * attempt);
+                console.warn(
+                  `[API] LaoZhang image ${index + 1} failed (${transient ? 'transient' : 'hard'}), retrying (${attempt}/${allowedAttempts}) in ${delay}ms...`,
+                  err
+                );
+                await new Promise((r) => setTimeout(r, delay));
+                continue;
               }
+              console.error(`[API] LaoZhang image ${index + 1} failed after ${allowedAttempts} attempts:`, err);
+              return null;
             }
           }
           return null;
@@ -1287,7 +1451,7 @@ export async function POST(request: NextRequest) {
             if (b64Json) {
               sourceBuffer = Buffer.from(b64Json, "base64");
             } else {
-              const dl = await fetchWithTimeout(imageUrlFromProvider!, { timeout: 30_000 });
+              const dl = await fetchWithTimeout(imageUrlFromProvider!, { timeout: PHOTO_UPSTREAM_DOWNLOAD_TIMEOUT_MS });
               if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
               sourceBuffer = Buffer.from(await dl.arrayBuffer());
             }
@@ -1409,12 +1573,16 @@ export async function POST(request: NextRequest) {
     // Handle KIE providers
     let kieClient: any;
     try {
-      kieClient = getKieClient();
+      // Use the same key slot used for the generation row (if available).
+      const slotFromMeta =
+        (generation as any)?.metadata && typeof (generation as any).metadata === "object"
+          ? Number((generation as any).metadata.kie_key_slot)
+          : NaN;
+      const slot = Number.isFinite(slotFromMeta) ? slotFromMeta : null;
+      kieClient = getKieClient({ scope: "photo", slot });
     } catch (e) {
       return integrationNotConfigured("kie", [
         "KIE_API_KEY",
-        "KIE_CALLBACK_SECRET",
-        "KIE_CALLBACK_URL",
       ]);
     }
 
@@ -1484,11 +1652,166 @@ export async function POST(request: NextRequest) {
       response = await kieClient.generateImage(payload);
     } catch (kieError: any) {
       const errMsg = kieError?.message || "KIE API error";
+      const isPermission =
+        /you do not have access permissions/i.test(String(errMsg)) ||
+        /access\s+permission/i.test(String(errMsg)) ||
+        (String(errMsg).toLowerCase().includes("permission") && String(errMsg).toLowerCase().includes("access"));
+      const isInsufficient =
+        /insufficient/i.test(String(errMsg)) ||
+        /balance/i.test(String(errMsg)) ||
+        /quota/i.test(String(errMsg)) ||
+        /credits?/i.test(String(errMsg));
+      const isRateLimited = typeof kieError?.status === "number" && kieError.status === 429;
+      const isTransient =
+        isRateLimited ||
+        kieError instanceof FetchTimeoutError ||
+        kieError instanceof CircuitOpenError ||
+        /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(String(errMsg)) ||
+        (typeof kieError?.status === "number" && kieError.status >= 500);
       console.error('[API] KIE generateImage error:', {
         message: kieError?.message,
         code: kieError?.code,
         errorCode: kieError?.errorCode,
       });
+
+      // Pragmatic fallback: if KIE denies by permission for Nano Banana / Nano Banana Pro,
+      // try LaoZhang (if configured) instead of hard-failing. This keeps UX stable when
+      // provider-side entitlements differ.
+      if (isPermission && (effectiveModelId === "nano-banana" || effectiveModelId === "nano-banana-pro")) {
+        try {
+          const { env } = await import("@/lib/env");
+          const hasLaoZhangKey = !!String(env.optional("LAOZHANG_API_KEY") || "").trim();
+          if (hasLaoZhangKey) {
+            const { getLaoZhangClient, getLaoZhangModelId, aspectRatioToLaoZhangSize, resolutionToLaoZhangSize } =
+              await import("@/lib/api/laozhang-client");
+
+            const laozhangClient = getLaoZhangClient();
+            const laozhangModelId = getLaoZhangModelId(effectiveModelId, finalQuality || finalResolution);
+            const size =
+              finalQuality && ["1k", "1k_2k", "2k", "4k"].includes(String(finalQuality).toLowerCase())
+                ? resolutionToLaoZhangSize(finalQuality, finalAspectRatio)
+                : aspectRatioToLaoZhangSize(finalAspectRatio);
+
+            const numVariants = Math.min(Math.max(Number(finalVariants) || 1, 1), 4);
+            const referenceForLaoZhang = resolvedMode === "i2i" ? (kieImageInputs?.[0] || null) : null;
+
+            console.warn("[API] KIE permission denied; falling back to LaoZhang for", effectiveModelId, {
+              laozhangModelId,
+              size,
+              aspectRatio: finalAspectRatio,
+              variants: numVariants,
+              hasReference: !!referenceForLaoZhang,
+            });
+
+            const generateSingle = async (index: number): Promise<{ url: string; storagePath: string } | null> => {
+              const maxAttempts = 3;
+              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                  const laozhangResponse =
+                    resolvedMode === "i2i" && referenceForLaoZhang
+                      ? await laozhangClient.editImage({
+                          model: laozhangModelId,
+                          prompt,
+                          image: referenceForLaoZhang,
+                          n: 1,
+                          size,
+                          aspect_ratio: finalAspectRatio,
+                          response_format: "b64_json",
+                        })
+                      : await laozhangClient.generateImage({
+                          model: laozhangModelId,
+                          prompt,
+                          n: 1,
+                          size,
+                          aspect_ratio: finalAspectRatio,
+                          response_format: "b64_json",
+                        });
+
+                  const imageUrlFromProvider = laozhangResponse?.data?.[0]?.url;
+                  const b64Json = laozhangResponse?.data?.[0]?.b64_json;
+                  if (!imageUrlFromProvider && !b64Json) {
+                    if (attempt < maxAttempts) {
+                      await new Promise((r) => setTimeout(r, 800));
+                      continue;
+                    }
+                    return null;
+                  }
+
+                  let sourceBuffer: Buffer;
+                  if (b64Json) {
+                    sourceBuffer = Buffer.from(b64Json, "base64");
+                  } else {
+                    const dl = await fetchWithTimeout(imageUrlFromProvider!, { timeout: PHOTO_UPSTREAM_DOWNLOAD_TIMEOUT_MS });
+                    if (!dl.ok) throw new Error(`Failed to download: ${dl.status}`);
+                    sourceBuffer = Buffer.from(await dl.arrayBuffer());
+                  }
+
+                  const uploaded = await uploadGeneratedImageBuffer(sourceBuffer, `laozhang_fallback_${index}`, requestedOutputFormat);
+                  return { url: uploaded.publicUrl, storagePath: uploaded.storagePath };
+                } catch (e) {
+                  if (attempt < maxAttempts) {
+                    await new Promise((r) => setTimeout(r, 800));
+                    continue;
+                  }
+                  return null;
+                }
+              }
+              return null;
+            };
+
+            const results = await Promise.all(Array.from({ length: numVariants }, (_, i) => generateSingle(i)));
+            const ok = results.filter((r): r is { url: string; storagePath: string } => !!r);
+            if (ok.length) {
+              const finalUrls = ok.map((r) => r.url);
+              const originalPath = ok[0]?.storagePath || null;
+
+              // Update generation record (best-effort)
+              if (generation?.id) {
+                try {
+                  await supabase
+                    .from("generations")
+                    .update({
+                      status: "success",
+                      result_urls: finalUrls,
+                      original_path: originalPath,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", generation.id);
+                } catch (e) {
+                  console.error("[API] Failed to update generation after LaoZhang fallback:", e);
+                }
+              }
+
+              // Best-effort analytics log (keep provider name "laozhang" since it's the upstream).
+              try {
+                await supabase.from("generation_runs").insert({
+                  generation_id: generation?.id,
+                  user_id: userId,
+                  provider: "laozhang",
+                  provider_model: laozhangModelId,
+                  variant_key: finalQuality || "default",
+                  stars_charged: creditCost,
+                  status: "success",
+                });
+              } catch {}
+
+              return NextResponse.json({
+                success: true,
+                jobId: generation?.id,
+                status: "completed",
+                generationId: generation?.id,
+                provider: "laozhang",
+                kind: "image",
+                creditCost,
+                results: finalUrls.map((url) => ({ url })),
+                note: "KIE permission denied; used LaoZhang fallback.",
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[API] LaoZhang fallback attempt failed:", e);
+        }
+      }
 
       // Refund only if we actually charged stars (skip managers/admins and included-by-plan runs)
       if (!skipCredits && !isIncludedByPlan && actualCreditCost > 0) {
@@ -1529,7 +1852,41 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return NextResponse.json({ error: errMsg }, { status: 500 });
+      if (isTransient) {
+        return NextResponse.json(
+          {
+            error: "Сервис генерации временно недоступен. Попробуйте позже.",
+            details: errMsg,
+            errorCode: isRateLimited ? "UPSTREAM_RATE_LIMIT" : "UPSTREAM_UNAVAILABLE",
+          },
+          { status: 503 }
+        );
+      }
+
+      if (isPermission) {
+        return NextResponse.json(
+          {
+            error:
+              "Upstream отказал по правам (permission). Проверьте, что ваш ключ KIE имеет доступ к модели и включён биллинг/план для Nano Banana Pro.",
+            details: errMsg,
+            errorCode: "UPSTREAM_PERMISSION",
+          },
+          { status: 403 }
+        );
+      }
+
+      if (isInsufficient) {
+        return NextResponse.json(
+          {
+            error: "Недостаточно средств/квоты у провайдера. Проверьте баланс и лимиты ключа.",
+            details: errMsg,
+            errorCode: "UPSTREAM_INSUFFICIENT",
+          },
+          { status: 402 }
+        );
+      }
+
+      return NextResponse.json({ error: errMsg, errorCode: "UPSTREAM_ERROR" }, { status: 500 });
     }
 
     // Attach task_id to DB record so callbacks / sync can find it reliably
@@ -1558,8 +1915,9 @@ export async function POST(request: NextRequest) {
     console.error("[API] Photo generation error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     const isTimeout = error instanceof FetchTimeoutError;
+    const isRateLimited = typeof (error as any)?.status === "number" && Number((error as any).status) === 429;
     return NextResponse.json(
-      { error: message, errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR" },
+      { error: message, errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : isRateLimited ? "UPSTREAM_RATE_LIMIT" : "INTERNAL_ERROR" },
       { status: isTimeout ? 504 : 500 }
     );
   }

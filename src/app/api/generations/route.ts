@@ -58,6 +58,9 @@ export async function GET(request: NextRequest) {
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 50;
     const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
     const sync = searchParams.get("sync") === "true";
+    const ensurePosters =
+      searchParams.get("ensure_posters") === "1" ||
+      searchParams.get("ensure_posters") === "true";
     const fallbackSyncEnabled = env.bool("KIE_FALLBACK_SYNC");
 
     const buildQuery = (select: string, opts?: { ignoreThreadFilter?: boolean }) => {
@@ -96,6 +99,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Best-effort backfill of missing video posters (used by Studio history to avoid black thumbnails).
+    // Capped to keep CPU/ffmpeg pressure low.
+    if (ensurePosters && Array.isArray(data) && data.length) {
+      const supabaseAdmin = getSupabaseAdmin();
+      const candidates = (data as any[])
+        .filter((g) => {
+          const isVideo = String(g.type || "").toLowerCase() === "video";
+          const st = String(g.status || "").toLowerCase();
+          const previewStatus = String(g.preview_status || "none").toLowerCase();
+          const missingPoster = !g.poster_path;
+          const isOk = st === "success" || st === "completed";
+          const notBusy = previewStatus !== "processing";
+          return isVideo && isOk && missingPoster && notBusy && !!g.task_id;
+        })
+        .slice(0, 3);
+
+      for (const g of candidates) {
+        try {
+          // This will short-circuit into the "terminal status" branch and enqueue poster generation.
+          await syncKieTaskToDb({ supabase: supabaseAdmin, taskId: String(g.task_id) });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.warn("[Generations API] ensure_posters sync error:", g.task_id, msg);
+        }
+      }
+    }
+
     // Optional best-effort server-side fallback syncing (auth-protected).
     if (sync && fallbackSyncEnabled && Array.isArray(data) && data.length) {
       const supabaseAdmin = getSupabaseAdmin();
@@ -120,10 +150,36 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Add public URLs for preview/poster when stored in Supabase Storage.
+    // Studio history expects a thumbnail URL for videos; without it the UI shows black frames.
+    const generations = (data || []).map((g: any) => {
+      const out: any = { ...g };
+
+      try {
+        if (!out.preview_url && out.preview_path) {
+          const { data: pub } = supabase.storage.from("generations").getPublicUrl(String(out.preview_path));
+          out.preview_url = pub?.publicUrl || out.preview_url || null;
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (!out.poster_url && out.poster_path) {
+          const { data: pub } = supabase.storage.from("generations").getPublicUrl(String(out.poster_path));
+          out.poster_url = pub?.publicUrl || out.poster_url || null;
+        }
+      } catch {
+        // ignore
+      }
+
+      return out;
+    });
+
     return NextResponse.json(
       {
-        generations: data || [],
-        count: data?.length || 0,
+        generations,
+        count: generations.length,
       },
       {
         headers: {

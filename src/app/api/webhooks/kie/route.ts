@@ -39,27 +39,61 @@ export async function POST(request: NextRequest) {
     
     // Try to extract URLs directly from webhook payload
     let resultUrls: string[] = [];
+
+    const normalizeUrls = (v: any): string[] => {
+      if (!v) return [];
+      if (typeof v === "string") return v ? [v] : [];
+      if (Array.isArray(v)) {
+        const out: string[] = [];
+        for (const item of v) {
+          if (typeof item === "string" && item) out.push(item);
+          else if (item && typeof item === "object") {
+            const s =
+              (item as any).url ||
+              (item as any).audio_url ||
+              (item as any).audioUrl ||
+              (item as any).imageUrl ||
+              (item as any).videoUrl;
+            if (typeof s === "string" && s) out.push(s);
+          }
+        }
+        return out;
+      }
+      if (typeof v === "object") {
+        const s =
+          (v as any).url ||
+          (v as any).audio_url ||
+          (v as any).audioUrl ||
+          (v as any).imageUrl ||
+          (v as any).videoUrl;
+        return typeof s === "string" && s ? [s] : [];
+      }
+      return [];
+    };
     
     // Check for URLs in various formats
     if (data?.resultJson) {
       try {
         const parsed = JSON.parse(data.resultJson);
-        if (parsed?.resultUrls) resultUrls = parsed.resultUrls;
-        else if (parsed?.outputs) resultUrls = parsed.outputs;
-        else if (Array.isArray(parsed)) resultUrls = parsed;
+        if (parsed?.resultUrls) resultUrls = normalizeUrls(parsed.resultUrls);
+        else if (parsed?.outputs) resultUrls = normalizeUrls(parsed.outputs);
+        else if (Array.isArray(parsed)) resultUrls = normalizeUrls(parsed);
+        else resultUrls = normalizeUrls(parsed);
       } catch {
         // Try regex extraction
-        const urlMatches = data.resultJson.match(/https?:\/\/[^\s"'\\<>]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm)[^\s"'\\<>]*/gi);
+        const urlMatches = data.resultJson.match(/https?:\/\/[^\s"'\\<>]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm|mp3|wav|ogg|m4a|aac|flac)[^\s"'\\<>]*/gi);
         if (urlMatches) resultUrls = urlMatches;
       }
     }
     
     // Also check for direct URL fields
-    if (!resultUrls.length && data?.resultUrls) resultUrls = Array.isArray(data.resultUrls) ? data.resultUrls : [data.resultUrls];
-    if (!resultUrls.length && data?.outputs) resultUrls = Array.isArray(data.outputs) ? data.outputs : [data.outputs];
-    if (!resultUrls.length && data?.url) resultUrls = [data.url];
-    if (!resultUrls.length && data?.imageUrl) resultUrls = [data.imageUrl];
-    if (!resultUrls.length && data?.videoUrl) resultUrls = [data.videoUrl];
+    if (!resultUrls.length && data?.resultUrls) resultUrls = normalizeUrls(data.resultUrls);
+    if (!resultUrls.length && data?.outputs) resultUrls = normalizeUrls(data.outputs);
+    if (!resultUrls.length && data?.url) resultUrls = normalizeUrls(data.url);
+    if (!resultUrls.length && data?.imageUrl) resultUrls = normalizeUrls(data.imageUrl);
+    if (!resultUrls.length && data?.videoUrl) resultUrls = normalizeUrls(data.videoUrl);
+    if (!resultUrls.length && data?.audioUrl) resultUrls = normalizeUrls(data.audioUrl);
+    if (!resultUrls.length && data?.audio_url) resultUrls = normalizeUrls(data.audio_url);
     
     // If we have URLs from webhook, update DB directly
     if (resultUrls.length > 0 && data?.state === 'success') {
@@ -126,5 +160,4 @@ export async function GET() {
     message: "KIE webhook endpoint is active" 
   });
 }
-
 

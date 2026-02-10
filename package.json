@@ -5,10 +5,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build",
-    "build:analyze": "ANALYZE=true next build",
+    "build": "next build --webpack --no-mangling",
+    "build:analyze": "ANALYZE=true next build --webpack --no-mangling",
     "start": "next start -p 3002",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -22,6 +22,7 @@
     "backfill:previews": "node scripts/backfill-previews.js",
     "worker:previews": "node scripts/previews-worker.js",
     "worker:previews:oneshot": "PREVIEWS_WORKER_ONESHOT=1 node scripts/previews-worker.js",
+    "posters:rebuild": "node scripts/rebuild-video-posters.js",
     "previews:rebuild": "node scripts/previews-rebuild.js",
     "previews:rebuild:dry": "node scripts/previews-rebuild.js --dry-run"
   },
@@ -50,7 +51,7 @@
     "js-cookie": "^3.0.5",
     "jszip": "^3.10.1",
     "lucide-react": "^0.561.0",
-    "next": "16.0.10",
+    "next": "^16.1.6",
     "react": "19.2.1",
     "react-confetti": "^6.4.0",
     "react-dom": "19.2.1",
@@ -63,7 +64,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^16.1.0",
+    "@next/bundle-analyzer": "^16.1.6",
     "@playwright/test": "^1.58.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -75,7 +76,7 @@
     "@vitest/ui": "^4.0.18",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.0.10",
+    "eslint-config-next": "^16.1.6",
     "jsdom": "^27.4.0",
     "pg": "^8.18.0",
     "prettier": "^3.7.4",

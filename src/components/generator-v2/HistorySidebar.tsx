@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { Clock, X, Copy, Repeat, Image, Film, Loader2, RefreshCw, Bell, Star, ChevronRight, Edit, Sparkles } from 'lucide-react';
 import { GenerationResult } from './GeneratorV2';
 
+const isProbablyVideoUrl = (url: string | undefined | null) => {
+  const u = String(url || "").toLowerCase();
+  if (!u) return false;
+  return u.includes(".mp4") || u.includes(".webm") || u.includes(".mov") || u.includes("kind=original");
+};
+
 // Helper to get thumbnail dimensions based on aspect ratio
 const getThumbnailDimensions = (aspectRatio: string | undefined): { width: number; height: number; className: string } => {
   const normalize = (value: string | undefined) => {
@@ -212,11 +218,20 @@ export function HistorySidebar({ isOpen, history, onSelect, onClose, onCopyPromp
                     <div className={`relative ${thumbnailDims.className} rounded-md bg-[#27272A] overflow-hidden flex-shrink-0`}>
                       {result.previewUrl || result.url ? (
                         result.mode === 'video' ? (
-                          <video
-                            src={result.url}
-                            className="w-full h-full object-cover"
-                            muted
-                          />
+                          // Use poster/preview image for the grid. Rendering many <video> tags without
+                          // posters often shows black frames and wastes bandwidth.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          !isProbablyVideoUrl(result.previewUrl) ? (
+                            <img
+                              src={result.previewUrl || ''}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Film className="w-5 h-5 text-[#3F3F46]" />
+                            </div>
+                          )
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img

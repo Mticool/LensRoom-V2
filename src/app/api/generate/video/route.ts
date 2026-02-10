@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getAuthUserId } from '@/lib/telegram/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { getKieClient } from '@/lib/api/kie-client';
+import { getKieClient, pickKieKeySlot } from '@/lib/api/kie-client';
 import { getFalClient } from '@/lib/api/fal-client';
 import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/models';
 import { getSkuFromRequest, calculateTotalStars, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
@@ -22,10 +22,12 @@ import { VideoGenerationRequestSchema, validateAgainstCapability } from '@/lib/v
 import { getModelCapability } from '@/lib/videoModels/capabilities';
 import { buildKieVideoPayload } from '@/lib/providers/kie/video';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
+import { CircuitOpenError } from "@/lib/server/circuit-breaker";
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 // Настройка в next.config.ts: experimental.middlewareClientMaxBodySize = '50mb'
-export const maxDuration = 60; // 60 seconds timeout
+// Note: Veo/LaoZhang video generation can take >60s; keep this high enough to avoid platform-level 504s.
+export const maxDuration = 300; // seconds
 export const dynamic = 'force-dynamic';
 
 async function updateGenerationWithRetry(
@@ -673,7 +675,17 @@ export async function POST(request: NextRequest) {
     let generation: any = null;
     let genError: any = null;
 
-    const insertOnce = async () => {
+    const omittedCols = new Set<string>();
+    const extractMissingColumn = (message: string): string | null => {
+      const m = String(message || "").match(/Could not find the '([^']+)' column/i);
+      return m ? m[1] : null;
+    };
+
+    const insertOnce = async (opts?: { includeMetadata?: boolean }) => {
+      const includeMetadata = opts?.includeMetadata !== false && !omittedCols.has("metadata");
+      const pool = String(process.env.KIE_API_KEY_VIDEO_POOL || "").trim();
+      const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+      const kieSlot = pickKieKeySlot("video", poolSize);
       const r = await supabase
         .from("generations")
         .insert({
@@ -683,14 +695,17 @@ export async function POST(request: NextRequest) {
           model_id: model,
           model_name: modelInfo.name,
           prompt: prompt,
-          negative_prompt: negativePrompt,
-          aspect_ratio: aspectRatio,
-          thread_id: threadId || null,
+          ...(omittedCols.has("negative_prompt") ? {} : { negative_prompt: negativePrompt }),
+          ...(omittedCols.has("aspect_ratio") ? {} : { aspect_ratio: aspectRatio }),
+          ...(omittedCols.has("thread_id") ? {} : { thread_id: threadId || null }),
           credits_used: creditCost,
-          charged_stars: creditCost, // Actual stars charged
-          sku: sku, // SKU for pricing tracking
-          pricing_version: PRICING_VERSION, // Pricing version for audit
+          ...(omittedCols.has("charged_stars") ? {} : { charged_stars: creditCost }), // Actual stars charged
+          ...(omittedCols.has("sku") ? {} : { sku }),
+          ...(omittedCols.has("pricing_version") ? {} : { pricing_version: PRICING_VERSION }),
           status: "queued",
+          ...(includeMetadata && (modelInfo.provider === "kie_market" || modelInfo.provider === "kie_veo")
+            ? { metadata: { kie_key_scope: "video", ...(kieSlot != null ? { kie_key_slot: kieSlot } : {}) } }
+            : {}),
         })
         .select()
         .single();
@@ -698,18 +713,36 @@ export async function POST(request: NextRequest) {
       genError = r.error;
     };
 
-    await insertOnce();
-    if (genError) {
+    let includeMetadata = true;
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      await insertOnce({ includeMetadata });
+      if (!genError) break;
+
       const code = genError?.code ? String(genError.code) : "";
       const msg = genError?.message ? String(genError.message) : String(genError);
+
+      if (code === "PGRST204") {
+        const missing = extractMissingColumn(msg);
+        if (missing && !omittedCols.has(missing)) {
+          omittedCols.add(missing);
+          continue;
+        }
+        if (/metadata/i.test(msg) && !omittedCols.has("metadata")) {
+          omittedCols.add("metadata");
+          continue;
+        }
+      }
+
       if (code === "23503" || /foreign key/i.test(msg)) {
         try {
           await ensureProfileExists(supabase, userId);
-          await insertOnce();
+          continue;
         } catch (e) {
           console.error("[API] Retry after ensureProfileExists failed:", e);
         }
       }
+
+      break;
     }
 
     if (genError) {
@@ -780,7 +813,12 @@ export async function POST(request: NextRequest) {
       
       // Вызов KIE veoExtend
       try {
-        const kieClient = getKieClient();
+        const slotFromMeta =
+          (generation as any)?.metadata && typeof (generation as any).metadata === "object"
+            ? Number((generation as any).metadata.kie_key_slot)
+            : NaN;
+        const slot = Number.isFinite(slotFromMeta) ? slotFromMeta : null;
+        const kieClient = getKieClient({ scope: "video", slot });
         
         // Подготовка callback URL (опционально)
         const callbackSecret = process.env.VEO_WEBHOOK_SECRET || process.env.KIE_CALLBACK_SECRET;
@@ -817,6 +855,8 @@ export async function POST(request: NextRequest) {
             task_id: newTaskId,
             status: 'generating',
             metadata: {
+              ...(generation?.metadata || {}),
+              kie_key_scope: "video",
               extend_from: sourceTaskId,
               extend_source_generation_id: sourceGenerationId,
               provider_task_id: newTaskId,
@@ -983,7 +1023,16 @@ export async function POST(request: NextRequest) {
         .from('generations')
         .upload(path, buffer, { contentType: mime, upsert: true });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('generations').getPublicUrl(path);
+      // Inputs can be private. Return a signed URL so providers can fetch it.
+      try {
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("generations")
+          .createSignedUrl(path, 60 * 60 * 24 * 7);
+        if (!signErr && signed?.signedUrl) return signed.signedUrl;
+      } catch {
+        // ignore
+      }
+      const { data: pub } = supabase.storage.from("generations").getPublicUrl(path);
       return pub.publicUrl;
     };
 
@@ -1143,12 +1192,15 @@ export async function POST(request: NextRequest) {
     // Call KIE API with provider info
     let kieClient: any;
     try {
-      kieClient = getKieClient();
+      const slotFromMeta =
+        (generation as any)?.metadata && typeof (generation as any).metadata === "object"
+          ? Number((generation as any).metadata.kie_key_slot)
+          : NaN;
+      const slot = Number.isFinite(slotFromMeta) ? slotFromMeta : null;
+      kieClient = getKieClient({ scope: "video", slot });
     } catch {
       return integrationNotConfigured("kie", [
         "KIE_API_KEY",
-        "KIE_CALLBACK_SECRET",
-        "KIE_CALLBACK_URL",
       ]);
     }
 
@@ -1230,121 +1282,144 @@ export async function POST(request: NextRequest) {
           generationId: generation?.id,
         });
         
-        // Generate video (sync - returns URL directly)
-        // Supports t2v, i2v (with startImageUrl), start_end (with both images), ref2v (with referenceImages)
-        // Prefer base64 when available so LaoZhang does not need to fetch our storage URLs
+        // For production stability: avoid long-running synchronous requests where possible.
+        // LaoZhang async API (/v1/videos) is reliable for text-to-video, and returns an expiring URL via /content.
+        // Multi-reference (-fl) and start/end frames are handled via chat/completions (sync) for feature parity.
         const refsForLaoZhang = referenceImagesForLaoZhang ?? referenceImageUrls;
-        const videoGenResponse = await videoClient.generateVideo({
-          model: videoModelId,
-          prompt: fullPrompt,
-          startImageUrl: startImageUrlForVideo,
-          endImageUrl: endImageUrlForVideo,
-          referenceImages: refsForLaoZhang,
-        });
-        
-        // Upload video to Supabase Storage for permanent storage
-        console.log('[API] Video generation successful from LaoZhang');
-        console.log('[API] Video URL from provider:', videoGenResponse.videoUrl);
+        const hasRefs = Array.isArray(refsForLaoZhang) && refsForLaoZhang.length > 0;
+        const hasFrames = !!startImageUrlForVideo || !!endImageUrlForVideo;
 
-        // Check if we got a valid video URL (not async/taskId response)
-        if (!videoGenResponse.videoUrl) {
-          console.error('[API] LaoZhang returned empty videoUrl - async mode not supported');
-          throw new Error('Video generation returned no URL. Please try again.');
-        }
+        // Use raw data URLs when available (avoids fetching signed storage URLs just to re-upload).
+        const startForLaoZhang =
+          startImage && typeof startImage === "string" && startImage.startsWith("data:")
+            ? startImage
+            : startImageUrlForVideo;
+        const endForLaoZhang =
+          endImage && typeof endImage === "string" && endImage.startsWith("data:")
+            ? endImage
+            : endImageUrlForVideo;
 
-        console.log('[API] Downloading video for storage upload...');
-
-        // Download video and upload to our storage
-        const videoResponse = await fetchWithTimeout(videoGenResponse.videoUrl, { timeout: 90_000 });
-        if (!videoResponse.ok) {
-          throw new Error(`Failed to download video: ${videoResponse.status}`);
-        }
-        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-        const fileName = `video_${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
-        const storagePath = `${userId}/${fileName}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('generations')
-          .upload(storagePath, videoBuffer, {
-            contentType: 'video/mp4',
-            upsert: true
+        // Sync path: multi-reference (-fl) via chat/completions (feature parity).
+        if (hasRefs) {
+          const videoGenResponse = await videoClient.generateVideo({
+            model: videoModelId,
+            prompt: fullPrompt,
+            startImageUrl: startForLaoZhang,
+            endImageUrl: endForLaoZhang,
+            referenceImages: refsForLaoZhang,
           });
-        
-        if (uploadError) {
-          console.error('[API] Failed to upload video to storage:', uploadError);
-          // Use original URL as fallback
+
+          if (!videoGenResponse.videoUrl) {
+            throw new Error('Video generation returned no URL. Please try again.');
+          }
+
+          // Save provider URL as result immediately (avoid download+upload here).
+          await updateGenerationWithRetry(
+            supabase,
+            generation?.id,
+            {
+              status: 'success',
+              result_url: videoGenResponse.videoUrl,
+              result_urls: [videoGenResponse.videoUrl],
+              metadata: {
+                ...(generation?.metadata || {}),
+                provider: 'laozhang',
+                provider_task_id: videoGenResponse.id,
+                provider_model: videoModelId,
+              },
+              updated_at: new Date().toISOString(),
+            },
+            'video_success_laozhang_sync'
+          );
+
+          const stable =
+            generation?.id
+              ? `/api/generations/${encodeURIComponent(String(generation.id))}/download?kind=original&proxy=1`
+              : videoGenResponse.videoUrl;
+
+          return NextResponse.json({
+            success: true,
+            jobId: generation?.id,
+            status: 'completed',
+            generationId: generation?.id,
+            kind: 'video',
+            creditCost: creditCost,
+            resultUrl: stable,
+            videoUrl: stable,
+            results: stable ? [{ url: stable }] : [],
+          });
         }
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('generations')
-          .getPublicUrl(storagePath);
-        
-        const finalVideoUrl = uploadError ? videoGenResponse.videoUrl : publicUrlData.publicUrl;
-        
-        console.log('[API] Video storage upload:', {
-          success: !uploadError,
-          storagePath: uploadError ? 'failed' : storagePath,
-          finalUrl: finalVideoUrl.substring(0, 100),
-          fallbackToProviderUrl: !!uploadError,
+
+        // Async path: text-to-video OR 1-2 reference frames (prevents proxy 504s).
+        // For Veo "First/Last Frame" LaoZhang expects a -fl model (e.g. veo-3.1-fast-fl).
+        const imageUrlsForAsync = [startForLaoZhang, endForLaoZhang].filter(Boolean) as string[];
+        const asyncModelId = (() => {
+          if (!imageUrlsForAsync.length) return videoModelId;
+          if (videoModelId.includes("-fl")) return videoModelId;
+          // Keep it simple: map fast/landscape to -fast-fl, otherwise to -fl.
+          const isLandscape = videoModelId.includes("landscape");
+          const isFast = videoModelId.includes("fast");
+          if (isLandscape && isFast) return "veo-3.1-landscape-fast-fl";
+          if (isLandscape) return "veo-3.1-landscape-fl";
+          if (isFast) return "veo-3.1-fast-fl";
+          return "veo-3.1-fl";
+        })();
+        const task = await videoClient.createVideoTask({
+          model: asyncModelId,
+          prompt: fullPrompt,
+          imageUrls: imageUrlsForAsync,
         });
-        
-        // Update generation record with success
-        console.log('[API] Updating generation record:', {
-          generationId: generation?.id,
-          status: 'success',
-          resultUrl: finalVideoUrl.substring(0, 100),
-        });
-        
+
+        response = {
+          id: task.id,
+          status: task.status || 'queued',
+          estimatedTime: 120,
+          provider: 'laozhang',
+        };
+
+        // Persist some LaoZhang metadata for polling/debugging.
         await updateGenerationWithRetry(
           supabase,
           generation?.id,
           {
-            status: 'success',
-            result_urls: [finalVideoUrl],
             metadata: {
               ...(generation?.metadata || {}),
-              provider_task_id: videoGenResponse.id,
+              provider: 'laozhang',
+              provider_model: videoModelId,
+              provider_task_id: task.id,
             },
             updated_at: new Date().toISOString(),
           },
-          'video_success'
+          'laozhang_task_meta'
         );
-        
-        // Log generation run
-        try {
-          await supabase.from('generation_runs').insert({
-            generation_id: generation?.id,
-            user_id: userId,
-            provider: 'video',
+
+        // Keep local copy in sync so the generic "task_id" update below doesn't clobber metadata.
+        if (generation && typeof generation === "object") {
+          generation.metadata = {
+            ...(generation.metadata || {}),
+            provider: "laozhang",
             provider_model: videoModelId,
-            variant_key: `${quality || 'default'}_${aspectRatio || '16:9'}`,
-            stars_charged: creditCost,
-            status: 'success',
-          });
-        } catch (logError) {
-          console.error('[API] Failed to log generation run:', logError);
+            provider_task_id: task.id,
+          };
         }
-        
-        // Return completed status (no polling needed)
-        return NextResponse.json({
-          success: true,
-          jobId: generation?.id,
-          status: 'completed',
-          generationId: generation?.id,
-          kind: 'video',
-          creditCost: creditCost,
-          resultUrl: finalVideoUrl,
-          videoUrl: finalVideoUrl,
-          results: [{ url: finalVideoUrl }],
-        });
       } catch (videoError: any) {
         console.error('[API] Video generation failed:', videoError);
         
-        // Refund credits on error
-        await supabase.rpc('adjust_credits', {
-          p_user_id: userId,
-          p_amount: creditCost,
-        });
+        // Refund credits on error (best-effort, idempotent)
+        if (generation?.id && !skipCredits && creditCost > 0) {
+          try {
+            await refundCredits(
+              supabase,
+              userId,
+              generation.id,
+              creditCost,
+              'laozhang_api_error',
+              { error: videoError?.message || String(videoError), model }
+            );
+          } catch (e) {
+            console.error('[API] LaoZhang refund failed:', e);
+          }
+        }
         
         // Update generation status
         await supabase
@@ -1533,102 +1608,172 @@ export async function POST(request: NextRequest) {
 
         response = await kieClient.generateVideo(kiePayload);
       } catch (error: any) {
-      // Обработка ошибки политики контента Google Veo
-      const errorMessage = error?.message || String(error);
-      const isContentPolicyError = 
-        errorMessage.includes('content policy') ||
-        errorMessage.includes('violating content policies') ||
-        errorMessage.includes('Rejected by Google');
-      
-      if (isContentPolicyError && modelInfo.provider === 'kie_veo') {
-        console.warn('[API] Veo content policy error, trying fallback model:', errorMessage);
-        
-        // Fallback на Kling 2.6 (более лояльная модерация)
-        const fallbackModel = VIDEO_MODELS.find(m => 
-          m.id === 'kling' && m.supportsI2v === (mode === 'i2v')
-        );
-        
-        if (fallbackModel) {
-          try {
-            const fallbackVariant = fallbackModel.modelVariants?.[0] || null;
-            const fallbackApiId = (mode === 'i2v' && fallbackVariant?.apiIdI2v) 
-              ? fallbackVariant.apiIdI2v 
-              : fallbackVariant?.apiId || fallbackModel.apiId;
-            
-            console.log('[API] Using fallback model:', fallbackModel.name, fallbackApiId);
-            
-            response = await kieClient.generateVideo({
-              model: fallbackApiId,
-              provider: 'kie_market',
-              prompt: fullPrompt,
-              imageUrl: imageUrl,
-              duration: duration || 5,
-              aspectRatio: aspectRatio,
-              sound: false,
-              mode: mode,
-            });
-            
-            usedFallback = true;
-            
-            // Обновить запись в БД с информацией о fallback
-            if (generation?.id) {
+        const errorMessage = error?.message || String(error);
+        const shouldRefund = Boolean(generation?.id && !skipCredits && creditCost > 0);
+        const markFailedAndRefund = async (reason: string, httpStatus?: number) => {
+          const statusFromError =
+            typeof (error as any)?.status === "number" ? Number((error as any).status) : undefined;
+          if (generation?.id) {
+            try {
               await supabase
-                .from('generations')
-                .update({ 
-                  model_name: `${modelInfo.name} → ${fallbackModel.name} (fallback)`,
-                  metadata: { 
-                    original_model: model,
-                    fallback_reason: 'content_policy',
-                    fallback_model: fallbackModel.id,
-                  }
+                .from("generations")
+                .update({
+                  status: "failed",
+                  error_message: errorMessage,
+                  updated_at: new Date().toISOString(),
+                  metadata: {
+                    ...(generation?.metadata || {}),
+                    fail_reason: reason,
+                    fail_http_status: httpStatus ?? statusFromError,
+                  },
                 })
-                .eq('id', generation.id);
+                .eq("id", generation.id);
+            } catch (e) {
+              console.error("[API] Failed to update generation status on error:", e);
             }
-          } catch (fallbackError) {
-            // Если fallback тоже не сработал, возвращаем ошибку
-            console.error('[API] Fallback model also failed:', fallbackError);
+          }
+
+          if (!shouldRefund || !generation?.id) return;
+          try {
+            const { data: existingRefund } = await supabase
+              .from("credit_transactions")
+              .select("id")
+              .eq("generation_id", generation.id)
+              .eq("type", "refund")
+              .limit(1);
+            if (Array.isArray(existingRefund) && existingRefund.length > 0) return;
+          } catch {
+            // If we can't check idempotently, still attempt a refund (best-effort).
+          }
+
+          await refundCredits(supabase, userId, generation.id, creditCost, reason, {
+            error: errorMessage,
+            model,
+          }).catch((e) => console.error("[API] Refund failed:", e));
+        };
+
+        // Обработка ошибки политики контента Google Veo
+        const isContentPolicyError =
+          errorMessage.includes("content policy") ||
+          errorMessage.includes("violating content policies") ||
+          errorMessage.includes("Rejected by Google");
+
+        if (isContentPolicyError && modelInfo.provider === "kie_veo") {
+          console.warn("[API] Veo content policy error, trying fallback model:", errorMessage);
+
+          // Fallback на Kling 2.6 (более лояльная модерация)
+          const fallbackModel = VIDEO_MODELS.find(
+            (m) => m.id === "kling" && m.supportsI2v === (mode === "i2v")
+          );
+
+          if (fallbackModel) {
+            try {
+              const fallbackVariant = fallbackModel.modelVariants?.[0] || null;
+              const fallbackApiId =
+                mode === "i2v" && fallbackVariant?.apiIdI2v
+                  ? fallbackVariant.apiIdI2v
+                  : fallbackVariant?.apiId || fallbackModel.apiId;
+
+              console.log("[API] Using fallback model:", fallbackModel.name, fallbackApiId);
+
+              response = await kieClient.generateVideo({
+                model: fallbackApiId,
+                provider: "kie_market",
+                prompt: fullPrompt,
+                imageUrl: imageUrl,
+                duration: duration || 5,
+                aspectRatio: aspectRatio,
+                sound: false,
+                mode: mode,
+              });
+
+              usedFallback = true;
+
+              // Обновить запись в БД с информацией о fallback
+              if (generation?.id) {
+                await supabase
+                  .from("generations")
+                  .update({
+                    model_name: `${modelInfo.name} → ${fallbackModel.name} (fallback)`,
+                    metadata: {
+                      ...(generation?.metadata || {}),
+                      original_model: model,
+                      fallback_reason: "content_policy",
+                      fallback_model: fallbackModel.id,
+                    },
+                  })
+                  .eq("id", generation.id);
+              }
+            } catch (fallbackError) {
+              console.error("[API] Fallback model also failed:", fallbackError);
+              await markFailedAndRefund("content_policy_fallback_failed", 400);
+              return NextResponse.json(
+                {
+                  error:
+                    "Промпт был заблокирован политикой контента. Пожалуйста, переформулируйте запрос, избегая насилия, взрослого контента и других запрещённых тем.",
+                  errorCode: "CONTENT_POLICY_VIOLATION",
+                  suggestion:
+                    "Попробуйте описать сцену более нейтрально, без упоминания насилия, оружия или взрослого контента.",
+                },
+                { status: 400 }
+              );
+            }
+          } else {
+            await markFailedAndRefund("content_policy_no_fallback", 400);
             return NextResponse.json(
-              { 
-                error: 'Промпт был заблокирован политикой контента. Пожалуйста, переформулируйте запрос, избегая насилия, взрослого контента и других запрещённых тем.',
-                errorCode: 'CONTENT_POLICY_VIOLATION',
-                suggestion: 'Попробуйте описать сцену более нейтрально, без упоминания насилия, оружия или взрослого контента.',
+              {
+                error:
+                  "Промпт был заблокирован политикой контента. Пожалуйста, переформулируйте запрос.",
+                errorCode: "CONTENT_POLICY_VIOLATION",
+                suggestion:
+                  "Попробуйте описать сцену более нейтрально, избегая запрещённых тем.",
               },
               { status: 400 }
             );
           }
         } else {
-          // Нет доступного fallback
-          return NextResponse.json(
-            { 
-              error: 'Промпт был заблокирован политикой контента. Пожалуйста, переформулируйте запрос.',
-              errorCode: 'CONTENT_POLICY_VIOLATION',
-              suggestion: 'Попробуйте описать сцену более нейтрально, избегая запрещённых тем.',
-            },
-            { status: 400 }
-          );
+          // Любая другая ошибка провайдера: не должна "класть" сайт и не должна оставлять генерацию висеть в queued.
+          await markFailedAndRefund("kie_generate_error");
+          throw error;
         }
-      } else {
-        // Другая ошибка - пробрасываем дальше
-        throw error;
       }
-    }
     } // Close else block for KIE provider
 
-    // Update generation with task ID
+    // Update generation with task ID (must be resilient to older DB schemas missing columns like metadata).
     if (generation?.id) {
-      await updateGenerationWithRetry(
-        supabase,
-        generation?.id,
-        {
+      try {
+        const baseUpdate: any = {
           task_id: response.id,
           status: 'generating',
+          updated_at: new Date().toISOString(),
+        };
+
+        const withMeta: any = {
+          ...baseUpdate,
           metadata: {
             ...(generation?.metadata || {}),
             provider_task_id: response.id,
           },
-        },
-        'task_id'
-      );
+        };
+
+        // First try with metadata; if schema doesn't have metadata, retry without it so task_id is still saved.
+        let { error } = await supabase.from("generations").update(withMeta).eq("id", generation.id);
+        if (error) {
+          const code = String((error as any)?.code || "");
+          const msg = String((error as any)?.message || error);
+          const missingMeta = code === "PGRST204" && /metadata/i.test(msg);
+          if (missingMeta) {
+            ({ error } = await supabase.from("generations").update(baseUpdate).eq("id", generation.id));
+          }
+        }
+
+        if (error) {
+          console.error("[API] task_id update failed (non-fatal):", error);
+        }
+      } catch (e) {
+        // Task may already exist upstream; do not fail the whole request because DB update glitched.
+        console.error("[API] Failed to set task_id after task creation (non-fatal):", e);
+      }
     }
 
     return NextResponse.json({
@@ -1646,12 +1791,19 @@ export async function POST(request: NextRequest) {
     console.error('[API] Video generation error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     const isTimeout = error instanceof FetchTimeoutError;
+    const isRateLimited = typeof (error as any)?.status === "number" && Number((error as any).status) === 429;
+    const isTransient =
+      isRateLimited ||
+      error instanceof CircuitOpenError ||
+      /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(String(message)) ||
+      (typeof (error as any)?.status === "number" && Number((error as any).status) >= 500);
     return NextResponse.json(
       {
-        error: message,
-        errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR",
+        error: isTimeout || isTransient ? "Сервис генерации временно недоступен. Попробуйте позже." : message,
+        details: isTimeout || isTransient ? message : undefined,
+        errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : isRateLimited ? "UPSTREAM_RATE_LIMIT" : isTransient ? "UPSTREAM_UNAVAILABLE" : "INTERNAL_ERROR",
       },
-      { status: isTimeout ? 504 : 500 }
+      { status: isTimeout ? 504 : isTransient ? 503 : 500 }
     );
   }
 }

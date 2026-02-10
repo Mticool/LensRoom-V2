@@ -9,7 +9,8 @@ import { fetchWithTimeout } from './fetch-with-timeout';
 export const LAOZHANG_MODELS = {
   // === IMAGE MODELS ===
   // Nano Banana (Flash - fast generation)
-  NANO_BANANA: "gemini-2.5-flash-image-preview",
+  // Note: preview model is deprecated per LaoZhang docs; use the official release.
+  NANO_BANANA: "gemini-2.5-flash-image",
 
   // Nano Banana Pro (Quality generation)
   NANO_BANANA_PRO: "gemini-3-pro-image-preview",
@@ -120,6 +121,41 @@ export interface LaoZhangError {
   };
 }
 
+// ===== GEMINI IMAGE EDITING HELPERS (LaoZhang docs) =====
+
+type ChatImageBlock = { type: "image_url"; image_url: { url: string } };
+type ChatTextBlock = { type: "text"; text: string };
+
+type LaoZhangChatCompletionsResponse = {
+  choices?: Array<{ message?: { content?: string } }>;
+  error?: LaoZhangError["error"];
+};
+
+function extractBase64FromChatContent(content: string): { base64: string; mime: string } | null {
+  const text = String(content || "");
+  const m1 = text.match(/data:(image\/[^;]+);base64,([A-Za-z0-9+/=]+)/i);
+  if (m1) return { mime: m1[1].toLowerCase(), base64: m1[2] };
+  // Fallback: find any long base64 chunk (sometimes content is just a big base64 string)
+  const m2 = text.match(/([A-Za-z0-9+/=]{500,})/);
+  if (m2) return { mime: "image/png", base64: m2[1] };
+  return null;
+}
+
+function parseDataUrlMimeAndBase64(dataUrl: string): { mime: string; base64: string } | null {
+  const m = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/i);
+  if (!m) return null;
+  return { mime: String(m[1] || "image/png"), base64: String(m[2] || "") };
+}
+
+async function fetchToInlineData(url: string, timeoutMs: number): Promise<{ mime: string; base64: string }> {
+  const res = await fetchWithTimeout(url, { timeout: timeoutMs });
+  if (!res.ok) throw new Error(`Failed to fetch image URL: ${res.status}`);
+  const mime = res.headers.get("content-type") || "image/png";
+  const buf = Buffer.from(await res.arrayBuffer());
+  const base64 = buf.toString("base64");
+  return { mime, base64 };
+}
+
 // Video generation response (sync - chat/completions)
 export interface LaoZhangVideoResponse {
   id: string;
@@ -137,6 +173,7 @@ export interface LaoZhangVideoTaskResponse {
   size?: string;
   created_at?: number;
   video_url?: string;
+  error?: string;
 }
 
 // ===== ASPECT RATIO MAPPING =====
@@ -243,6 +280,7 @@ export function resolutionToLaoZhangSize(
 export class LaoZhangClient {
   private apiKey: string;
   private baseUrl: string;
+  private baseUrlV1beta: string;
 
   constructor(apiKey?: string) {
     const key = apiKey || env.optional("LAOZHANG_API_KEY");
@@ -253,6 +291,234 @@ export class LaoZhangClient {
     }
     this.apiKey = key;
     this.baseUrl = "https://api.laozhang.ai/v1";
+    this.baseUrlV1beta = "https://api.laozhang.ai/v1beta";
+  }
+
+  /**
+   * Nano Banana (Standard) image editing via chat completions.
+   * Docs: https://docs.laozhang.ai/en/api-capabilities/nano-banana-image-edit
+   *
+   * This is NOT the OpenAI /images/edits endpoint.
+   * Returns base64 via markdown content.
+   */
+  async editNanoBananaViaChat(params: {
+    prompt: string;
+    imageUrls: string[];
+    model?: string; // default gemini-2.5-flash-image
+  }): Promise<{ base64: string; mime: string }> {
+    const model = params.model || "gemini-2.5-flash-image";
+    const imageUrls = (params.imageUrls || []).filter(Boolean).slice(0, 8);
+    if (!imageUrls.length) throw new Error("Missing reference image");
+
+    const blocks: Array<ChatTextBlock | ChatImageBlock> = [{ type: "text", text: params.prompt }];
+    for (const u of imageUrls) {
+      blocks.push({ type: "image_url", image_url: { url: u } });
+    }
+
+    const response = await fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [{ role: "user", content: blocks }],
+      }),
+      timeout: 180_000,
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      let msg = response.statusText;
+      try {
+        const j: LaoZhangChatCompletionsResponse = JSON.parse(text);
+        msg = j?.error?.message || msg;
+      } catch {
+        msg = text || msg;
+      }
+      throw new Error(`LaoZhang chat error: ${msg}`);
+    }
+
+    const j: LaoZhangChatCompletionsResponse = JSON.parse(text);
+    const content = String(j?.choices?.[0]?.message?.content || "");
+    const extracted = extractBase64FromChatContent(content);
+    if (!extracted?.base64) {
+      throw new Error("LaoZhang chat returned no base64 image");
+    }
+    return extracted;
+  }
+
+  /**
+   * Nano Banana Pro image editing via Google native format.
+   * Docs: https://docs.laozhang.ai/en/api-capabilities/nano-banana-pro-image-edit
+   */
+  async editNanoBananaProViaNative(params: {
+    prompt: string;
+    imageUrls: string[];
+    aspectRatio: string; // e.g. "16:9"
+    imageSize?: "1K" | "2K" | "4K";
+    model?: string; // default gemini-3-pro-image-preview
+  }): Promise<{ base64: string; mime: string }> {
+    const model = params.model || "gemini-3-pro-image-preview";
+    const imageUrls = (params.imageUrls || []).filter(Boolean).slice(0, 8);
+    if (!imageUrls.length) throw new Error("Missing reference image");
+
+    // Prefer inline_data (base64) to avoid overseas accessibility constraints for fileData URLs.
+    const parts: any[] = [{ text: params.prompt }];
+    for (const u of imageUrls) {
+      if (u.startsWith("data:")) {
+        const parsed = parseDataUrlMimeAndBase64(u);
+        if (!parsed) continue;
+        parts.push({ inline_data: { mime_type: parsed.mime, data: parsed.base64 } });
+      } else if (u.startsWith("http")) {
+        const inline = await fetchToInlineData(u, 60_000);
+        parts.push({ inline_data: { mime_type: inline.mime, data: inline.base64 } });
+      } else {
+        // raw base64
+        parts.push({ inline_data: { mime_type: "image/png", data: u } });
+      }
+    }
+
+    const payload = {
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ["IMAGE"],
+        imageConfig: {
+          aspectRatio: params.aspectRatio,
+          ...(params.imageSize ? { imageSize: params.imageSize } : {}),
+        },
+      },
+    };
+
+    const response = await fetchWithTimeout(`${this.baseUrlV1beta}/models/${encodeURIComponent(model)}:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+        // Some setups prefer this; safe to send both.
+        "x-goog-api-key": this.apiKey,
+      },
+      body: JSON.stringify(payload),
+      timeout: 180_000,
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      let msg = response.statusText;
+      try {
+        const j = JSON.parse(text);
+        msg = j?.error?.message || msg;
+      } catch {
+        msg = text || msg;
+      }
+      throw new Error(`LaoZhang native error: ${msg}`);
+    }
+
+    const j = JSON.parse(text);
+    const part0 = j?.candidates?.[0]?.content?.parts?.[0] || null;
+    const inlineData = part0?.inlineData || part0?.inline_data || null;
+    const base64 = inlineData?.data;
+    if (!base64) throw new Error("LaoZhang native returned no inlineData.data");
+    // Native responses are PNG by default in docs.
+    return { base64: String(base64), mime: "image/png" };
+  }
+
+  /**
+   * Gemini image generation via chat completions (OpenAI-compatible format).
+   * Docs note: chat format typically produces square (1:1) images; use v1beta native for custom aspect ratios.
+   */
+  async generateGeminiImageViaChat(params: {
+    prompt: string;
+    model: string; // e.g., gemini-2.5-flash-image, gemini-3-pro-image-preview
+  }): Promise<{ base64: string; mime: string }> {
+    const response = await fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: params.model,
+        stream: false,
+        messages: [{ role: "user", content: String(params.prompt || "") }],
+      }),
+      timeout: 180_000,
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      let msg = response.statusText;
+      try {
+        const j: LaoZhangChatCompletionsResponse = JSON.parse(text);
+        msg = j?.error?.message || msg;
+      } catch {
+        msg = text || msg;
+      }
+      throw new Error(`LaoZhang chat error: ${msg}`);
+    }
+
+    const j: LaoZhangChatCompletionsResponse = JSON.parse(text);
+    const content = String(j?.choices?.[0]?.message?.content || "");
+    const extracted = extractBase64FromChatContent(content);
+    if (!extracted?.base64) {
+      throw new Error("LaoZhang chat returned no base64 image");
+    }
+    return extracted;
+  }
+
+  /**
+   * Gemini image generation via native Google format.
+   * Required for non-1:1 aspect ratios (and typically for 2K/4K output on Nano Banana Pro).
+   */
+  async generateGeminiImageViaNative(params: {
+    prompt: string;
+    model: string; // e.g., gemini-2.5-flash-image, gemini-3-pro-image-preview
+    aspectRatio: string; // e.g. "16:9"
+    imageSize?: "1K" | "2K" | "4K";
+  }): Promise<{ base64: string; mime: string }> {
+    const payload = {
+      contents: [{ parts: [{ text: String(params.prompt || "") }] }],
+      generationConfig: {
+        responseModalities: ["IMAGE"],
+        imageConfig: {
+          aspectRatio: String(params.aspectRatio || "1:1"),
+          ...(params.imageSize ? { imageSize: params.imageSize } : {}),
+        },
+      },
+    };
+
+    const response = await fetchWithTimeout(`${this.baseUrlV1beta}/models/${encodeURIComponent(params.model)}:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+        // Some setups prefer this; safe to send both.
+        "x-goog-api-key": this.apiKey,
+      },
+      body: JSON.stringify(payload),
+      timeout: 180_000,
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      let msg = response.statusText;
+      try {
+        const j = JSON.parse(text);
+        msg = j?.error?.message || msg;
+      } catch {
+        msg = text || msg;
+      }
+      throw new Error(`LaoZhang native error: ${msg}`);
+    }
+
+    const j = JSON.parse(text);
+    const part0 = j?.candidates?.[0]?.content?.parts?.[0] || null;
+    const inlineData = part0?.inlineData || part0?.inline_data || null;
+    const base64 = inlineData?.data;
+    if (!base64) throw new Error("LaoZhang native returned no inlineData.data");
+    return { base64: String(base64), mime: "image/png" };
   }
 
   /**
@@ -825,6 +1091,214 @@ export class LaoZhangClient {
     }
 
     return JSON.parse(responseText);
+  }
+
+  private normalizeVideoTaskStatus(raw: unknown): LaoZhangVideoTaskResponse["status"] {
+    const s = String(raw || "").toLowerCase();
+    if (s === "queued" || s === "pending") return "queued";
+    if (
+      s === "processing" ||
+      s === "running" ||
+      s === "in_progress" ||
+      s === "in-progress" ||
+      s === "submitted"
+    )
+      return "processing";
+    if (s === "completed" || s === "success" || s === "succeeded" || s === "done") return "completed";
+    if (s === "failed" || s === "error" || s === "cancelled" || s === "canceled") return "failed";
+    // Default: treat unknown statuses as processing so polling can continue.
+    return "processing";
+  }
+
+  private coerceVideoTaskResponse(
+    input: any,
+    fallback: { model?: string; id?: string }
+  ): LaoZhangVideoTaskResponse {
+    const id = String(input?.id || input?.task_id || input?.taskId || fallback.id || "").trim();
+    if (!id) {
+      throw new Error("LaoZhang video task response has no id/task_id");
+    }
+    const model = String(input?.model || fallback.model || "").trim() || "unknown";
+    const status = this.normalizeVideoTaskStatus(input?.status);
+    const video_url =
+      input?.video_url ||
+      input?.videoUrl ||
+      input?.url ||
+      input?.result?.video_url ||
+      input?.result?.videoUrl ||
+      undefined;
+    return {
+      id,
+      model,
+      status,
+      seconds: typeof input?.seconds === "string" ? input.seconds : undefined,
+      size: typeof input?.size === "string" ? input.size : undefined,
+      created_at: typeof input?.created_at === "number" ? input.created_at : undefined,
+      video_url: typeof video_url === "string" ? video_url : undefined,
+      error: typeof input?.error === "string" ? input.error : undefined,
+    };
+  }
+
+  /**
+   * Create an async video generation task.
+   * This is preferred for production because synchronous video generation can exceed reverse-proxy/serverless timeouts.
+   */
+  async createVideoTask(params: {
+    model: string;
+    prompt: string;
+    imageUrls?: string[];
+  }): Promise<LaoZhangVideoTaskResponse> {
+    const imageUrls = (params.imageUrls || []).filter(Boolean).slice(0, 2); // docs: supports 1-2 images
+
+    console.log(
+      "[Video API Async] Create task:",
+      JSON.stringify({ model: params.model, mode: imageUrls.length ? "i2v" : "t2v", imageCount: imageUrls.length })
+    );
+
+    // Text-to-video: JSON body
+    if (imageUrls.length === 0) {
+      const response = await fetchWithTimeout(`${this.baseUrl}/videos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: params.model,
+          prompt: params.prompt,
+        }),
+        // Keep short: we only need task creation to succeed.
+        timeout: 20_000,
+      });
+
+      const responseText = await response.text();
+      if (!response.ok) {
+        let errorMessage = response.statusText;
+        try {
+          const error: LaoZhangError = JSON.parse(responseText);
+          errorMessage = error.error?.message || response.statusText;
+        } catch {
+          errorMessage = responseText || response.statusText;
+        }
+        throw new Error(`Video API task create error: ${errorMessage}`);
+      }
+
+      const j = JSON.parse(responseText);
+      return this.coerceVideoTaskResponse(j, { model: params.model });
+    }
+
+    // Image-to-video: multipart/form-data with input_reference file(s)
+    const fd = new FormData();
+    fd.set("model", params.model);
+    fd.set("prompt", params.prompt);
+
+    const toBlob = async (ref: string, idx: number): Promise<{ blob: Blob; filename: string }> => {
+      const s = String(ref || "");
+      if (s.startsWith("data:")) {
+        const m = s.match(/^data:([^;]+);base64,(.+)$/);
+        if (!m) throw new Error("Invalid data URL for input_reference");
+        const mime = m[1] || "image/jpeg";
+        const b64 = m[2] || "";
+        const bytes = Buffer.from(b64, "base64");
+        const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+        return { blob: new Blob([bytes], { type: mime }), filename: `ref_${idx}.${ext}` };
+      }
+
+      if (s.startsWith("http://") || s.startsWith("https://")) {
+        const res = await fetchWithTimeout(s, { timeout: 30_000 });
+        if (!res.ok) throw new Error(`Failed to fetch input_reference URL: ${res.status}`);
+        const mime = res.headers.get("content-type") || "image/jpeg";
+        const bytes = Buffer.from(await res.arrayBuffer());
+        const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+        return { blob: new Blob([bytes], { type: mime }), filename: `ref_${idx}.${ext}` };
+      }
+
+      throw new Error("Unsupported input_reference format (expected data: or http(s) URL)");
+    };
+
+    for (let i = 0; i < imageUrls.length; i++) {
+      const { blob, filename } = await toBlob(imageUrls[i]!, i);
+      fd.append("input_reference", blob, filename);
+    }
+
+    const response = await fetchWithTimeout(`${this.baseUrl}/videos`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: fd as any,
+      timeout: 30_000,
+    });
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      let errorMessage = response.statusText;
+      try {
+        const error: LaoZhangError = JSON.parse(responseText);
+        errorMessage = error.error?.message || response.statusText;
+      } catch {
+        errorMessage = responseText || response.statusText;
+      }
+      throw new Error(`Video API task create error: ${errorMessage}`);
+    }
+
+    const j = JSON.parse(responseText);
+    return this.coerceVideoTaskResponse(j, { model: params.model });
+  }
+
+  /**
+   * Get async video task status/result.
+   * LaoZhang APIs differ slightly; we try a couple of common shapes.
+   */
+  async getVideoTask(taskId: string): Promise<LaoZhangVideoTaskResponse> {
+    const id = String(taskId || "").trim();
+    if (!id) throw new Error("taskId is required");
+
+    const fetchJson = async (url: string) => {
+      const res = await fetchWithTimeout(url, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+        timeout: 15_000,
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        throw Object.assign(new Error(`Video task status error: ${res.status} ${res.statusText}`), {
+          status: res.status,
+          body: text,
+        });
+      }
+      return JSON.parse(text);
+    };
+
+    const statusJson = await fetchJson(`${this.baseUrl}/videos/${encodeURIComponent(id)}`);
+    const base = this.coerceVideoTaskResponse(statusJson, { id });
+
+    // If failed, try to capture an error message if present.
+    if (base.status === "failed" && !base.error) {
+      const msg =
+        statusJson?.error ||
+        statusJson?.message ||
+        (statusJson?.detail && typeof statusJson.detail === "string" ? statusJson.detail : undefined);
+      if (typeof msg === "string") base.error = msg;
+    }
+
+    return base;
+  }
+
+  /**
+   * Download video bytes for a completed task.
+   *
+   * Docs say /content returns JSON with { url }, but in practice it may return raw mp4 bytes directly.
+   * This method returns the raw upstream Response so callers can handle both cases.
+   */
+  async fetchVideoContent(taskId: string): Promise<Response> {
+    const id = String(taskId || "").trim();
+    if (!id) throw new Error("taskId is required");
+    return fetchWithTimeout(`${this.baseUrl}/videos/${encodeURIComponent(id)}/content`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      timeout: 90_000,
+    });
   }
 
   /**

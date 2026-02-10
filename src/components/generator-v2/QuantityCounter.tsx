@@ -21,10 +21,10 @@ export function QuantityCounter({
   return (
     <div
       className={`
-        flex items-center justify-between gap-2 px-2 py-2 rounded-lg border transition-colors min-w-[80px]
+        flex items-center justify-between gap-2 px-2 py-1.5 rounded-full transition-colors min-w-[80px]
         ${disabled
-          ? 'bg-[#1C1C1E] border-[#2C2C2E] text-[#6B6B6E] cursor-not-allowed'
-          : 'bg-[#1E1E20] border-[#3A3A3C] text-white hover:border-[#4A4A4C] hover:bg-[#2A2A2C]'
+          ? 'bg-white/3 text-white/30 cursor-not-allowed'
+          : 'bg-white/5 text-white'
         }
       `}
       title="Количество"
@@ -34,13 +34,13 @@ export function QuantityCounter({
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={!canDecrement}
-        className="w-7 h-7 rounded-md bg-white/10 text-white hover:bg-[#f59e0b]/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
+        className="w-6 h-6 rounded-full bg-white/8 text-white/80 text-xs hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/8 flex items-center justify-center"
         aria-label="Уменьшить количество"
       >
         −
       </button>
 
-      <span className="text-sm font-semibold font-mono tabular-nums text-white">
+      <span className="text-[11px] font-semibold tabular-nums text-white/80">
         {value}/{max}
       </span>
 
@@ -48,7 +48,7 @@ export function QuantityCounter({
         type="button"
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={!canIncrement}
-        className="w-7 h-7 rounded-md bg-white/10 text-white hover:bg-[#f59e0b]/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10"
+        className="w-6 h-6 rounded-full bg-white/8 text-white/80 text-xs hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/8 flex items-center justify-center"
         aria-label="Увеличить количество"
       >
         +

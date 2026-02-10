@@ -2,19 +2,17 @@
 'use client';
 
 import { useState, useMemo, useCallback, memo } from 'react';
-import { Sparkles, Loader2, ChevronUp, Star, Settings, X, Minus, Plus } from 'lucide-react';
+import { Sparkles, Loader2, Star, Settings, Minus, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { AspectRatioSelector } from './AspectRatioSelector';
-import { QualitySelector } from './QualitySelector';
-import { QuantityCounter } from './QuantityCounter';
 import { PromptInput } from './PromptInput';
-import { AdvancedSettingsCollapse } from './AdvancedSettingsCollapse';
+import { WanPromptPanelDesktop } from './WanPromptPanelDesktop';
 import { getModelById } from '@/config/models';
 import { uploadReferenceFiles } from "@/lib/supabase/upload-reference";
 
 interface ControlBarBottomProps {
   prompt: string;
   onPromptChange: (value: string) => void;
+  onModelChange?: (modelId: string) => void;
   aspectRatio: string;
   onAspectRatioChange: (value: string) => void;
   quality: string;
@@ -69,6 +67,7 @@ type PhotoModelMeta = {
 const ControlBarBottomComponent = ({
   prompt,
   onPromptChange,
+  onModelChange,
   aspectRatio,
   onAspectRatioChange,
   quality,
@@ -108,8 +107,9 @@ const ControlBarBottomComponent = ({
   onGalleryZoomChange,
   quantityMaxOverride,
 }: ControlBarBottomProps) => {
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
+  const [isAddingRefs, setIsAddingRefs] = useState(false);
+  const [pendingRefPreviews, setPendingRefPreviews] = useState<string[]>([]);
 
   // Get model name from config if modelId provided, otherwise use modelName prop
   const displayName = useMemo(() =>
@@ -178,6 +178,11 @@ const ControlBarBottomComponent = ({
     [referenceList]
   );
 
+  const hasAnyReferenceVisual = useMemo(() =>
+    hasAnyReference || pendingRefPreviews.length > 0,
+    [hasAnyReference, pendingRefPreviews.length]
+  );
+
   const needsPrompt = useMemo(() =>
     typeof requiresPrompt === 'boolean' ? requiresPrompt : !isToolModel,
     [requiresPrompt, isToolModel]
@@ -188,16 +193,12 @@ const ControlBarBottomComponent = ({
     [requiresReferenceImage, isToolModel]
   );
 
-  const promptPlaceholder = useMemo(() =>
-    needsReference
-      ? (hasAnyReference
-          ? `${displayName}: Опишите что изменить...`
-          : `${displayName}: сначала загрузите фото слева`)
-      : (hasAnyReference
-          ? `${displayName}: Опишите что изменить...`
-          : `${displayName}: Опишите сцену...`),
-    [needsReference, hasAnyReference, displayName]
-  );
+  const promptPlaceholder = useMemo(() => {
+    const base = needsReference
+      ? (hasAnyReferenceVisual ? "Опишите что изменить..." : "сначала загрузите фото слева")
+      : (hasAnyReferenceVisual ? "Опишите что изменить..." : "Опишите сцену...");
+    return `Промпт: ${base}`;
+  }, [needsReference, hasAnyReferenceVisual]);
 
   const allowedInputFormats: Array<'jpeg' | 'png' | 'webp'> | null = useMemo(() =>
     photoModel?.inputImageFormats && Array.isArray(photoModel.inputImageFormats)
@@ -287,12 +288,16 @@ const ControlBarBottomComponent = ({
     }
 
     try {
+      const previews = picked.map((f) => URL.createObjectURL(f));
+      setPendingRefPreviews(previews);
+      setIsAddingRefs(true);
+
       // Prefer uploading to storage to avoid sending large base64 in /api/generate/photo.
       let uploadedUrls: string[] = [];
       try {
         uploadedUrls = await uploadReferenceFiles(picked, { prefix: "ref" });
-      } catch (uploadErr) {
-        console.warn("[Reference] Upload failed, falling back to base64:", uploadErr);
+      } catch {
+        // Silent fallback to base64 (common when Supabase client isn't ready in the browser).
       }
 
       if (uploadedUrls.length === picked.length) {
@@ -314,6 +319,12 @@ const ControlBarBottomComponent = ({
       toast.success(isToolModel ? "Изображение загружено" : `Добавлено: ${encoded.length}`);
     } catch {
       toast.error("Не удалось прочитать файл");
+    } finally {
+      setIsAddingRefs(false);
+      setPendingRefPreviews((prev) => {
+        prev.forEach((u) => URL.revokeObjectURL(u));
+        return [];
+      });
     }
   }, [referenceList, maxReferenceImages, isToolModel, allowedMimeTypes, allowedInputFormats, MAX_IMAGE_SIZE_BYTES, maxImageSizeMb, readFileAsDataUrl, updateReferences]);
   
@@ -342,8 +353,8 @@ const ControlBarBottomComponent = ({
   );
 
   const isDisabled = useMemo(() =>
-    disabled || isGenerating,
-    [disabled, isGenerating]
+    disabled || isGenerating || isAddingRefs,
+    [disabled, isGenerating, isAddingRefs]
   );
 
   const hasRequiredInput = useMemo(() => {
@@ -369,21 +380,23 @@ const ControlBarBottomComponent = ({
     }
     if (canGenerate) onGenerate();
     else {
-      if (needsReference && !hasAnyReference) toast.error("Загрузите изображение");
+      if (needsReference && !hasAnyReference) {
+        if (pendingRefPreviews.length > 0) toast.error("Референс загружается...");
+        else toast.error("Загрузите изображение");
+      }
       else if (needsPrompt && prompt.trim().length === 0) toast.error("Введите промпт");
       else if (!hasEnoughCredits) toast.error("Недостаточно звёзд");
     }
-  }, [isAuthenticated, canGenerate, onRequireAuth, onGenerate, needsReference, hasAnyReference, needsPrompt, prompt, hasEnoughCredits]);
+  }, [isAuthenticated, canGenerate, onRequireAuth, onGenerate, needsReference, hasAnyReference, needsPrompt, prompt, hasEnoughCredits, pendingRefPreviews.length]);
 
   return (
     <>
     <div
-      className="fixed bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-[#18181B]/95 backdrop-blur-lg border border-[#27272A] rounded-2xl shadow-xl"
+      className="fixed bottom-2 left-1/2 -translate-x-1/2 z-50 sm:hidden bg-[#18181B]/95 backdrop-blur-lg border border-[#27272A] rounded-2xl shadow-xl"
       style={{ width: "min(calc(100% - 1rem), 56rem)" }}
     >
-      <div className="px-3 sm:px-4 py-3 sm:py-4">
-        {/* === MOBILE: Simplified bar === */}
-        <div className="sm:hidden flex flex-col gap-2">
+      <div className="px-3 py-3">
+        <div className="flex flex-col gap-2">
           {/* Model info bar */}
           <button
             type="button"
@@ -487,260 +500,62 @@ const ControlBarBottomComponent = ({
           </div>
         </div>
 
-        {/* === DESKTOP: Full controls === */}
-        <div className="hidden sm:flex flex-col gap-3">
-          {/* Line 1: Upload + Prompt */}
-          <div className="flex items-end gap-3">
-            {supportsI2i && (
-              <>
-                {/* Upload button */}
-                <div className="relative flex-shrink-0">
-                  <input
-                    type="file"
-                    accept={acceptAttr}
-                    multiple={!isToolModel && maxReferenceImages > 1}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="reference-upload-desktop"
-                    disabled={isGenerating}
-                  />
-                  <label
-                    htmlFor="reference-upload-desktop"
-                    className={`
-                      flex items-center justify-center w-10 h-10 rounded-lg border transition-colors cursor-pointer
-                      ${hasAnyReference 
-                        ? 'border-[#f59e0b] bg-[#f59e0b]/10 hover:bg-[#f59e0b]/20' 
-                        : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
-                      }
-                      ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                    title={hasAnyReference ? uploadedTitle : uploadTitle}
-                  >
-                    {hasAnyReference ? (
-                      <svg className="w-5 h-5 text-[#f59e0b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5 text-[#A1A1AA]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    )}
-                  </label>
-                  
-                  {hasAnyReference && !isGenerating && (
-                    <button
-                      onClick={handleRemoveReference}
-                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
-                      title={removeTitle}
-                    >
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-     
-                {hasAnyReference && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {referenceList.slice(0, maxReferenceImages).map((src, idx) => (
-                      <div
-                        key={`${idx}`}
-                        className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#f59e0b] flex-shrink-0"
-                        title={`Референс ${idx + 1}/${referenceList.length}`}
-                      >
-                        <img src={src} alt={`Reference ${idx + 1}`} className="w-full h-full object-cover" />
-                        {!isGenerating && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveReferenceAt(idx)}
-                            className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center"
-                            title="Удалить"
-                          >
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {!isToolModel && maxReferenceImages > 1 && (
-                      <div className="text-[10px] text-white/40 whitespace-nowrap">
-                        {referenceList.length}/{maxReferenceImages}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            <PromptInput
-              value={prompt}
-              onChange={onPromptChange}
-              disabled={isGenerating}
-              placeholder={promptPlaceholder}
-              onSubmit={handleSubmit}
-            />
-          </div>
-
-          {/* Line 2: Model + Controls + Generate */}
-          <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible no-scrollbar pb-1">
-            {/* Gallery zoom (слева, только если передан showGalleryZoom) */}
-            {showGalleryZoom && onGalleryZoomChange && (
-              <div className="flex items-center gap-1 px-2 py-1.5 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => onGalleryZoomChange(Math.max(0.5, (galleryZoom ?? 1) - 0.1))}
-                  disabled={(galleryZoom ?? 1) <= 0.5}
-                  className="flex items-center justify-center w-8 h-8 rounded-md text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  title="Уменьшить галерею"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="text-xs font-medium text-white/80 min-w-[2.5rem] text-center" title="Масштаб галереи">
-                  {Math.round((galleryZoom ?? 1) * 100)}%
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onGalleryZoomChange(Math.min(1.5, (galleryZoom ?? 1) + 0.1))}
-                  disabled={(galleryZoom ?? 1) >= 1.5}
-                  className="flex items-center justify-center w-8 h-8 rounded-md text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  title="Увеличить галерею"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            {/* Model Badge (слева) */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg">
-              <Sparkles className="w-4 h-4 text-[#f59e0b]" />
-              <span className="text-sm font-medium text-white whitespace-nowrap">
-                {displayName}
-              </span>
-            </div>
-
-            {/* Aspect Ratio */}
-            {showAspectRatio && (
-              <AspectRatioSelector
-                value={aspectRatio}
-                onChange={onAspectRatioChange}
-                disabled={isGenerating || isToolModel}
-                options={aspectRatioOptions}
-              />
-            )}
-            
-            {/* Quality */}
-            {showQuality && (
-              <QualitySelector
-                value={quality}
-                onChange={onQualityChange}
-                disabled={isGenerating}
-                options={qualityOptions}
-              />
-            )}
-
-            {/* Output format (photo only) */}
-            {onOutputFormatChange && outputFormatOptions.length > 0 && (
-              <div className="flex items-center gap-1 px-1 py-1 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg">
-                {outputFormatOptions.map((fmt) => (
-                  <button
-                    key={fmt}
-                    onClick={() => onOutputFormatChange(fmt)}
-                    disabled={isGenerating}
-                    className={`
-                      px-3 py-1.5 rounded-md text-xs font-semibold transition-colors
-                      ${fmt === outputFormat
-                        ? 'bg-[#f59e0b] text-black'
-                        : 'bg-transparent text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white'
-                      }
-                      ${isGenerating ? 'opacity-60 cursor-not-allowed' : ''}
-                    `}
-                    title={`Формат: ${fmt.toUpperCase()}`}
-                  >
-                    {fmt.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {/* Quantity Counter */}
-            <QuantityCounter
-              value={quantity}
-              onChange={onQuantityChange}
-              min={1}
-              max={quantityMax}
-              disabled={isGenerating || isToolModel || isGrokImagine || quantityMax <= 1}
-            />
-
-            {/* Spacer - push desktop Generate to the right */}
-            <div className="hidden sm:block flex-1" />
-
-            {/* Advanced Toggle - ВСЕГДА АКТИВЕН */}
-            {onNegativePromptChange && (
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                disabled={isGenerating}
-                className="flex items-center justify-center w-10 h-10 rounded-lg border border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Дополнительно"
-              >
-                <ChevronUp className={`w-4 h-4 text-[#A1A1AA] transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-              </button>
-            )}
-
-            {/* Generate Button со списанием (справа) */}
-            <button
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-              title={
-                !isAuthenticated
-                  ? "Войти через Telegram"
-                  : !hasEnoughCredits
-                    ? `Недостаточно звёзд (нужно ${estimatedCost}⭐, есть ${credits}⭐)`
-                    : needsReference && !hasAnyReference
-                      ? "Загрузите изображение"
-                      : needsPrompt && prompt.trim().length === 0
-                        ? "Введите промпт"
-                        : ""
-              }
-              className={`
-                hidden sm:flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm
-                transition-all whitespace-nowrap min-w-[150px]
-                ${canSubmit
-                  ? 'bg-[#f59e0b] hover:bg-[#fbbf24] text-black shadow-lg shadow-[#f59e0b]/20'
-                  : 'bg-[#2C2C2E] text-[#6B6B6E] cursor-not-allowed'
-                }
-              `}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Генерация...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>{isAuthenticated ? `Списать ${estimatedCost}⭐` : "Войти"}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Advanced Settings Collapse - Desktop only */}
-        {showAdvanced && onNegativePromptChange && (
-          <div className="hidden sm:block mt-3 pt-3 border-t border-[#27272A]">
-            <AdvancedSettingsCollapse
-              negativePrompt={negativePrompt || ''}
-              onNegativePromptChange={onNegativePromptChange}
-              seed={seed}
-              onSeedChange={onSeedChange}
-              steps={steps}
-              onStepsChange={onStepsChange}
-              disabled={isGenerating}
-            />
-          </div>
-        )}
+        {/* Desktop prompt panel is rendered separately for md+ */}
       </div>
+    </div>
+
+    {/* === DESKTOP: Wan-like expandable panel === */}
+    <div className="hidden md:block">
+      <WanPromptPanelDesktop
+        prompt={prompt}
+        onPromptChange={onPromptChange}
+        promptPlaceholder={promptPlaceholder}
+        onSubmit={handleSubmit}
+        isGenerating={isGenerating || isAddingRefs}
+        canSubmit={canSubmit}
+        credits={credits}
+        estimatedCost={estimatedCost}
+        hasEnoughCredits={hasEnoughCredits}
+        needsReference={needsReference}
+        hasAnyReference={hasAnyReference}
+        needsPrompt={needsPrompt}
+        aspectRatio={aspectRatio}
+        onAspectRatioChange={onAspectRatioChange}
+        aspectRatioOptions={aspectRatioOptions}
+        displayName={displayName}
+        modelId={modelId}
+        onModelChange={onModelChange}
+        quality={quality}
+        onQualityChange={onQualityChange}
+        qualityOptions={qualityOptions}
+        outputFormat={outputFormat}
+        onOutputFormatChange={onOutputFormatChange}
+        outputFormatOptions={outputFormatOptions}
+        quantity={quantity}
+        onQuantityChange={onQuantityChange}
+        quantityMax={quantityMax}
+        isToolModel={isToolModel}
+        isGrokImagine={isGrokImagine}
+        showGalleryZoom={showGalleryZoom}
+        galleryZoom={galleryZoom}
+        onGalleryZoomChange={onGalleryZoomChange}
+        supportsI2i={supportsI2i}
+        acceptAttr={acceptAttr}
+        maxReferenceImages={maxReferenceImages}
+        referenceCount={referenceList.length}
+        hasAnyReferenceVisual={hasAnyReferenceVisual}
+        isAddingRefs={isAddingRefs}
+        pendingRefPreviews={pendingRefPreviews}
+        referenceList={referenceList}
+        onPickFiles={handleFileUpload}
+        onRemoveAllRefs={handleRemoveReference}
+        negativePrompt={negativePrompt}
+        onNegativePromptChange={onNegativePromptChange}
+        seed={seed}
+        onSeedChange={onSeedChange}
+        steps={steps}
+        onStepsChange={onStepsChange}
+      />
     </div>
 
     {/* === MOBILE SETTINGS SHEET === */}
@@ -900,25 +715,28 @@ const ControlBarBottomComponent = ({
                     onChange={handleFileUpload}
                     className="hidden"
                     id="reference-upload-mobile"
-                    disabled={isGenerating}
+                    disabled={isGenerating || isAddingRefs}
                   />
                   <label
                     htmlFor="reference-upload-mobile"
                     className={`
                       flex items-center justify-center w-20 h-20 rounded-2xl border-2 border-dashed transition-colors cursor-pointer
-                      ${hasAnyReference 
+                      ${hasAnyReferenceVisual 
                         ? 'border-[#f59e0b] bg-[#f59e0b]/10' 
                         : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
                       }
-                      ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
+                      ${(isGenerating || isAddingRefs) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
                     `}
                   >
                     {hasAnyReference ? (
-                      <img 
-                        src={referenceList[0]} 
-                        alt="Reference" 
-                        className="w-full h-full object-cover rounded-xl"
-                      />
+                      <img src={referenceList[0]} alt="Reference" className="w-full h-full object-cover rounded-xl" />
+                    ) : pendingRefPreviews.length > 0 ? (
+                      <div className="relative w-full h-full">
+                        <img src={pendingRefPreviews[0]} alt="Reference (pending)" className="w-full h-full object-cover rounded-xl" />
+                        <div className="absolute inset-0 rounded-xl bg-black/35 flex items-center justify-center">
+                          <Loader2 className="w-6 h-6 animate-spin text-white/90" />
+                        </div>
+                      </div>
                     ) : (
                       <svg className="w-8 h-8 text-[#A1A1AA]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -929,7 +747,7 @@ const ControlBarBottomComponent = ({
                     <button
                       type="button"
                       onClick={handleRemoveReference}
-                      disabled={isGenerating}
+                      disabled={isGenerating || isAddingRefs}
                       className="px-4 py-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm font-medium hover:bg-red-500/20"
                     >
                       Удалить
@@ -937,12 +755,20 @@ const ControlBarBottomComponent = ({
                   )}
                 </div>
                 {/* Thumbnails for multi-ref */}
-                {!isToolModel && maxReferenceImages > 1 && hasAnyReference && (
+                {!isToolModel && maxReferenceImages > 1 && (hasAnyReferenceVisual) && (
                   <div className="flex gap-2 flex-wrap">
+                    {pendingRefPreviews.map((src, idx) => (
+                      <div key={`pending-${idx}`} className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10 opacity-80">
+                        <img src={src} alt={`Pending Ref ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 animate-spin text-white/90" />
+                        </div>
+                      </div>
+                    ))}
                     {referenceList.map((src, idx) => (
                       <div key={`${idx}`} className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10">
                         <img src={src} alt={`Ref ${idx + 1}`} className="w-full h-full object-cover" />
-                        {!isGenerating && (
+                        {!isGenerating && !isAddingRefs && (
                           <button
                             type="button"
                             onClick={() => handleRemoveReferenceAt(idx)}
@@ -957,7 +783,7 @@ const ControlBarBottomComponent = ({
                       </div>
                     ))}
                     <div className="self-center text-xs text-white/40">
-                      {referenceList.length}/{maxReferenceImages}
+                      {(referenceList.length + pendingRefPreviews.length)}/{maxReferenceImages}
                     </div>
                   </div>
                 )}

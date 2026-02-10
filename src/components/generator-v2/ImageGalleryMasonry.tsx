@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { OptimizedImage } from '@/components/ui/OptimizedMedia';
 import type { GenerationResult } from './GeneratorV2';
 import { useFavoritesStore } from '@/stores/favorites-store';
+import { cn } from '@/lib/utils';
 
 interface ImageGalleryMasonryProps {
   images: GenerationResult[];
@@ -38,6 +39,8 @@ interface ImageGalleryMasonryProps {
   showLabel?: boolean;
   /** Full width layout (no max-width). Default: false. */
   fullWidth?: boolean;
+  /** Mobile-only: reduce padding around grid/feed to feel more fullscreen (used in Studio). Default: false. */
+  mobileEdgeToEdge?: boolean;
 }
 
 const ImageGalleryMasonryComponent = ({
@@ -60,6 +63,7 @@ const ImageGalleryMasonryComponent = ({
   enableDragDrop = false,
   showLabel = false,
   fullWidth = false,
+  mobileEdgeToEdge = false,
 }: ImageGalleryMasonryProps) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -99,7 +103,10 @@ const ImageGalleryMasonryComponent = ({
     let { w, h } = getAspect(size);
     const ratio = w / h;
     if (ratio < 9/16) { w = 9; h = 16; }
-    if (ratio > 16/9) { w = 16; h = 9; }
+    // Mobile grid/feed can handle wider images without breaking the layout.
+    // Masonry/desktop keeps a stricter clamp to avoid extreme tiles.
+    const maxRatio = (layout === "grid" || layout === "feed") ? 19/6 : 16/9;
+    if (ratio > maxRatio) { w = (layout === "grid" || layout === "feed") ? 19 : 16; h = (layout === "grid" || layout === "feed") ? 6 : 9; }
     return {
       aspectRatio: `${w} / ${h}`,
       width: "100%",
@@ -111,9 +118,10 @@ const ImageGalleryMasonryComponent = ({
     let { w, h } = getAspect(size);
     const ratio = w / h;
     if (ratio < 9/16) { w = 9; h = 16; }
-    if (ratio > 16/9) { w = 16; h = 9; }
+    const maxRatio = (layout === "grid" || layout === "feed") ? 19/6 : 16/9;
+    if (ratio > maxRatio) { w = (layout === "grid" || layout === "feed") ? 19 : 16; h = (layout === "grid" || layout === "feed") ? 6 : 9; }
     return `${w}:${h}`;
-  }, [getAspect]);
+  }, [getAspect, layout]);
 
   const getAspectRatioStyle = useCallback((size?: string) => {
     const { w, h } = getAspect(size);
@@ -179,14 +187,30 @@ const ImageGalleryMasonryComponent = ({
       const isDemo = String(image.id || "").startsWith("demo-");
       const normalizedId = normalizeGenerationId(image.id);
       // Always use proxy=1 to avoid CORS issues and work without VPN
-      const downloadUrl = !isDemo && normalizedId
+      const primaryUrl = !isDemo && normalizedId
         ? `/api/generations/${encodeURIComponent(normalizedId)}/download?kind=original&proxy=1&download=1`
-        : image.url;
+        : `/api/media/proxy?url=${encodeURIComponent(image.url)}&download=1&filename=${encodeURIComponent(`lensroom-${image.id}`)}`;
       
-      console.log('[Download] Fetching:', downloadUrl);
-      const response = await fetch(downloadUrl, { credentials: "include" });
+      const fallbackProxyUrl = `/api/media/proxy?url=${encodeURIComponent(image.url)}&download=1&filename=${encodeURIComponent(`lensroom-${image.id}`)}`;
+
+      console.log('[Download] Fetching:', primaryUrl);
+      let response = await fetch(primaryUrl, { credentials: "include" });
+      if (!response.ok) {
+        // Fallback: for public/non-owned cards (e.g. inspiration) or missing session cookies,
+        // try a tightly-scoped server-side proxy to avoid opening a new tab.
+        console.warn('[Download] Primary failed:', response.status, response.statusText);
+        response = await fetch(fallbackProxyUrl, { credentials: "include" });
+      }
       if (!response.ok) {
         console.error('[Download] Failed:', response.status, response.statusText);
+        // Last resort: let browser handle download endpoint directly (same-tab).
+        const a = document.createElement("a");
+        a.href = primaryUrl;
+        a.download = "";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         throw new Error("download_failed");
       }
 
@@ -224,13 +248,6 @@ const ImageGalleryMasonryComponent = ({
       toast.success('Изображение скачано');
     } catch (error) {
       console.error('[Download] Error:', error);
-      const fallbackUrl = image?.url;
-      if (fallbackUrl) {
-        try {
-          window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
-          return;
-        } catch {}
-      }
       toast.error('Ошибка при скачивании');
     }
   }, [normalizeGenerationId]);
@@ -305,7 +322,16 @@ const ImageGalleryMasonryComponent = ({
       <div className="flex-1 flex items-center justify-center text-center px-4 py-12 md:py-20">
         <div className="max-w-md w-full">
           {/* Higgsfield-style: inspiring placeholder image instead of icon */}
-          <div className={`relative w-full max-w-[280px] mx-auto mb-6 rounded-none overflow-hidden aspect-[4/5] ${isUploadTool ? 'border-2 border-[#f59e0b]/30' : 'border border-white/[0.08]'}`}>
+          <div
+            className={cn(
+              "relative w-full mb-6 rounded-none overflow-hidden aspect-[4/5]",
+              // Mobile: make empty gallery feel more fullscreen (less "floating card" look).
+              "max-w-none",
+              // Desktop: keep a tighter, centered empty state.
+              "md:max-w-[280px] md:mx-auto",
+              isUploadTool ? "border-2 border-[#f59e0b]/30" : "border border-white/[0.08]"
+            )}
+          >
             {isUploadTool ? (
               <div className="absolute inset-0 bg-[#1C1C1E] flex items-center justify-center">
                 <ImagePlus className="w-16 h-16 text-[#f59e0b]" strokeWidth={2} />
@@ -330,8 +356,20 @@ const ImageGalleryMasonryComponent = ({
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto h-full min-h-0">
-      <div className={`w-full mx-auto py-6 px-4 md:px-6 ${fullWidth ? 'max-w-none' : 'max-w-7xl lg:px-12 md:px-8'}`}>
+    <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden h-full min-h-0 min-w-0">
+      <div
+        className={cn(
+          "w-full mx-auto",
+          // Mobile-first: gallery should feel closer to fullscreen (especially in Studio).
+          // Keep larger spacing on md+ where there's more room.
+          (layout === "grid" || layout === "feed")
+            ? mobileEdgeToEdge
+              ? "pt-1 pb-2 px-1 sm:px-2 md:py-6 md:px-6"
+              : "py-3 px-2 sm:px-3 md:py-6 md:px-6"
+            : "py-6 px-4 md:px-6",
+          fullWidth ? "max-w-none" : "max-w-7xl lg:px-12 md:px-8"
+        )}
+      >
         {/* Load More Button - at top since new items appear at bottom */}
       {hasMore && onLoadMore && (
         <div className="flex justify-center py-2">

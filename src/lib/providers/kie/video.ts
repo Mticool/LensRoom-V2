@@ -1,6 +1,6 @@
 import { VideoGenerationRequest } from '@/lib/videoModels/schema';
 import { getModelCapability } from '@/lib/videoModels/capabilities';
-import { getKieClient } from '@/lib/api/kie-client';
+import { getKieClient, pickKieKeySlot } from '@/lib/api/kie-client';
 import type { GenerateVideoRequest, GenerateVideoResponse } from '@/lib/api/kie-client';
 
 /**
@@ -216,7 +216,10 @@ export function mapRequestToKiePayload(
 export async function callKieGenerateVideo(
   request: VideoGenerationRequest
 ): Promise<GenerateVideoResponse> {
-  const kieClient = getKieClient();
+  const pool = String(process.env.KIE_API_KEY_VIDEO_POOL || "").trim();
+  const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+  const slot = pickKieKeySlot("video", poolSize);
+  const kieClient = getKieClient({ scope: "video", slot });
   const payload = mapRequestToKiePayload(request);
   
   try {

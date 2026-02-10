@@ -135,8 +135,12 @@ export function useGeneration(options: UseGenerationOptions = {}) {
         if (settings.resolution) body.resolution = settings.resolution;
       }
 
+      // Some upstreams can take a while to return task ids (especially for photo models under load).
+      // Do not fail the whole UX at 90s; keep 2 minutes for photo. Video stays at 30s because most
+      // providers return task ids quickly and long work happens async behind the job id.
+      const requestTimeoutMs = mode === 'video' ? 30_000 : 120_000;
       const response = await fetchWithTimeout(endpoint, {
-        timeout: 30_000,
+        timeout: requestTimeoutMs,
         abortSignal: abortControllerRef.current.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -39,13 +39,19 @@ if ! git diff-index --quiet HEAD --; then
       echo -e "${GREEN}✓ Commit step complete${NC}\n"
     fi
   else
-    # Non-interactive mode (Codex/CI): keep behavior safe and predictable.
-    # Default: auto-commit dirty state so deploy can proceed.
-    echo -e "${YELLOW}Non-interactive mode detected: auto-committing before deploy...${NC}"
-    git add -A
-    COMMIT_MSG="deploy: $(date '+%Y-%m-%d %H:%M')"
-    git commit -m "$COMMIT_MSG" || true
-    echo -e "${GREEN}✓ Commit step complete${NC}\n"
+    # Non-interactive mode (Codex/CI): do NOT auto-commit by default.
+    # If you really want this, set DEPLOY_AUTOCOMMIT=1.
+    if [[ "${DEPLOY_AUTOCOMMIT:-0}" == "1" ]]; then
+      echo -e "${YELLOW}Non-interactive mode: auto-committing before deploy (DEPLOY_AUTOCOMMIT=1)...${NC}"
+      git add -A
+      COMMIT_MSG="deploy: $(date '+%Y-%m-%d %H:%M')"
+      git commit -m "$COMMIT_MSG" || true
+      echo -e "${GREEN}✓ Commit step complete${NC}\n"
+    else
+      echo -e "${RED}✗ Non-interactive mode detected and worktree is dirty.${NC}"
+      echo -e "${YELLOW}  Either commit changes manually or set DEPLOY_AUTOCOMMIT=1 to auto-commit.${NC}"
+      exit 1
+    fi
   fi
 fi
 
@@ -73,3 +79,4 @@ bash ./deploy-direct.sh
 
 echo -e "\n${GREEN}✅ Deployment complete${NC}"
 echo -e "${CYAN}Site: https://lensroom.ru${NC}"
+

@@ -43,6 +43,13 @@ const INTERVAL_MS = parseInt(process.env.PREVIEWS_WORKER_INTERVAL_MS || '10000',
 const ONESHOT = process.env.PREVIEWS_WORKER_ONESHOT === '1' || process.env.PREVIEWS_WORKER_ONESHOT === 'true';
 const CONCURRENCY = parseInt(process.env.PREVIEWS_WORKER_CONCURRENCY || '2', 10);
 const DEBUG = process.env.PREVIEWS_WORKER_DEBUG === '1' || process.env.PREVIEWS_WORKER_DEBUG === 'true';
+const PROCESS_SECRET = (
+  process.env.PREVIEWS_PROCESS_SECRET ||
+  process.env.PREVIEWS_REQUEUE_SECRET ||
+  process.env.KIE_MANUAL_SYNC_SECRET ||
+  process.env.KIE_CALLBACK_SECRET ||
+  ''
+).trim();
 
 // Validate environment - REQUIRE service role key
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -62,6 +69,12 @@ if (!SUPABASE_KEY) {
   console.error('[PreviewWorker] ❌ FATAL: Missing SUPABASE_SERVICE_ROLE_KEY');
   console.error('[PreviewWorker]    Worker REQUIRES service role key for database access.');
   console.error('[PreviewWorker]    Set SUPABASE_SERVICE_ROLE_KEY in your environment.');
+  process.exit(1);
+}
+
+if (!PROCESS_SECRET) {
+  console.error('[PreviewWorker] ❌ FATAL: Missing PREVIEWS_PROCESS_SECRET (or PREVIEWS_REQUEUE_SECRET / KIE_* secret)');
+  console.error('[PreviewWorker]    /api/previews/process is protected; worker must send the secret to trigger processing.');
   process.exit(1);
 }
 
@@ -224,13 +237,16 @@ function getSourceUrl(gen) {
  */
 async function findGenerationsNeedingPreviews() {
   try {
-    // Query with correct conditions
+    // Query generations that actually need work (avoid scanning only the newest N rows).
+    // We keep the query conservative (terminal status + missing preview/poster + preview_status none/failed/null).
     const { data: generations, error } = await supabase
       .from('generations')
       .select('id, user_id, type, status, original_path, asset_url, result_url, result_urls, thumbnail_url, preview_path, poster_path, preview_status, task_id, created_at')
-      .in('status', ['success', 'completed'])
+      .in('status', ['success', 'completed', 'succeeded'])
+      .or('preview_status.is.null,preview_status.in.(none,failed)')
+      .or('and(type.eq.photo,preview_path.is.null),and(type.eq.video,poster_path.is.null)')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(500);
 
     if (error) {
       console.error('[PreviewWorker] ❌ Failed to fetch generations:', error.message);
@@ -315,30 +331,34 @@ async function generatePreview(generation) {
   try {
     console.log(`[PreviewWorker] 📸 Processing ${type} preview for ${id} (source: ${_sourceField})`);
     
-    // Trigger preview generation via sync endpoint
-    const syncUrl = `http://127.0.0.1:3002/api/kie/sync?taskId=${encodeURIComponent(task_id || id)}`;
+    // Trigger preview generation via dedicated endpoint (works for ALL providers).
+    const processUrl = `http://127.0.0.1:3002/api/previews/process?generationId=${encodeURIComponent(id)}`;
     
     try {
-      const response = await fetch(syncUrl, {
+      const response = await fetch(processUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-sync-secret': PROCESS_SECRET,
+          'authorization': `Bearer ${PROCESS_SECRET}`,
+        },
       });
       
       if (!response.ok) {
-        throw new Error(`Sync endpoint returned ${response.status}`);
+        throw new Error(`Process endpoint returned ${response.status}`);
       }
       
       const result = await response.json();
       
       if (result.success || result.ok) {
-        console.log(`[PreviewWorker] ✅ Preview triggered via sync for ${id}`);
+        console.log(`[PreviewWorker] ✅ Preview processed for ${id}`);
         return { success: true, id };
       } else {
-        throw new Error(result.error || 'Sync failed');
+        throw new Error(result.error || 'Process failed');
       }
     } catch (fetchError) {
       const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      throw new Error(`Sync call failed: ${message}`);
+      throw new Error(`Process call failed: ${message}`);
     }
     
   } catch (error) {
@@ -493,4 +513,3 @@ main().catch(err => {
   console.error('[PreviewWorker] ❌ Fatal error:', err);
   process.exit(1);
 });
-

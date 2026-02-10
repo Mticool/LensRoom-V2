@@ -8,7 +8,9 @@
 import type { KieProvider } from '@/config/models';
 import { env } from "@/lib/env";
 import { getLaoZhangClient } from './laozhang-client';
-import { fetchWithTimeout } from './fetch-with-timeout';
+import { fetchWithTimeout, FetchTimeoutError } from './fetch-with-timeout';
+import { PROVIDER_CIRCUITS, CircuitOpenError } from '@/lib/server/circuit-breaker';
+import { createHash } from 'crypto';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -260,6 +262,28 @@ export type KieClientConfig = {
   veoWebhookSecret?: string;
 };
 
+export type KieKeyScope = "default" | "photo" | "video";
+
+function parseKeyPool(raw: string | undefined): string[] {
+  if (!raw) return [];
+  // Allow either comma or whitespace separated list.
+  return raw
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+type ScopeWithPool = Exclude<KieKeyScope, "default">;
+const _rr = new Map<ScopeWithPool, number>();
+
+export function pickKieKeySlot(scope: ScopeWithPool, poolSize: number): number | null {
+  if (!poolSize || poolSize <= 0) return null;
+  const prev = _rr.get(scope) || 0;
+  const next = (prev + 1) % poolSize;
+  _rr.set(scope, next);
+  return next;
+}
+
 export class KieAIClient {
   private baseUrl: string;
   private apiKey: string;
@@ -288,6 +312,12 @@ export class KieAIClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
+    const circuitKey = `kie:${createHash('sha1')
+      .update(String(this.baseUrl))
+      .update('|')
+      .update(String(this.apiKey))
+      .digest('hex')
+      .slice(0, 12)}`;
 
     let parsedBody: unknown = undefined;
     if (options.body) {
@@ -304,20 +334,40 @@ export class KieAIClient {
       body: parsedBody,
     });
 
-    const response = await fetchWithTimeout(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-        ...options.headers,
-      },
-      timeout: 120000, // 2 minutes default for KIE API
-    });
+    let response: Response;
+    try {
+      response = await PROVIDER_CIRCUITS.run(circuitKey, async () =>
+        fetchWithTimeout(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`,
+            ...options.headers,
+          },
+          // KIE sometimes responds slowly on createTask; do not fail user flows at 30s.
+          // Long work still happens async behind taskId, but initial acceptance can exceed 90s under load.
+          timeout: 120_000,
+        })
+      );
+    } catch (err: any) {
+      const msg = String(err?.message || "");
+      const isTransient =
+        err instanceof FetchTimeoutError ||
+        err instanceof CircuitOpenError ||
+        /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(msg) ||
+        /timeout/i.test(msg);
+
+      if (isTransient) {
+        PROVIDER_CIRCUITS.recordFailure(circuitKey);
+      }
+      throw err;
+    }
 
     // Check for empty response
     const text = await response.text();
     if (!text || text.trim() === '') {
       console.error("[KIE API] Empty response from:", url);
+      PROVIDER_CIRCUITS.recordFailure(circuitKey);
       throw new KieAPIError("Empty response from API", response.status);
     }
 
@@ -382,6 +432,7 @@ export class KieAIClient {
           }
         };
       } else {
+        PROVIDER_CIRCUITS.recordFailure(circuitKey);
         throw new KieAPIError(`Invalid JSON response (${text.length} bytes): ${text.substring(0, 100)}`, response.status);
       }
     }
@@ -397,6 +448,11 @@ export class KieAIClient {
         message: errorMessage,
         fullData: JSON.stringify(data).substring(0, 500),
       });
+
+      // Trip the circuit only for transient/server-like failures.
+      if (Number(data.code) >= 500 || Number(data.code) === 408 || Number(data.code) === 429) {
+        PROVIDER_CIRCUITS.recordFailure(circuitKey);
+      }
       
       // Проверка на ошибку политики контента Google
       if (
@@ -419,12 +475,16 @@ export class KieAIClient {
     }
 
     if (!response.ok) {
+      if (response.status >= 500 || response.status === 408 || response.status === 429) {
+        PROVIDER_CIRCUITS.recordFailure(circuitKey);
+      }
       throw new KieAPIError(
         data.message || `HTTP ${response.status}`,
         response.status
       );
     }
 
+    PROVIDER_CIRCUITS.recordSuccess(circuitKey);
     return data;
   }
 
@@ -1709,9 +1769,29 @@ export class KieAIClient {
   }
 }
 
-export function getKieConfig() {
+export function getKieConfig(opts?: { scope?: KieKeyScope; slot?: number | null }) {
+  const scope = opts?.scope || "default";
+  const slot = typeof opts?.slot === "number" ? opts!.slot : null;
+
   // Evaluate env only when KIE integration is actually used.
-  const apiKey = env.required("KIE_API_KEY", "KIE API key");
+  // Allow separate keys for photo/video, but keep KIE_API_KEY as fallback.
+  const scopedVar =
+    scope === "photo" ? "KIE_API_KEY_PHOTO" : scope === "video" ? "KIE_API_KEY_VIDEO" : null;
+
+  // Optional: key pools per scope. Example:
+  // KIE_API_KEY_PHOTO_POOL="key1,key2,key3"
+  // KIE_API_KEY_VIDEO_POOL="keyA keyB"
+  const poolEnv =
+    scope === "photo"
+      ? env.optional("KIE_API_KEY_PHOTO_POOL")
+      : scope === "video"
+        ? env.optional("KIE_API_KEY_VIDEO_POOL")
+        : undefined;
+  const pool = parseKeyPool(poolEnv);
+  const poolKey =
+    pool.length && slot != null && slot >= 0 && slot < pool.length ? pool[slot] : "";
+
+  const apiKey = poolKey || (scopedVar ? env.optional(scopedVar) : "") || env.optional("KIE_API_KEY") || "";
   // Callbacks are optional - KIE uses polling by default
   const callbackSecret = env.optional("KIE_CALLBACK_SECRET") || "";
   const callbackUrlBase = env.optional("KIE_CALLBACK_URL") || "";
@@ -1720,7 +1800,7 @@ export function getKieConfig() {
   const veoWebhookSecret = env.optional("VEO_WEBHOOK_SECRET") || undefined;
 
   const missing: string[] = [];
-  if (!apiKey) missing.push("KIE_API_KEY");
+  if (!apiKey) missing.push(scopedVar || "KIE_API_KEY");
   // Callbacks no longer required - polling is used instead
 
   return {
@@ -1734,11 +1814,10 @@ export function getKieConfig() {
   };
 }
 
-let _kieClient: KieAIClient | null = null;
-let _kieClientKey: string | null = null;
+const _kieClients = new Map<string, KieAIClient>();
 
-export function getKieClient(): KieAIClient {
-  const cfg = getKieConfig();
+export function getKieClient(opts?: { scope?: KieKeyScope; slot?: number | null }): KieAIClient {
+  const cfg = getKieConfig({ scope: opts?.scope || "default", slot: opts?.slot ?? null });
 
   // In dev we return 501 from handlers if not configured.
   // In prod env.required already throws.
@@ -1747,9 +1826,10 @@ export function getKieClient(): KieAIClient {
   }
 
   const key = JSON.stringify([cfg.baseUrl, cfg.apiKey, cfg.callbackUrlBase, cfg.callbackSecret, cfg.mockMode]);
-  if (_kieClient && _kieClientKey === key) return _kieClient;
+  const cached = _kieClients.get(key);
+  if (cached) return cached;
 
-  _kieClient = new KieAIClient({
+  const client = new KieAIClient({
     baseUrl: cfg.baseUrl,
     apiKey: cfg.apiKey,
     callbackSecret: cfg.callbackSecret,
@@ -1757,6 +1837,6 @@ export function getKieClient(): KieAIClient {
     veoWebhookSecret: cfg.veoWebhookSecret,
     mockMode: cfg.mockMode || !cfg.apiKey,
   });
-  _kieClientKey = key;
-  return _kieClient;
+  _kieClients.set(key, client);
+  return client;
 }

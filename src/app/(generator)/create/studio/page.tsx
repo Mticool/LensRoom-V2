@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StudioWorkspaces } from "@/components/generator-v2/StudioWorkspaces";
 import { ModelSelector } from "@/components/generator-v2/ModelSelector";
-import { AudioStudio } from "@/components/audio";
+import { MusicAndVoiceStudio } from "@/components/audio";
 import { StudioRuntime } from "@/components/studio/StudioRuntime";
 import { VideoGeneratorLight } from "@/components/video/VideoGeneratorLight";
 import { VoiceSection } from "@/components/voice/VoiceSection";
@@ -38,26 +38,15 @@ function StudioContent() {
   const selectedPhotoModel = (searchParams.get("model") || "nano-banana-pro").trim();
 
   return (
-    <div className={`bg-[var(--bg)] ${section === "photo" ? "h-screen flex flex-col pt-0" : "min-h-screen pt-24"}`}>
-      {section === "photo" && (
-        <div className="hidden md:block px-4 pb-3 pt-2 flex-shrink-0">
-          <ModelSelector
-            value={selectedPhotoModel}
-            onChange={(modelId) => {
-              const params = new URLSearchParams(searchParams.toString());
-              params.set("model", modelId);
-              // Keep section + project intact.
-              params.set("section", "photo");
-              router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-            }}
-            direction="down"
-          />
-        </div>
-      )}
+    <div
+      className={`bg-[var(--bg)] ${section === "photo" ? "flex flex-col pt-0" : "min-h-screen pt-24"}`}
+      style={section === "photo" ? { height: "calc(100dvh - var(--app-header-h))" } : undefined}
+    >
+      {/* Model selector removed from top-left — available in bottom bar instead */}
 
       {section === "music" ? (
         <Suspense fallback={<LoadingFallback />}>
-          <AudioStudio />
+          <MusicAndVoiceStudio />
         </Suspense>
       ) : section === "voice" ? (
         <Suspense fallback={<LoadingFallback />}>

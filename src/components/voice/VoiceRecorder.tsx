@@ -39,6 +39,18 @@ export function VoiceRecorder({
     };
   }, []);
 
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  }, [isRecording]);
+
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -95,7 +107,7 @@ export function VoiceRecorder({
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => {
           const next = prev + 1;
-          if (next >= maxDuration) {
+          if (maxDuration > 0 && next >= maxDuration) {
             stopRecording();
             return maxDuration;
           }
@@ -108,19 +120,7 @@ export function VoiceRecorder({
       console.error('Microphone access denied', err);
       toast.error('Не удалось получить доступ к микрофону');
     }
-  }, [maxDuration, onRecordingComplete]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-  }, [isRecording]);
+  }, [maxDuration, onRecordingComplete, stopRecording]);
 
   const togglePlayback = useCallback(() => {
     if (!audioUrl) return;
@@ -221,7 +221,7 @@ export function VoiceRecorder({
               {formatTime(recordingTime)}
             </p>
             <p className="text-sm text-[var(--muted)]">
-              Максимум {formatTime(maxDuration)}
+              {maxDuration > 0 ? `Максимум ${formatTime(maxDuration)}` : 'Без лимита'}
             </p>
           </div>
 

@@ -1,11 +1,9 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState, useEffect, memo } from "react";
-import { Settings, Loader2, X, Send, ImagePlus, Square, RectangleVertical, RectangleHorizontal, Sparkles, ChevronUp, Zap } from "lucide-react";
+import { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect, memo } from "react";
+import { Loader2, X, ImagePlus, Square, RectangleVertical, RectangleHorizontal, Sparkles, ChevronUp, Zap, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ModelSelector } from "@/components/generator-v2/ModelSelector";
 import { getModelById, PHOTO_MODELS } from "@/config/models";
 import { uploadReferenceFiles } from "@/lib/supabase/upload-reference";
 
@@ -91,9 +89,10 @@ const GeneratorBottomSheetComponent = ({
   onModelChange,
 }: GeneratorBottomSheetProps) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<'aspect' | 'quality' | 'quantity' | null>(null);
+  const [isAddingRefs, setIsAddingRefs] = useState(false);
+  const [pendingRefPreviews, setPendingRefPreviews] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,11 +151,16 @@ const GeneratorBottomSheetComponent = ({
         }
       }
       try {
+        // Show immediate UI feedback while upload/base64 encoding is happening.
+        const previews = picked.map((f) => URL.createObjectURL(f));
+        setPendingRefPreviews(previews);
+        setIsAddingRefs(true);
+
         let uploadedUrls: string[] = [];
         try {
           uploadedUrls = await uploadReferenceFiles(picked, { prefix: "ref" });
-        } catch (uploadErr) {
-          console.warn("[Reference] Upload failed, falling back to base64:", uploadErr);
+        } catch {
+          // Silent fallback to base64 (common when Supabase client isn't ready in the browser).
         }
 
         if (uploadedUrls.length === picked.length) {
@@ -168,6 +172,12 @@ const GeneratorBottomSheetComponent = ({
         onReferenceImagesChange([...current, ...encoded].slice(0, maxInputImages));
       } catch {
         toast.error("Ошибка чтения файла");
+      } finally {
+        setIsAddingRefs(false);
+        setPendingRefPreviews((prev) => {
+          prev.forEach((u) => URL.revokeObjectURL(u));
+          return [];
+        });
       }
     },
     [supportsI2i, referenceImages, maxInputImages, maxImageSizeMb, onReferenceImagesChange]
@@ -188,6 +198,7 @@ const GeneratorBottomSheetComponent = ({
   }, [canGenerate, onGenerate, prompt]);
 
   const totalCost = useMemo(() => estimatedCost * quantity, [estimatedCost, quantity]);
+  const hasPrompt = String(prompt || "").trim().length > 0;
 
   // Get short quality label
   const getQualityLabel = useCallback((q: string) => {
@@ -204,8 +215,41 @@ const GeneratorBottomSheetComponent = ({
     fileInputRef.current?.click();
   };
 
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep a CSS var in sync with the actual bottom sheet height.
+  // Studio gallery uses it to pad the scroll area just enough so tiles don't hide under the prompt UI,
+  // without leaving a big empty "black strip" when there are few images.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const el = sheetRef.current;
+    if (!el) return;
+
+    const apply = () => {
+      const h = Math.max(0, Math.round(el.getBoundingClientRect().height));
+      if (h > 0) document.documentElement.style.setProperty("--studio-bottomsheet-h", `${h}px`);
+    };
+
+    apply();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => apply());
+      ro.observe(el);
+    }
+    window.addEventListener("resize", apply, { passive: true });
+    window.addEventListener("orientationchange", apply, { passive: true } as any);
+
+    return () => {
+      window.removeEventListener("resize", apply);
+      window.removeEventListener("orientationchange", apply as any);
+      ro?.disconnect();
+    };
+  }, []);
+
   return (
     <div 
+      ref={sheetRef}
       className="md:hidden fixed left-0 right-0 bottom-0 z-40"
       style={{ 
         transform: 'translateZ(0)',
@@ -424,16 +468,31 @@ const GeneratorBottomSheetComponent = ({
               if (data) {
                 const imageData = JSON.parse(data);
                 if (imageData.url) {
-                  // Fetch image and convert to data URL
-                  const response = await fetch(imageData.url);
-                  const blob = await response.blob();
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    const dataUrl = reader.result as string;
+                  // Use a data URL so server-side generation doesn't depend on auth cookies
+                  // to fetch `/api/generations/.../download` URLs.
+                  const rawUrl = String(imageData.url);
+                  setPendingRefPreviews([rawUrl]);
+                  setIsAddingRefs(true);
+                  try {
+                    let resp = await fetch(rawUrl, { credentials: "include" });
+                    if (!resp.ok) {
+                      const proxyUrl = `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`;
+                      resp = await fetch(proxyUrl, { credentials: "include" });
+                    }
+                    if (!resp.ok) throw new Error("download_failed");
+                    const blob = await resp.blob();
+                    const dataUrl = await new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onerror = () => reject(new Error("read_failed"));
+                      reader.onload = () => resolve(String(reader.result || ""));
+                      reader.readAsDataURL(blob);
+                    });
                     onReferenceImagesChange([dataUrl]);
-                    toast.success('Фото добавлено');
-                  };
-                  reader.readAsDataURL(blob);
+                    toast.success("Фото добавлено");
+                  } finally {
+                    setIsAddingRefs(false);
+                    setPendingRefPreviews([]);
+                  }
                   return;
                 }
               }
@@ -456,14 +515,22 @@ const GeneratorBottomSheetComponent = ({
             }
           }}
           style={{
-            minHeight: referenceImages.length > 0 ? 'auto' : '0px',
+            minHeight: (referenceImages.length > 0 || pendingRefPreviews.length > 0) ? 'auto' : '0px',
             border: supportsI2i ? '2px dashed transparent' : 'none',
             borderRadius: '12px',
             transition: 'all 0.2s ease',
           }}
         >
-          {referenceImages.length > 0 ? (
+          {(referenceImages.length > 0 || pendingRefPreviews.length > 0) ? (
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              {pendingRefPreviews.map((src, idx) => (
+                <div key={`pending-${idx}`} className="relative w-11 h-11 rounded-lg overflow-hidden border border-white/20 flex-shrink-0 opacity-80">
+                  <img src={src} alt={`pending-ref-${idx + 1}`} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-white/90" />
+                  </div>
+                </div>
+              ))}
               {referenceImages.map((src, idx) => (
                 <div key={idx} className="relative w-11 h-11 rounded-lg overflow-hidden border border-white/20 flex-shrink-0">
                   <img src={src} alt={`ref-${idx + 1}`} className="w-full h-full object-cover" />
@@ -495,6 +562,49 @@ const GeneratorBottomSheetComponent = ({
               style={{ transform: 'translateZ(0)' }}
             >
               <div className="px-2 py-3 space-y-2.5">
+                {/* Primary controls live here to keep the bottom bar clean (no chips/labels). */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenu(activeMenu === 'aspect' ? null : 'aspect')}
+                    disabled={isGenerating}
+                    style={{ touchAction: 'manipulation' }}
+                    className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm font-medium flex items-center justify-between px-3 active:opacity-80"
+                  >
+                    <span>Формат</span>
+                    <span className="text-white/60 text-sm">{getAspectLabel(aspectRatio)}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenu(activeMenu === 'quality' ? null : 'quality')}
+                    disabled={isGenerating}
+                    style={{ touchAction: 'manipulation' }}
+                    className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm font-medium flex items-center justify-between px-3 active:opacity-80"
+                  >
+                    <span>Качество</span>
+                    <span className="text-white/60 text-sm">{getQualityLabel(quality)}</span>
+                  </button>
+
+                  {onQuantityChange && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveMenu(activeMenu === 'quantity' ? null : 'quantity')}
+                      disabled={isGenerating}
+                      style={{ touchAction: 'manipulation' }}
+                      className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm font-medium flex items-center justify-between px-3 active:opacity-80"
+                    >
+                      <span>Кол-во</span>
+                      <span className="text-white/60 text-sm">×{quantity}</span>
+                    </button>
+                  )}
+
+                  <div className="h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between px-3">
+                    <span className="text-white/60 text-sm">Цена</span>
+                    <span className="text-sm font-semibold text-[#f59e0b]">{totalCost}⭐</span>
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-[10px] font-medium text-white/40 uppercase tracking-wider mb-1.5 block">
                     Негативный промпт
@@ -545,61 +655,56 @@ const GeneratorBottomSheetComponent = ({
           )}
         </AnimatePresence>
 
-        {/* Quick chips row */}
-        <div className="px-2 py-2.5 flex items-center gap-2 flex-wrap">
-          {/* Aspect ratio chip */}
-          <button
-            type="button"
-            onClick={() => setActiveMenu(activeMenu === 'aspect' ? null : 'aspect')}
-            disabled={isGenerating}
-            style={{ touchAction: 'manipulation' }}
-            className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors min-w-[60px] justify-center
-              ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
-              ${activeMenu === 'aspect' 
-                ? 'bg-[#f59e0b] text-black shadow-sm' 
-                : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
-              }`}
-          >
-            <AspectIcon ratio={aspectRatio} className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="whitespace-nowrap">{getAspectLabel(aspectRatio)}</span>
-          </button>
-
-          {/* Quality chip */}
-          <button
-            type="button"
-            onClick={() => setActiveMenu(activeMenu === 'quality' ? null : 'quality')}
-            disabled={isGenerating}
-            style={{ touchAction: 'manipulation' }}
-            className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors min-w-[50px] justify-center
-              ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
-              ${activeMenu === 'quality' 
-                ? 'bg-[#f59e0b] text-black shadow-sm' 
-                : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
-              }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="whitespace-nowrap">{getQualityLabel(quality)}</span>
-          </button>
-
-          {/* Quantity chip */}
-          {onQuantityChange && (
+      {/* Input + actions (stacked so the prompt is always visible on small screens) */}
+      <div className="px-2 pb-3 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          {/* Model (compact) */}
+          {onModelChange && (
             <button
               type="button"
-              onClick={() => setActiveMenu(activeMenu === 'quantity' ? null : 'quantity')}
+              aria-label="Выбор нейросети"
+              onClick={() => {
+                setModelMenuOpen(!modelMenuOpen);
+                setActiveMenu(null);
+                setShowAdvanced(false);
+              }}
               disabled={isGenerating}
               style={{ touchAction: 'manipulation' }}
-              className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-colors min-w-[45px] justify-center
+              className={`
+                h-11 px-3 rounded-full flex items-center border transition-colors flex-shrink min-w-0 max-w-[210px]
                 ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
-                ${activeMenu === 'quantity' 
-                  ? 'bg-[#f59e0b] text-black shadow-sm' 
-                  : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
-                }`}
+                ${modelMenuOpen
+                  ? 'bg-[#f59e0b] text-black border-transparent'
+                  : 'bg-white/10 text-white/80 border-white/10 hover:bg-white/15'
+                }
+              `}
             >
-              <span className="whitespace-nowrap">×{quantity}</span>
+              <span className="text-xs font-semibold truncate">{modelName}</span>
             </button>
           )}
 
-          {/* Image upload chip */}
+          {/* Options button (opens advanced/settings) */}
+          <button
+            type="button"
+            aria-label="Настройки"
+            onClick={() => {
+              setShowAdvanced(!showAdvanced);
+              setActiveMenu(null);
+              setModelMenuOpen(false);
+            }}
+            disabled={isGenerating}
+            style={{ touchAction: 'manipulation' }}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0 border
+              ${showAdvanced
+                ? 'bg-[#f59e0b] text-black border-transparent' 
+                : 'bg-white/10 text-white/60 border-white/10 hover:bg-white/15'
+              }
+              ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}`}
+          >
+            <SlidersHorizontal className="w-4.5 h-4.5" />
+          </button>
+
+          {/* Reference upload (icon-only) */}
           {supportsI2i && (
             <>
               <input
@@ -608,63 +713,33 @@ const GeneratorBottomSheetComponent = ({
                 accept={allowedMimeTypes}
                 multiple={maxInputImages > 1}
                 className="hidden"
-                disabled={isGenerating}
+                disabled={isGenerating || isAddingRefs}
                 onChange={(e) => handleAddRefs(e.target.files)}
               />
               <button
                 type="button"
+                aria-label="Добавить референс"
                 onClick={handleFileClick}
-                disabled={isGenerating}
+                disabled={isGenerating || isAddingRefs}
                 style={{ touchAction: 'manipulation' }}
-                className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors min-w-[45px] justify-center
-                  ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0 border
                   ${referenceImages.length > 0 
-                    ? 'bg-[#f59e0b] text-black shadow-sm' 
-                    : 'bg-white/10 text-white/80 border border-white/10 hover:bg-white/15'
-                  }`}
+                    ? 'bg-[#f59e0b] text-black border-transparent'
+                    : 'bg-white/10 text-white/60 border-white/10 hover:bg-white/15'
+                  }
+                  ${(isGenerating || isAddingRefs) ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}`}
               >
-                <ImagePlus className="w-3.5 h-3.5 flex-shrink-0" />
-                {referenceImages.length > 0 && <span className="whitespace-nowrap">{referenceImages.length}</span>}
+                {isAddingRefs ? (
+                  <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                ) : (
+                  <ImagePlus className="w-4.5 h-4.5" />
+                )}
               </button>
             </>
           )}
-
-          {/* Spacer */}
-          <div className="flex-1 min-w-[20px]" />
-
-          {/* Cost badge */}
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <span className="text-xs font-bold text-[#f59e0b]">
-              {totalCost}⭐
-            </span>
-          </div>
         </div>
 
-        {/* Input row */}
-        <div className="px-2 pb-3 flex items-end gap-2.5">
-          {/* Settings (gear): open model picker */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onModelChange) {
-                setModelMenuOpen(!modelMenuOpen);
-                setActiveMenu(null);
-              } else {
-                setShowAdvanced(!showAdvanced);
-              }
-            }}
-            disabled={isGenerating}
-            style={{ touchAction: 'manipulation' }}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0
-              ${showAdvanced || modelMenuOpen
-                ? 'bg-[#f59e0b] text-black shadow-sm' 
-                : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/15'
-              }
-              ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}`}
-          >
-            <Settings className="w-4.5 h-4.5" />
-          </button>
-
+        <div className="flex items-end gap-2.5">
           {/* Prompt input */}
           <div className="flex-1 min-w-0">
             <textarea
@@ -683,10 +758,7 @@ const GeneratorBottomSheetComponent = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  // Only submit if can generate (prevents accidental triggers)
-                  if (canGenerate && !isGenerating) {
-                    handleSubmit();
-                  }
+                  if (canGenerate && !isGenerating) handleSubmit();
                 }
               }}
             />
@@ -698,54 +770,54 @@ const GeneratorBottomSheetComponent = ({
             onClick={handleSubmit}
             disabled={isGenerating || !canGenerate}
             style={{ touchAction: 'manipulation' }}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0
-              ${isGenerating
-                ? 'bg-white/10 text-white/50 cursor-not-allowed'
-                : canGenerate
-                  ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/30 active:opacity-80 active:scale-95'
-                  : 'bg-white/10 text-white/30 border border-white/10 cursor-not-allowed'
-              }`}
+            className={`
+              relative w-11 h-11 rounded-full flex items-center justify-center transition-all flex-shrink-0
+              active:scale-95
+              ${isGenerating ? 'bg-white/10 text-white/50 cursor-not-allowed' : ''}
+              ${
+                !isGenerating && canGenerate
+                  ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/30'
+                  : !isGenerating && hasPrompt
+                    ? 'bg-white/10 text-white/60 border border-white/15'
+                    : 'bg-white/10 text-white/30 border border-white/10'
+              }
+              ${(!isGenerating && !canGenerate) ? 'cursor-not-allowed' : ''}
+            `}
           >
             {isGenerating ? (
               <Loader2 className="w-4.5 h-4.5 animate-spin" />
             ) : (
-              <Send className="w-4.5 h-4.5" />
+              <>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-5 h-5"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 11.5L21 3L12.5 21L11 13L3 11.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {/* Price inside the button (small corner badge) */}
+                <span
+                  className={`
+                    absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold
+                    ${canGenerate ? 'bg-black/25 text-black' : 'bg-white/10 text-white/60 border border-white/10'}
+                  `}
+                >
+                  {totalCost}⭐
+                </span>
+              </>
             )}
           </button>
         </div>
       </div>
+      </div>
 
-      {/* Desktop Dialog */}
-      {onModelChange && (
-        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogContent className="hidden md:grid w-[min(96vw,420px)] max-h-[85vh] overflow-y-auto border border-white/10 bg-[#0B0B0C] text-white p-4 gap-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Выбор нейросети</h3>
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(false)}
-                className="p-2 rounded-xl hover:bg-white/10 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <X className="w-5 h-5 text-white/60" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Нейросеть</div>
-                <ModelSelector
-                  value={modelId}
-                  onChange={(id) => {
-                    onModelChange(id);
-                    setSettingsOpen(false);
-                  }}
-                  direction="down"
-                />
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 };

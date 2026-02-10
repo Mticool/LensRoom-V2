@@ -17,11 +17,14 @@ import ffmpeg from "fluent-ffmpeg";
 import { createWriteStream, createReadStream, promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { pipeline } from "stream/promises";
+import { Readable } from "stream";
 
 const PREVIEW_MAX_SIZE = 512;
 const PREVIEW_QUALITY = 80;
 const POSTER_TIMEOUT_MS = 45000;
-const DOWNLOAD_TIMEOUT_MS = 30000;
+// Video downloads (especially 1080p) can exceed 30s; previews run async, so we can afford a higher timeout.
+const DOWNLOAD_TIMEOUT_MS = 120000;
 const ANIMATED_PREVIEW_DURATION = 4; // seconds
 const ANIMATED_PREVIEW_TIMEOUT_MS = 60000;
 
@@ -66,8 +69,15 @@ async function downloadFile(
       throw new Error(`Download failed: ${response.status} ${response.statusText}`);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    await fs.writeFile(destPath, Buffer.from(arrayBuffer));
+    // Stream to disk to avoid buffering large videos in memory.
+    if (response.body) {
+      // Node's fetch returns a Web ReadableStream; convert to Node stream.
+      await pipeline(Readable.fromWeb(response.body as any), createWriteStream(destPath));
+    } else {
+      // Fallback (should be rare).
+      const arrayBuffer = await response.arrayBuffer();
+      await fs.writeFile(destPath, Buffer.from(arrayBuffer));
+    }
   } finally {
     clearTimeout(timeout);
   }
@@ -184,30 +194,81 @@ export async function generateVideoPoster(params: {
     // Download video (auto-fallback to signed URL if public fails)
     await downloadFile(videoUrl, tempVideo, supabase);
 
-    console.log(`[Preview:video:${generationId}] step=ffmpeg extracting_frame at=1s`);
-    
-    // Extract frame at 1 second using ffmpeg
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("FFmpeg timeout"));
-      }, POSTER_TIMEOUT_MS);
-
-      ffmpeg(tempVideo)
-        .screenshots({
-          timestamps: [1],
-          filename: tempFrame.split("/").pop()!,
-          folder: tmpdir(),
-          size: `${PREVIEW_MAX_SIZE}x?`,
-        })
-        .on("end", () => {
-          clearTimeout(timeout);
-          resolve();
-        })
-        .on("error", (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
+    return await generateVideoPosterFromLocalFile({
+      videoPath: tempVideo,
+      tempFramePath: tempFrame,
+      userId,
+      generationId,
+      supabase,
     });
+  } catch (error) {
+    // Clean up on error
+    await Promise.all([
+      fs.unlink(tempVideo).catch(() => {}),
+      fs.unlink(tempFrame).catch(() => {}),
+    ]);
+
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Preview:video:${generationId}] step=error message=${message}`);
+    throw new Error(`Video poster generation failed: ${message}`);
+  }
+}
+
+export async function generateVideoPosterFromLocalFile(params: {
+  videoPath: string;
+  tempFramePath?: string;
+  userId: string;
+  generationId: string;
+  supabase: SupabaseClient;
+}): Promise<{ path: string; publicUrl: string }> {
+  const { videoPath, userId, generationId, supabase } = params;
+  const tempFrame =
+    params.tempFramePath || join(tmpdir(), `poster_frame_${generationId}_${Date.now()}.jpg`);
+
+  try {
+    console.log(`[Preview:video:${generationId}] step=ffmpeg extracting_thumbnail`);
+
+    const runExtract = (mode: "thumbnail" | "seek", seekSeconds?: number) =>
+      new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("FFmpeg timeout")), POSTER_TIMEOUT_MS);
+
+        const cmd = ffmpeg(videoPath);
+        if (mode === "thumbnail") {
+          // "thumbnail" filter picks a representative frame and avoids black-first-frame issues.
+          cmd.outputOptions(["-vf", "thumbnail", "-frames:v", "1", "-q:v", "2"]);
+        } else {
+          // Fallback: explicit seek.
+          cmd.seekInput(Math.max(0, Number(seekSeconds || 0))).outputOptions(["-frames:v", "1", "-q:v", "2"]);
+        }
+
+        cmd.output(tempFrame)
+          .on("end", () => {
+            clearTimeout(timeout);
+            resolve();
+          })
+          .on("error", (err) => {
+            clearTimeout(timeout);
+            reject(err);
+          })
+          .run();
+      });
+
+    // Try representative thumbnail first.
+    await runExtract("thumbnail");
+
+    // If the extracted frame is extremely dark, retry with a small seek.
+    // This guards against videos that start with a black fade even beyond the thumbnail pick.
+    try {
+      const stats = await sharp(tempFrame).stats();
+      const means = (stats.channels || []).map((c) => c.mean || 0);
+      const avg = means.length ? means.reduce((a, b) => a + b, 0) / means.length : 255;
+      if (avg < 6) {
+        console.log(`[Preview:video:${generationId}] step=ffmpeg retry_dark_frame avg=${avg.toFixed(1)}`);
+        await runExtract("seek", 0.4);
+      }
+    } catch {
+      // Non-fatal: proceed with whatever frame we got.
+    }
 
     console.log(`[Preview:video:${generationId}] step=sharp converting_to_webp`);
     
@@ -222,7 +283,7 @@ export async function generateVideoPoster(params: {
 
     // Clean up temp files
     await Promise.all([
-      fs.unlink(tempVideo).catch(() => {}),
+      fs.unlink(videoPath).catch(() => {}),
       fs.unlink(tempFrame).catch(() => {}),
     ]);
 
@@ -244,7 +305,7 @@ export async function generateVideoPoster(params: {
   } catch (error) {
     // Clean up on error
     await Promise.all([
-      fs.unlink(tempVideo).catch(() => {}),
+      fs.unlink(videoPath).catch(() => {}),
       fs.unlink(tempFrame).catch(() => {}),
     ]);
 
@@ -376,5 +437,3 @@ export async function previewExists(params: {
     return false;
   }
 }
-
-

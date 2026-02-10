@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import { notifyGenerationStatus } from "@/lib/telegram/notify";
-import { getKieClient } from "@/lib/api/kie-client";
+import { getKieClient, type KieKeyScope } from "@/lib/api/kie-client";
 import { getModelById } from "@/config/models";
 import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generation";
 import { generateImagePreview, generateVideoPoster, generateVideoAnimatedPreview } from "@/lib/previews";
@@ -32,8 +32,29 @@ export function parseResultJsonToUrls(resultJson: string): string[] {
   // First try normal JSON parse
   try {
     const parsed = JSON.parse(resultJson);
-    if (parsed?.outputs && Array.isArray(parsed.outputs)) return parsed.outputs.filter((u: any) => typeof u === "string");
-    if (parsed?.resultUrls && Array.isArray(parsed.resultUrls)) return parsed.resultUrls.filter((u: any) => typeof u === "string");
+    if (parsed?.outputs && Array.isArray(parsed.outputs)) {
+      // Some providers return outputs as strings, others as objects.
+      const out: string[] = [];
+      for (const u of parsed.outputs) {
+        if (typeof u === "string" && u) out.push(u);
+        else if (u && typeof u === "object") {
+          const v = (u as any).url || (u as any).audio_url || (u as any).audioUrl || (u as any).imageUrl || (u as any).videoUrl;
+          if (typeof v === "string" && v) out.push(v);
+        }
+      }
+      return out;
+    }
+    if (parsed?.resultUrls && Array.isArray(parsed.resultUrls)) {
+      const out: string[] = [];
+      for (const u of parsed.resultUrls) {
+        if (typeof u === "string" && u) out.push(u);
+        else if (u && typeof u === "object") {
+          const v = (u as any).url || (u as any).audio_url || (u as any).audioUrl || (u as any).imageUrl || (u as any).videoUrl;
+          if (typeof v === "string" && v) out.push(v);
+        }
+      }
+      return out;
+    }
     if (Array.isArray(parsed)) return parsed.filter((u: any) => typeof u === "string");
     if (typeof parsed === "string") return [parsed];
     return [];
@@ -42,7 +63,7 @@ export function parseResultJsonToUrls(resultJson: string): string[] {
     console.warn('[KIE] JSON parse failed for resultJson, trying regex extraction');
     
     // Look for URLs in the string
-    const urlMatches = resultJson.match(/https?:\/\/[^\s"'<>]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm)[^\s"'<>]*/gi);
+    const urlMatches = resultJson.match(/https?:\/\/[^\s"'<>]+\.(png|jpg|jpeg|webp|gif|mp4|mov|webm|mp3|wav|ogg|m4a|aac|flac)[^\s"'<>]*/gi);
     if (urlMatches && urlMatches.length > 0) {
       console.log('[KIE] Extracted URLs via regex:', urlMatches.length);
       return urlMatches;
@@ -293,7 +314,8 @@ async function downloadAndStoreAsset(params: {
 }): Promise<{ publicUrl: string; storagePath: string }> {
   const { supabase, generationId, userId, kind, sourceUrl } = params;
 
-  const downloadResponse = await fetch(sourceUrl);
+  // Use timeout to avoid hanging requests which can tie up the Node worker.
+  const downloadResponse = await fetchWithTimeout(sourceUrl, { timeout: 90_000 });
   if (!downloadResponse.ok) throw new Error(`Download failed: ${downloadResponse.status}`);
 
   const buffer = await downloadResponse.arrayBuffer();
@@ -326,7 +348,9 @@ async function downloadAndStoreAsset(params: {
 export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId: string }) {
   const { supabase, taskId } = params;
 
-  const { data: generation, error: fetchError } = await supabase
+  // Primary lookup: by provider task id (normal KIE flow).
+  // Fallback: by generation id (legacy rows without task_id, or internal requeue/worker calls).
+  const { data: generationByTask, error: fetchError } = await supabase
     .from("generations")
     .select("*")
     .eq("task_id", taskId)
@@ -334,7 +358,20 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     .limit(1)
     .maybeSingle();
 
-  if (fetchError || !generation) {
+  if (fetchError) {
+    return { ok: false, reason: "generation_lookup_failed" as const };
+  }
+
+  const generation =
+    generationByTask ||
+    (await supabase
+      .from("generations")
+      .select("*")
+      .eq("id", taskId)
+      .maybeSingle()).data ||
+    null;
+
+  if (!generation) {
     return { ok: false, reason: "generation_not_found" as const };
   }
 
@@ -402,7 +439,16 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     let status: any = null;
     let lastErr: any = null;
     try {
-      const kieClient: any = getKieClient();
+      const meta = (generation.metadata as any) || {};
+      const scopeFromMeta = String(meta.kie_key_scope || "").toLowerCase();
+      const slotFromMeta = Number(meta.kie_key_slot);
+      const scope: KieKeyScope =
+        scopeFromMeta === "photo" || scopeFromMeta === "video"
+          ? (scopeFromMeta as KieKeyScope)
+          : "video";
+
+      const slot = Number.isFinite(slotFromMeta) ? slotFromMeta : null;
+      const kieClient: any = getKieClient({ scope, slot });
       const modelCfg: any = generation.model_id ? getModelById(String(generation.model_id)) : null;
       const provider = modelCfg?.provider;
 
@@ -528,11 +574,26 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
       let audioUrl: string | null = null;
       let durationSec = 0;
 
+      const metadata = (generation.metadata as any) || {};
+      const modelId = String((generation as any)?.model_id || "").toLowerCase();
+      const modelName = String((generation as any)?.model_name || "").toLowerCase();
+      const isMusicGeneration =
+        metadata.audio_kind === "music" ||
+        metadata.billing_mode === "upfront" ||
+        modelId === "suno" ||
+        modelName.includes("suno");
+
       // Extract audio URL from resultJson
       if (info.resultJson) {
         try {
+          // Prefer a generic URL extractor to support various resultJson shapes.
+          const urls = parseResultJsonToUrls(info.resultJson);
+          if (urls.length > 0) audioUrl = urls[0];
+
           const parsed = JSON.parse(info.resultJson);
-          audioUrl = parsed.audio_url || parsed.audioUrl || parsed.url || parsed.output;
+          if (!audioUrl) {
+            audioUrl = parsed.audio_url || parsed.audioUrl || parsed.url || parsed.output || null;
+          }
           
           // Try to get duration from metadata
           if (parsed.duration) durationSec = Math.ceil(Number(parsed.duration));
@@ -541,7 +602,7 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
           console.log("[KIE sync-task] audio parsed", { audioUrl, durationSec, parsed: JSON.stringify(parsed).substring(0, 200) });
         } catch {
           // If JSON parse fails, try regex
-          const urlMatch = info.resultJson.match(/https?:\/\/[^\s"'<>]+\.(mp3|wav|ogg|m4a)[^\s"'<>]*/i);
+          const urlMatch = info.resultJson.match(/https?:\/\/[^\s"'<>]+\.(mp3|wav|ogg|m4a|aac|flac)[^\s"'<>]*/i);
           if (urlMatch) audioUrl = urlMatch[0];
         }
       }
@@ -556,26 +617,54 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
         return { ok: true, status: "failed" as const, error: "no_audio_url" as const };
       }
 
-      // If duration not in metadata, estimate from file size or use default
+      // If duration not in metadata, try to detect it from the file (best-effort).
       if (durationSec === 0) {
         try {
-          // Import the duration helper
-          const { getAudioDurationFromUrl } = await import('@/lib/audio/get-duration');
+          const { getAudioDurationFromUrl } = await import("@/lib/audio/get-duration");
           durationSec = await getAudioDurationFromUrl(audioUrl);
           console.log("[KIE sync-task] audio duration from file", { durationSec });
         } catch (err) {
-          console.warn("[KIE sync-task] failed to get audio duration, estimating", { err });
-          // Fallback: estimate based on prompt length (rough: ~2 words per second)
-          const promptLength = String(generation.prompt || "").length;
-          const estimatedWords = promptLength / 5;
-          durationSec = Math.max(1, Math.ceil(estimatedWords / 2));
+          console.warn("[KIE sync-task] failed to get audio duration", { err });
+          durationSec = 0;
         }
       }
 
-      // Ensure minimum 1 second
-      durationSec = Math.max(1, Math.ceil(durationSec));
+      // Normalize duration
+      durationSec = Math.max(0, Math.ceil(durationSec));
+
+      // Music generations are billed upfront (credits_used); do not overwrite actual spend with duration-based stars.
+      if (isMusicGeneration) {
+        const upfront = Number((generation as any)?.credits_used || 0);
+        await safeUpdateGeneration(supabase, generation.id, {
+          status: "success",
+          result_url: audioUrl,
+          result_urls: [audioUrl],
+          asset_url: audioUrl,
+          duration_sec: durationSec || null,
+          actual_stars_spent: Number.isFinite(upfront) && upfront > 0 ? upfront : (generation as any)?.actual_stars_spent || null,
+          error: null,
+          updated_at: new Date().toISOString(),
+        });
+
+        try {
+          await notifyGenerationStatus({
+            userId: String(generation.user_id),
+            generationId: String(generation.id),
+            kind: "audio",
+            status: "success",
+          });
+        } catch {}
+
+        try {
+          await trackFirstGenerationEvent(String(generation.user_id), String(generation.id));
+        } catch {}
+
+        return { ok: true, status: "success" as const, assetUrl: audioUrl, resultUrls: [audioUrl], durationSec, starsSpent: upfront || undefined };
+      }
 
       // Calculate stars: 1 second = 1 star
+      // (Speech-only billing mode; music is handled above.)
+      durationSec = Math.max(1, durationSec);
       const starsToDeduct = durationSec;
 
       console.log("[KIE sync-task] audio billing", {
@@ -586,8 +675,8 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
       });
 
       // Check if deferred billing (metadata.deferred_billing = true)
-      const metadata = generation.metadata as any || {};
-      const isDeferredBilling = metadata.deferred_billing === true;
+      const billingMeta = (generation.metadata as any) || {};
+      const isDeferredBilling = billingMeta.deferred_billing === true;
 
       // Deduct credits (if deferred billing and not admin/manager)
       if (isDeferredBilling) {

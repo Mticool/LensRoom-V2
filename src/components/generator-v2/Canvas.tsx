@@ -60,7 +60,12 @@ export const Canvas = memo(function Canvas({
   const handleDownload = async () => {
     if (!result?.url) return;
     try {
-      const response = await fetch(result.url);
+      const raw = String(result.url || '').trim();
+      const sameOrigin = raw.startsWith('/') || raw.startsWith(window.location.origin);
+      const urlToFetch =
+        sameOrigin ? raw : `/api/media/proxy?url=${encodeURIComponent(raw)}&download=1&filename=${encodeURIComponent(`lensroom-${Date.now()}`)}`;
+      const response = await fetch(urlToFetch, { credentials: 'include' });
+      if (!response.ok) throw new Error(`download_failed_${response.status}`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -209,8 +214,8 @@ export const Canvas = memo(function Canvas({
     );
   }
 
-  // Loading state
-  if (isGenerating) {
+  // Loading state (no previous result to show)
+  if (isGenerating && !result) {
     return (
       <div className="h-full w-full flex items-center justify-center p-6 bg-[#0F0F10]">
         <div className="text-center space-y-4">
@@ -252,12 +257,27 @@ export const Canvas = memo(function Canvas({
               className="max-w-full max-h-[calc(100vh-300px)] rounded-xl shadow-2xl"
             />
           )}
+
+          {/* Generating overlay (avoid black flash by keeping previous result visible) */}
+          {isGenerating && (
+            <div className="absolute inset-0 rounded-xl bg-black/35 backdrop-blur-[1px] flex items-center justify-center">
+              <div className="text-center space-y-2 px-4">
+                <div className="w-12 h-12 mx-auto relative">
+                  <div className="absolute inset-0 rounded-full border-4 border-white/10" />
+                  <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#00D9FF] animate-spin" />
+                </div>
+                <div className="text-sm font-medium text-white">Генерация...</div>
+                <div className="text-xs text-white/60">Результат появится автоматически</div>
+              </div>
+            </div>
+          )}
           
           {/* Actions */}
           <div className="absolute bottom-4 right-4 flex gap-2">
             <button
               onClick={handleDownload}
-              className="p-2 rounded-lg bg-[#00D9FF] hover:bg-[#22D3EE] text-black transition-colors"
+              disabled={isGenerating}
+              className="p-2 rounded-lg bg-[#00D9FF] hover:bg-[#22D3EE] text-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               title="Скачать"
             >
               <Download className="w-5 h-5" />

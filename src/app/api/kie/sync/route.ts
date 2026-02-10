@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { syncKieTaskToDb } from "@/lib/kie/sync-task";
+import { env } from "@/lib/env";
 
 /**
  * POST /api/kie/sync?taskId=xxx
@@ -10,6 +11,22 @@ export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
+    const providedSecret =
+      (searchParams.get("secret") || "").trim() ||
+      (request.headers.get("x-sync-secret") || "").trim() ||
+      (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+
+    // This endpoint is powerful (can force-sync tasks and hit upstreams).
+    // Keep it disabled unless a secret is configured.
+    const expectedSecret =
+      (env.optional("KIE_MANUAL_SYNC_SECRET") || "").trim() ||
+      (env.optional("KIE_CALLBACK_SECRET") || "").trim();
+    if (!expectedSecret) {
+      return NextResponse.json({ error: "Manual sync disabled" }, { status: 403 });
+    }
+    if (!providedSecret || providedSecret !== expectedSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!taskId) {
       return NextResponse.json(
@@ -17,14 +34,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (taskId.length > 128) {
+      return NextResponse.json({ error: "Invalid taskId" }, { status: 400 });
+    }
 
     const supabase = getSupabaseAdmin();
 
-    console.log("[KIE Sync] Manual sync requested for task:", taskId);
-
     const result = await syncKieTaskToDb({ supabase, taskId });
-
-    console.log("[KIE Sync] Sync result:", result);
 
     return NextResponse.json({
       success: true,
@@ -50,7 +66,6 @@ export async function GET() {
   return NextResponse.json({
     status: "ok",
     endpoint: "/api/kie/sync",
-    usage: "POST /api/kie/sync?taskId=xxx",
+    usage: "POST /api/kie/sync?taskId=xxx&secret=***",
   });
 }
-

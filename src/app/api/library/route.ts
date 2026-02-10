@@ -23,6 +23,22 @@ export const revalidate = 0;
 
 // URL TTL in seconds (60 minutes)
 const SIGNED_URL_TTL = 3600;
+const MAX_AUTO_PREVIEW_SCHEDULE_PER_REQUEST = 3;
+
+function getPreviewsProcessSecret(): string {
+  return (
+    (process.env.PREVIEWS_PROCESS_SECRET || "").trim() ||
+    (process.env.PREVIEWS_REQUEUE_SECRET || "").trim() ||
+    (process.env.KIE_MANUAL_SYNC_SECRET || "").trim() ||
+    (process.env.KIE_CALLBACK_SECRET || "").trim()
+  );
+}
+
+function getInternalBaseUrl(): string | null {
+  const port = String(process.env.PORT || "").trim() || "3002";
+  if (!/^[0-9]+$/.test(port)) return null;
+  return `http://127.0.0.1:${port}`;
+}
 
 type GenerationRow = {
   id?: string;
@@ -160,6 +176,49 @@ export async function GET(request: NextRequest) {
     const raw = Array.isArray(generations) ? generations : [];
     const rawHasMore = raw.length > limit;
     const page = raw.slice(0, limit);
+
+    // Opportunistic auto-scheduling:
+    // If video posters are missing, schedule /api/previews/process in the background.
+    // This removes the hard dependency on the PM2 previews worker (which can be down / misconfigured).
+    const previewsSecret = getPreviewsProcessSecret();
+    const internalBase = getInternalBaseUrl();
+    const candidates = page
+      .filter((g: any) => String(g?.type || "").toLowerCase() === "video")
+      .filter((g: any) => !g?.poster_path)
+      .filter((g: any) => {
+        const st = String(g?.status || "").toLowerCase();
+        const ps = g?.preview_status ? String(g.preview_status).toLowerCase() : "";
+        return ["success", "completed", "succeeded"].includes(st) && (!ps || ps === "none" || ps === "failed");
+      })
+      .slice(0, MAX_AUTO_PREVIEW_SCHEDULE_PER_REQUEST);
+
+    if (previewsSecret && internalBase && candidates.length > 0) {
+      const nowIso = new Date().toISOString();
+      await Promise.all(
+        candidates.map(async (g: any) => {
+          const id = String(g?.id || "").trim();
+          if (!id) return;
+          // Best-effort: mark processing to avoid repeated requeue by frequent library refreshes.
+          await supabase
+            .from("generations")
+            .update({ preview_status: "processing", updated_at: nowIso })
+            .eq("id", id)
+            .neq("preview_status", "processing");
+
+          // Fire-and-forget processing call.
+          const url = `${internalBase}/api/previews/process?generationId=${encodeURIComponent(id)}`;
+          setTimeout(() => {
+            fetch(url, {
+              method: "POST",
+              headers: {
+                "x-sync-secret": previewsSecret,
+                authorization: `Bearer ${previewsSecret}`,
+              },
+            }).catch((e) => console.error("[Library API] Auto-preview schedule failed:", e));
+          }, 0);
+        })
+      );
+    }
 
     // 6. Build URLs for each generation
     const items = await Promise.all(

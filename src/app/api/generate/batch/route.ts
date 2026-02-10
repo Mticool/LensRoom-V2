@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getKieClient } from "@/lib/api/kie-client";
+import { getKieClient, pickKieKeySlot } from "@/lib/api/kie-client";
 import { PHOTO_MODELS, getModelById, PhotoModelConfig } from "@/config/models";
-import { getSkuFromRequest, calculateTotalStars } from "@/lib/pricing/pricing";
+import { getSkuFromRequest, calculateTotalStars, PRICING_VERSION } from "@/lib/pricing/pricing";
 import { requireAuth } from "@/lib/auth/requireRole";
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 
@@ -33,6 +33,12 @@ interface BatchJob {
 // Constants
 const MAX_IMAGES = 10;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function extractMissingColumn(message: string): string | null {
+  // PostgREST style: "Could not find the 'metadata' column of 'generations' in the schema cache"
+  const m = message.match(/Could not find the '([^']+)' column/i);
+  return m ? m[1] : null;
+}
 
 /**
  * POST /api/generate/batch
@@ -206,34 +212,91 @@ export async function POST(request: NextRequest) {
     // 6. Create batch ID and generation records
     const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const jobs: BatchJob[] = [];
+    const omittedCols = new Set<string>();
 
     console.log('[Batch API] Creating generation records for batch:', batchId);
 
     for (let i = 0; i < images.length; i++) {
       const img = images[i];
-      
-      const { data: genData, error: genError } = await supabase
-        .from('generations')
-        .insert({
+
+      let genData: any = null;
+      let genError: any = null;
+
+      const insertOnce = async () => {
+        const payload: any = {
           user_id: userId,
           type: 'photo',
           model_id: model,
           model_name: modelInfo.name,
           prompt: prompt,
-          negative_prompt: negativePrompt || null,
+          ...(omittedCols.has('negative_prompt') ? {} : { negative_prompt: negativePrompt || null }),
           credits_used: pricePerImage,
+          ...(omittedCols.has('charged_stars') ? {} : { charged_stars: pricePerImage }),
+          ...(omittedCols.has('sku') ? {} : { sku }),
+          ...(omittedCols.has('pricing_version') ? {} : { pricing_version: PRICING_VERSION }),
           status: 'pending',
-          metadata: {
-            batch_id: batchId,
-            batch_index: i,
-            client_id: img.id,
-            mode: 'i2i',
-            quality,
-            aspect_ratio: aspectRatio,
+          ...(omittedCols.has('metadata')
+            ? {}
+            : {
+                metadata: {
+                  batch_id: batchId,
+                  batch_index: i,
+                  client_id: img.id,
+                  mode: 'i2i',
+                  quality,
+                  aspect_ratio: aspectRatio,
+                },
+              }),
+        };
+
+        const r = await supabase.from('generations').insert(payload).select('id').single();
+        genData = r.data;
+        genError = r.error;
+      };
+
+      // Older prod DB may lack JSON columns like metadata, or audit columns like sku/pricing_version.
+      for (let attempt = 1; attempt <= 6; attempt++) {
+        await insertOnce();
+        if (!genError) break;
+
+        const code = genError?.code ? String(genError.code) : '';
+        const msg = genError?.message ? String(genError.message) : String(genError);
+
+        if (code === 'PGRST204') {
+          const missing = extractMissingColumn(msg);
+          if (missing && !omittedCols.has(missing)) {
+            omittedCols.add(missing);
+            continue;
           }
-        })
-        .select('id')
-        .single();
+          if (/metadata/i.test(msg) && !omittedCols.has('metadata')) {
+            omittedCols.add('metadata');
+            continue;
+          }
+          if (/charged_stars/i.test(msg) && !omittedCols.has('charged_stars')) {
+            omittedCols.add('charged_stars');
+            continue;
+          }
+          if (/sku/i.test(msg) && !omittedCols.has('sku')) {
+            omittedCols.add('sku');
+            continue;
+          }
+          if (/pricing_version/i.test(msg) && !omittedCols.has('pricing_version')) {
+            omittedCols.add('pricing_version');
+            continue;
+          }
+        }
+
+        if (code === '23503' || /foreign key/i.test(msg)) {
+          try {
+            await ensureProfileExists(supabase, userId);
+            continue;
+          } catch (e) {
+            console.error('[Batch API] Retry after ensureProfileExists failed:', e);
+          }
+        }
+
+        break;
+      }
 
       if (genError) {
         console.error(`[Batch API] Failed to create generation ${i + 1}:`, genError);
@@ -446,7 +509,10 @@ async function processImagesInBackground(
         .eq('id', job.generationId);
 
       // Get KIE client
-      const kieClient = getKieClient();
+      const pool = String(process.env.KIE_API_KEY_PHOTO_POOL || "").trim();
+      const poolSize = pool ? pool.split(/[\s,]+/).filter(Boolean).length : 0;
+      const slot = pickKieKeySlot("photo", poolSize);
+      const kieClient = getKieClient({ scope: "photo", slot });
 
       // Build API request
       const apiPayload: any = {

@@ -94,8 +94,9 @@ export function HiggsGenerator() {
         status: 'pending',
       }));
 
-      // Replace all images with pending (Higgsfield style - overwrites previous)
-      setImages(pendingImages);
+      // Keep existing images visible; append pending placeholders.
+      // This avoids a "black screen" feel while upstream generation is running.
+      setImages((prev) => [...prev, ...pendingImages]);
 
       const response = await fetch('/api/generate/photo', {
         method: 'POST',

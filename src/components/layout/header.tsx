@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Sparkles, LogOut, CreditCard, Crown, ChevronDown, Settings, MessageCircle, Image as ImageIcon, Star, User, Music, Video, FolderOpen, Clapperboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -42,17 +42,69 @@ const MODELS = {
   ],
 };
 
+type PrimarySectionId = 'photo' | 'video' | 'motion' | 'music' | 'voice';
+
+const MOBILE_PRIMARY_SECTIONS: Array<{
+  id: PrimarySectionId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  // Used for the "Quick Actions" color accents in the fullscreen mobile menu.
+  accentClassName: string;
+}> = [
+  {
+    id: 'photo',
+    label: 'Фото',
+    icon: ImageIcon,
+    href: '/create/studio?section=photo',
+    accentClassName: 'text-blue-500 hover:border-blue-500/50',
+  },
+  {
+    id: 'video',
+    label: 'Видео',
+    icon: Video,
+    href: '/create/studio?section=video',
+    accentClassName: 'text-violet-500 hover:border-violet-500/50',
+  },
+  {
+    id: 'motion',
+    label: 'Motion Control',
+    icon: Clapperboard,
+    href: '/create/studio?section=motion&model=kling-motion-control',
+    accentClassName: 'text-orange-500 hover:border-orange-500/50',
+  },
+  {
+    id: 'music',
+    label: 'Музыка',
+    icon: Music,
+    href: '/create/studio?section=music',
+    accentClassName: 'text-pink-500 hover:border-pink-500/50',
+  },
+  {
+    id: 'voice',
+    label: 'Озвучка',
+    icon: User,
+    href: '/create/studio?section=voice',
+    accentClassName: 'text-emerald-500 hover:border-emerald-500/50',
+  },
+];
+
 interface HeaderProps {
   pageTitle?: string;
 }
 
 export function Header({ pageTitle }: HeaderProps = {}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuMode, setMobileMenuMode] = useState<'photo' | 'video' | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<'design' | 'video' | 'audio' | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isStudio = pathname.startsWith('/create/studio');
   const telegramAuth = useTelegramAuth();
   const supabaseAuth = useAuth();
   const telegramUser = telegramAuth.user;
@@ -76,6 +128,11 @@ export function Header({ pageTitle }: HeaderProps = {}) {
       fetchBalance();
     }
   }, [telegramUser, supabaseUser, fetchBalance]);
+
+  // Ensure the fullscreen menu always starts in a clean (collapsed) state.
+  useEffect(() => {
+    if (mobileMenuOpen) setMobileMenuMode(null);
+  }, [mobileMenuOpen]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -116,10 +173,96 @@ export function Header({ pageTitle }: HeaderProps = {}) {
     { name: 'Тарифы', href: '/pricing' },
   ], []);
 
+  // Keep CSS var in sync with the actual fixed header height (top bar + mobile primary row).
+  // This prevents "anchors"/fixed overlays from hiding content on mobile across devices.
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = headerRef.current;
+    if (!el) return;
+
+    const apply = () => {
+      const h = Math.max(0, Math.round(el.getBoundingClientRect().height));
+      if (h > 0) document.documentElement.style.setProperty('--app-header-h', `${h}px`);
+    };
+
+    apply();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => apply());
+      ro.observe(el);
+    }
+
+    window.addEventListener('resize', apply, { passive: true });
+    window.addEventListener('orientationchange', apply, { passive: true } as any);
+
+    return () => {
+      window.removeEventListener('resize', apply);
+      window.removeEventListener('orientationchange', apply as any);
+      ro?.disconnect();
+    };
+  }, []);
+
+  const activePrimarySection = useMemo<PrimarySectionId | null>(() => {
+    if (!isStudio) return null;
+    const raw = (searchParams.get('section') || searchParams.get('kind') || '').trim().toLowerCase();
+    if (raw === 'image') return 'photo';
+    if (raw === 'audio') return 'music';
+    if (raw === 'photo') return 'photo';
+    if (raw === 'video') return 'video';
+    if (raw === 'motion') return 'motion';
+    if (raw === 'music') return 'music';
+    if (raw === 'voice') return 'voice';
+    return 'photo';
+  }, [isStudio, searchParams]);
+
+  const goToPrimarySection = useCallback((nextSection: PrimarySectionId) => {
+    if (!nextSection) return;
+
+    if (isStudio) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('section', nextSection);
+
+      // Keep project/thread intact (existing params already include them).
+      // Avoid leaking section-specific params across modes.
+      if (nextSection !== 'video') params.delete('generationId');
+
+      if (nextSection === 'motion') {
+        params.set('model', 'kling-motion-control');
+      } else if (nextSection === 'photo') {
+        // If we're switching from a non-photo section, the `model` could be a video model; force a safe default.
+        if (activePrimarySection !== 'photo') {
+          params.set('model', 'nano-banana-pro');
+        } else if (!params.get('model')?.trim()) {
+          params.set('model', 'nano-banana-pro');
+        }
+      } else if (nextSection === 'video') {
+        if (activePrimarySection !== 'video') params.delete('model');
+      } else {
+        params.delete('model');
+      }
+
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      return;
+    }
+
+    const href = MOBILE_PRIMARY_SECTIONS.find((s) => s.id === nextSection)?.href;
+    if (href) router.push(href, { scroll: false });
+  }, [activePrimarySection, isStudio, pathname, router, searchParams]);
+
+  const photoModelsForMenu = useMemo(() => MODELS.design, []);
+  const videoModelsForMenu = useMemo(
+    () => MODELS.video.filter((m) => m.id !== 'kling-motion-control'),
+    []
+  );
+
   return (
     <>
       {/* Header - Premium Higgsfield style */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] bg-[var(--surface-glass)] backdrop-blur-2xl">
+      <header
+        ref={headerRef}
+        className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)] bg-[var(--surface-glass)] backdrop-blur-2xl"
+      >
         <nav className="container mx-auto px-5 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -450,6 +593,34 @@ export function Header({ pageTitle }: HeaderProps = {}) {
             </div>
           </div>
         </nav>
+
+        {/* Mobile Primary Row: visible quick switch to Studio sections (no hamburger needed) */}
+        <div className="lg:hidden border-t border-[var(--border)]" data-testid="mobile-primary-row">
+          <div className="container mx-auto px-3">
+            <div className="h-11 flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
+              {MOBILE_PRIMARY_SECTIONS.map((item) => {
+                const isActive = isStudio && activePrimarySection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    data-testid={`mobile-primary-${item.id}`}
+                    onClick={() => goToPrimarySection(item.id)}
+                    className={cn(
+                      // Visually compact like syntx/krea, but keep a 44px minimum touch target.
+                      'min-h-[44px] h-9 px-3 rounded-full border transition-all flex items-center whitespace-nowrap touch-manipulation active:scale-[0.98]',
+                      isActive
+                        ? 'bg-[var(--surface2)]/80 border-[var(--border-hover)] text-[var(--text)]'
+                        : 'bg-[var(--surface)]/70 border-[var(--border)] text-[var(--muted-light)] hover:text-[var(--text)] hover:bg-[var(--surface2)]/60'
+                    )}
+                  >
+                    <span className="text-[12px] font-semibold tracking-tight">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Mobile Menu - Full Screen syntx.ai style */}
@@ -477,7 +648,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.25, delay: 0.05 }}
-              className="relative h-full flex flex-col pt-[72px] pb-safe"
+              className="relative h-full flex flex-col pt-[var(--app-header-h)] pb-safe"
             >
               {/* User Card - Top */}
               {(telegramUser || supabaseUser) && (
@@ -519,114 +690,185 @@ export function Header({ pageTitle }: HeaderProps = {}) {
               
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-5 pb-24">
-                {/* Quick Actions */}
-                <div className="grid grid-cols-5 gap-2 mb-6">
-                  <Link
-                    href="/create/studio?section=photo"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-blue-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
-                  >
-                    <ImageIcon className="w-6 h-6 text-blue-500 mb-1" />
-                    <p className="text-xs font-semibold text-[var(--text)]">Фото</p>
-                  </Link>
-                  <Link
-                    href="/create/studio?section=video"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-violet-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
-                  >
-                    <Video className="w-6 h-6 text-violet-500 mb-1" />
-                    <p className="text-xs font-semibold text-[var(--text)]">Видео</p>
-                  </Link>
-                  <Link
-                    href="/create/studio?section=video&model=kling-motion-control"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-orange-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
-                  >
-                    <Clapperboard className="w-6 h-6 text-orange-500 mb-1" />
-                    <p className="text-xs font-semibold text-[var(--text)]">Motion</p>
-                  </Link>
-                  <Link
-                    href="/create/studio?section=music"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-pink-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
-                  >
-                    <Music className="w-6 h-6 text-pink-500 mb-1" />
-                    <p className="text-xs font-semibold text-[var(--text)]">Музыка</p>
-                  </Link>
-                  <Link
-                    href="/create/studio?section=voice"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 min-h-[72px] rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-emerald-500/50 active:scale-95 transition-all flex flex-col items-center justify-center"
-                  >
-                    <User className="w-6 h-6 text-emerald-500 mb-1" />
-                    <p className="text-xs font-semibold text-[var(--text)]">Озвучка</p>
-                  </Link>
-                </div>
-
-                {/* Main Navigation */}
-                <div className="space-y-2 mb-6">
-                  <Link
-                    href="/create/studio"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-gradient-to-r from-[var(--gold)]/10 to-violet-500/10 border border-[var(--gold)]/20 hover:border-[var(--gold)]/40 active:scale-[0.98] transition-all"
-                  >
-                    <Sparkles className="w-5 h-5 text-[var(--gold)]" />
-                    <span className="text-[15px] font-semibold text-[var(--text)]">Создать</span>
-                  </Link>
-                  <Link
-                    href="/library"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
-                  >
-                    <FolderOpen className="w-5 h-5 text-violet-500" />
-                    <span className="text-[15px] font-medium text-[var(--text)]">Мои работы</span>
-                  </Link>
-                  <Link
-                    href="/pricing"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
-                  >
-                    <CreditCard className="w-5 h-5 text-emerald-500" />
-                    <span className="text-[15px] font-medium text-[var(--text)]">Тарифы</span>
-                  </Link>
-                  <Link
-                    href="/inspiration"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-4 min-h-[52px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
-                  >
-                    <Sparkles className="w-5 h-5 text-amber-500" />
-                    <span className="text-[15px] font-medium text-[var(--text)]">Вдохновение</span>
-                  </Link>
-                </div>
-
-                {/* Top Models - Compact */}
-                {(['design', 'video'] as const).map((section) => (
-                  <div key={section} className="mb-5">
-                    <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-2 px-1">
-                      {section === 'design' ? 'Топ фото-модели' : 'Топ видео-модели'}
-                    </h3>
-                    <div className="space-y-1">
-                      {MODELS[section].slice(0, 3).map((model: any) => (
-                        <Link
-                          key={model.id}
-                          href={`/create/studio?section=${section === 'design' ? 'photo' : section}&model=${model.id}`}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center justify-between px-4 py-3 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                {/* Primary modes (duplicates the row, but useful inside menu for quick access) */}
+                <div className="mb-6">
+                  <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-2 px-1">
+                    Режим
+                  </h3>
+                  <div className="space-y-1">
+                    {/* Photo: collapsible list of photo models */}
+                    <button
+                      type="button"
+                      data-testid="mobile-menu-photo-toggle"
+                      onClick={() => setMobileMenuMode((v) => (v === 'photo' ? null : 'photo'))}
+                      className="w-full flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Фото</span>
+                      <ChevronDown
+                        className={cn(
+                          'w-4 h-4 text-[var(--muted)] transition-transform duration-200',
+                          mobileMenuMode === 'photo' && 'rotate-180'
+                        )}
+                      />
+                    </button>
+                    <AnimatePresence>
+                      {mobileMenuMode === 'photo' && (
+                        <motion.div
+                          data-testid="mobile-menu-photo-panel"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                          className="overflow-hidden pl-2"
                         >
-                          <span className="text-[14px] font-medium text-[var(--text)]">{model.name}</span>
-                          {(model.hot || model.new) && (
-                            <span className={cn(
-                              "px-2 py-0.5 text-[10px] font-bold rounded-full",
-                              model.hot ? "bg-orange-500/20 text-orange-400" : "bg-[var(--gold)]/20 text-[var(--gold)]"
-                            )}>
-                              {model.hot ? 'HOT' : 'NEW'}
-                            </span>
-                          )}
-                        </Link>
-                      ))}
-                    </div>
+                          <div className="mt-1 space-y-1">
+                            {photoModelsForMenu.map((model: any) => (
+                              <Link
+                                key={model.id}
+                                href={`/create/studio?section=photo&model=${model.id}`}
+                                onClick={() => {
+                                  setMobileMenuOpen(false);
+                                  setMobileMenuMode(null);
+                                }}
+                                className="flex items-center justify-between px-4 py-3 min-h-[44px] rounded-xl bg-[var(--surface)]/70 hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                              >
+                                <span className="text-[13px] text-[var(--text)]">{model.name}</span>
+                                {(model.hot || model.new) && (
+                                  <span
+                                    className={cn(
+                                      'px-2 py-0.5 text-[10px] font-bold rounded-full',
+                                      model.hot ? 'bg-orange-500/20 text-orange-400' : 'bg-[var(--gold)]/20 text-[var(--gold)]'
+                                    )}
+                                  >
+                                    {model.hot ? 'HOT' : 'NEW'}
+                                  </span>
+                                )}
+                              </Link>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Video: collapsible list of video models */}
+                    <button
+                      type="button"
+                      data-testid="mobile-menu-video-toggle"
+                      onClick={() => setMobileMenuMode((v) => (v === 'video' ? null : 'video'))}
+                      className="w-full flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Видео</span>
+                      <ChevronDown
+                        className={cn(
+                          'w-4 h-4 text-[var(--muted)] transition-transform duration-200',
+                          mobileMenuMode === 'video' && 'rotate-180'
+                        )}
+                      />
+                    </button>
+                    <AnimatePresence>
+                      {mobileMenuMode === 'video' && (
+                        <motion.div
+                          data-testid="mobile-menu-video-panel"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                          className="overflow-hidden pl-2"
+                        >
+                          <div className="mt-1 space-y-1">
+                            {videoModelsForMenu.map((model: any) => (
+                              <Link
+                                key={model.id}
+                                href={`/create/studio?section=video&model=${model.id}`}
+                                onClick={() => {
+                                  setMobileMenuOpen(false);
+                                  setMobileMenuMode(null);
+                                }}
+                                className="flex items-center justify-between px-4 py-3 min-h-[44px] rounded-xl bg-[var(--surface)]/70 hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                              >
+                                <span className="text-[13px] text-[var(--text)]">{model.name}</span>
+                                {(model.hot || model.new) && (
+                                  <span
+                                    className={cn(
+                                      'px-2 py-0.5 text-[10px] font-bold rounded-full',
+                                      model.hot ? 'bg-orange-500/20 text-orange-400' : 'bg-[var(--gold)]/20 text-[var(--gold)]'
+                                    )}
+                                  >
+                                    {model.hot ? 'HOT' : 'NEW'}
+                                  </span>
+                                )}
+                              </Link>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Motion Control: direct link */}
+                    <Link
+                      href="/create/studio?section=motion&model=kling-motion-control"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileMenuMode(null);
+                      }}
+                      className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Motion Control</span>
+                    </Link>
+
+                    {/* Music + Voice: direct links */}
+                    <Link
+                      href="/create/studio?section=music"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileMenuMode(null);
+                      }}
+                      className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Музыка</span>
+                    </Link>
+                    <Link
+                      href="/create/studio?section=voice"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileMenuMode(null);
+                      }}
+                      className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Озвучка</span>
+                    </Link>
                   </div>
-                ))}
+                </div>
+
+                {/* Site navigation */}
+                <div className="mb-6">
+                  <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-2 px-1">
+                    Разделы
+                  </h3>
+                  <div className="space-y-1">
+                    <Link
+                      href="/library"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Мои работы</span>
+                    </Link>
+                    <Link
+                      href="/inspiration"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Вдохновение</span>
+                    </Link>
+                    <Link
+                      href="/pricing"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface2)] active:scale-[0.98] transition-all"
+                    >
+                      <span className="text-[14px] font-medium text-[var(--text)]">Тарифы</span>
+                    </Link>
+                  </div>
+                </div>
 
                 {/* Account Section */}
                 {(telegramUser || supabaseUser) ? (
@@ -638,32 +880,28 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                       <Link
                         href="/profile"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
+                        className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
                       >
-                        <User className="w-5 h-5 text-[var(--muted)]" />
                         <span className="text-[14px] text-[var(--muted)]">Профиль</span>
                       </Link>
                       <Link
                         href="/account/subscription"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
+                        className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
                       >
-                        <Crown className="w-5 h-5 text-[var(--muted)]" />
                         <span className="text-[14px] text-[var(--muted)]">Подписка</span>
                       </Link>
                       <Link
                         href="/referrals"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
+                        className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-[var(--surface)] active:scale-[0.98] transition-all"
                       >
-                        <User className="w-5 h-5 text-[var(--muted)]" />
                         <span className="text-[14px] text-[var(--muted)]">Рефералы</span>
                       </Link>
                       <button
                         onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-red-500/10 active:scale-[0.98] transition-all w-full"
+                        className="flex items-center justify-between px-4 py-3.5 min-h-[48px] rounded-xl hover:bg-red-500/10 active:scale-[0.98] transition-all w-full"
                       >
-                        <LogOut className="w-5 h-5 text-red-500" />
                         <span className="text-[14px] text-red-500">Выйти</span>
                       </button>
                     </div>
@@ -688,7 +926,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
       <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
 
       {/* Spacer - matches header height */}
-      <div className="h-16" />
+      <div className="h-[var(--app-header-h)]" />
     </>
   );
 }

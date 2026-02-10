@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordReferralEventAndReward } from "@/lib/referrals/referral-helper";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * Ensures `public.profiles` has a row for this user id.
@@ -33,6 +34,26 @@ export async function ensureProfileExists(supabase: SupabaseClient, userId: stri
     if (code === "23505" || /duplicate key/i.test(msg)) {
       return;
     }
+
+    // If RLS denies profile creation for some auth paths, fall back to admin client (server-side only).
+    // This prevents downstream FK failures when inserting into `generations`.
+    if (/row-level security|permission denied|not allowed/i.test(msg)) {
+      try {
+        const admin = getSupabaseAdmin();
+        const { error: adminErr } = await admin.from("profiles").insert({ id: uid } as any);
+        if (!adminErr) {
+          isNewProfile = true;
+        } else {
+          const ac = (adminErr as any)?.code ? String((adminErr as any).code) : "";
+          const am = (adminErr as any)?.message ? String((adminErr as any).message) : String(adminErr);
+          if (ac === "23505" || /duplicate key/i.test(am)) return;
+          throw adminErr;
+        }
+      } catch (e) {
+        throw e;
+      }
+    }
+
     throw error;
   }
 
@@ -51,5 +72,4 @@ export async function ensureProfileExists(supabase: SupabaseClient, userId: stri
     }
   }
 }
-
 

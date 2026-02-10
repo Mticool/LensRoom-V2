@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { env } from '@/lib/env';
 
 /**
  * POST /api/previews/requeue
@@ -11,6 +12,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
  * 
  * Query params:
  *   - generationId: Specific generation to requeue (optional)
+ *   - type: Filter by generation type: photo|video|all (default: all)
  *   - minutes: Number of minutes to look back (default: 60)
  *   - limit: Max generations to requeue (default: 50)
  *   - force: Force requeue even if preview_status=ready (default: false)
@@ -22,8 +24,27 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
  */
 export async function POST(request: NextRequest) {
   try {
+    // This endpoint mutates DB state and can trigger ffmpeg workloads.
+    // Keep it disabled unless a secret is configured.
     const searchParams = request.nextUrl.searchParams;
+    const providedSecret =
+      (searchParams.get('secret') || '').trim() ||
+      (request.headers.get('x-sync-secret') || '').trim() ||
+      (request.headers.get('authorization') || '').replace(/^Bearer\\s+/i, '').trim();
+    const expectedSecret =
+      (env.optional('PREVIEWS_REQUEUE_SECRET') || '').trim() ||
+      (env.optional('KIE_MANUAL_SYNC_SECRET') || '').trim() ||
+      (env.optional('KIE_CALLBACK_SECRET') || '').trim();
+    if (!expectedSecret) {
+      return NextResponse.json({ error: 'Requeue disabled' }, { status: 403 });
+    }
+    if (!providedSecret || providedSecret !== expectedSecret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const generationId = searchParams.get('generationId');
+    const typeFilterRaw = String(searchParams.get('type') || 'all').trim().toLowerCase();
+    const typeFilter = (typeFilterRaw === 'photo' || typeFilterRaw === 'video') ? typeFilterRaw : 'all';
     const minutes = parseInt(searchParams.get('minutes') || '60', 10);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const force = searchParams.get('force') === 'true';
@@ -36,7 +57,7 @@ export async function POST(request: NextRequest) {
       
       const { data: gen, error: fetchError } = await supabase
         .from('generations')
-        .select('id, type, status, preview_status, original_path, asset_url')
+        .select('id, type, status, preview_status, preview_path, poster_path, original_path, asset_url, result_url, result_urls')
         .eq('id', generationId)
         .single();
 
@@ -81,9 +102,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Batch requeue for recent generations
-    if (minutes <= 0 || minutes > 1440) {
+    // Allow wider backfill windows now that this endpoint is protected by a secret.
+    if (minutes <= 0 || minutes > 43200) {
       return NextResponse.json(
-        { error: 'Invalid minutes parameter (must be 1-1440)' },
+        { error: 'Invalid minutes parameter (must be 1-43200)' },
         { status: 400 }
       );
     }
@@ -104,11 +126,15 @@ export async function POST(request: NextRequest) {
     // Find recent terminal generations
     let query = supabase
       .from('generations')
-      .select('id, type, status, preview_status, preview_path, poster_path, original_path, asset_url, created_at')
+      .select('id, type, status, preview_status, preview_path, poster_path, original_path, asset_url, result_url, result_urls, created_at')
       .in('status', ['success', 'completed', 'succeeded'])
       .gte('created_at', cutoffTime.toISOString())
       .order('created_at', { ascending: false })
       .limit(limit);
+
+    if (typeFilter !== 'all') {
+      query = query.eq('type', typeFilter);
+    }
 
     // Filter by preview status unless force=true
     if (!force) {
@@ -140,7 +166,12 @@ export async function POST(request: NextRequest) {
     const needsWork = (generations || []).filter((gen: any) => {
       const isPhoto = String(gen.type || '').toLowerCase() === 'photo';
       const isVideo = String(gen.type || '').toLowerCase() === 'video';
-      const hasSource = !!(gen.original_path || gen.asset_url);
+      const hasSource = !!(
+        gen.original_path ||
+        gen.asset_url ||
+        gen.result_url ||
+        (Array.isArray(gen.result_urls) ? gen.result_urls.length > 0 : String(gen.result_urls || '').length > 0)
+      );
 
       if (!hasSource) return false; // Can't generate preview without source
 
@@ -213,6 +244,7 @@ export async function POST(request: NextRequest) {
       message: `Requeued ${results.requeued} previews`,
       stats: {
         found: results.found,
+        type: typeFilter,
         needsWork: results.needsWork,
         requeued: results.requeued,
         errors: results.errors,
@@ -239,16 +271,17 @@ export async function GET() {
     description: 'Requeue previews for recent generations (INSTANT PREVIEWS)',
     parameters: {
       generationId: 'Specific generation ID to requeue (optional)',
-      minutes: 'Number of minutes to look back (1-1440, default: 60)',
+      type: 'Filter by generation type: photo|video|all (default: all)',
+      minutes: 'Number of minutes to look back (1-43200, default: 60)',
       limit: 'Max generations to requeue (1-200, default: 50)',
       force: 'Force requeue even if preview_status=ready (default: false)',
     },
     examples: [
       'POST /api/previews/requeue?generationId=abc123',
+      'POST /api/previews/requeue?type=video&minutes=43200&limit=200',
       'POST /api/previews/requeue?minutes=30',
       'POST /api/previews/requeue?minutes=60&limit=100',
       'POST /api/previews/requeue?minutes=10&force=true',
     ],
   });
 }
-

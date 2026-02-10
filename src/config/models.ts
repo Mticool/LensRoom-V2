@@ -258,9 +258,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'nano-banana',
     name: 'Nano Banana',
-    apiId: 'nano-banana', // GenAIPro API model
+    // LaoZhang uses OpenAI-compatible /images/generations; model is resolved in getLaoZhangModelId()
+    apiId: 'nano-banana',
     type: 'photo',
-    provider: 'laozhang', // Using LaoZhang API
+    provider: 'laozhang',
     shortDescription: 'Фотореализм и "вкусная" картинка за секунды.',
     description: 'Лучший универсал на каждый день: стабильный реализм, хорошие лица, одежда, предметка. Подходит для быстрых тестов идей и массового контента.',
     rank: 1,
@@ -283,9 +284,10 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'nano-banana-pro',
     name: 'Nano Banana Pro',
-    apiId: 'nano-banana-pro', // GenAIPro API model
+    // LaoZhang uses OpenAI-compatible /images/generations; model is resolved in getLaoZhangModelId()
+    apiId: 'nano-banana-pro',
     type: 'photo',
-    provider: 'laozhang', // Using LaoZhang API
+    provider: 'laozhang',
     shortDescription: 'Максимум качества: детали, кожа, свет, чистые текстуры.',
     description: 'Премиальная версия для коммерции: более точные материалы, лучше мелкие детали, меньше артефактов. Выбирай, когда картинка "должна продавать".',
     rank: 2,

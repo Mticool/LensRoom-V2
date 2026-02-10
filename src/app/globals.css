@@ -273,6 +273,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, Inter, "Segoe UI", Roboto, Arial, sans-serif;
   background-color: var(--bg);
   color: var(--text);
+  max-width: 100%;
+  overflow-x: hidden;
   /* Subtle Freepik-like depth (no heavy noise, just a soft gradient wash) */
   background-image:
     radial-gradient(900px 500px at 15% 10%, rgba(0, 217, 255, 0.10), transparent 55%),
@@ -297,6 +299,14 @@ html.tg-webview body {
 :root {
   --safe-bottom: env(safe-area-inset-bottom);
   --safe-top: env(safe-area-inset-top);
+  /* Fixed header height used for layout offsets (mobile includes the primary row). */
+  --app-header-h: 112px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-header-h: 64px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -728,7 +738,12 @@ div.higgs-grid,
   --higgs-gap: 6px;
   display: grid !important;
   gap: var(--higgs-gap) !important;
-  grid-template-columns: repeat(auto-fill, minmax(var(--higgs-tile-min), 1fr)) !important;
+  /*
+    Prevent horizontal overflow when the viewport (or a flex container) becomes
+    narrower than the tile min width. This is especially noticeable when the
+    user does not maximize the browser window.
+  */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--higgs-tile-min)), 1fr)) !important;
   width: 100% !important;
   max-width: 100% !important;
 }
@@ -737,7 +752,10 @@ div.higgs-grid,
 .higgs-grid-fullwidth {
   display: grid !important;
   gap: var(--higgs-gap) !important;
-  grid-template-columns: repeat(auto-fill, minmax(min(550px, var(--higgs-tile-min)), 1fr)) !important;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, min(550px, var(--higgs-tile-min))), 1fr)
+  ) !important;
   width: 100% !important;
   max-width: 100% !important;
 }
@@ -812,4 +830,19 @@ div.higgs-grid,
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Wan-like prompt send glow */
+@keyframes wanButtonGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0px rgba(255, 140, 66, 0);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 140, 66, 0.6);
+  }
+}
+
+.wan-send-glow {
+  animation: wanButtonGlow 1500ms ease-in-out infinite;
 }

@@ -41,18 +41,28 @@ async function testImageGeneration(modelName, modelId, prompt) {
   const startTime = Date.now();
 
   try {
+    const body = {
+      model: modelId,
+      prompt: prompt,
+      n: 1,
+    };
+
+    // Some LaoZhang image models are picky about parameter names.
+    // Keep a conservative default for most "OpenAI-style" image models (size),
+    // but switch to aspect_ratio for Seedream variants.
+    if (String(modelId).startsWith("seedream-")) {
+      body.aspect_ratio = "1:1";
+    } else {
+      body.size = "1024x1024";
+    }
+
     const response = await fetch(`${BASE_URL}/images/generations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${API_KEY}`,
       },
-      body: JSON.stringify({
-        model: modelId,
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024",
-      }),
+      body: JSON.stringify(body),
     });
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -62,7 +72,17 @@ async function testImageGeneration(modelName, modelId, prompt) {
     
     if (!response.ok) {
       console.error("❌ Failed");
-      return { success: false, model: modelName, error: responseText.substring(0, 100) };
+      // LaoZhang often returns a JSON error body; print a preview to understand 401/403 causes.
+      const preview = (responseText || "").trim().slice(0, 800);
+      if (preview) {
+        console.error("Error body (preview):");
+        console.error(preview);
+      }
+      const www = response.headers.get("www-authenticate");
+      if (www) {
+        console.error("WWW-Authenticate:", www);
+      }
+      return { success: false, model: modelName, status: response.status, error: preview || `HTTP ${response.status}` };
     }
 
     const result = JSON.parse(responseText);
@@ -104,7 +124,16 @@ async function testVideoGeneration(modelName, modelId, prompt) {
     
     if (!response.ok) {
       console.error("❌ Failed");
-      return { success: false, model: modelName, error: responseText.substring(0, 100) };
+      const preview = (responseText || "").trim().slice(0, 800);
+      if (preview) {
+        console.error("Error body (preview):");
+        console.error(preview);
+      }
+      const www = response.headers.get("www-authenticate");
+      if (www) {
+        console.error("WWW-Authenticate:", www);
+      }
+      return { success: false, model: modelName, status: response.status, error: preview || `HTTP ${response.status}` };
     }
 
     const result = JSON.parse(responseText);

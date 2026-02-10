@@ -16,7 +16,12 @@ export function extractVideoUrl(gen: any): string | null {
   const hasExpirableUrl = candidates.some((url) => {
     if (typeof url !== 'string') return false;
     // tempfile.aiquickdraw.com URLs expire; Supabase signed URLs expire too.
-    return url.includes('tempfile.aiquickdraw.com') || url.includes('/storage/v1/object/sign/');
+    // LaoZhang /v1/videos/:id/content returns a URL that is valid for ~24h.
+    return (
+      url.includes('tempfile.aiquickdraw.com') ||
+      url.includes('/storage/v1/object/sign/') ||
+      url.includes('laozhang.ai')
+    );
   });
 
   // Prefer our stable download proxy for expirable URLs when possible.

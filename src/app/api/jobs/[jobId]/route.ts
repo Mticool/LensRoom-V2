@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getKieClient } from "@/lib/api/kie-client";
 import { getFalClient } from "@/lib/api/fal-client";
+import { getModelById } from "@/config/models";
 import type { KieProvider } from "@/config/models";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -8,7 +9,7 @@ import { syncKieTaskToDb } from "@/lib/kie/sync-task";
 import { refundCredits } from "@/lib/credits/refund";
 import { requireAuth } from "@/lib/auth/requireRole";
 import { getSession, getAuthUserId } from "@/lib/telegram/auth";
-import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
+import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 import { SingleFlight } from "@/lib/server/singleflight";
 
 const JOB_SF = new SingleFlight();
@@ -28,6 +29,74 @@ export async function GET(
         { error: "Job ID is required" },
         { status: 400 }
       );
+    }
+
+    // Heuristic: LaoZhang video IDs often look like "foaicmpl-<uuid>".
+    // If we see such an ID, try LaoZhang directly even if DB hasn't recorded task_id yet.
+    // Note: we still prefer returning our stable download proxy URL when we can find a generation row.
+    if (!provider && /^foaicmpl-/i.test(jobId)) {
+      try {
+        const supabase = getSupabaseAdmin();
+        const { data: gen } = await supabase
+          .from("generations")
+          .select("id,status")
+          .eq("task_id", jobId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
+        const lz = getLaoZhangClient();
+        const task = await JOB_SF.run(`laozhang:status:${jobId}`, async () => lz.getVideoTask(jobId));
+        const status = String(task.status || "processing").toLowerCase();
+
+        if (status === "completed") {
+          const stable = gen?.id
+            ? `/api/generations/${encodeURIComponent(String(gen.id))}/download?kind=original&proxy=1`
+            : null;
+          return NextResponse.json({
+            success: true,
+            jobId,
+            status: "completed",
+            progress: 100,
+            resultUrl: stable,
+            videoUrl: stable,
+            results: stable ? [{ id: jobId, url: stable }] : [],
+            kind: "video",
+            provider: "laozhang",
+          });
+        }
+        if (status === "failed") {
+          return NextResponse.json({
+            success: false,
+            jobId,
+            status: "failed",
+            error: (task as any)?.error || "LaoZhang generation failed",
+            kind: "video",
+            provider: "laozhang",
+          });
+        }
+        return NextResponse.json({
+          success: true,
+          jobId,
+          status: "processing",
+          progress: 15,
+          results: [],
+          kind: "video",
+          provider: "laozhang",
+        });
+      } catch (e: any) {
+        // If LaoZhang is temporarily unavailable, keep polling.
+        return NextResponse.json({
+          success: true,
+          jobId,
+          status: "processing",
+          progress: 10,
+          results: [],
+          kind: "video",
+          provider: "laozhang",
+        });
+      }
     }
 
     // === FAL PROVIDER (Kling O1) ===
@@ -207,23 +276,220 @@ export async function GET(
     }
 
     // === KIE PROVIDER ===
+    // First check if we have the result in DB (from webhook or previous sync)
+    const supabase = getSupabaseAdmin();
+
+    // Schema-compatible selection: some prod DBs may not have optional columns (metadata/original_path/etc).
+    const fieldsLegacy = "id,user_id,model_id,task_id,status,result_url,result_urls,error,type,updated_at,credits_used";
+    const fieldsV2 = `${fieldsLegacy},metadata`;
+    const fieldsV3 = `${fieldsV2},original_path`;
+
+    let dbGen: any = null;
+    for (const fields of [fieldsV3, fieldsV2, fieldsLegacy]) {
+      const r = await supabase.from("generations").select(fields).eq("task_id", jobId).maybeSingle();
+      if (!r.error) {
+        dbGen = r.data;
+        break;
+      }
+      if (String((r.error as any)?.code || "") === "PGRST204") continue;
+      // Any other error: break and proceed with dbGen=null (we'll fail gracefully below).
+      break;
+    }
+
+    // === LAOZHANG PROVIDER (Veo/Sora via laozhang.ai) ===
+    const modelId = dbGen?.model_id ? String((dbGen as any).model_id) : "";
+    const modelInfo = modelId ? (getModelById(modelId) as any) : null;
+    const isLaoZhang = provider === "laozhang" || String(modelInfo?.provider || "").toLowerCase() === "laozhang";
+    if (isLaoZhang) {
+      try {
+        const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
+        const lz = getLaoZhangClient();
+
+        // If DB already has a terminal result, return it (prefer our download proxy for expirable URLs).
+        if (dbGen?.id && String(dbGen.status || "").toLowerCase() === "success") {
+          const stable = `/api/generations/${encodeURIComponent(String(dbGen.id))}/download?kind=original&proxy=1`;
+          return NextResponse.json({
+            success: true,
+            jobId,
+            status: "completed",
+            progress: 100,
+            resultUrl: stable,
+            videoUrl: stable,
+            results: [{ id: jobId, url: stable }],
+            kind: "video",
+            provider: "laozhang",
+          });
+        }
+
+        const task = await JOB_SF.run(`laozhang:status:${jobId}`, async () => lz.getVideoTask(jobId));
+        const status = String(task.status || "processing").toLowerCase();
+
+        if (status === "completed") {
+          // Option 1: DO NOT store the video in our storage.
+          // LaoZhang /videos/:id/content requires auth and may return raw mp4 bytes (not JSON).
+          // We persist task_id and point the UI at our download proxy.
+          if (dbGen?.id) {
+            try {
+              const upstreamContentUrl = `https://api.laozhang.ai/v1/videos/${encodeURIComponent(jobId)}/content`;
+              await supabase
+                .from("generations")
+                .update({
+                  status: "success",
+                  // Store an auth-required URL for audit/debug only; clients must use our proxy.
+                  asset_url: upstreamContentUrl,
+                  result_url: upstreamContentUrl,
+                  result_urls: [upstreamContentUrl],
+                  preview_status: "none",
+                  updated_at: new Date().toISOString(),
+                  metadata: {
+                    ...((dbGen as any)?.metadata || {}),
+                    provider: "laozhang",
+                    provider_task_id: jobId,
+                  },
+                })
+                .eq("id", dbGen.id);
+            } catch (e) {
+              console.error("[API] Failed to persist LaoZhang completion to DB:", e);
+            }
+          }
+
+          const stable = dbGen?.id
+            ? `/api/generations/${encodeURIComponent(String(dbGen.id))}/download?kind=original&proxy=1`
+            : null;
+
+          return NextResponse.json({
+            success: true,
+            jobId,
+            status: "completed",
+            progress: 100,
+            resultUrl: stable,
+            videoUrl: stable,
+            results: stable ? [{ id: jobId, url: stable }] : [],
+            kind: "video",
+            provider: "laozhang",
+          });
+        }
+
+        if (status === "failed") {
+          const errorDetail = (task as any)?.error || "LaoZhang generation failed";
+
+          if (dbGen?.id) {
+            try {
+              await supabase
+                .from("generations")
+                .update({
+                  status: "failed",
+                  error: errorDetail,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", dbGen.id);
+            } catch (e) {
+              console.error("[API] Failed to persist LaoZhang failure to DB:", e);
+            }
+
+            const beforeStatus = String(dbGen.status || "").toLowerCase();
+            const isAlreadyTerminal = beforeStatus === "success" || beforeStatus === "failed" || beforeStatus === "completed";
+            const creditsToRefund = Number((dbGen as any).credits_used || 0);
+            const uid = (dbGen as any).user_id ? String((dbGen as any).user_id) : "";
+            if (!isAlreadyTerminal && creditsToRefund > 0 && uid) {
+              try {
+                await refundCredits(
+                  supabase,
+                  uid,
+                  String(dbGen.id),
+                  creditsToRefund,
+                  "laozhang_generation_failed",
+                  { jobId, error: errorDetail }
+                );
+              } catch (e) {
+                console.error("[API] Failed to refund credits for LaoZhang failure:", e);
+              }
+            }
+          }
+
+          return NextResponse.json(
+            {
+              success: false,
+              jobId,
+              status: "failed",
+              error: errorDetail,
+              kind: "video",
+              provider: "laozhang",
+            },
+            { status: 200 }
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          jobId,
+          status: "processing",
+          progress: 20,
+          results: [],
+          kind: "video",
+          provider: "laozhang",
+        });
+      } catch (e: any) {
+        console.error("[API] LaoZhang status error:", e);
+        const httpStatus = typeof e?.status === "number" ? e.status : null;
+        // Polling should be resilient: transient errors shouldn't kill the job on the client.
+        if (e instanceof FetchTimeoutError || httpStatus === 404 || httpStatus === 429 || (httpStatus != null && httpStatus >= 500)) {
+          return NextResponse.json({
+            success: true,
+            jobId,
+            status: "processing",
+            progress: 15,
+            results: [],
+            kind: "video",
+            provider: "laozhang",
+          });
+        }
+        const msg = e?.message || "Failed to get LaoZhang job status";
+        return NextResponse.json(
+          { success: false, jobId, status: "failed", error: msg, kind: "video", provider: "laozhang" },
+          { status: 500 }
+        );
+      }
+    }
+
+    const scope = (() => {
+      const meta = (dbGen as any)?.metadata || {};
+      const raw = String(meta?.kie_key_scope || "").toLowerCase();
+      if (raw === "photo" || raw === "video") return raw;
+      const t = String((dbGen as any)?.type || kind || "").toLowerCase();
+      if (t === "video") return "video";
+      if (t === "photo" || t === "image") return "photo";
+      return "default";
+    })();
+
+    const slot = (() => {
+      const meta = (dbGen as any)?.metadata || {};
+      const n = Number(meta?.kie_key_slot);
+      return Number.isFinite(n) ? n : null;
+    })();
+
     let kieClient: any;
     try {
-      kieClient = getKieClient();
+      kieClient = getKieClient({ scope: scope as any, slot });
     } catch (e) {
       return integrationNotConfigured("kie", [
         "KIE_API_KEY",
       ]);
     }
 
-    // First check if we have the result in DB (from webhook or previous sync)
-    const supabase = getSupabaseAdmin();
-    const { data: dbGen } = await supabase
-      .from('generations')
-      .select('id, status, result_urls, error, type')
-      .eq('task_id', jobId)
-      .single();
-    
+    // If we don't have a DB record yet, don't fail the client polling with a 500.
+    // This can happen when DB schema is missing optional columns or the insert/update is delayed.
+    if (!dbGen) {
+      return NextResponse.json({
+        success: true,
+        jobId,
+        status: "processing",
+        progress: 5,
+        results: [],
+        kind: kind || "video",
+      });
+    }
+
     if (dbGen) {
       if (String(dbGen.status || "").toLowerCase() === "cancelled") {
         return NextResponse.json({
@@ -262,6 +528,24 @@ export async function GET(
       
       // Still processing - try sync-task for more reliable result
       if (dbGen.status === 'generating' || dbGen.status === 'queued' || dbGen.status === 'pending') {
+        // Throttle aggressive polling (protects upstream APIs and Node event loop).
+        // If DB was updated very recently, return a processing response without hitting upstream.
+        try {
+          const updatedAt = (dbGen as any)?.updated_at ? Date.parse(String((dbGen as any).updated_at)) : 0;
+          if (updatedAt && Date.now() - updatedAt < 2500) {
+            return NextResponse.json({
+              success: true,
+              jobId,
+              status: "processing",
+              progress: 25,
+              results: [],
+              kind: (dbGen as any).type || kind,
+              provider: provider || null,
+            });
+          }
+        } catch {
+          // ignore
+        }
         try {
           const syncResult = await JOB_SF.run(`kie:sync:${jobId}`, async () =>
             syncKieTaskToDb({ supabase, taskId: dbGen.task_id })
@@ -334,9 +618,17 @@ export async function GET(
         }
       }
     } catch (kieErr: any) {
-      // If KIE API fails with JSON error, return "processing" status
-      if (kieErr?.message?.includes('JSON') || kieErr?.message?.includes('Unterminated')) {
-        console.warn('[API] KIE returned truncated JSON, returning processing status');
+      // If KIE API fails transiently, return "processing" so the UI does not break.
+      const msg = String(kieErr?.message || "");
+      const isTransient =
+        kieErr instanceof FetchTimeoutError ||
+        /timeout/i.test(msg) ||
+        /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(msg) ||
+        msg.includes("Circuit is open") ||
+        msg.includes("JSON") ||
+        msg.includes("Unterminated");
+      if (isTransient) {
+        console.warn('[API] KIE transient error, returning processing status:', msg);
         return NextResponse.json({
           success: true,
           jobId,

@@ -25,11 +25,38 @@ const ALLOWED_HOSTS = new Set([
   'tempfile.aiquickdraw.com',
 ]);
 
+function getSupabaseHost(): string | null {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isAllowedSupabaseObjectUrl(target: URL, supabaseHost: string): boolean {
+  if (target.hostname.toLowerCase() !== supabaseHost) return false;
+  // Only allow object fetches from Supabase Storage (public or signed), but keep it scoped to buckets we use
+  // for user-visible media. This prevents using the proxy to hit arbitrary Supabase endpoints.
+  const allowedBuckets = new Set(['generations', 'gallery']);
+  const m = target.pathname.match(/^\/storage\/v1\/object\/(public|sign)\/([^/]+)\//);
+  if (!m) return false;
+  const bucket = m[2];
+  if (!bucket || !allowedBuckets.has(bucket)) return false;
+  return (
+    target.pathname.startsWith(`/storage/v1/object/public/${bucket}/`) ||
+    target.pathname.startsWith(`/storage/v1/object/sign/${bucket}/`)
+  );
+}
+
 // Public proxy for media used in public galleries (inspiration/home).
 // We keep it tightly scoped to a small allowlist to avoid SSRF abuse.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const urlParam = searchParams.get('url');
+  const forceDownload = searchParams.get('download') === '1' || searchParams.get('download') === 'true';
+  const filenameParam = (searchParams.get('filename') || '').trim();
   if (!urlParam) {
     return NextResponse.json({ error: 'Missing url' }, { status: 400 });
   }
@@ -47,13 +74,18 @@ export async function GET(req: NextRequest) {
   if (isPrivateOrLocalHost(target.hostname)) {
     return NextResponse.json({ error: 'Blocked host' }, { status: 400 });
   }
-  if (!ALLOWED_HOSTS.has(target.hostname.toLowerCase())) {
-    return NextResponse.json({ error: 'Host not allowed' }, { status: 400 });
-  }
+  const host = target.hostname.toLowerCase();
+  const supabaseHost = getSupabaseHost();
+  const hostAllowed =
+    ALLOWED_HOSTS.has(host) ||
+    (supabaseHost ? isAllowedSupabaseObjectUrl(target, supabaseHost) : false);
+  if (!hostAllowed) return NextResponse.json({ error: 'Host not allowed' }, { status: 400 });
 
   try {
     const upstream = await fetchWithTimeout(target.toString(), {
-      timeout: 20_000,
+      // Downloads (especially videos) can exceed 20s on slow networks.
+      // Keep a higher ceiling, but this endpoint is allowlisted to prevent abuse.
+      timeout: 60_000,
       redirect: 'follow',
       headers: {
         'User-Agent': 'LensRoom/1.0 (public-media-proxy)',
@@ -75,13 +107,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Upstream returned HTML' }, { status: 502 });
     }
 
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      // Cache proxy responses to reduce load and speed up gallery scrolling.
+      // If we force-download, do not cache (these requests are usually one-off).
+      'Cache-Control': forceDownload ? 'private, no-cache, no-store, must-revalidate' : 'public, max-age=86400, stale-while-revalidate=604800',
+    };
+
+    if (forceDownload) {
+      // Keep filename conservative to avoid header injection.
+      const safeName = filenameParam.replace(/[^\w.\-() ]+/g, '').slice(0, 120) || 'lensroom-download';
+      headers['Content-Disposition'] = `attachment; filename="${safeName}"`;
+    }
+
     return new NextResponse(upstream.body as any, {
       status: 200,
-      headers: {
-        'Content-Type': contentType,
-        // Cache proxy responses to reduce load and speed up gallery scrolling.
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
-      },
+      headers,
     });
   } catch (e) {
     if (e instanceof FetchTimeoutError) {
