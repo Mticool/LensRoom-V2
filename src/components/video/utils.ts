@@ -59,6 +59,21 @@ export function extractVideoUrl(gen: any): string | null {
   return null;
 }
 
+/**
+ * Extract poster/thumbnail URL from a generation object.
+ * Prefers poster_url from API, falls back to download proxy.
+ */
+export function extractPosterUrl(gen: any): string | null {
+  if (!gen) return null;
+  if (gen.poster_url && typeof gen.poster_url === 'string') return gen.poster_url;
+  // If poster_path exists but poster_url wasn't resolved — API will handle it
+  if (gen.poster_path) return null;
+  // Fallback: use our download proxy to get a preview frame
+  const id = gen.id ? String(gen.id) : '';
+  if (id) return `/api/generations/${encodeURIComponent(id)}/download?kind=preview&proxy=1`;
+  return null;
+}
+
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

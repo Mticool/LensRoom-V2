@@ -5,9 +5,15 @@ import { Play, Download } from 'lucide-react';
 import { VideoGeneratorHiru } from './VideoGeneratorHiru';
 import { useVideoGeneration } from '@/hooks/useVideoGeneration';
 import { toast } from 'sonner';
-import { extractVideoUrl, fileToBase64 } from './utils';
+import { extractVideoUrl, extractPosterUrl, fileToBase64 } from './utils';
 
 type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3';
+
+interface HistoryItem {
+  url: string;
+  posterUrl: string | null;
+  id: string | null;
+}
 
 interface VideoGeneratorLightProps {
   onGenerate?: (params: any) => void;
@@ -17,7 +23,7 @@ interface VideoGeneratorLightProps {
 
 export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGeneratorLightProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [generationHistory, setGenerationHistory] = useState<string[]>([]);
+  const [generationHistory, setGenerationHistory] = useState<HistoryItem[]>([]);
   const [currentRatio, setCurrentRatio] = useState<AspectRatio>('16:9');
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -29,7 +35,7 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
 
   const loadHistory = async () => {
     try {
-      const response = await fetch('/api/generations?type=video&limit=20', {
+      const response = await fetch('/api/generations?type=video&limit=20&ensure_posters=1', {
         credentials: 'include',
       });
 
@@ -41,12 +47,20 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
       const data = await response.json();
       const generations = Array.isArray(data?.generations) ? data.generations : [];
 
-      const urls = generations
+      const items: HistoryItem[] = generations
         .filter((g: any) => ['success', 'completed'].includes(String(g.status || '').toLowerCase()))
-        .map((g: any) => extractVideoUrl(g))
-        .filter(Boolean);
+        .map((g: any) => {
+          const url = extractVideoUrl(g);
+          if (!url) return null;
+          return {
+            url,
+            posterUrl: extractPosterUrl(g),
+            id: g.id ? String(g.id) : null,
+          };
+        })
+        .filter(Boolean) as HistoryItem[];
 
-      setGenerationHistory(urls.slice(0, 8));
+      setGenerationHistory(items.slice(0, 8));
     } catch (error) {
       console.error('[VideoGeneratorLight] Failed to load history:', error);
     }
@@ -288,20 +302,28 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
               <h3 className="text-sm font-semibold text-white mb-4">Мои работы</h3>
               {generationHistory.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
-                  {generationHistory.map((url, i) => (
+                  {generationHistory.map((item, i) => (
                     <button
-                      key={i}
-                      onClick={() => setVideoUrl(url)}
+                      key={item.id || i}
+                      onClick={() => setVideoUrl(item.url)}
                       className="relative aspect-video bg-black/50 rounded-lg border border-white/10 overflow-hidden hover:border-[#f59e0b] transition-colors group"
                     >
-                      <video
-                        src={url}
-                        className="w-full h-full object-cover"
-                        muted
-                        playsInline
-                        preload="metadata"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      {item.posterUrl ? (
+                        <img
+                          src={item.posterUrl}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-black/60 flex items-center justify-center">
+                          <Play className="w-6 h-6 text-gray-500" />
+                        </div>
+                      )}
+                      {/* Play icon overlay on hover */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <Play className="w-8 h-8 text-white opacity-0 group-hover:opacity-80 transition-opacity drop-shadow-lg" />
+                      </div>
                     </button>
                   ))}
                 </div>
