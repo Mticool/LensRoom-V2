@@ -405,9 +405,8 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
   {
     id: 'z-image',
     name: 'Z-Image Turbo',
-    // KIE model identifier for Turbo variant.
-    // If KIE expects plain "z-image", we handle it in the API client fallback.
-    apiId: 'z-image-turbo',
+    // KIE model identifier — plain "z-image" (KIE does NOT accept "z-image-turbo").
+    apiId: 'z-image',
     type: 'photo',
     provider: 'kie_market',
     shortDescription: 'Фотореализм и чистые текстуры • сильная типографика.',

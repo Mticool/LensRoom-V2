@@ -92,7 +92,7 @@ export const IMAGE_MODEL_CAPABILITIES: Record<ImageModelId, ImageModelCapability
     id: 'z-image',
     label: 'Z-Image Turbo',
     provider: 'kie_market',
-    apiId: 'z-image-turbo',
+    apiId: 'z-image',
     modes: ['t2i', 'i2i'],
     supportedAspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', '4:5', '3:2', '2:3', 'auto'],
     modeAspectRatios: {
