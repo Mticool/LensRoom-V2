@@ -178,7 +178,7 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
       {/* Outer wrapper: fixed, full-width, pointer-events:none so clicks pass through to gallery */}
       <div
         className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none flex justify-center pb-3"
-        style={{ height: isExpanded ? 140 : 68 }}
+        style={{ height: isExpanded ? 110 : 68 }}
       >
         {/* Floating glass pill (wan.video style) */}
         <div
@@ -186,18 +186,18 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
           data-expanded={isExpanded ? 'true' : 'false'}
           className="pointer-events-auto w-full max-w-[820px] mx-4 overflow-hidden"
           style={{
-            height: isExpanded ? 126 : 52,
+            height: isExpanded ? 96 : 52,
             borderRadius: isExpanded ? 22 : 26,
-            background: 'radial-gradient(50% 50%, rgba(38,38,44,0.85) 0%, rgba(32,32,38,0.8) 100%)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 32px rgba(0,0,0,0.45)',
+            background: 'radial-gradient(50% 50%, rgba(38,38,44,0.65) 0%, rgba(32,32,38,0.6) 100%)',
+            backdropFilter: 'blur(32px) saturate(1.2)',
+            WebkitBackdropFilter: 'blur(32px) saturate(1.2)',
+            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.35)',
             transition: 'height 0.3s cubic-bezier(0.34,1.56,0.64,1), border-radius 0.3s ease',
           }}
           onFocusCapture={() => setIsExpanded(true)}
           onMouseDown={() => setIsExpanded(true)}
         >
-          <div className="h-full px-2 py-1.5 flex flex-col">
+          <div className="h-full px-2 py-1 flex flex-col">
             {/* Hidden upload input */}
             <input
               id={uploadInputId}
@@ -210,7 +210,7 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
             />
 
             {/* Top row: collapsed prompt hint + controls */}
-            <div className="flex items-center gap-1 shrink-0" style={{ height: isExpanded ? 38 : 48 }}>
+            <div className="flex items-center gap-1 shrink-0" style={{ height: isExpanded ? 34 : 48 }}>
               {/* Collapsed: prompt hint text. Expanded: spacer */}
               <div
                 className="flex-1 min-w-0 cursor-text select-none"
