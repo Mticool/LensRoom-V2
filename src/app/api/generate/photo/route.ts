@@ -1095,18 +1095,7 @@ export async function POST(request: NextRequest) {
 
         // Number of images to generate (parallel generation)
         const numVariants = Math.min(Math.max(Number(finalVariants) || 1, 1), 4);
-        
-        console.log('[API] LaoZhang request:', { 
-          model: laozhangModelId,
-          originalModel: modelInfo.apiId,
-          size: imageSize, 
-          aspectRatio: finalAspectRatio,
-          quality: finalQuality,
-          mode: resolvedMode,
-          hasReference: !!referenceForProvider,
-          variants: numVariants,
-        });
-        
+
         const normalizeAspectForNative = (ar: string): string => {
           const v = String(ar || '').trim();
           const allowed = new Set(['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '4:5', '5:4', '21:9']);
@@ -1120,7 +1109,25 @@ export async function POST(request: NextRequest) {
           return undefined;
         };
 
-        const referenceUrlsForLaoZhang = (kieImageInputs || []).filter(Boolean).slice(0, maxRefs);
+        // PERF: For LaoZhang, use original data URLs (rawRefs) directly instead of
+        // Storage URLs (kieImageInputs). LaoZhang natively accepts inline_data (base64)
+        // via the v1beta endpoint and image_url via chat endpoint.
+        // Using Storage URLs would cause: base64 → upload to Storage → download back to base64 → send to API
+        // which adds 2-30+ seconds of unnecessary latency per image.
+        const referenceUrlsForLaoZhang = rawRefs.slice(0, maxRefs);
+
+        console.log('[API] LaoZhang request:', {
+          model: laozhangModelId,
+          originalModel: modelInfo.apiId,
+          size: imageSize,
+          aspectRatio: finalAspectRatio,
+          quality: finalQuality,
+          mode: resolvedMode,
+          hasReference: !!referenceForProvider,
+          referenceCount: referenceUrlsForLaoZhang.length,
+          referenceTypes: referenceUrlsForLaoZhang.map(r => r.startsWith('data:') ? 'data-url' : r.startsWith('http') ? 'http-url' : 'raw-b64'),
+          variants: numVariants,
+        });
 
         // Helper function to generate a single image with retries
         const generateSingleImage = async (index: number): Promise<{ url: string; storagePath: string } | null> => {
@@ -1147,17 +1154,20 @@ export async function POST(request: NextRequest) {
             try {
               let laozhangResponse;
               
-              if (resolvedMode === 'i2i' && referenceForProvider) {
+              if (resolvedMode === 'i2i' && referenceUrlsForLaoZhang.length > 0) {
                 // LaoZhang Gemini image editing is NOT /images/edits for Nano Banana models.
                 // Use:
-                // - nano-banana: /chat/completions with image_url blocks
-                // - nano-banana-pro: /v1beta ...:generateContent (native) for aspect ratios / 2K/4K
+                // - nano-banana: /chat/completions with image_url blocks (accepts data: URLs directly)
+                // - nano-banana-pro: /v1beta ...:generateContent (native) with inline_data for aspect ratios / 2K/4K
+                //
+                // PERF: Pass original data URLs directly — LaoZhang client handles
+                // data URL → inline_data conversion internally without roundtripping through Storage.
                 if (effectiveModelId === 'nano-banana-pro') {
                   try {
                     const imgSize = pickImageSizeForPro(finalQuality || finalResolution);
                     const native = await laozhangClient.editNanoBananaProViaNative({
                       prompt,
-                      imageUrls: referenceUrlsForLaoZhang.length ? referenceUrlsForLaoZhang : [referenceForProvider],
+                      imageUrls: referenceUrlsForLaoZhang,
                       aspectRatio: normalizeAspectForNative(finalAspectRatio),
                       imageSize: imgSize,
                     });
@@ -1166,10 +1176,11 @@ export async function POST(request: NextRequest) {
                     // Some LaoZhang tokens do not allow the v1beta native endpoint; fall back to OpenAI-style /images/edits.
                     // Important: /images/edits usually supports only square sizes up to 1024.
                     console.warn('[API] LaoZhang native edit failed; falling back to /images/edits:', e);
+                    // For /images/edits fallback, use Storage URL (referenceForProvider) since it needs multipart upload
                     laozhangResponse = await laozhangClient.editImage({
                       model: laozhangModelId,
                       prompt,
-                      image: referenceForProvider,
+                      image: referenceForProvider || referenceUrlsForLaoZhang[0],
                       n: 1,
                       size: '1024x1024',
                       response_format: 'b64_json',
@@ -1177,9 +1188,10 @@ export async function POST(request: NextRequest) {
                   }
                 } else {
                   try {
+                    // nano-banana chat endpoint accepts image_url with data: URLs
                     const chat = await laozhangClient.editNanoBananaViaChat({
                       prompt,
-                      imageUrls: referenceUrlsForLaoZhang.length ? referenceUrlsForLaoZhang : [referenceForProvider],
+                      imageUrls: referenceUrlsForLaoZhang,
                     });
                     laozhangResponse = { data: [{ b64_json: chat.base64 }] };
                   } catch (e) {
@@ -1187,7 +1199,7 @@ export async function POST(request: NextRequest) {
                     laozhangResponse = await laozhangClient.editImage({
                       model: laozhangModelId,
                       prompt,
-                      image: referenceForProvider,
+                      image: referenceForProvider || referenceUrlsForLaoZhang[0],
                       n: 1,
                       size: '1024x1024',
                       response_format: 'b64_json',

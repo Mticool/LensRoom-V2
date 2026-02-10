@@ -367,19 +367,25 @@ export class LaoZhangClient {
 
     // Prefer inline_data (base64) to avoid overseas accessibility constraints for fileData URLs.
     const parts: any[] = [{ text: params.prompt }];
+    const refStartTime = Date.now();
     for (const u of imageUrls) {
       if (u.startsWith("data:")) {
         const parsed = parseDataUrlMimeAndBase64(u);
         if (!parsed) continue;
+        console.log('[LaoZhang Native] Using inline data URL directly (no fetch needed), size:', Math.round(parsed.base64.length / 1024), 'KB');
         parts.push({ inline_data: { mime_type: parsed.mime, data: parsed.base64 } });
       } else if (u.startsWith("http")) {
+        console.log('[LaoZhang Native] Fetching HTTP URL to inline_data:', u.substring(0, 80) + '...');
+        const fetchStart = Date.now();
         const inline = await fetchToInlineData(u, 60_000);
+        console.log('[LaoZhang Native] Fetch took', Date.now() - fetchStart, 'ms, size:', Math.round(inline.base64.length / 1024), 'KB');
         parts.push({ inline_data: { mime_type: inline.mime, data: inline.base64 } });
       } else {
         // raw base64
         parts.push({ inline_data: { mime_type: "image/png", data: u } });
       }
     }
+    console.log('[LaoZhang Native] Reference images prepared in', Date.now() - refStartTime, 'ms, parts count:', parts.length);
 
     const payload = {
       contents: [{ parts }],
