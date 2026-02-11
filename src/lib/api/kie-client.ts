@@ -75,6 +75,15 @@ export interface LipSyncParams {
   callbackUrl?: string; // URL для callback уведомления
 }
 
+export interface AnimateVideoParams {
+  model: string; // 'wan/2-2-animate-move' or 'wan/2-2-animate-replace'
+  imageUrl: string; // URL статичного изображения (персонаж)
+  videoUrl: string; // URL референс-видео (движения)
+  quality?: '480p' | '580p' | '720p'; // Разрешение выходного видео
+  prompt?: string; // Опциональный промпт
+  callbackUrl?: string; // URL для callback уведомления
+}
+
 // ===== RESPONSE TYPES =====
 
 export interface CreateTaskResponse {
@@ -618,6 +627,43 @@ export class KieAIClient {
     };
 
     console.log('[KIE Lip Sync] Request:', JSON.stringify(request, null, 2));
+
+    return this.createTask(request);
+  }
+
+  // ===== WAN 2.2 ANIMATE API - MOTION TRANSFER / CHARACTER SWAP =====
+  // POST /api/v1/jobs/createTask (wan/2-2-animate-move & wan/2-2-animate-replace)
+  async animateVideo(params: AnimateVideoParams): Promise<CreateTaskResponse> {
+    if (this._isMockMode) {
+      return this.mockCreateTask({
+        model: params.model,
+        input: {
+          image_url: params.imageUrl,
+          video_url: params.videoUrl,
+        },
+      });
+    }
+
+    const input: Record<string, unknown> = {
+      image_url: params.imageUrl,
+      video_url: params.videoUrl,
+    };
+
+    if (params.quality) {
+      input.quality = params.quality;
+    }
+
+    if (params.prompt) {
+      input.prompt = params.prompt;
+    }
+
+    const request: CreateTaskRequest = {
+      model: params.model,
+      input,
+      ...(params.callbackUrl && { callBackUrl: params.callbackUrl }),
+    };
+
+    console.log('[KIE WAN Animate] Request:', JSON.stringify(request, null, 2));
 
     return this.createTask(request);
   }

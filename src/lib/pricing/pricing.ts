@@ -214,6 +214,16 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
     return 'infinitalk_720p:per_sec';
   }
 
+  // === WAN ANIMATE MODELS (per-second pricing) ===
+
+  if (normalizedModelId === 'wan_animate_move') {
+    return 'wan_animate_move:per_sec';
+  }
+
+  if (normalizedModelId === 'wan_animate_replace') {
+    return 'wan_animate_replace:per_sec';
+  }
+
   // Fallback: unknown model
   console.warn(`[Pricing] Unknown model: ${modelId}, returning 0 stars`);
   return `unknown:${normalizedModelId}`;
@@ -288,6 +298,10 @@ const PRICE_TABLE: Record<string, number> = {
   // INFINITALK (PER SECOND)
   'infinitalk_480p:per_sec': 3,
   'infinitalk_720p:per_sec': 12,
+
+  // === WAN ANIMATE (PER SECOND) ===
+  'wan_animate_move:per_sec': 6,     // Motion Transfer — 6⭐/сек
+  'wan_animate_replace:per_sec': 8,  // Character Swap — 8⭐/сек
 };
 
 /**

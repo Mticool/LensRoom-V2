@@ -4,9 +4,11 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_AUDIO_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/webm', 'audio/x-mpeg-3', 'audio/mpeg3'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 
 // Функция для проверки расширения файла
 function hasValidAudioExtension(filename: string): boolean {
@@ -19,9 +21,19 @@ function hasValidImageExtension(filename: string): boolean {
   return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
 }
 
+function hasValidVideoExtension(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm');
+}
+
 // Функция для получения MIME-типа, совместимого с Supabase Storage
 function getSupabaseContentType(filename: string, originalType: string): string {
   const lower = filename.toLowerCase();
+
+  // Для видео файлов
+  if (lower.endsWith('.mp4')) return 'video/mp4';
+  if (lower.endsWith('.mov')) return 'video/quicktime';
+  if (lower.endsWith('.webm') && originalType.startsWith('video/')) return 'video/webm';
 
   // Для аудио файлов
   if (lower.endsWith('.mp3')) return 'audio/mp3';
@@ -51,7 +63,7 @@ export async function POST(request: NextRequest) {
     const userId = (await getAuthUserId(session)) || session.profileId;
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const type = formData.get('type') as 'image' | 'audio' | null;
+    const type = formData.get('type') as 'image' | 'audio' | 'video' | null;
 
     if (!file) {
       return NextResponse.json(
@@ -60,9 +72,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!type || (type !== 'image' && type !== 'audio')) {
+    if (!type || (type !== 'image' && type !== 'audio' && type !== 'video')) {
       return NextResponse.json(
-        { error: 'Invalid type', message: 'Тип должен быть image или audio' },
+        { error: 'Invalid type', message: 'Тип должен быть image, audio или video' },
         { status: 400 }
       );
     }
@@ -108,10 +120,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (type === 'video') {
+      if (file.size > MAX_VIDEO_SIZE) {
+        return NextResponse.json(
+          { error: 'VIDEO_TOO_LARGE', message: `Видео слишком большое. Максимум ${MAX_VIDEO_SIZE / 1024 / 1024}MB` },
+          { status: 400 }
+        );
+      }
+
+      const hasValidMime = ALLOWED_VIDEO_TYPES.includes(file.type);
+      const hasValidExt = hasValidVideoExtension(file.name);
+
+      if (!hasValidMime && !hasValidExt) {
+        return NextResponse.json(
+          { error: 'INVALID_VIDEO_FORMAT', message: 'Поддерживаются только MP4, MOV, WEBM' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Загрузить файл в Supabase Storage
     const supabase = getSupabaseAdmin();
     const timestamp = Date.now();
-    const extension = file.name.split('.').pop() || (type === 'image' ? 'jpg' : 'mp3');
+    const extension = file.name.split('.').pop() || (type === 'image' ? 'jpg' : type === 'video' ? 'mp4' : 'mp3');
     const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const storagePath = `voice-assets/${userId}/${fileName}`;
 

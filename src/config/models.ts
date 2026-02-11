@@ -201,7 +201,7 @@ export interface VideoModelConfig {
   // Short label for sidebar (e.g., "8s • Ultra", "5/10s • Audio")
   shortLabel?: string;
   // Model tag for UI badges (e.g., "PRO", "FAST", "NEW", "ULTRA", "AVATAR", "HD")
-  modelTag?: 'PRO' | 'FAST' | 'NEW' | 'ULTRA' | 'TOP' | 'CORE' | 'AVATAR' | 'HD';
+  modelTag?: 'PRO' | 'FAST' | 'NEW' | 'ULTRA' | 'TOP' | 'CORE' | 'AVATAR' | 'HD' | 'MOTION' | 'SWAP';
 }
 
 export type ModelConfig = PhotoModelConfig | VideoModelConfig;
@@ -847,6 +847,66 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     aspectRatios: [],
     shortLabel: '720p • 12⭐/сек',
     modelTag: 'HD',
+  },
+
+  // === WAN 2.2 ANIMATE MODELS ===
+
+  {
+    id: 'wan-animate-move',
+    name: 'Motion Transfer',
+    apiId: 'wan/2-2-animate-move',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Передача движений из видео на статичное фото. Входное фото оживает по образцу движений из референс-видео.',
+    rank: 93,
+    featured: true,
+    speed: 'slow',
+    quality: 'high',
+    supportsI2v: false,
+    supportsAudio: false,
+    pricing: {
+      // Per-second pricing by quality
+      '1': 6,
+      '5': 30,
+      '10': 60,
+      '15': 90,
+      '30': 180,
+    },
+    modes: ['animate' as any],
+    durationOptions: [],
+    resolutionOptions: ['480p', '580p', '720p'],
+    aspectRatios: [],
+    shortLabel: 'Motion Transfer • 6⭐/сек',
+    modelTag: 'MOTION',
+  },
+
+  {
+    id: 'wan-animate-replace',
+    name: 'Character Swap',
+    apiId: 'wan/2-2-animate-replace',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Замена персонажа в видео на лицо из вашего фото. Оригинальные движения и фон сохраняются.',
+    rank: 94,
+    featured: true,
+    speed: 'slow',
+    quality: 'high',
+    supportsI2v: false,
+    supportsAudio: false,
+    pricing: {
+      // Per-second pricing by quality
+      '1': 8,
+      '5': 40,
+      '10': 80,
+      '15': 120,
+      '30': 240,
+    },
+    modes: ['animate' as any],
+    durationOptions: [],
+    resolutionOptions: ['480p', '580p', '720p'],
+    aspectRatios: [],
+    shortLabel: 'Character Swap • 8⭐/сек',
+    modelTag: 'SWAP',
   },
 ];
 
