@@ -63,3 +63,4 @@ supabase/.temp/
 !deploy-direct.sh
 lensroom-v2/
 dev.log
+.vercel
