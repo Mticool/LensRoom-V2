@@ -429,7 +429,7 @@ export function StyleGallery({ isOpen, onClose, onSelectStyle }: StyleGalleryPro
         <div className="px-5 py-4 border-b border-[#27272A] flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#00D9FF]" />
+              <Sparkles className="w-4 h-4 text-[#8cf425]" />
               <h2 className="text-sm font-semibold text-white">Стили</h2>
               <span className="text-[11px] text-[#52525B]">{filteredStyles.length}</span>
             </div>
@@ -461,7 +461,7 @@ export function StyleGallery({ isOpen, onClose, onSelectStyle }: StyleGalleryPro
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap ${
                   selectedCategory === cat.id
-                    ? 'bg-[#00D9FF] text-[#0F0F10]'
+                    ? 'bg-[#8cf425] text-[#0F0F10]'
                     : 'bg-[#27272A] text-[#A1A1AA] hover:bg-[#3F3F46]'
                 }`}
               >
@@ -480,7 +480,7 @@ export function StyleGallery({ isOpen, onClose, onSelectStyle }: StyleGalleryPro
                 onClick={() => handleSelect(style)}
                 onMouseEnter={() => setHoveredStyle(style.id)}
                 onMouseLeave={() => setHoveredStyle(null)}
-                className="group relative aspect-square rounded-lg overflow-hidden border border-[#27272A] hover:border-[#00D9FF]/50 transition-all hover:scale-[1.03]"
+                className="group relative aspect-square rounded-lg overflow-hidden border border-[#27272A] hover:border-[#8cf425]/50 transition-all hover:scale-[1.03]"
               >
                 {/* Image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -493,7 +493,7 @@ export function StyleGallery({ isOpen, onClose, onSelectStyle }: StyleGalleryPro
                 
                 {/* Popular badge */}
                 {style.popular && (
-                  <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#00D9FF] text-[8px] font-bold text-[#0F0F10]">
+                  <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#8cf425] text-[8px] font-bold text-[#0F0F10]">
                     🔥
                   </div>
                 )}

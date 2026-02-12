@@ -204,7 +204,7 @@ export function ImageUploaderBatch({
             className={cn(
               "flex flex-col items-center justify-center h-16 rounded-lg border border-dashed transition-all cursor-pointer bg-[#27272A]/30",
               dragActive 
-                ? "border-[#00D9FF] bg-[#00D9FF]/10" 
+                ? "border-[#8cf425] bg-[#8cf425]/10" 
                 : "border-[#3F3F46] hover:border-[#52525B]",
               (disabled || isUploading) && "opacity-50 cursor-not-allowed"
             )}
@@ -246,7 +246,7 @@ export function ImageUploaderBatch({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-[#00D9FF]" />
+              <ImageIcon className="w-5 h-5 text-[#8cf425]" />
               <span className="text-sm font-medium text-white">
                 Загружено изображений: {images.length}/{maxImages}
               </span>
@@ -318,7 +318,7 @@ export function ImageUploaderBatch({
           className={cn(
             "relative rounded-2xl border-2 border-dashed transition-all cursor-pointer min-h-[300px] flex flex-col items-center justify-center p-8 bg-[#18181B]/50",
             dragActive 
-              ? "border-[#00D9FF] bg-[#00D9FF]/10 scale-[1.02]" 
+              ? "border-[#8cf425] bg-[#8cf425]/10 scale-[1.02]" 
               : "border-[#27272A] hover:border-[#3F3F46] hover:bg-[#18181B]",
             (disabled || isUploading) && "opacity-50 cursor-not-allowed"
           )}
@@ -336,8 +336,8 @@ export function ImageUploaderBatch({
           <div className="flex flex-col items-center gap-4 text-center max-w-sm">
             {isUploading ? (
               <>
-                <div className="w-16 h-16 rounded-2xl bg-[#00D9FF]/20 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-[#00D9FF] animate-spin" />
+                <div className="w-16 h-16 rounded-2xl bg-[#8cf425]/20 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-[#8cf425] animate-spin" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-1">Загрузка...</h3>
@@ -346,8 +346,8 @@ export function ImageUploaderBatch({
               </>
             ) : (
               <>
-                <div className="w-16 h-16 rounded-2xl bg-[#00D9FF]/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Upload className="w-8 h-8 text-[#00D9FF]" />
+                <div className="w-16 h-16 rounded-2xl bg-[#8cf425]/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Upload className="w-8 h-8 text-[#8cf425]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-2">
@@ -356,7 +356,7 @@ export function ImageUploaderBatch({
                   <p className="text-sm text-[#71717A] mb-4">
                     Перетащите файлы сюда или нажмите для выбора
                   </p>
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#00D9FF] text-[#0F0F10] text-sm font-medium hover:bg-[#22D3EE] transition-colors">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#8cf425] text-[#0F0F10] text-sm font-medium hover:bg-[#9aff3f] transition-colors">
                     <Upload className="w-4 h-4" />
                     Выбрать файлы
                   </div>
@@ -373,7 +373,7 @@ export function ImageUploaderBatch({
           </div>
 
           {dragActive && (
-            <div className="absolute inset-0 rounded-2xl bg-[#00D9FF]/5 pointer-events-none animate-pulse" />
+            <div className="absolute inset-0 rounded-2xl bg-[#8cf425]/5 pointer-events-none animate-pulse" />
           )}
         </div>
       )}

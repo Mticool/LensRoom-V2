@@ -55,17 +55,17 @@ export function NotificationBanner({ onConnect, className }: NotificationBannerP
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-[#00D9FF]/20 bg-gradient-to-r from-[#00D9FF]/10 via-[#00D9FF]/5 to-transparent",
+        "relative overflow-hidden rounded-xl border border-[#8cf425]/20 bg-gradient-to-r from-[#8cf425]/10 via-[#8cf425]/5 to-transparent",
         className
       )}
     >
       {/* Glow */}
-      <div className="absolute left-0 top-0 w-32 h-full bg-[#00D9FF]/10 blur-2xl" />
+      <div className="absolute left-0 top-0 w-32 h-full bg-[#8cf425]/10 blur-2xl" />
 
       <div className="relative flex items-center gap-4 p-4">
         {/* Icon */}
-        <div className="shrink-0 w-12 h-12 rounded-xl bg-[#00D9FF]/10 border border-[#00D9FF]/20 flex items-center justify-center">
-          <Bell className="w-6 h-6 text-[#00D9FF]" />
+        <div className="shrink-0 w-12 h-12 rounded-xl bg-[#8cf425]/10 border border-[#8cf425]/20 flex items-center justify-center">
+          <Bell className="w-6 h-6 text-[#8cf425]" />
         </div>
 
         {/* Content */}
@@ -85,7 +85,7 @@ export function NotificationBanner({ onConnect, className }: NotificationBannerP
         {/* Button */}
         <button
           onClick={onConnect}
-          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg bg-[#00D9FF] hover:bg-[#00D9FF]/90 text-black font-medium text-sm transition-colors"
+          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg bg-[#8cf425] hover:bg-[#8cf425]/90 text-black font-medium text-sm transition-colors"
         >
           Подключить
           <ChevronRight className="w-4 h-4" />
@@ -129,21 +129,21 @@ export function NotificationBannerCompact({ onConnect }: { onConnect: () => void
   return (
     <button
       onClick={onConnect}
-      className="w-full p-3 rounded-xl bg-gradient-to-r from-[#00D9FF]/10 to-transparent border border-[#00D9FF]/20 hover:border-[#00D9FF]/40 transition-all group text-left"
+      className="w-full p-3 rounded-xl bg-gradient-to-r from-[#8cf425]/10 to-transparent border border-[#8cf425]/20 hover:border-[#8cf425]/40 transition-all group text-left"
     >
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-[#00D9FF]/10 flex items-center justify-center">
-          <Bell className="w-4 h-4 text-[#00D9FF]" />
+        <div className="w-8 h-8 rounded-lg bg-[#8cf425]/10 flex items-center justify-center">
+          <Bell className="w-4 h-4 text-[#8cf425]" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white group-hover:text-[#00D9FF] transition-colors">
+          <p className="text-sm font-medium text-white group-hover:text-[#8cf425] transition-colors">
             Включить уведомления
           </p>
           <p className="text-xs text-white/50">
             +10⭐ за подключение
           </p>
         </div>
-        <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-[#00D9FF] transition-colors" />
+        <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-[#8cf425] transition-colors" />
       </div>
     </button>
   );

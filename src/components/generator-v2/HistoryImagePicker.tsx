@@ -154,7 +154,7 @@ export function HistoryImagePicker({
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 text-[#00D9FF] animate-spin mb-3" />
+              <Loader2 className="w-8 h-8 text-[#8cf425] animate-spin mb-3" />
               <p className="text-sm text-[#71717A]">Загрузка истории...</p>
             </div>
           ) : history.length === 0 ? (
@@ -176,7 +176,7 @@ export function HistoryImagePicker({
                     className={cn(
                       "relative aspect-square rounded-xl overflow-hidden border-2 transition-all group",
                       isSelected 
-                        ? "border-[#00D9FF] ring-2 ring-[#00D9FF]/20 scale-95" 
+                        ? "border-[#8cf425] ring-2 ring-[#8cf425]/20 scale-95" 
                         : "border-transparent hover:border-[#3F3F46]"
                     )}
                   >
@@ -202,7 +202,7 @@ export function HistoryImagePicker({
                     <div className={cn(
                       "absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-all",
                       isSelected 
-                        ? "bg-[#00D9FF] scale-100" 
+                        ? "bg-[#8cf425] scale-100" 
                         : "bg-[#27272A]/80 scale-0 group-hover:scale-100"
                     )}>
                       {isSelected && <Check className="w-4 h-4 text-[#0F0F10]" />}
@@ -225,7 +225,7 @@ export function HistoryImagePicker({
           <button
             onClick={handleConfirm}
             disabled={selected.size === 0}
-            className="px-6 py-2 rounded-lg bg-[#00D9FF] hover:bg-[#22D3EE] text-[#0F0F10] text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 rounded-lg bg-[#8cf425] hover:bg-[#22D3EE] text-[#0F0F10] text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <Check className="w-4 h-4" />
             Выбрать ({selected.size})

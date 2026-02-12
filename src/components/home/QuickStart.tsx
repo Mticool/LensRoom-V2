@@ -12,14 +12,14 @@ const QUICK_TEMPLATES = [
     title: 'Портрет',
     prompt: 'cinematic portrait of a young woman with perfect skin, soft natural lighting, shallow depth of field, professional photography, 8k',
     emoji: '👩',
-    color: '#a78bfa',
+    color: '#8cf425',
   },
   {
     id: 'landscape',
     title: 'Пейзаж',
     prompt: 'breathtaking mountain landscape at golden hour, dramatic clouds, cinematic composition, hyper realistic, 8k quality',
     emoji: '🏔️',
-    color: '#22d3ee',
+    color: '#6bbf1a',
   },
   {
     id: 'cyber',
@@ -168,7 +168,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                       Ещё раз
                     </button>
                     <Link href="/create/studio?section=photo" className="flex-1">
-                      <button className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white text-sm font-medium">
+                      <button className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#8cf425] text-black text-sm font-medium">
                         Создать своё
                         <ArrowRight className="w-4 h-4" />
                       </button>
@@ -201,7 +201,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                     Назад
                   </button>
                   <Link href="/create/studio?section=photo" className="flex-1">
-                    <button className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white text-sm font-medium">
+                    <button className="w-full px-4 py-3 rounded-xl bg-[#8cf425] text-black text-sm font-medium">
                       Регистрация
                     </button>
                   </Link>
@@ -261,7 +261,7 @@ export function QuickStart({ onGenerate }: QuickStartProps) {
                     href={customPrompt ? `/create/studio?section=photo&prompt=${encodeURIComponent(customPrompt)}` : '/create/studio?section=photo'}
                     className="absolute right-2 top-1/2 -translate-y-1/2"
                   >
-                    <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white text-sm font-medium">
+                    <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8cf425] text-black text-sm font-medium">
                       <Sparkles className="w-4 h-4" />
                       Создать
                     </button>

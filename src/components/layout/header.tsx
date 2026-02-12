@@ -269,8 +269,8 @@ export function Header({ pageTitle }: HeaderProps = {}) {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-9 h-9 rounded-[12px] bg-gradient-to-br from-[#a78bfa] to-[#22d3ee] flex items-center justify-center shadow-lg shadow-[#a78bfa]/20 group-hover:shadow-[#a78bfa]/30 transition-shadow">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="w-9 h-9 rounded-[12px] bg-gradient-to-br from-[#8cf425] to-[#6bbf1a] flex items-center justify-center shadow-lg shadow-[#8cf425]/20 group-hover:shadow-[#8cf425]/30 transition-shadow">
+                <Sparkles className="w-4 h-4 text-black" />
               </div>
               <span className="text-[16px] font-semibold text-[var(--text)] tracking-tight">LensRoom</span>
             </Link>
@@ -311,7 +311,7 @@ export function Header({ pageTitle }: HeaderProps = {}) {
                             className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[420px] bg-[var(--surface)] border border-[var(--border)] rounded-[20px] shadow-2xl shadow-black/30 overflow-hidden backdrop-blur-xl"
                           >
                             {/* Header */}
-                            <div className="px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[#a78bfa]/5 to-[#22d3ee]/5">
+                            <div className="px-4 py-3 border-b border-[var(--border)] bg-gradient-to-r from-[#8cf425]/5 to-[#6bbf1a]/5">
                               <span className="text-[13px] font-semibold text-[var(--muted)] uppercase tracking-wider">
                                 {item.dropdown === 'design' ? 'Фото модели' : 'Видео модели'}
                               </span>

@@ -60,7 +60,7 @@ export default function AccountPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0F0F10] flex items-center justify-center pb-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00D9FF]" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8cf425]" />
       </div>
     );
   }
@@ -76,7 +76,7 @@ export default function AccountPage() {
       description: 'Управление подпиской',
       href: '/account/subscription',
       badge: user.subscription?.plan || 'Free',
-      color: 'text-[#00D9FF]',
+      color: 'text-[#8cf425]',
     },
     {
       icon: Gift,
@@ -105,7 +105,7 @@ export default function AccountPage() {
     <div className="min-h-screen bg-[#0F0F10] pb-20">
       {/* Header */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#00D9FF]/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#8cf425]/10 to-transparent" />
         <div className="relative px-4 pt-8 pb-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -113,7 +113,7 @@ export default function AccountPage() {
             className="text-center"
           >
             {/* Avatar */}
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#00D9FF] to-[#0EA5E9] flex items-center justify-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#8cf425] to-[#0EA5E9] flex items-center justify-center">
               <User className="w-10 h-10 text-white" />
             </div>
 
@@ -154,16 +154,16 @@ export default function AccountPage() {
             </p>
             <button
               onClick={() => router.push('/pricing')}
-              className="mt-2 text-xs text-[#00D9FF] hover:underline"
+              className="mt-2 text-xs text-[#8cf425] hover:underline"
             >
               Пополнить →
             </button>
           </div>
 
           {/* Subscription */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#00D9FF]/10 to-[#0EA5E9]/5 border border-[#00D9FF]/20">
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#8cf425]/10 to-[#0EA5E9]/5 border border-[#8cf425]/20">
             <div className="flex items-center gap-2 mb-2">
-              <Zap className="w-4 h-4 text-[#00D9FF]" />
+              <Zap className="w-4 h-4 text-[#8cf425]" />
               <span className="text-xs text-[#71717A]">Тариф</span>
             </div>
             <p className="text-2xl font-bold text-white">

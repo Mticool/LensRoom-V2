@@ -104,15 +104,15 @@ export function BotConnectPopup({
         </button>
 
         {/* Glow effect */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-[#00D9FF]/20 blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-[#8cf425]/20 blur-3xl" />
 
         {/* Content */}
         <div className="relative p-6">
           {step === "intro" && (
             <>
               {/* Icon */}
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#00D9FF]/20 to-[#00D9FF]/5 border border-[#00D9FF]/30 flex items-center justify-center">
-                <Bell className="w-10 h-10 text-[#00D9FF]" />
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#8cf425]/20 to-[#8cf425]/5 border border-[#8cf425]/30 flex items-center justify-center">
+                <Bell className="w-10 h-10 text-[#8cf425]" />
               </div>
 
               {/* Title */}
@@ -140,8 +140,8 @@ export function BotConnectPopup({
                   "Управление прямо в Telegram",
                 ].map((benefit, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-[#00D9FF]/10 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-[#00D9FF]" />
+                    <div className="w-6 h-6 rounded-full bg-[#8cf425]/10 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-[#8cf425]" />
                     </div>
                     <span className="text-white/80 text-sm">{benefit}</span>
                   </div>
@@ -151,7 +151,7 @@ export function BotConnectPopup({
               {/* Button */}
               <Button
                 onClick={openBot}
-                className="w-full h-12 bg-[#00D9FF] hover:bg-[#00D9FF]/90 text-black font-semibold rounded-xl gap-2"
+                className="w-full h-12 bg-[#8cf425] hover:bg-[#8cf425]/90 text-black font-semibold rounded-xl gap-2"
               >
                 <MessageCircle className="w-5 h-5" />
                 Подключить бота
@@ -186,19 +186,19 @@ export function BotConnectPopup({
               {/* Instructions */}
               <div className="space-y-3 mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
                 <div className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-[#00D9FF]/20 text-[#00D9FF] flex items-center justify-center text-sm font-bold">
+                  <span className="w-6 h-6 rounded-full bg-[#8cf425]/20 text-[#8cf425] flex items-center justify-center text-sm font-bold">
                     1
                   </span>
                   <span className="text-white/80 text-sm">Откройте бота в Telegram</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-[#00D9FF]/20 text-[#00D9FF] flex items-center justify-center text-sm font-bold">
+                  <span className="w-6 h-6 rounded-full bg-[#8cf425]/20 text-[#8cf425] flex items-center justify-center text-sm font-bold">
                     2
                   </span>
                   <span className="text-white/80 text-sm">Нажмите кнопку "Start"</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-[#00D9FF]/20 text-[#00D9FF] flex items-center justify-center text-sm font-bold">
+                  <span className="w-6 h-6 rounded-full bg-[#8cf425]/20 text-[#8cf425] flex items-center justify-center text-sm font-bold">
                     3
                   </span>
                   <span className="text-white/80 text-sm">Выберите "🔔 Включить уведомления"</span>
@@ -218,7 +218,7 @@ export function BotConnectPopup({
                 <Button
                   onClick={checkNotifications}
                   disabled={checking}
-                  className="flex-1 h-11 bg-[#00D9FF] hover:bg-[#00D9FF]/90 text-black font-semibold rounded-xl"
+                  className="flex-1 h-11 bg-[#8cf425] hover:bg-[#8cf425]/90 text-black font-semibold rounded-xl"
                 >
                   {checking ? "Проверяем..." : "Я подключил"}
                 </Button>

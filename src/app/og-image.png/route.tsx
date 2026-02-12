@@ -33,7 +33,7 @@ export async function GET() {
               width: '80px',
               height: '80px',
               borderRadius: '20px',
-              background: 'linear-gradient(135deg, #8cf425 0%, #00D9FF 100%)',
+              background: 'linear-gradient(135deg, #8cf425 0%, #6bbf1a 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -88,7 +88,7 @@ export async function GET() {
             <span>Nano Banana Pro</span>
             <span
               style={{
-                background: 'linear-gradient(135deg, #8cf425 0%, #00D9FF 100%)',
+                background: 'linear-gradient(135deg, #8cf425 0%, #6bbf1a 100%)',
                 backgroundClip: 'text',
                 color: 'transparent',
               }}
@@ -145,7 +145,7 @@ export async function GET() {
                 border: '1px solid rgba(0, 217, 255, 0.3)',
               }}
             >
-              <span style={{ fontSize: '28px', color: '#00D9FF', fontWeight: 600 }}>
+              <span style={{ fontSize: '28px', color: '#6bbf1a', fontWeight: 600 }}>
                 50⭐ бесплатно
               </span>
             </div>

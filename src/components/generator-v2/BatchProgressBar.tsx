@@ -55,7 +55,7 @@ export function BatchProgressBar({ progress, className, onCancel }: BatchProgres
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#27272A] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {isProcessing && <Loader2 className="w-4 h-4 text-[#00D9FF] animate-spin" />}
+          {isProcessing && <Loader2 className="w-4 h-4 text-[#8cf425] animate-spin" />}
           {progress.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
           {progress.status === 'error' && <XCircle className="w-4 h-4 text-red-400" />}
           <span className="text-sm font-medium text-[#E4E4E7]">
@@ -94,7 +94,7 @@ export function BatchProgressBar({ progress, className, onCancel }: BatchProgres
           <div 
             className={cn(
               "h-full transition-all duration-500 rounded-full",
-              progress.status === 'error' ? 'bg-red-500' : 'bg-gradient-to-r from-[#00D9FF] to-[#7B61FF]'
+              progress.status === 'error' ? 'bg-red-500' : 'bg-gradient-to-r from-[#8cf425] to-[#7B61FF]'
             )}
             style={{ width: `${percentage}%` }}
           />
@@ -122,7 +122,7 @@ export function BatchProgressBar({ progress, className, onCancel }: BatchProgres
         {isProcessing && progress.currentPrompt && (
           <div className="mt-3 pt-3 border-t border-[#27272A]">
             <div className="flex items-start gap-2">
-              <Loader2 className="w-3 h-3 text-[#00D9FF] animate-spin mt-0.5 flex-shrink-0" />
+              <Loader2 className="w-3 h-3 text-[#8cf425] animate-spin mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-[#71717A] mb-1">Текущий промпт:</p>
                 <p className="text-xs text-[#E4E4E7] truncate">{progress.currentPrompt}</p>

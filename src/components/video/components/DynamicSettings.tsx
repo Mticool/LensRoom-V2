@@ -38,7 +38,7 @@ function SettingControl({ settingKey, setting, value, onChange }: SettingControl
               onClick={() => onChange(opt.value)}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 value === opt.value
-                  ? 'bg-[#D4FF00] text-black'
+                  ? 'bg-[#8cf425] text-black'
                   : 'bg-white/5 text-white hover:bg-white/10'
               }`}
             >
@@ -57,7 +57,7 @@ function SettingControl({ settingKey, setting, value, onChange }: SettingControl
         <select
           value={String(value || setting.default)}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#D4FF00]/50 appearance-none cursor-pointer"
+          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#8cf425]/50 appearance-none cursor-pointer"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
             backgroundPosition: 'right 0.5rem center',
@@ -90,7 +90,7 @@ function SettingControl({ settingKey, setting, value, onChange }: SettingControl
         <button
           onClick={() => onChange(!value)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            value ? 'bg-[#D4FF00]' : 'bg-white/10'
+            value ? 'bg-[#8cf425]' : 'bg-white/10'
           }`}
         >
           <span
@@ -117,7 +117,7 @@ function SettingControl({ settingKey, setting, value, onChange }: SettingControl
           step={setting.step || 1}
           value={value || setting.default}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#D4FF00]"
+          className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#8cf425]"
         />
       </div>
     );

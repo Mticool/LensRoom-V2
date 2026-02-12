@@ -21,7 +21,7 @@ const buttonVariants = cva(
         // Link
         link: "text-[var(--gold)] underline-offset-4 hover:underline",
         // Brand - cyan accent
-        brand: "bg-[var(--gold)] text-white hover:bg-[var(--gold-hover)] shadow-[var(--shadow-sm)]",
+        brand: "bg-[var(--gold)] text-black hover:bg-[var(--gold-hover)] shadow-[var(--shadow-sm)]",
       },
       size: {
         sm: "h-9 px-4 text-sm",

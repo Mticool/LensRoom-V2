@@ -93,7 +93,7 @@ export function KlingMotionIcon({ className = '', size = 24 }: IconProps) {
       <defs>
         <linearGradient id="motion-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#A855F7" />
-          <stop offset="100%" stopColor="#00D9FF" />
+          <stop offset="100%" stopColor="#8cf425" />
         </linearGradient>
       </defs>
       {/* Human figure silhouette */}

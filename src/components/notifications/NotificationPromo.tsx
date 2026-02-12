@@ -71,12 +71,12 @@ export function NotificationPromoPopup({
         <div className="p-8 text-center">
           {/* Icon */}
           <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00D9FF] to-[#0099FF] rounded-2xl animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#8cf425] to-[#6bbf1a] rounded-2xl animate-pulse" />
             <div className="absolute inset-1 bg-[#1A1A1E] rounded-xl flex items-center justify-center">
               {isSuccess ? (
                 <Check className="w-10 h-10 text-green-400 animate-in zoom-in duration-300" />
               ) : (
-                <Bell className="w-10 h-10 text-[#00D9FF]" />
+                <Bell className="w-10 h-10 text-[#8cf425]" />
               )}
             </div>
             {/* Bonus badge */}
@@ -113,7 +113,7 @@ export function NotificationPromoPopup({
               <Button
                 onClick={handleConnect}
                 disabled={isConnecting}
-                className="w-full h-12 bg-gradient-to-r from-[#00D9FF] to-[#0099FF] hover:from-[#00C4E6] hover:to-[#0088E6] text-white font-semibold rounded-xl shadow-[0_0_20px_rgba(0,217,255,0.3)] transition-all"
+                className="w-full h-12 bg-[#8cf425] hover:bg-[#9aff3f] text-black font-semibold rounded-xl shadow-[0_0_20px_rgba(140,244,37,0.3)] transition-all"
               >
                 {isConnecting ? (
                   <span className="flex items-center gap-2">
@@ -190,15 +190,15 @@ export function NotificationPromoBanner({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#00D9FF]/10 to-[#0099FF]/10 border border-[#00D9FF]/20 hover:border-[#00D9FF]/40 transition-all group",
+        "flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#8cf425]/10 to-[#6bbf1a]/10 border border-[#8cf425]/20 hover:border-[#8cf425]/40 transition-all group",
         className
       )}
     >
       <div className="relative">
-        <Bell className="w-4 h-4 text-[#00D9FF]" />
+        <Bell className="w-4 h-4 text-[#8cf425]" />
         <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
       </div>
-      <span className="text-sm text-[#00D9FF] group-hover:text-white transition-colors">
+      <span className="text-sm text-[#8cf425] group-hover:text-white transition-colors">
         +10⭐ за уведомления
       </span>
     </button>

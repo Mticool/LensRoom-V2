@@ -215,8 +215,8 @@ export default function AdminStylesPage() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#00D9FF]/20 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-[#00D9FF]" />
+              <div className="w-10 h-10 rounded-xl bg-[#8cf425]/20 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-[#8cf425]" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">Управление контентом</h1>
@@ -226,7 +226,7 @@ export default function AdminStylesPage() {
             
             <Link 
               href="/library"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00D9FF] text-black font-medium hover:bg-[#1AE3FF] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#8cf425] text-black font-medium hover:bg-[#9aff3f] transition-colors"
             >
               <Plus className="w-4 h-4" />
               Добавить контент
@@ -237,13 +237,13 @@ export default function AdminStylesPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Info Banner */}
-        <div className="mb-6 p-4 rounded-2xl bg-[#00D9FF]/10 border border-[#00D9FF]/30">
+        <div className="mb-6 p-4 rounded-2xl bg-[#8cf425]/10 border border-[#8cf425]/30">
           <p className="text-sm text-white/80">
             💡 <strong>Как добавить контент:</strong> Перейдите в{" "}
-            <Link href="/create/studio?section=photo" className="text-[#00D9FF] underline">Генератор</Link>
+            <Link href="/create/studio?section=photo" className="text-[#8cf425] underline">Генератор</Link>
             {" "}→ создайте фото/видео →{" "}
-            <Link href="/library" className="text-[#00D9FF] underline">Библиотека</Link>
-            {" "}→ нажмите кнопку <span className="text-[#00D9FF]">📤 Опубликовать</span>
+            <Link href="/library" className="text-[#8cf425] underline">Библиотека</Link>
+            {" "}→ нажмите кнопку <span className="text-[#8cf425]">📤 Опубликовать</span>
           </p>
         </div>
 
@@ -253,7 +253,7 @@ export default function AdminStylesPage() {
             <button
               onClick={() => setFilterPlacement("all")}
               className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                filterPlacement === "all" ? "bg-[#00D9FF] text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
+                filterPlacement === "all" ? "bg-[#8cf425] text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
               }`}
             >
               Все ({publishedItems.length})
@@ -261,7 +261,7 @@ export default function AdminStylesPage() {
             <button
               onClick={() => setFilterPlacement("home")}
               className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
-                filterPlacement === "home" ? "bg-[#00D9FF] text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
+                filterPlacement === "home" ? "bg-[#8cf425] text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
               }`}
             >
               <Home className="w-4 h-4" />
@@ -270,7 +270,7 @@ export default function AdminStylesPage() {
             <button
               onClick={() => setFilterPlacement("inspiration")}
               className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
-                filterPlacement === "inspiration" ? "bg-[#00D9FF] text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
+                filterPlacement === "inspiration" ? "bg-[#8cf425] text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
               }`}
             >
               <Lightbulb className="w-4 h-4" />
@@ -279,10 +279,10 @@ export default function AdminStylesPage() {
           </div>
           
           <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode("grid")} className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-[#00D9FF]/20 text-[#00D9FF]' : 'bg-white/5 text-white/60'}`}>
+            <button onClick={() => setViewMode("grid")} className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-[#8cf425]/20 text-[#8cf425]' : 'bg-white/5 text-white/60'}`}>
               <Grid className="w-4 h-4" />
             </button>
-            <button onClick={() => setViewMode("list")} className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-[#00D9FF]/20 text-[#00D9FF]' : 'bg-white/5 text-white/60'}`}>
+            <button onClick={() => setViewMode("list")} className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-[#8cf425]/20 text-[#8cf425]' : 'bg-white/5 text-white/60'}`}>
               <List className="w-4 h-4" />
             </button>
             <button onClick={loadPublishedItems} className="p-2 rounded-lg bg-white/5 hover:bg-white/10">
@@ -295,13 +295,13 @@ export default function AdminStylesPage() {
         <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <FolderPlus className="w-4 h-4 text-[#00D9FF]" />
+              <FolderPlus className="w-4 h-4 text-[#8cf425]" />
               Категории
             </h3>
             {!showNewCategory && (
               <button
                 onClick={() => setShowNewCategory(true)}
-                className="text-xs text-[#00D9FF] hover:underline"
+                className="text-xs text-[#8cf425] hover:underline"
               >
                 + Создать
               </button>
@@ -318,7 +318,7 @@ export default function AdminStylesPage() {
                 className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
                 autoFocus
               />
-              <button onClick={handleCreateCategory} className="px-3 py-2 rounded-lg bg-[#00D9FF] text-black text-sm font-medium">
+              <button onClick={handleCreateCategory} className="px-3 py-2 rounded-lg bg-[#8cf425] text-black text-sm font-medium">
                 Создать
               </button>
               <button onClick={() => { setShowNewCategory(false); setNewCategoryInput(""); }} className="px-3 py-2 rounded-lg bg-white/5 text-white">
@@ -343,14 +343,14 @@ export default function AdminStylesPage() {
         {/* Published Items */}
         {loadingPublished ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-[#00D9FF]" />
+            <Loader2 className="w-8 h-8 animate-spin text-[#8cf425]" />
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-12 rounded-2xl bg-white/5 border border-white/10">
             <p className="text-white/40 mb-4">Нет опубликованного контента</p>
             <Link 
               href="/library"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00D9FF] text-black font-medium"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#8cf425] text-black font-medium"
             >
               <Plus className="w-4 h-4" />
               Добавить из библиотеки
@@ -380,7 +380,7 @@ export default function AdminStylesPage() {
                 </div>
                 <div className="absolute top-2 left-2 flex gap-1">
                   {item.placement === "home" ? (
-                    <div className="p-1 rounded bg-[#00D9FF]/80"><Home className="w-3 h-3 text-black" /></div>
+                    <div className="p-1 rounded bg-[#8cf425]/80"><Home className="w-3 h-3 text-black" /></div>
                   ) : (
                     <div className="p-1 rounded bg-blue-500/80"><Lightbulb className="w-3 h-3 text-white" /></div>
                   )}
@@ -408,7 +408,7 @@ export default function AdminStylesPage() {
                     {item.contentType === "video" && <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-300">🎬</span>}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    {item.placement === "home" ? <Home className="w-3 h-3 text-[#00D9FF]" /> : <Lightbulb className="w-3 h-3 text-blue-400" />}
+                    {item.placement === "home" ? <Home className="w-3 h-3 text-[#8cf425]" /> : <Lightbulb className="w-3 h-3 text-blue-400" />}
                     <span className="text-xs text-white/40">{item.placement === "home" ? "Главная" : "Вдохновение"}</span>
                     {item.category && <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/60">{item.category}</span>}
                     <span className={`text-xs px-1.5 py-0.5 rounded ${item.status === "published" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
@@ -467,7 +467,7 @@ export default function AdminStylesPage() {
                   <option value="draft">Черновик</option>
                 </select>
               </div>
-              <button onClick={handleSaveEdit} disabled={isSaving} className="w-full py-3 rounded-xl bg-[#00D9FF] text-black font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
+              <button onClick={handleSaveEdit} disabled={isSaving} className="w-full py-3 rounded-xl bg-[#8cf425] text-black font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5" /> Сохранить</>}
               </button>
             </div>

@@ -76,25 +76,25 @@ export function ReferralInvite() {
         className="max-w-4xl mx-auto"
       >
         {/* Background card with gradient */}
-        <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#a78bfa]/10 via-[var(--surface)] to-[#f472b6]/10 border border-[var(--border)] p-8 sm:p-12">
+        <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#8cf425]/10 via-[var(--surface)] to-[#6bbf1a]/10 border border-[var(--border)] p-8 sm:p-12">
           {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#a78bfa]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#f472b6]/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#8cf425]/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#6bbf1a]/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
           
           <div className="relative z-10">
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
               <div className="max-w-lg">
                 {/* Badge */}
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#a78bfa]/20 to-[#f472b6]/20 border border-[#a78bfa]/30 mb-6">
-                  <Gift className="w-4 h-4 text-[#a78bfa]" />
-                  <span className="text-[12px] font-semibold text-[#a78bfa] uppercase tracking-wider">Бонус за приглашение</span>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#8cf425]/20 to-[#6bbf1a]/20 border border-[#8cf425]/30 mb-6">
+                  <Gift className="w-4 h-4 text-[#8cf425]" />
+                  <span className="text-[12px] font-semibold text-[#8cf425] uppercase tracking-wider">Бонус за приглашение</span>
                 </div>
                 
                 {/* Title */}
                 <h2 className="text-[clamp(1.75rem,4vw,2.5rem)] font-bold tracking-tight text-[var(--text)] mb-4">
                   Пригласи друга — <br />
-                  <span className="bg-gradient-to-r from-[#a78bfa] to-[#f472b6] bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-[#8cf425] to-[#6bbf1a] bg-clip-text text-transparent">
                     разделите 100⭐
                   </span>
                 </h2>
@@ -105,7 +105,7 @@ export function ReferralInvite() {
                 </p>
                 
                 {hasPendingRef && !user && (
-                  <p className="mt-4 text-[14px] text-[#a78bfa] flex items-center gap-2">
+                  <p className="mt-4 text-[14px] text-[#8cf425] flex items-center gap-2">
                     <Sparkles className="w-4 h-4" />
                     Бонус уже ждёт вас — войдите, чтобы получить +50⭐
                   </p>
@@ -126,7 +126,7 @@ export function ReferralInvite() {
                       </div>
                       <div className="w-px h-10 bg-[var(--border)]" />
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-[#a78bfa]">
+                        <div className="text-3xl font-bold text-[#8cf425]">
                           {(data?.invitedCount ?? 0) * 50}⭐
                         </div>
                         <div className="text-[12px] text-[var(--muted)] uppercase tracking-wider">заработано</div>
@@ -139,7 +139,7 @@ export function ReferralInvite() {
                       whileTap={{ scale: 0.98 }}
                       onClick={copyLink}
                       disabled={loading || !data?.link}
-                      className="group flex items-center gap-3 px-6 py-3.5 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#f472b6] text-white font-semibold text-[14px] shadow-lg shadow-[#a78bfa]/25 hover:shadow-xl hover:shadow-[#a78bfa]/30 transition-all disabled:opacity-50"
+                      className="group flex items-center gap-3 px-6 py-3.5 rounded-full bg-gradient-to-r from-[#8cf425] to-[#6bbf1a] text-black font-semibold text-[14px] shadow-lg shadow-[#8cf425]/25 hover:shadow-xl hover:shadow-[#8cf425]/30 transition-all disabled:opacity-50"
                     >
                       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       {copied ? "Скопировано!" : "Скопировать ссылку"}
@@ -150,7 +150,7 @@ export function ReferralInvite() {
                     whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setLoginOpen(true)}
-                    className="group flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#f472b6] text-white font-semibold text-[15px] shadow-lg shadow-[#a78bfa]/25 hover:shadow-xl hover:shadow-[#a78bfa]/30 transition-all"
+                    className="group flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-[#8cf425] to-[#6bbf1a] text-black font-semibold text-[15px] shadow-lg shadow-[#8cf425]/25 hover:shadow-xl hover:shadow-[#8cf425]/30 transition-all"
                   >
                     Войти и получить ссылку
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

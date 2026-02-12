@@ -61,8 +61,8 @@ const showcaseWorks = [
 
 // Quick style presets
 const stylePresets = [
-  { id: 'portrait', emoji: '👩', title: 'Портрет', prompt: 'cinematic portrait, perfect skin, soft lighting, 8k', color: '#a78bfa' },
-  { id: 'product', emoji: '💎', title: 'Продукт', prompt: 'luxury product photography, studio lighting, minimalist', color: '#22d3ee' },
+  { id: 'portrait', emoji: '👩', title: 'Портрет', prompt: 'cinematic portrait, perfect skin, soft lighting, 8k', color: '#8cf425' },
+  { id: 'product', emoji: '💎', title: 'Продукт', prompt: 'luxury product photography, studio lighting, minimalist', color: '#6bbf1a' },
   { id: 'landscape', emoji: '🏔️', title: 'Пейзаж', prompt: 'breathtaking landscape, golden hour, dramatic clouds', color: '#34d399' },
   { id: 'anime', emoji: '🌸', title: 'Аниме', prompt: 'beautiful anime art, vibrant colors, detailed', color: '#f472b6' },
   { id: 'cyber', emoji: '🌃', title: 'Киберпанк', prompt: 'cyberpunk city, neon lights, futuristic', color: '#a0ff40' },
@@ -517,7 +517,7 @@ export default function HomePageContent() {
       <section className="py-24 px-6 relative overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[#a78bfa]/10 to-transparent blur-[100px]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[#8cf425]/10 to-transparent blur-[100px]" />
         </div>
         
         <div className="max-w-6xl mx-auto relative">
@@ -530,9 +530,9 @@ export default function HomePageContent() {
             {/* Left - Content */}
             <div className="order-2 lg:order-1">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#a78bfa]/20 to-[#22d3ee]/20 border border-[#a78bfa]/30 mb-6">
-                <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
-                <span className="text-[11px] font-semibold text-[#a78bfa] uppercase tracking-wider">Новинка</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8cf425]/10 border border-[#8cf425]/30 mb-6">
+                <Sparkles className="w-3.5 h-3.5 text-[#8cf425]" />
+                <span className="text-[11px] font-semibold text-[#8cf425] uppercase tracking-wider">Новинка</span>
               </div>
               
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -558,7 +558,7 @@ export default function HomePageContent() {
                     transition={{ delay: i * 0.1 }}
                     className="flex items-center gap-3"
                   >
-                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#8cf425]" />
                     <span className="text-white/70">{text}</span>
                   </motion.div>
                 ))}
@@ -573,7 +573,7 @@ export default function HomePageContent() {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-[#a78bfa] to-[#22d3ee] text-white font-semibold shadow-lg shadow-[#a78bfa]/25"
+                  className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[#8cf425] text-black font-semibold shadow-lg shadow-[#8cf425]/25"
                 >
                   Попробовать
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -597,7 +597,7 @@ export default function HomePageContent() {
                   <span className="text-xs font-medium text-white">от 80⭐</span>
                 </div>
               </div>
-              <div className="absolute -inset-6 bg-gradient-to-r from-[#a78bfa]/15 via-transparent to-[#22d3ee]/15 blur-2xl -z-10 opacity-60" />
+              <div className="absolute -inset-6 bg-gradient-to-r from-[#8cf425]/15 via-transparent to-[#6bbf1a]/15 blur-2xl -z-10 opacity-60" />
             </div>
           </motion.div>
           

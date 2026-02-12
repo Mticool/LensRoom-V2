@@ -79,7 +79,7 @@ export function PromptBox({
                 className={cn(
                   "w-full rounded-[12px] border bg-[var(--surface2)] px-4 py-3 text-sm",
                   "border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] outline-none",
-                  "focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_1px_rgba(0,217,255,0.12)] transition-all duration-200"
+                  "focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_1px_rgba(140,244,37,0.12)] transition-all duration-200"
                 )}
               />
             </div>
@@ -94,7 +94,7 @@ export function PromptBox({
                 className={cn(
                   "w-full rounded-[12px] border bg-[var(--surface2)] px-4 py-3 text-sm",
                   "border-[var(--border)] text-[var(--text)] placeholder:text-[var(--muted)] outline-none",
-                  "focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_1px_rgba(0,217,255,0.12)] transition-all duration-200"
+                  "focus:border-[var(--accent-primary)]/50 focus:shadow-[0_0_0_1px_rgba(140,244,37,0.12)] transition-all duration-200"
                 )}
               />
             </div>

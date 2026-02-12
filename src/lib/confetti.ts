@@ -11,7 +11,7 @@ export interface ConfettiOptions {
   duration?: number;
 }
 
-const defaultColors = ['#00D9FF', '#FFD700', '#A78BFA', '#34D399', '#F472B6'];
+const defaultColors = ['#8cf425', '#FFD700', '#6bbf1a', '#34D399', '#F472B6'];
 
 export function fireConfetti(options: ConfettiOptions = {}) {
   const {

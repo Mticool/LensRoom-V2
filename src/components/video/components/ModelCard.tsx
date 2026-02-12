@@ -45,7 +45,7 @@ export function ModelCard({ model, onChangeClick, preview }: ModelCardProps) {
         
         {/* Model Info */}
         <div>
-          <div className="text-[#D4FF00] text-xs font-bold uppercase tracking-wide mb-0.5">
+          <div className="text-[#8cf425] text-xs font-bold uppercase tracking-wide mb-0.5">
             {model.modelTag || 'GENERAL'}
           </div>
           <div className="text-white text-base font-semibold">{model.name}</div>

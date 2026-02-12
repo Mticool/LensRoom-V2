@@ -89,7 +89,7 @@ const Dropdown = memo(({ label, value, options, onChange }: DropdownProps) => {
                           setIsOpen(false);
                         }}
                         className={`w-full px-4 py-2.5 text-left text-[13px] hover:bg-white/5 transition-all duration-150 flex items-center justify-between first:rounded-t-xl last:rounded-b-xl ${
-                          option.value === value ? 'text-[#D4FF00] bg-white/5' : 'text-white'
+                          option.value === value ? 'text-[#8cf425] bg-white/5' : 'text-white'
                         }`}
                       >
                         <span className="font-medium">{option.label}</span>
@@ -921,7 +921,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
           onClick={() => setActiveTab('create')}
           className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
             activeTab === 'create'
-              ? 'bg-[#D4FF00] text-black'
+              ? 'bg-[#8cf425] text-black'
               : 'text-zinc-400 hover:text-white hover:bg-white/5'
           }`}
         >
@@ -931,7 +931,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
           onClick={handleMotionTabClick}
           className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
             activeTab === 'motion'
-              ? 'bg-[#D4FF00] text-black'
+              ? 'bg-[#8cf425] text-black'
               : 'text-zinc-400 hover:text-white hover:bg-white/5'
           }`}
         >
@@ -956,7 +956,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
               <div className="relative h-full px-3 py-2.5 flex items-center justify-between">
                 {/* Model Info */}
                 <div>
-                  <div className="inline-block px-1.5 py-0.5 bg-[#D4FF00] rounded text-[#000] text-[9px] font-black uppercase tracking-wider mb-1">
+                  <div className="inline-block px-1.5 py-0.5 bg-[#8cf425] rounded text-[#000] text-[9px] font-black uppercase tracking-wider mb-1">
                     {currentModel?.modelTag || 'GENERAL'}
                   </div>
                   <div className="text-white text-sm font-bold">{currentModel?.name}</div>
@@ -1027,7 +1027,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                         onClick={() => setSourceGenerationId(gen.id)}
                         className={`w-full p-3 rounded-lg text-left transition-all ${
                           sourceGenerationId === gen.id
-                            ? 'bg-[#D4FF00]/10 border-2 border-[#D4FF00]'
+                            ? 'bg-[#8cf425]/10 border-2 border-[#8cf425]'
                             : 'bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700'
                         }`}
                       >
@@ -1041,7 +1041,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                             })}
                           </span>
                           {sourceGenerationId === gen.id && (
-                            <Check className="w-4 h-4 text-[#D4FF00]" />
+                            <Check className="w-4 h-4 text-[#8cf425]" />
                           )}
                         </div>
                         <p className="text-sm text-white line-clamp-2">
@@ -1078,7 +1078,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                   <p className="text-xs text-zinc-500">PNG, JPG • Для режима изображение→видео</p>
                   
                   {referenceImage && (
-                    <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
+                    <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium">
                       <Check className="w-3 h-3" />
                       <span>Загружено</span>
                     </div>
@@ -1108,7 +1108,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                   <p className="text-xs text-zinc-500">PNG, JPG • Для режима изображение→видео</p>
 
                   {referenceImage && (
-                    <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
+                    <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium">
                       <Check className="w-3 h-3" />
                       <span>Загружено</span>
                     </div>
@@ -1132,7 +1132,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     onClick={() => setO3ShotMode('single')}
                     className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
                       o3ShotMode === 'single'
-                        ? 'bg-[#D4FF00] text-black'
+                        ? 'bg-[#8cf425] text-black'
                         : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -1143,7 +1143,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     onClick={() => setO3ShotMode('multi')}
                     className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
                       o3ShotMode === 'multi'
-                        ? 'bg-[#D4FF00] text-black'
+                        ? 'bg-[#8cf425] text-black'
                         : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -1242,7 +1242,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                       {showStartEndInputs ? 'Обязателен для режима Кадры' : 'Обязателен для Kling 2.5 I2V'}
                     </p>
                     {startFrame && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
+                      <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium">
                         <Check className="w-3 h-3" />
                         <span>Загружено</span>
                       </div>
@@ -1266,7 +1266,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     <p className="text-sm text-white font-semibold mb-1">Последний кадр</p>
                     <p className="text-xs text-zinc-500 text-center">Опционально для плавного финала</p>
                     {endFrame && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
+                      <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium">
                         <Check className="w-3 h-3" />
                         <span>Загружено</span>
                       </div>
@@ -1297,7 +1297,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                   <p className="text-xs text-zinc-500">MP4 • Для video-to-video</p>
                   
                   {v2vVideo && (
-                    <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium">
+                    <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium">
                       <Check className="w-3 h-3" />
                       <span>Загружено</span>
                     </div>
@@ -1333,7 +1333,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                 <button
                   onClick={() => setAudioEnabled(!audioEnabled)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
-                    audioEnabled ? 'bg-[#D4FF00]' : 'bg-white/10'
+                    audioEnabled ? 'bg-[#8cf425]' : 'bg-white/10'
                   }`}
                 >
                   <span
@@ -1352,7 +1352,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                 <select
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
-                  className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
+                  className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#8cf425] focus:outline-none"
                 >
                   <option value="">По умолчанию</option>
                   {capability.styleOptions.map((s) => (
@@ -1424,7 +1424,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                       onClick={() => switchToModel(mm.id, 'motion')}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all ${
                         isSel
-                          ? 'bg-[#D4FF00]/10 border border-[#D4FF00]/30'
+                          ? 'bg-[#8cf425]/10 border border-[#8cf425]/30'
                           : 'bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06]'
                       }`}
                     >
@@ -1433,7 +1433,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                         <div className="text-[11px] text-zinc-500 truncate">{mm.shortLabel || mm.description?.slice(0, 50)}</div>
                       </div>
                       {isSel && (
-                        <div className="w-5 h-5 rounded-full bg-[#D4FF00] flex items-center justify-center flex-shrink-0 ml-2">
+                        <div className="w-5 h-5 rounded-full bg-[#8cf425] flex items-center justify-center flex-shrink-0 ml-2">
                           <Check className="w-3 h-3 text-black" strokeWidth={3} />
                         </div>
                       )}
@@ -1453,7 +1453,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                 : 'from-blue-600 to-purple-600'
             } overflow-hidden`}>
               <div className="absolute bottom-0 left-0 p-4">
-                <div className="text-[#D4FF00] text-xs font-bold uppercase">
+                <div className="text-[#8cf425] text-xs font-bold uppercase">
                   {selectedModel === 'kling-motion-control' ? 'MOTION CONTROL'
                     : selectedModel === 'wan-animate-move' ? 'MOTION TRANSFER'
                     : selectedModel === 'wan-animate-replace' ? 'CHARACTER SWAP'
@@ -1481,7 +1481,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     <Film className="w-9 h-9 text-zinc-600 group-hover:text-rose-400 transition-colors mb-3" />
                     <p className="text-sm text-white font-semibold mb-1 text-center">Видео движения</p>
                     <p className="text-xs text-zinc-500 text-center">3-30с • MP4/MOV/WEBM • до 100MB</p>
-                    {motionVideo && <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
+                    {motionVideo && <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
                   </div>
                 </label>
                 <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.02]">
@@ -1490,7 +1490,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     <User className="w-9 h-9 text-zinc-600 group-hover:text-cyan-400 transition-colors mb-3" />
                     <p className="text-sm text-white font-semibold mb-1 text-center">Фото персонажа</p>
                     <p className="text-xs text-zinc-500 text-center">JPG / PNG / WEBP</p>
-                    {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
+                    {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
                   </div>
                 </label>
               </div>
@@ -1504,7 +1504,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     <Film className="w-9 h-9 text-zinc-600 group-hover:text-rose-400 transition-colors mb-3" />
                     <p className="text-sm text-white font-semibold mb-1 text-center">Видео для замены</p>
                     <p className="text-xs text-zinc-500 text-center">MP4/MOV/WEBM • до 100MB</p>
-                    {motionVideo && <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
+                    {motionVideo && <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
                   </div>
                 </label>
                 <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.02]">
@@ -1513,7 +1513,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     <User className="w-9 h-9 text-zinc-600 group-hover:text-cyan-400 transition-colors mb-3" />
                     <p className="text-sm text-white font-semibold mb-1 text-center">Фото нового лица</p>
                     <p className="text-xs text-zinc-500 text-center">JPG / PNG / WEBP</p>
-                    {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
+                    {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
                   </div>
                 </label>
               </div>
@@ -1527,7 +1527,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     <Film className="w-9 h-9 text-zinc-600 group-hover:text-amber-400 transition-colors mb-3" />
                     <p className="text-sm text-white font-semibold mb-1 text-center">Видео для редактирования</p>
                     <p className="text-xs text-zinc-500 text-center">MP4 / MOV / WebM</p>
-                    {motionVideo && <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
+                    {motionVideo && <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
                   </div>
                 </label>
                 <label className="group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.02]">
@@ -1536,7 +1536,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                     <ImageIcon className="w-9 h-9 text-zinc-600 group-hover:text-orange-400 transition-colors mb-3" />
                     <p className="text-sm text-white font-semibold mb-1 text-center">Фото-референс</p>
                     <p className="text-xs text-zinc-500 text-center">Опционально</p>
-                    {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
+                    {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
                   </div>
                 </label>
               </div>
@@ -1549,7 +1549,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                   <ImageIcon className="w-9 h-9 text-zinc-600 group-hover:text-purple-400 transition-colors mb-3" />
                   <p className="text-sm text-white font-semibold mb-1 text-center">Стиль-референс</p>
                   <p className="text-xs text-zinc-500 text-center">Опционально • JPG / PNG</p>
-                  {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#D4FF00] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
+                  {characterImage && <div className="mt-2 flex items-center gap-1 text-xs text-[#8cf425] font-medium"><Check className="w-3 h-3" /><span>Загружено</span></div>}
                 </div>
               </label>
             )}
@@ -1562,7 +1562,7 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                   <select
                     value={motionQuality}
                     onChange={(e) => setMotionQuality(e.target.value as '720p' | '1080p')}
-                    className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#D4FF00] focus:outline-none"
+                    className="w-full bg-white/5 text-white text-[13px] rounded-lg px-3 py-2 border border-white/10 focus:border-[#8cf425] focus:outline-none"
                   >
                     <option value="720p">720p — 6⭐/сек</option>
                     <option value="1080p">1080p — 9⭐/сек</option>
@@ -1571,8 +1571,8 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
                 <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
                   <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Ориентация персонажа</div>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => setSceneControlMode('image')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${sceneControlMode === 'image' ? 'bg-[#D4FF00] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>image</button>
-                    <button type="button" onClick={() => setSceneControlMode('video')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${sceneControlMode === 'video' ? 'bg-[#D4FF00] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>video</button>
+                    <button type="button" onClick={() => setSceneControlMode('image')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${sceneControlMode === 'image' ? 'bg-[#8cf425] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>image</button>
+                    <button type="button" onClick={() => setSceneControlMode('video')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${sceneControlMode === 'video' ? 'bg-[#8cf425] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>video</button>
                   </div>
                   <div className="text-[11px] text-zinc-500 mt-2">Лимит: {sceneControlMode === 'image' ? '10с' : '30с'} • Длина берётся из видео</div>
                 </div>
@@ -1583,8 +1583,8 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
               <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
                 <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Длительность</div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setMotionQuality('720p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '720p' ? 'bg-[#D4FF00] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>5с — 75⭐</button>
-                  <button type="button" onClick={() => setMotionQuality('1080p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '1080p' ? 'bg-[#D4FF00] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>10с — 150⭐</button>
+                  <button type="button" onClick={() => setMotionQuality('720p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '720p' ? 'bg-[#8cf425] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>5с — 75⭐</button>
+                  <button type="button" onClick={() => setMotionQuality('1080p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '1080p' ? 'bg-[#8cf425] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>10с — 150⭐</button>
                 </div>
               </div>
             )}
@@ -1593,8 +1593,8 @@ const VideoGeneratorHiruComponent = ({ initialModel, onGenerate, onRatioChange, 
               <div className="p-3 bg-black/20 backdrop-blur-xl rounded-xl border border-white/[0.08]">
                 <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Длительность</div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setMotionQuality('720p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '720p' ? 'bg-[#D4FF00] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>6с — 17⭐</button>
-                  <button type="button" onClick={() => setMotionQuality('1080p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '1080p' ? 'bg-[#D4FF00] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>10с — 26⭐</button>
+                  <button type="button" onClick={() => setMotionQuality('720p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '720p' ? 'bg-[#8cf425] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>6с — 17⭐</button>
+                  <button type="button" onClick={() => setMotionQuality('1080p')} className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${motionQuality === '1080p' ? 'bg-[#8cf425] text-black' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}>10с — 26⭐</button>
                 </div>
               </div>
             )}

@@ -105,7 +105,7 @@ function TelegramMiniAppLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0F0F10]">
       <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-[#00D9FF]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#8cf425]" />
         <span className="text-white/60">Загрузка...</span>
       </div>
     </div>
@@ -319,8 +319,8 @@ function TelegramMiniAppContent() {
     surface2: isDark ? '#27272A' : '#E5E5E7',
     text: isDark ? '#FFFFFF' : '#1D1D1F',
     textMuted: isDark ? '#A1A1AA' : '#86868B',
-    accent: '#00D9FF',
-    accentGlow: 'rgba(0, 217, 255, 0.2)',
+    accent: '#8cf425',
+    accentGlow: 'rgba(140, 244, 37, 0.2)',
   };
 
   return (

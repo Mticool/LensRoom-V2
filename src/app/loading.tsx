@@ -9,7 +9,7 @@ export default function Loading() {
     <div className="min-h-[80vh] flex items-center justify-center bg-[#0a0a0b]">
       <div className="flex flex-col items-center gap-4">
         <div
-          className="w-10 h-10 rounded-full border-2 border-[#00D9FF]/30 border-t-[#00D9FF] animate-spin"
+          className="w-10 h-10 rounded-full border-2 border-[#8cf425]/30 border-t-[#8cf425] animate-spin"
           aria-hidden
         />
         <p className="text-sm text-white/60">Загрузка…</p>

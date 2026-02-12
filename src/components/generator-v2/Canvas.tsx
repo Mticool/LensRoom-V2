@@ -89,9 +89,9 @@ export const Canvas = memo(function Canvas({
         <div className="h-full w-full flex items-center justify-center p-6 bg-[#0F0F10]">
           <div className="w-full max-w-2xl space-y-6">
             <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00D9FF]/10 border border-[#00D9FF]/20 mb-4">
-                <Layers className="w-4 h-4 text-[#00D9FF]" />
-                <span className="text-sm font-medium text-[#00D9FF]">Batch режим</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#8cf425]/10 border border-[#8cf425]/20 mb-4">
+                <Layers className="w-4 h-4 text-[#8cf425]" />
+                <span className="text-sm font-medium text-[#8cf425]">Batch режим</span>
               </div>
               <h2 className="text-xl font-semibold text-white mb-2">
                 Массовая обработка изображений
@@ -146,9 +146,9 @@ export const Canvas = memo(function Canvas({
         <div className="h-full w-full flex items-center justify-center p-6 bg-[#0F0F10]">
           <div className="w-full max-w-2xl space-y-6">
             <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00D9FF]/10 border border-[#00D9FF]/20 mb-4">
-                <Wand2 className="w-4 h-4 text-[#00D9FF]" />
-                <span className="text-sm font-medium text-[#00D9FF]">Remix режим</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#8cf425]/10 border border-[#8cf425]/20 mb-4">
+                <Wand2 className="w-4 h-4 text-[#8cf425]" />
+                <span className="text-sm font-medium text-[#8cf425]">Remix режим</span>
               </div>
               <h2 className="text-xl font-semibold text-white mb-2">
                 Редактируйте изображение
@@ -188,7 +188,7 @@ export const Canvas = memo(function Canvas({
       <div className="h-full w-full flex items-center justify-center p-6 bg-[#0F0F10]">
         <div className="text-center space-y-6 max-w-md">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-[#27272A] flex items-center justify-center">
-            <Sparkles className="w-8 h-8 text-[#00D9FF]" />
+            <Sparkles className="w-8 h-8 text-[#8cf425]" />
           </div>
           <div>
             <h2 className="text-xl font-semibold text-white mb-2">
@@ -221,9 +221,9 @@ export const Canvas = memo(function Canvas({
         <div className="text-center space-y-4">
           <div className="w-16 h-16 mx-auto relative">
             <div className="absolute inset-0 rounded-full border-4 border-[#27272A]" />
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#00D9FF] animate-spin" />
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#8cf425] animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-[#00D9FF]" />
+              <Sparkles className="w-6 h-6 text-[#8cf425]" />
             </div>
           </div>
           <div>
@@ -264,7 +264,7 @@ export const Canvas = memo(function Canvas({
               <div className="text-center space-y-2 px-4">
                 <div className="w-12 h-12 mx-auto relative">
                   <div className="absolute inset-0 rounded-full border-4 border-white/10" />
-                  <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#00D9FF] animate-spin" />
+                  <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#8cf425] animate-spin" />
                 </div>
                 <div className="text-sm font-medium text-white">Генерация...</div>
                 <div className="text-xs text-white/60">Результат появится автоматически</div>
@@ -277,7 +277,7 @@ export const Canvas = memo(function Canvas({
             <button
               onClick={handleDownload}
               disabled={isGenerating}
-              className="p-2 rounded-lg bg-[#00D9FF] hover:bg-[#22D3EE] text-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg bg-[#8cf425] hover:bg-[#22D3EE] text-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               title="Скачать"
             >
               <Download className="w-5 h-5" />

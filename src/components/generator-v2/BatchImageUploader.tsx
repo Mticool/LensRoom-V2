@@ -169,7 +169,7 @@ export function BatchImageUploader({
           className={cn(
             "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed transition-all",
             dragActive 
-              ? "border-[#00D9FF] bg-[#00D9FF]/10 scale-[1.02]" 
+              ? "border-[#8cf425] bg-[#8cf425]/10 scale-[1.02]" 
               : "border-[#3F3F46] hover:border-[#52525B] bg-[#27272A]/30",
             (disabled || images.length >= maxImages) && "opacity-50 cursor-not-allowed",
             images.length === 0 && "min-h-[120px]"
@@ -177,7 +177,7 @@ export function BatchImageUploader({
         >
           <ImagePlus className={cn(
             "w-5 h-5 transition-colors",
-            dragActive ? "text-[#00D9FF]" : "text-[#71717A]"
+            dragActive ? "text-[#8cf425]" : "text-[#71717A]"
           )} />
           <span className="text-sm font-medium text-[#E4E4E7]">
             {dragActive 
@@ -197,7 +197,7 @@ export function BatchImageUploader({
         {showMenu && (
           <div className="absolute top-full left-0 mt-2 w-64 bg-[#18181B] border border-[#27272A] rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <label className="flex items-center gap-3 px-4 py-3 hover:bg-[#27272A] cursor-pointer transition-colors">
-              <Upload className="w-4 h-4 text-[#00D9FF]" />
+              <Upload className="w-4 h-4 text-[#8cf425]" />
               <span className="text-sm text-[#E4E4E7]">Загрузить файлы</span>
               <input
                 ref={fileInputRef}
@@ -231,11 +231,11 @@ export function BatchImageUploader({
             <div key={img.id} className="relative group">
               <div className={cn(
                 "w-20 h-20 rounded-lg overflow-hidden border-2 transition-all",
-                img.status === 'ready' ? "border-[#00D9FF]" : "border-[#3F3F46]"
+                img.status === 'ready' ? "border-[#8cf425]" : "border-[#3F3F46]"
               )}>
                 {img.status === 'uploading' ? (
                   <div className="w-full h-full flex items-center justify-center bg-[#27272A]">
-                    <Loader2 className="w-6 h-6 text-[#00D9FF] animate-spin" />
+                    <Loader2 className="w-6 h-6 text-[#8cf425] animate-spin" />
                   </div>
                 ) : img.status === 'error' ? (
                   <div className="w-full h-full flex items-center justify-center bg-red-500/10">
