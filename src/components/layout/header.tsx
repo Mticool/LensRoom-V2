@@ -32,6 +32,8 @@ const MODELS = {
     { id: "kling-2.1", name: "Kling 2.1", badge: "Master", desc: "5-10с • Максимальное качество" },
     { id: "kling-2.5", name: "Kling 2.5", badge: "Turbo", desc: "5-10с • Скорость + качество" },
     { id: "kling-2.6", name: "Kling 2.6", badge: "Audio", new: true, desc: "5-10с • Генерация звука" },
+    { id: "kling-o1", name: "Kling O1 Standard", badge: "PRO", desc: "I2V • Start/End • V2V Reference" },
+    { id: "kling-o3-standard", name: "Kling O3 Standard", badge: "NEW", new: true, desc: "T2V • I2V • V2V • Multishot • Audio" },
     { id: "kling-motion-control", name: "Motion Control", badge: "Motion", desc: "Перенос движения на персонажа" },
     { id: "grok-video", name: "Grok Video", badge: "Audio", hot: true, desc: "6-30с • 6 стилей • Аудио" },
     { id: "sora-2", name: "Sora 2", badge: "Pro", desc: "10-15с • Универсальная" },

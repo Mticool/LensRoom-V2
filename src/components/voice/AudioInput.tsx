@@ -12,13 +12,15 @@ interface AudioInputProps {
   maxDuration?: number;
   maxSize?: number;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export function AudioInput({ 
   onAudioUploaded,
   maxDuration = 15,
   maxSize = 20971520, // 20MB
-  disabled = false 
+  disabled = false,
+  compact = false,
 }: AudioInputProps) {
   const [activeTab, setActiveTab] = useState<'upload' | 'record'>('upload');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -161,41 +163,42 @@ export function AudioInput({
   };
 
   return (
-    <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] shadow-[0_20px_60px_rgba(0,0,0,0.12)] p-5 sm:p-7">
-      <div className="flex items-start justify-between gap-3 mb-5">
+    <div className={cn("rounded-3xl border border-[#242b37] bg-[#141821] shadow-[0_20px_60px_rgba(0,0,0,0.24)]", compact ? "p-4" : "p-5 sm:p-7")}>
+      <div className={cn("flex items-start justify-between gap-3", compact ? "mb-3" : "mb-5")}>
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[var(--gold)]/12 border border-[var(--gold)]/15 flex items-center justify-center">
-              <FileAudio className="w-5 h-5 text-[var(--gold)]" />
+            <div className={cn("flex items-center justify-center rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold)]/10", compact ? "h-9 w-9" : "h-11 w-11")}>
+              <FileAudio className={cn("text-[var(--gold)]", compact ? "h-4 w-4" : "h-5 w-5")} />
             </div>
             <div className="min-w-0">
-              <div className="text-lg font-semibold text-[var(--text)]">Аудио</div>
-              <div className="text-sm text-[var(--muted)]">Загрузите файл или запишите голос прямо здесь</div>
+              <div className={cn("font-semibold text-[#f4f6f8]", compact ? "text-sm" : "text-lg")}>Аудио</div>
+              <div className={cn("text-[#9ea8b8]", compact ? "text-xs" : "text-sm")}>Файл или запись с микрофона</div>
             </div>
           </div>
         </div>
-        <div className="shrink-0 text-xs text-[var(--muted)]">
+        <div className="shrink-0 text-xs text-[#9ea8b8]">
           {maxDuration > 0 ? `До ${maxDuration} сек` : 'Без лимита'}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1.5 rounded-2xl bg-[var(--surface2)] border border-[var(--border)]">
+      <div className="flex gap-2 rounded-2xl border border-[#2a3341] bg-[#0f1219] p-1.5">
         <button
           onClick={() => setActiveTab('upload')}
           className={cn(
-            "relative flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors outline-none",
+            "relative flex-1 rounded-xl font-medium transition-colors outline-none",
+            compact ? "px-2 py-2 text-xs" : "px-4 py-2.5 text-sm",
             disabled && "cursor-not-allowed opacity-70"
           )}
         >
           {activeTab === 'upload' && (
             <motion.div
               layoutId="audioTab"
-              className="absolute inset-0 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-sm"
-              transition={{ type: 'spring', stiffness: 480, damping: 38 }}
+              className="absolute inset-0 rounded-xl bg-[var(--btn-primary-bg)] shadow-sm"
+              transition={{ duration: 0.16, ease: 'easeOut' }}
             />
           )}
-          <span className={cn("relative z-10 inline-flex items-center justify-center gap-2", activeTab === 'upload' ? "text-[var(--text)]" : "text-[var(--muted)] hover:text-[var(--text)]")}>
+          <span className={cn("relative z-10 inline-flex items-center justify-center gap-2", activeTab === 'upload' ? "text-[var(--btn-primary-text)]" : "text-[#9ea8b8] hover:text-[#f4f6f8]")}>
             <Upload className="w-4 h-4" />
             Загрузить
           </span>
@@ -204,18 +207,19 @@ export function AudioInput({
         <button
           onClick={() => setActiveTab('record')}
           className={cn(
-            "relative flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors outline-none",
+            "relative flex-1 rounded-xl font-medium transition-colors outline-none",
+            compact ? "px-2 py-2 text-xs" : "px-4 py-2.5 text-sm",
             disabled && "cursor-not-allowed opacity-70"
           )}
         >
           {activeTab === 'record' && (
             <motion.div
               layoutId="audioTab"
-              className="absolute inset-0 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-sm"
-              transition={{ type: 'spring', stiffness: 480, damping: 38 }}
+              className="absolute inset-0 rounded-xl bg-[var(--btn-primary-bg)] shadow-sm"
+              transition={{ duration: 0.16, ease: 'easeOut' }}
             />
           )}
-          <span className={cn("relative z-10 inline-flex items-center justify-center gap-2", activeTab === 'record' ? "text-[var(--text)]" : "text-[var(--muted)] hover:text-[var(--text)]")}>
+          <span className={cn("relative z-10 inline-flex items-center justify-center gap-2", activeTab === 'record' ? "text-[var(--btn-primary-text)]" : "text-[#9ea8b8] hover:text-[#f4f6f8]")}>
             <Mic className="w-4 h-4" />
             Записать
           </span>
@@ -223,26 +227,26 @@ export function AudioInput({
       </div>
 
       {/* Content */}
-      <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/40 overflow-hidden">
+      <div className={cn("overflow-hidden rounded-2xl border border-[#2a3341] bg-[#0f1219]/70", compact ? "mt-3" : "mt-4")}>
         {audioUrl ? (
-          <div className="p-5 sm:p-6">
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--border)]">
+          <div className={cn(compact ? "p-3" : "p-5 sm:p-6")}>
+            <div className={cn("flex items-center rounded-2xl border border-[#2a3341] bg-[#121722]", compact ? "gap-2 p-2.5" : "gap-4 p-4")}>
               <button
                 onClick={togglePlayback}
-                className="w-12 h-12 rounded-2xl bg-[var(--gold)] hover:bg-[var(--gold)]/90 transition-colors flex items-center justify-center shadow-sm"
+                className={cn("flex items-center justify-center rounded-2xl bg-[var(--btn-primary-bg)] shadow-sm transition-colors hover:bg-[var(--btn-primary-bg-hover)]", compact ? "h-9 w-9" : "h-12 w-12")}
               >
                 {isPlaying ? (
-                  <Pause className="w-5 h-5 text-black" />
+                  <Pause className={cn("text-[var(--btn-primary-text)]", compact ? "h-4 w-4" : "w-5 h-5")} />
                 ) : (
-                  <Play className="w-5 h-5 text-black ml-0.5" />
+                  <Play className={cn("ml-0.5 text-[var(--btn-primary-text)]", compact ? "h-4 w-4" : "w-5 h-5")} />
                 )}
               </button>
               
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[var(--text)]">
+                <p className={cn("font-semibold text-[#f4f6f8]", compact ? "text-xs" : "text-sm")}>
                   Аудио готово
                 </p>
-                <p className="text-xs text-[var(--muted)]">
+                <p className={cn("text-[#9ea8b8]", compact ? "text-[10px]" : "text-xs")}>
                   Длительность: {formatTime(duration)}
                 </p>
               </div>
@@ -250,7 +254,7 @@ export function AudioInput({
               <button
                 onClick={handleRemove}
                 disabled={disabled}
-                className="p-2 rounded-xl hover:bg-[var(--error)]/10 text-[var(--error)] transition-colors disabled:opacity-50"
+                className="rounded-xl p-2 text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
                 title="Удалить аудио"
               >
                 <X className="w-5 h-5" />
@@ -260,14 +264,14 @@ export function AudioInput({
         ) : (
           <>
             {activeTab === 'upload' ? (
-              <div className="p-5 sm:p-6">
+              <div className={cn(compact ? "p-3" : "p-5 sm:p-6")}>
                 {uploading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="w-12 h-12 border-4 border-[var(--gold)]/25 border-t-[var(--gold)] rounded-full animate-spin mb-4" />
-                    <p className="text-sm text-[var(--muted)]">Загрузка...</p>
+                  <div className={cn("flex flex-col items-center justify-center", compact ? "py-6" : "py-12")}>
+                    <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--gold)]/25 border-t-[var(--gold)]" />
+                    <p className="text-sm text-[#9ea8b8]">Загрузка...</p>
                   </div>
                 ) : (
-                  <div className={cn("rounded-2xl border border-dashed border-[var(--border)] hover:border-[var(--gold)]/45 bg-[var(--surface)]/20 transition-colors", disabled && "opacity-50 cursor-not-allowed")}>
+                  <div className={cn("rounded-2xl border border-dashed border-[#2a3341] bg-[#121722]/40 transition-colors hover:border-[var(--gold)]/45", disabled && "opacity-50 cursor-not-allowed")}>
                     <input
                       ref={fileInputRef}
                       id="audio-upload"
@@ -281,15 +285,15 @@ export function AudioInput({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={disabled || uploading}
-                      className={cn("w-full flex flex-col items-center justify-center py-10 px-6 text-center", !disabled && "cursor-pointer")}
+                      className={cn("w-full flex flex-col items-center justify-center text-center", compact ? "py-6 px-3" : "py-10 px-6", !disabled && "cursor-pointer")}
                     >
-                      <div className="w-14 h-14 rounded-2xl bg-[var(--surface2)] border border-[var(--border)] flex items-center justify-center mb-4">
-                        <Upload className="w-6 h-6 text-[var(--gold)]" />
+                      <div className={cn("flex items-center justify-center rounded-2xl border border-[#2a3341] bg-[#10141d]", compact ? "h-10 w-10 mb-3" : "h-14 w-14 mb-4")}>
+                        <Upload className={cn("text-[var(--gold)]", compact ? "h-4 w-4" : "h-6 w-6")} />
                       </div>
-                      <p className="text-sm font-semibold text-[var(--text)] mb-1">
+                      <p className={cn("mb-1 font-semibold text-[#f4f6f8]", compact ? "text-xs" : "text-sm")}>
                         Нажмите для выбора аудио
                       </p>
-                      <p className="text-xs text-[var(--muted)]">
+                      <p className={cn("text-[#9ea8b8]", compact ? "text-[10px]" : "text-xs")}>
                         MP3, WAV, WEBM до 20MB {maxDuration > 0 ? `• Макс ${maxDuration} сек` : ''}
                       </p>
                     </button>

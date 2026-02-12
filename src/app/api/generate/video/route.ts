@@ -8,9 +8,9 @@ import { getModelById, VIDEO_MODELS, type VideoModelConfig } from '@/config/mode
 import { getSkuFromRequest, calculateTotalStars, PRICING_VERSION, type PricingOptions } from "@/lib/pricing/pricing";
 import { integrationNotConfigured } from "@/lib/http/integration-error";
 import { 
-  validateMotionControlDuration,
   type MotionControlResolution 
 } from '@/lib/pricing/pricing';
+import { calcMotionControlCredits, validateMotionControlSeconds, type MotionCharacterOrientation } from '@/lib/videoModels/motion-control';
 import { ensureProfileExists } from "@/lib/supabase/ensure-profile";
 import { preparePromptForVeo, getSafePrompt } from '@/lib/prompt-moderation';
 import { requireAuth } from "@/lib/auth/requireRole";
@@ -20,15 +20,60 @@ import { checkRateLimit, getClientIP, RATE_LIMITS, rateLimitResponse } from '@/l
 import { resolveVideoAspectRatio, logVideoAspectRatioResolution } from '@/lib/api/aspect-ratio-utils';
 import { VideoGenerationRequestSchema, validateAgainstCapability } from '@/lib/videoModels/schema';
 import { getModelCapability } from '@/lib/videoModels/capabilities';
+import { validateCapabilityDataUrl } from '@/lib/videoModels/file-validation';
 import { buildKieVideoPayload } from '@/lib/providers/kie/video';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
 import { CircuitOpenError } from "@/lib/server/circuit-breaker";
+import { env } from '@/lib/env';
+import { isRetryableLaoZhangSubmissionError } from '@/lib/api/upstream-retry';
+import { getMediaDurationFromDataUrl, getMediaDurationFromUrl } from '@/lib/media/ffprobe-duration';
 
 // Увеличиваем лимит размера тела запроса до 50MB для больших изображений
 // Настройка в next.config.ts: experimental.middlewareClientMaxBodySize = '50mb'
 // Note: Veo/LaoZhang video generation can take >60s; keep this high enough to avoid platform-level 504s.
 export const maxDuration = 300; // seconds
 export const dynamic = 'force-dynamic';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type KlingO3MultiPromptElement = {
+  prompt: string;
+  duration: number;
+};
+
+function normalizeKlingO3MultiPrompt(
+  raw: unknown,
+  fallbackDurationSec: number
+): KlingO3MultiPromptElement[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+
+  const normalized = raw
+    .map((item): KlingO3MultiPromptElement | null => {
+      if (typeof item === 'string') {
+        const prompt = item.trim();
+        if (!prompt) return null;
+        return {
+          prompt,
+          duration: Math.max(1, Math.min(15, fallbackDurationSec)),
+        };
+      }
+      if (!item || typeof item !== 'object') return null;
+
+      const prompt = String((item as any).prompt || '').trim();
+      if (!prompt) return null;
+
+      const parsedDuration = Number((item as any).duration);
+      const duration = Number.isFinite(parsedDuration)
+        ? Math.max(1, Math.min(15, Math.round(parsedDuration)))
+        : Math.max(1, Math.min(15, fallbackDurationSec));
+
+      return { prompt, duration };
+    })
+    .filter((entry): entry is KlingO3MultiPromptElement => entry !== null)
+    .slice(0, 4);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
 
 async function updateGenerationWithRetry(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -51,6 +96,30 @@ async function updateGenerationWithRetry(
   if (lastError) {
     console.error(`[API] ${label} update failed after retries:`, lastError);
   }
+}
+
+async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const shouldRetry = isRetryableLaoZhangSubmissionError(error);
+      if (!shouldRetry || attempt >= maxAttempts) throw error;
+      const backoffMs = Math.min(1200 * attempt, 3500);
+      console.warn(`[API] ${label} transient error on attempt ${attempt}/${maxAttempts}, retrying in ${backoffMs}ms`, {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      await sleep(backoffMs);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
 }
 
 export async function POST(request: NextRequest) {
@@ -83,7 +152,7 @@ export async function POST(request: NextRequest) {
       referenceVideo, // For motion control: video with movements to transfer
       videoUrl: v2vVideoUrl, // For WAN v2v: reference video URL
       videoDuration, // Duration of reference video in seconds
-      autoTrim = true, // Auto-trim videos > 30s
+      motionSeconds, // Motion video duration from client metadata
       keepAudio, // For Kling O1 Edit (FAL): keep original audio
       shots, // For storyboard mode
       characterOrientation, // For motion control: 'image' (max 10s) or 'video' (max 30s)
@@ -94,12 +163,33 @@ export async function POST(request: NextRequest) {
       motionStrength, // WAN 2.6: 0-100
       qualityTier, // Kling: 'standard' | 'pro' | 'master'
       referenceImages, // Veo 3.1: array of up to 3 reference images
+      multiPrompt, // Kling O3: multishot prompts (camelCase)
+      multi_prompt: multiPromptSnake, // Kling O3: multishot prompts (snake_case)
+      shotType, // Kling O3: single | customize (camelCase)
+      shot_type: shotTypeSnake, // Kling O3: single | customize (snake_case)
+      generateAudio, // Kling O3: audio toggle (camelCase)
+      generate_audio: generateAudioSnake, // Kling O3: audio toggle (snake_case)
       cfgScale, // Kling: 0-20
       cameraControl, // Motion Control: JSON
       // Extend mode
       sourceGenerationId, // ID записи generation для продления
       taskId, // Прямой taskId для extend (если фронт шлёт напрямую)
     } = body;
+
+    const normalizedMultiPromptRaw = multiPrompt ?? multiPromptSnake;
+    const normalizedMultiPrompt = normalizeKlingO3MultiPrompt(
+      normalizedMultiPromptRaw,
+      Math.max(1, Math.min(15, Number(duration || 5)))
+    );
+    const normalizedShotTypeRaw = String((shotType ?? shotTypeSnake ?? "")).trim().toLowerCase();
+    const normalizedShotType =
+      normalizedShotTypeRaw === "customize" ? "customize" : normalizedShotTypeRaw === "single" ? "single" : undefined;
+    const normalizedGenerateAudio =
+      typeof generateAudio === "boolean"
+        ? generateAudio
+        : typeof generateAudioSnake === "boolean"
+          ? generateAudioSnake
+          : undefined;
     
     // === NEW: STRICT ZOD + CAPABILITY VALIDATION ===
     // Get capability config (capabilities now use dashed IDs matching UI)
@@ -154,6 +244,9 @@ export async function POST(request: NextRequest) {
           qualityTier,
           cfgScale,
           cameraControl,
+          generateAudio: normalizedGenerateAudio,
+          multiPrompt: normalizedMultiPrompt,
+          shotType: normalizedShotType,
           characterOrientation,
           variants,
           threadId: threadIdRaw,
@@ -225,6 +318,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid video model', availableModels: VIDEO_MODELS.map(m => m.id) },
         { status: 400 }
+      );
+    }
+
+    if (model === 'kling-o3-standard' && !env.isKlingO3StandardEnabled()) {
+      return NextResponse.json(
+        { error: 'Model is disabled by feature flag' },
+        { status: 403 }
       );
     }
 
@@ -306,7 +406,7 @@ export async function POST(request: NextRequest) {
     const soundEnabled =
       modelInfo.supportsAudio ? (typeof audio === 'boolean' ? audio : true) : false;
     // Validate WAN sound preset (if provided)
-    if (model === "wan" && wanSoundPreset) {
+    if (model === "wan-2.6" && wanSoundPreset) {
       const allowedSound = (activeVariant?.soundOptions || []).map(String);
       if (allowedSound.length && !allowedSound.includes(wanSoundPreset)) {
         return NextResponse.json(
@@ -330,7 +430,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate WAN 2.6 camera motion
-    if (model === 'wan' && cameraMotion) {
+    if (model === 'wan-2.6' && cameraMotion) {
       const allowedMotions = ['static', 'pan_left', 'pan_right', 'tilt_up', 'tilt_down', 'zoom_in', 'zoom_out', 'orbit', 'follow'];
       if (!allowedMotions.includes(cameraMotion)) {
         return NextResponse.json(
@@ -341,7 +441,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate WAN 2.6 style preset
-    if (model === 'wan' && stylePreset) {
+    if (model === 'wan-2.6' && stylePreset) {
       const allowedPresets = ['realistic', 'anime', 'cinematic', 'artistic', 'vintage', 'neon'];
       if (!allowedPresets.includes(stylePreset)) {
         return NextResponse.json(
@@ -352,7 +452,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate WAN 2.6 motion strength
-    if (model === 'wan' && motionStrength !== undefined) {
+    if (model === 'wan-2.6' && motionStrength !== undefined) {
       if (typeof motionStrength !== 'number' || motionStrength < 0 || motionStrength > 100) {
         return NextResponse.json(
           { error: `motionStrength must be a number between 0 and 100` },
@@ -382,29 +482,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate cameraControl JSON for Motion Control
-    let cameraControlParsed: Record<string, unknown> | undefined;
-    if (model === 'kling-motion-control') {
-      if (!cameraControl) {
-        return NextResponse.json(
-          { error: 'cameraControl is required for Motion Control' },
-          { status: 400 }
-        );
-      }
-      if (typeof cameraControl === 'string') {
-        try {
-          cameraControlParsed = JSON.parse(cameraControl);
-        } catch {
-          return NextResponse.json(
-            { error: 'cameraControl must be valid JSON' },
-            { status: 400 }
-          );
-        }
-      } else if (typeof cameraControl === 'object') {
-        cameraControlParsed = cameraControl as Record<string, unknown>;
-      }
-    }
-
     // Validate Veo 3.1 reference images (max 3)
     const isVeo31 = model === 'veo-3.1' || model === 'veo-3.1-fast';
     if (isVeo31 && referenceImages) {
@@ -422,48 +499,121 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate Kling O3 Standard specifics
+    if (model === 'kling-o3-standard') {
+      const allowedModes = new Set(['t2v', 'i2v', 'start_end', 'v2v']);
+      if (!allowedModes.has(normalizedMode)) {
+        return NextResponse.json(
+          { error: 'Kling O3 Standard supports only t2v, i2v, start_end, v2v modes' },
+          { status: 400 }
+        );
+      }
+      const allowedDurations = new Set([3, 5, 8, 10, 12, 15]);
+      const requestedDuration = Number(duration || 5);
+      if (!allowedDurations.has(requestedDuration)) {
+        return NextResponse.json(
+          { error: `Duration '${duration}' is not supported by Kling O3 Standard. Supported: 3, 5, 8, 10, 12, 15` },
+          { status: 400 }
+        );
+      }
+      if ((normalizedMode === 'i2v' || normalizedMode === 'start_end') && !referenceImage && !startImage) {
+        return NextResponse.json(
+          { error: 'referenceImage or startImage is required for Kling O3 Standard i2v/start_end mode' },
+          { status: 400 }
+        );
+      }
+      if (normalizedMode === 'v2v' && !v2vVideoUrl) {
+        return NextResponse.json(
+          { error: 'videoUrl is required for Kling O3 Standard v2v mode' },
+          { status: 400 }
+        );
+      }
+      if (normalizedShotType && !['single', 'customize'].includes(normalizedShotType)) {
+        return NextResponse.json(
+          { error: `Invalid shotType '${normalizedShotType}'. Allowed: single, customize` },
+          { status: 400 }
+        );
+      }
+      if (normalizedMultiPrompt && normalizedMultiPrompt.length > 0) {
+        if (normalizedMultiPrompt.length > 4) {
+          return NextResponse.json(
+            { error: 'Kling O3 Standard supports maximum 4 multishot prompts' },
+            { status: 400 }
+          );
+        }
+        if (normalizedMultiPrompt.some((entry) => entry.prompt.length === 0)) {
+          return NextResponse.json(
+            { error: 'multiPrompt cannot contain empty entries' },
+            { status: 400 }
+          );
+        }
+        if (normalizedMultiPrompt.some((entry) => !Number.isFinite(entry.duration) || entry.duration <= 0 || entry.duration > 15)) {
+          return NextResponse.json(
+            { error: 'Each multiPrompt shot must include duration in range 1..15 seconds' },
+            { status: 400 }
+          );
+        }
+      }
+      if (normalizedShotType === 'customize' && (!normalizedMultiPrompt || normalizedMultiPrompt.length === 0)) {
+        return NextResponse.json(
+          { error: 'multiPrompt is required when shotType=customize' },
+          { status: 400 }
+        );
+      }
+    }
+
     // === END: Extended model capabilities validation ===
 
     // === NEW PRICING SYSTEM (2026-01-27) ===
     let creditCost: number;
     let effectiveDuration: number | undefined;
     let sku: string;
+    let motionSecondsServer: number | null = null;
     
     if (model === 'kling-motion-control') {
-      // Motion Control uses per-second pricing
-      const mcResolution = (resolution || '720p') as MotionControlResolution;
-      const mcDuration = videoDuration || 0;
-      
-      // Validate character_orientation (default: 'image')
-      // 'image' = use orientation from reference image (max 10s video)
-      // 'video' = use orientation from reference video (max 30s video)
-      const orientation = characterOrientation || 'image';
-      const maxDurationForOrientation = orientation === 'image' ? 10 : 30;
-      
-      if (mcDuration > maxDurationForOrientation) {
+      const mcResolutionRaw = String(resolution || '720p').toLowerCase();
+      if (mcResolutionRaw !== '720p' && mcResolutionRaw !== '1080p') {
         return NextResponse.json(
-          { 
-            error: `Для режима "${orientation}" максимальная длительность видео ${maxDurationForOrientation} секунд. Ваше видео: ${mcDuration.toFixed(1)} сек.`,
-            maxDuration: maxDurationForOrientation,
-            actualDuration: mcDuration,
-            orientation,
-          },
+          { error: "Motion Control mode must be '720p' or '1080p'" },
           { status: 400 }
         );
       }
-      
-      // Validate duration
-      const validation = validateMotionControlDuration(mcDuration, autoTrim);
-      if (!validation.valid) {
+      const mcResolution = mcResolutionRaw as MotionControlResolution;
+      const orientationRaw = String(characterOrientation || 'image').toLowerCase();
+      if (orientationRaw !== 'image' && orientationRaw !== 'video') {
         return NextResponse.json(
-          { error: validation.error || 'Invalid video duration for Motion Control' },
+          { error: "characterOrientation must be 'image' or 'video'" },
           { status: 400 }
         );
       }
-      
-      effectiveDuration = validation.effectiveDuration ?? mcDuration;
-      
-      // Use new pricing system
+      const orientation = orientationRaw as MotionCharacterOrientation;
+      let rawMotionSeconds = Number(motionSeconds ?? videoDuration ?? 0);
+      try {
+        if (typeof referenceVideo === 'string' && referenceVideo.trim()) {
+          const source = referenceVideo.trim();
+          if (source.startsWith('data:')) {
+            rawMotionSeconds = await getMediaDurationFromDataUrl(source);
+          } else if (/^https?:\/\//i.test(source)) {
+            rawMotionSeconds = await getMediaDurationFromUrl(source);
+          }
+        }
+      } catch (durationErr) {
+        console.warn('[API] Motion Control duration extraction failed, using fallback seconds:', {
+          fallback: rawMotionSeconds,
+          error: durationErr instanceof Error ? durationErr.message : String(durationErr),
+        });
+      }
+      motionSecondsServer = rawMotionSeconds;
+      const timeValidation = validateMotionControlSeconds(rawMotionSeconds, orientation);
+      if (!timeValidation.valid) {
+        return NextResponse.json(
+          { error: timeValidation.message || 'Invalid motion video duration' },
+          { status: 400 }
+        );
+      }
+      const billing = calcMotionControlCredits(rawMotionSeconds, mcResolution, orientation);
+      effectiveDuration = billing.billableSeconds;
+
       try {
         const pricingOptions: PricingOptions = {
           videoQuality: mcResolution,
@@ -482,14 +632,13 @@ export async function POST(request: NextRequest) {
       
       console.log('[API] Motion Control pricing (NEW):', {
         modelId: 'kling-motion-control',
-        videoDuration: mcDuration,
-        autoTrim,
-        effectiveDuration,
+        motionSeconds: motionSecondsServer,
+        billableSeconds: billing.billableSeconds,
         resolution: mcResolution,
         characterOrientation: orientation,
-        maxDurationForOrientation,
+        creditsPerSecond: billing.creditsPerSecond,
         sku,
-        priceStars: creditCost,
+        estimatedStars: creditCost,
         pricingVersion: PRICING_VERSION,
       });
     } else {
@@ -504,7 +653,7 @@ export async function POST(request: NextRequest) {
           duration: duration || modelInfo.fixedDuration || 5,
           videoQuality: supportsQuality ? quality : undefined,
           resolution: acceptsResolution ? (resolution || undefined) : undefined,
-          audio: model === 'wan' ? !!wanSoundPreset : soundEnabled,
+          audio: model === 'wan-2.6' ? !!wanSoundPreset : (normalizedGenerateAudio ?? soundEnabled),
           modelVariant: modelVariant || undefined,
           qualityTier: qualityTier as any,
         };
@@ -589,6 +738,9 @@ export async function POST(request: NextRequest) {
     }
 
     const generationIdForAudit = crypto.randomUUID();
+    const isDeferredMotionBilling = false;
+    const shouldChargeUpfront = true;
+    const creditsUsedOnCreate = shouldChargeUpfront ? creditCost : 0;
 
     // Skip credit check for managers/admins
     if (!skipCredits) {
@@ -621,46 +773,23 @@ export async function POST(request: NextRequest) {
         generationId: generationIdForAudit,
       }));
 
-      // Deduct credits (subscription first, then package)
-      const deductResult = await deductCredits(supabase, userId, creditCost);
-      
-      // 🔍 AUDIT LOG: Star deduction with SKU tracking (2026-01-27)
-      if (process.env.NODE_ENV === 'development' || process.env.AUDIT_STARS === 'true') {
-        const durationSec = model === 'kling-motion-control' 
-          ? effectiveDuration 
-          : (duration || modelInfo.fixedDuration || 5);
-        
-        console.log('[⭐ AUDIT] Video generation:', JSON.stringify({
+      if (shouldChargeUpfront) {
+        // Deduct credits (subscription first, then package)
+        const deductResult = await deductCredits(supabase, userId, creditCost);
+        if (!deductResult.success) {
+          return NextResponse.json(
+            { error: 'Failed to deduct credits' },
+            { status: 500 }
+          );
+        }
+      } else {
+        console.log('[⭐ AUDIT_DEFERRED_BILLING]', JSON.stringify({
           userId,
           modelId: model,
-          sku,
-          pricingVersion: PRICING_VERSION,
-          provider: modelInfo.provider,
-          mode,
-          durationSec,
-          // Motion Control specific
-          ...(model === 'kling-motion-control' && {
-            videoDuration,
-            autoTrim,
-            effectiveDuration,
-          }),
-          quality: quality || 'default',
-          resolution: resolution || 'default',
-          audio: soundEnabled,
-          priceStars: creditCost,
-          deductedFromSubscription: deductResult.deductedFromSubscription,
-          deductedFromPackage: deductResult.deductedFromPackage,
-          balanceBefore: creditBalance.totalBalance,
-          balanceAfter: deductResult.totalBalance,
+          estimatedStars: creditCost,
+          willChargeOnSuccess: true,
           timestamp: new Date().toISOString(),
         }));
-      }
-      
-      if (!deductResult.success) {
-        return NextResponse.json(
-          { error: 'Failed to deduct credits' },
-          { status: 500 }
-        );
       }
     }
 
@@ -698,13 +827,24 @@ export async function POST(request: NextRequest) {
           ...(omittedCols.has("negative_prompt") ? {} : { negative_prompt: negativePrompt }),
           ...(omittedCols.has("aspect_ratio") ? {} : { aspect_ratio: aspectRatio }),
           ...(omittedCols.has("thread_id") ? {} : { thread_id: threadId || null }),
-          credits_used: creditCost,
-          ...(omittedCols.has("charged_stars") ? {} : { charged_stars: creditCost }), // Actual stars charged
+          credits_used: creditsUsedOnCreate,
+          ...(omittedCols.has("charged_stars") ? {} : { charged_stars: creditsUsedOnCreate }),
           ...(omittedCols.has("sku") ? {} : { sku }),
           ...(omittedCols.has("pricing_version") ? {} : { pricing_version: PRICING_VERSION }),
           status: "queued",
           ...(includeMetadata && (modelInfo.provider === "kie_market" || modelInfo.provider === "kie_veo")
-            ? { metadata: { kie_key_scope: "video", ...(kieSlot != null ? { kie_key_slot: kieSlot } : {}) } }
+            ? { metadata: {
+                kie_key_scope: "video", 
+                ...(kieSlot != null ? { kie_key_slot: kieSlot } : {}),
+                ...(model === 'kling-motion-control'
+                  ? {
+                      motion_seconds: Number(motionSecondsServer ?? motionSeconds ?? videoDuration ?? effectiveDuration ?? 0),
+                      motion_orientation: characterOrientation || 'image',
+                      motion_mode: resolution || '720p',
+                      estimated_credits: creditCost,
+                    }
+                  : {}),
+              } }
             : {}),
         })
         .select()
@@ -895,7 +1035,7 @@ export async function POST(request: NextRequest) {
         console.error('[API] Veo extend error:', extendError);
         
         // Refund credits
-        if (!skipCredits) {
+        if (!skipCredits && shouldChargeUpfront) {
           await refundCredits(
             supabase,
             userId,
@@ -927,7 +1067,7 @@ export async function POST(request: NextRequest) {
     // ===== END EXTEND MODE =====
 
     // Record credit transaction (only for regular users, not managers/admins)
-    if (!skipCredits) {
+    if (!skipCredits && shouldChargeUpfront) {
       try {
         const { error: txError } = await supabase.from('credit_transactions').insert({
           user_id: userId,
@@ -951,29 +1091,6 @@ export async function POST(request: NextRequest) {
     let videoUrl: string | undefined; // For motion control reference video
 
     // Basic file validation for data URLs (best-effort)
-    const capabilityFileConstraints = capability?.fileConstraints || {};
-    const validateDataUrl = (dataUrl: string, key: string): string | null => {
-      if (!dataUrl || !dataUrl.startsWith('data:')) return null;
-      const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
-      if (!match) return `Invalid data URL for ${key}`;
-      const mime = match[1];
-      const b64 = match[2];
-      const sizeBytes = Math.ceil((b64.length * 3) / 4);
-      const sizeMb = sizeBytes / (1024 * 1024);
-      const ext = mime.split('/')[1]?.toLowerCase() || '';
-      const rules = (capabilityFileConstraints as any)[key];
-      if (rules?.formats && rules.formats.length > 0) {
-        const allowed = rules.formats.map((f: string) => f.toLowerCase());
-        if (!allowed.includes(ext)) {
-          return `Invalid ${key} format '${ext}'. Allowed: ${allowed.join(', ')}`;
-        }
-      }
-      if (rules?.maxSizeMb && sizeMb > rules.maxSizeMb) {
-        return `File too large for ${key} (${sizeMb.toFixed(1)} MB). Max: ${rules.maxSizeMb} MB`;
-      }
-      return null;
-    };
-
     const dataUrlErrors: string[] = [];
     const fileChecks: Array<[string | undefined, string]> = [
       [referenceImage, 'inputImage'],
@@ -984,7 +1101,7 @@ export async function POST(request: NextRequest) {
     ];
     fileChecks.forEach(([val, key]) => {
       if (val) {
-        const err = validateDataUrl(val, key);
+        const err = validateCapabilityDataUrl(val, key, capability);
         if (err) dataUrlErrors.push(err);
       }
     });
@@ -1100,6 +1217,10 @@ export async function POST(request: NextRequest) {
         hasCharacterImage: !!imageUrl,
         hasReferenceVideo: !!videoUrl,
         resolution: resolution,
+        characterOrientation: characterOrientation || 'image',
+        motionSecondsClient: Number(motionSeconds ?? videoDuration ?? 0) || null,
+        imageUrlSample: imageUrl?.substring(0, 64) || null,
+        videoUrlSample: videoUrl?.substring(0, 64) || null,
       });
       
       if (!imageUrl) {
@@ -1114,6 +1235,33 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    // Handle Kling O3 Edit (now via KIE Market)
+    if (model === 'kling-o1-edit') {
+      // Video for editing (required) — comes via v2vVideoUrl or referenceVideo
+      if (v2vVideoUrl) {
+        videoUrl = await uploadDataUrlToStorage(v2vVideoUrl, 'kling_o3_edit');
+      } else if (referenceVideo) {
+        videoUrl = await uploadDataUrlToStorage(referenceVideo, 'kling_o3_edit');
+      }
+      // Optional reference image
+      if (startImage) {
+        imageUrl = await uploadDataUrlToStorage(startImage, 'kling_o3_edit_ref');
+      } else if (referenceImage) {
+        imageUrl = await uploadDataUrlToStorage(referenceImage, 'kling_o3_edit_ref');
+      }
+      if (!videoUrl) {
+        return NextResponse.json(
+          { error: 'Video URL is required for Kling O3 Edit' },
+          { status: 400 }
+        );
+      }
+      console.log('[API] Kling O3 Edit inputs:', {
+        hasVideoUrl: !!videoUrl,
+        hasImageUrl: !!imageUrl,
+        duration,
+      });
     }
 
     // Handle V2V reference video URL (WAN 2.6)
@@ -1183,10 +1331,28 @@ export async function POST(request: NextRequest) {
       cameraMotion: cameraMotion || 'not set',
       stylePreset: stylePreset || 'not set',
       motionStrength: motionStrength || 'not set',
+      motionSeconds: model === 'kling-motion-control' ? Number(motionSecondsServer ?? motionSeconds ?? videoDuration ?? effectiveDuration ?? 0) : undefined,
+      characterOrientation: model === 'kling-motion-control' ? (characterOrientation || 'image') : undefined,
+      motionMode: model === 'kling-motion-control' ? (resolution || '720p') : undefined,
+      estimatedStars: creditCost,
+      motionCreditsPerSecond:
+        model === 'kling-motion-control'
+          ? ((String(resolution || '720p').toLowerCase() === '1080p') ? 9 : 6)
+          : undefined,
       // URLs/data (redacted)
       referenceImageSample: referenceImageUrls?.[0]?.substring(0, 60) || 'none',
       imageUrlSample: imageUrl?.substring(0, 50) || 'none',
       videoUrlSample: videoUrl?.substring(0, 50) || 'none',
+      hasImageUrl: !!imageUrl,
+      hasVideoUrl: !!videoUrl,
+      durationClient:
+        model === 'kling-motion-control'
+          ? Number(motionSeconds ?? videoDuration ?? 0) || null
+          : null,
+      durationServer:
+        model === 'kling-motion-control'
+          ? Number(motionSecondsServer ?? 0) || null
+          : null,
     });
 
     // Call KIE API with provider info
@@ -1301,13 +1467,16 @@ export async function POST(request: NextRequest) {
 
         // Sync path: multi-reference (-fl) via chat/completions (feature parity).
         if (hasRefs) {
-          const videoGenResponse = await videoClient.generateVideo({
-            model: videoModelId,
-            prompt: fullPrompt,
-            startImageUrl: startForLaoZhang,
-            endImageUrl: endForLaoZhang,
-            referenceImages: refsForLaoZhang,
-          });
+          const videoGenResponse = await withRetry(
+            'laozhang_sync_submit',
+            () => videoClient.generateVideo({
+              model: videoModelId,
+              prompt: fullPrompt,
+              startImageUrl: startForLaoZhang,
+              endImageUrl: endForLaoZhang,
+              referenceImages: refsForLaoZhang,
+            }),
+          );
 
           if (!videoGenResponse.videoUrl) {
             throw new Error('Video generation returned no URL. Please try again.');
@@ -1364,11 +1533,14 @@ export async function POST(request: NextRequest) {
           if (isFast) return "veo-3.1-fast-fl";
           return "veo-3.1-fl";
         })();
-        const task = await videoClient.createVideoTask({
-          model: asyncModelId,
-          prompt: fullPrompt,
-          imageUrls: imageUrlsForAsync,
-        });
+        const task = await withRetry(
+          'laozhang_async_submit',
+          () => videoClient.createVideoTask({
+            model: asyncModelId,
+            prompt: fullPrompt,
+            imageUrls: imageUrlsForAsync,
+          }),
+        );
 
         response = {
           id: task.id,
@@ -1404,9 +1576,10 @@ export async function POST(request: NextRequest) {
         }
       } catch (videoError: any) {
         console.error('[API] Video generation failed:', videoError);
+        const isTransientLaoZhangError = isRetryableLaoZhangSubmissionError(videoError);
         
         // Refund credits on error (best-effort, idempotent)
-        if (generation?.id && !skipCredits && creditCost > 0) {
+        if (generation?.id && !skipCredits && shouldChargeUpfront && creditCost > 0) {
           try {
             await refundCredits(
               supabase,
@@ -1427,17 +1600,24 @@ export async function POST(request: NextRequest) {
           .update({
             status: 'failed',
             error: videoError.message || 'Video generation error',
+            error_message: videoError.message || 'Video generation error',
           })
           .eq('id', generation?.id);
         
         return NextResponse.json(
-          { error: videoError.message || 'Failed to generate video' },
-          { status: 500 }
+          {
+            error: isTransientLaoZhangError
+              ? 'Сервис генерации временно перегружен. Попробуйте позже.'
+              : (videoError.message || 'Failed to generate video'),
+            details: isTransientLaoZhangError ? (videoError.message || String(videoError)) : undefined,
+            errorCode: isTransientLaoZhangError ? 'UPSTREAM_UNAVAILABLE' : 'INTERNAL_ERROR',
+          },
+          { status: isTransientLaoZhangError ? 503 : 500 }
         );
       }
     }
 
-    // === FAL.ai PROVIDER (Kling O1) ===
+    // === FAL.ai PROVIDER ===
     if (modelInfo.provider === 'fal') {
       console.log('[API] Using FAL.ai provider for model:', model);
       try {
@@ -1445,115 +1625,161 @@ export async function POST(request: NextRequest) {
         const falClient = getFalClient();
         console.log('[API] FAL client created successfully');
         
-        // Kling O1 Image-to-Video (First/Last Frame)
+        // Kling O1 Standard (I2V+start_end / V2V reference)
         if (model === 'kling-o1') {
-          console.log('[API] Kling O1 request, startImage:', !!startImage, 'endImage:', !!endImage);
-          
-          if (!startImage) {
-            console.log('[API] ERROR: startImage is missing');
-            return NextResponse.json(
-              { error: 'Start image is required for Kling O1' },
-              { status: 400 }
-            );
-          }
-          
-          // Upload images to storage (FAL requires HTTP URLs, not data URLs)
-          let startImageUrl = startImage;
-          let endImageUrl = endImage;
-          
-          // Check if startImage is a data URL and upload it
-          if (startImage.startsWith('data:')) {
-            console.log('[API] Uploading start image for Kling O1...');
-            try {
-              startImageUrl = await uploadDataUrlToStorage(startImage, 'start');
-              console.log('[API] Start image uploaded:', startImageUrl);
-            } catch (uploadErr) {
-              console.error('[API] Failed to upload start image:', uploadErr);
-              throw uploadErr;
+          const durationSec = Number(duration || 5);
+          const o1Duration = String(durationSec) as '5' | '10';
+          const o1Aspect = (aspectRatio as '16:9' | '9:16' | '1:1') || '16:9';
+
+          let falResponse: { request_id: string; status_url: string };
+          if (normalizedMode === 'v2v') {
+            if (!v2vVideoUrl) {
+              return NextResponse.json(
+                { error: 'videoUrl is required for Kling O1 v2v mode' },
+                { status: 400 }
+              );
             }
-          }
-          
-          // Check if endImage is a data URL and upload it
-          if (endImage && endImage.startsWith('data:')) {
-            console.log('[API] Uploading end image for Kling O1...');
-            try {
-              endImageUrl = await uploadDataUrlToStorage(endImage, 'end');
-              console.log('[API] End image uploaded:', endImageUrl);
-            } catch (uploadErr) {
-              console.error('[API] Failed to upload end image:', uploadErr);
-              throw uploadErr;
+            let sourceVideoUrl = v2vVideoUrl;
+            let sourceImageUrl = referenceImage || startImage || undefined;
+            if (sourceVideoUrl.startsWith('data:')) {
+              sourceVideoUrl = await uploadDataUrlToStorage(sourceVideoUrl, 'kling_o1_v2v');
             }
+            if (sourceImageUrl && sourceImageUrl.startsWith('data:')) {
+              sourceImageUrl = await uploadDataUrlToStorage(sourceImageUrl, 'kling_o1_v2v_ref');
+            }
+            falResponse = await falClient.submitKlingO1VideoToVideoReference({
+              prompt: fullPrompt,
+              video_url: sourceVideoUrl,
+              image_url: sourceImageUrl,
+              duration: o1Duration,
+              aspect_ratio: o1Aspect,
+            });
+          } else {
+            const sourceImage = referenceImage || startImage;
+            if (!sourceImage) {
+              return NextResponse.json(
+                { error: 'referenceImage or startImage is required for Kling O1 i2v mode' },
+                { status: 400 }
+              );
+            }
+            let startImageUrl = sourceImage;
+            let endImageUrl = endImage;
+            if (startImageUrl.startsWith('data:')) {
+              startImageUrl = await uploadDataUrlToStorage(startImageUrl, 'kling_o1_start');
+            }
+            if (endImageUrl && endImageUrl.startsWith('data:')) {
+              endImageUrl = await uploadDataUrlToStorage(endImageUrl, 'kling_o1_end');
+            }
+            falResponse = await falClient.submitKlingO1ImageToVideo({
+              prompt: fullPrompt,
+              start_image_url: startImageUrl,
+              end_image_url: endImageUrl || undefined,
+              duration: o1Duration,
+              aspect_ratio: o1Aspect,
+            });
           }
-          
-          const durationSec = duration || 5;
-          const variantKey = `kling_o1_${durationSec}s`;
-          
-          console.log('[API] Calling FAL API with:', {
-            variantKey,
-            provider: 'fal',
-            prompt: fullPrompt.substring(0, 50),
-            startImageUrl: startImageUrl?.substring(0, 50),
-            endImageUrl: endImageUrl?.substring(0, 50),
-            durationSec,
-            priceStars: creditCost,
-          });
-          
-          const falResponse = await falClient.submitKlingO1ImageToVideo({
-            prompt: fullPrompt,
-            start_image_url: startImageUrl,
-            end_image_url: endImageUrl || undefined,
-            duration: String(durationSec) as '5' | '10',
-            aspect_ratio: (aspectRatio as '16:9' | '9:16' | '1:1') || '16:9',
-          });
-          
-          console.log('[API] FAL response:', falResponse);
-          
+
           response = {
             id: falResponse.request_id,
             status: 'queued',
-            estimatedTime: duration === 10 ? 180 : 120,
+            estimatedTime: durationSec === 10 ? 180 : 120,
           };
         }
-        // Kling O1 Video-to-Video Edit
-        else if (model === 'kling-o1-edit') {
-          if (!v2vVideoUrl) {
-            return NextResponse.json(
-              { error: 'Video URL is required for Kling O1 Edit' },
-              { status: 400 }
-            );
+        // Kling O3 Standard (T2V / I2V / V2V Reference)
+        else if (model === 'kling-o3-standard') {
+          const durationSec = Number(duration || 5);
+          const payloadShotType =
+            normalizedMultiPrompt?.length || normalizedShotType === 'customize'
+              ? 'customize'
+              : undefined;
+          const o3Duration = String(durationSec) as '3' | '5' | '8' | '10' | '12' | '15';
+          const o3Aspect = (aspectRatio as '16:9' | '9:16' | '1:1') || '16:9';
+
+          let falResponse: { request_id: string; status_url: string };
+          if (normalizedMode === 't2v') {
+            falResponse = await falClient.submitKlingO3StandardTextToVideo({
+              prompt: fullPrompt,
+              duration: o3Duration,
+              aspect_ratio: o3Aspect,
+              generate_audio: normalizedGenerateAudio ?? soundEnabled,
+              negative_prompt: negativePrompt || undefined,
+              multi_prompt: normalizedMultiPrompt && normalizedMultiPrompt.length > 0 ? normalizedMultiPrompt : undefined,
+              shot_type: payloadShotType,
+            });
+          } else if (normalizedMode === 'v2v') {
+            if (!v2vVideoUrl) {
+              return NextResponse.json(
+                { error: 'videoUrl is required for Kling O3 Standard v2v mode' },
+                { status: 400 }
+              );
+            }
+            let sourceVideoUrl = v2vVideoUrl;
+            let sourceImageUrl = referenceImage || startImage || undefined;
+            if (sourceVideoUrl.startsWith('data:')) {
+              sourceVideoUrl = await uploadDataUrlToStorage(sourceVideoUrl, 'kling_o3_v2v');
+            }
+            if (sourceImageUrl && sourceImageUrl.startsWith('data:')) {
+              sourceImageUrl = await uploadDataUrlToStorage(sourceImageUrl, 'kling_o3_v2v_ref');
+            }
+
+            falResponse = await falClient.submitKlingO3StandardVideoToVideoReference({
+              prompt: fullPrompt,
+              video_url: sourceVideoUrl,
+              image_url: sourceImageUrl,
+              duration: o3Duration,
+              aspect_ratio: o3Aspect,
+              generate_audio: normalizedGenerateAudio ?? soundEnabled,
+              negative_prompt: negativePrompt || undefined,
+              multi_prompt: normalizedMultiPrompt && normalizedMultiPrompt.length > 0 ? normalizedMultiPrompt : undefined,
+              shot_type: payloadShotType,
+            });
+          } else {
+            const sourceImage = referenceImage || startImage;
+            if (!sourceImage) {
+              return NextResponse.json(
+                { error: 'referenceImage or startImage is required for Kling O3 Standard i2v/start_end mode' },
+                { status: 400 }
+              );
+            }
+            let sourceImageUrl = sourceImage;
+            let endImageUrl = endImage;
+            if (sourceImage.startsWith('data:')) {
+              sourceImageUrl = await uploadDataUrlToStorage(sourceImage, 'kling_o3_start');
+            }
+            if (endImage && endImage.startsWith('data:')) {
+              endImageUrl = await uploadDataUrlToStorage(endImage, 'kling_o3_end');
+            }
+
+            falResponse = await falClient.submitKlingO3StandardImageToVideo({
+              prompt: fullPrompt,
+              image_url: sourceImageUrl,
+              end_image_url: endImageUrl || undefined,
+              duration: o3Duration,
+              aspect_ratio: o3Aspect,
+              generate_audio: normalizedGenerateAudio ?? soundEnabled,
+              negative_prompt: negativePrompt || undefined,
+              multi_prompt: normalizedMultiPrompt && normalizedMultiPrompt.length > 0 ? normalizedMultiPrompt : undefined,
+              shot_type: payloadShotType,
+            });
           }
-          
-          // Upload video/images if they are data URLs
-          let videoUrl = v2vVideoUrl;
-          let imageUrls = startImage ? [startImage] : undefined;
-          
-          if (v2vVideoUrl.startsWith('data:')) {
-            videoUrl = await uploadDataUrlToStorage(v2vVideoUrl, 'video');
-          }
-          
-          if (startImage && startImage.startsWith('data:')) {
-            const uploadedImage = await uploadDataUrlToStorage(startImage, 'ref');
-            imageUrls = [uploadedImage];
-          }
-          
-          const falResponse = await falClient.submitKlingO1Job({
-            prompt: fullPrompt,
-            video_url: videoUrl,
-            image_urls: imageUrls,
-            keep_audio: typeof keepAudio === "boolean" ? keepAudio : true,
-          });
-          
+
           response = {
             id: falResponse.request_id,
             status: 'queued',
-            estimatedTime: 120,
+            estimatedTime: durationSec >= 10 ? 180 : 120,
           };
+        }
+        else {
+          return NextResponse.json(
+            { error: `Unsupported FAL model '${model}'` },
+            { status: 400 }
+          );
         }
       } catch (error: any) {
         console.error('[API] FAL.ai error:', error);
 
         // Refund credits for failed generation
-        if (generation?.id && !skipCredits) {
+        if (generation?.id && !skipCredits && shouldChargeUpfront) {
           console.log(`[API] Refunding ${creditCost}⭐ for failed FAL.ai generation ${generation.id}`);
           await refundCredits(
             supabase,
@@ -1585,22 +1811,21 @@ export async function POST(request: NextRequest) {
 
         const kiePayload = buildKieVideoPayload({
           modelId: model,
-          mode: (model === 'kling-motion-control' ? 'motion_control' : mode) as any,
+          mode: (model === 'kling-motion-control' ? 'motion_control' : model === 'kling-o1-edit' ? 'v2v_edit' : mode) as any,
           prompt: fullPrompt,
           durationSec: duration || modelInfo.fixedDuration || 5,
           aspectRatio: aspectRatio,
           quality: quality,
           resolution: resolution,
-          sound: model === 'wan'
+          sound: model === 'wan-2.6'
             ? !!wanSoundPreset
-            : (model === 'kling-motion-control' ? false : soundEnabled),
+            : (model === 'kling-motion-control' || model === 'kling-o1-edit' ? false : soundEnabled),
           inputImageUrl: safeImageUrl,
           endImageUrl: safeLastFrameUrl,
           referenceImages: safeReferenceImageUrls && safeReferenceImageUrls.length > 0 ? safeReferenceImageUrls : undefined,
           referenceVideoUrl: safeVideoUrl,
           characterOrientation: model === 'kling-motion-control' ? (characterOrientation || 'image') : undefined,
           cfgScale: typeof cfgScale === 'number' ? cfgScale : undefined,
-          cameraControl: cameraControlParsed || cameraControl,
           qualityTier: qualityTier,
           style: style,
           shots: shots,
@@ -1609,7 +1834,7 @@ export async function POST(request: NextRequest) {
         response = await kieClient.generateVideo(kiePayload);
       } catch (error: any) {
         const errorMessage = error?.message || String(error);
-        const shouldRefund = Boolean(generation?.id && !skipCredits && creditCost > 0);
+        const shouldRefund = Boolean(generation?.id && !skipCredits && shouldChargeUpfront && creditCost > 0);
         const markFailedAndRefund = async (reason: string, httpStatus?: number) => {
           const statusFromError =
             typeof (error as any)?.status === "number" ? Number((error as any).status) : undefined;

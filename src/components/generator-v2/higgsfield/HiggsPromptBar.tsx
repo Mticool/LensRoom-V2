@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Sparkles, Loader2, Settings, ImagePlus, X, Star } from 'lucide-react';
 import { toast } from 'sonner';
@@ -43,9 +43,17 @@ export function HiggsPromptBar({
 }: HiggsPromptBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const [isReferenceLoading, setIsReferenceLoading] = useState(false);
 
   const hasEnoughCredits = credits >= estimatedCost;
   const canGenerate = !disabled && !isGenerating && prompt.trim().length > 0 && hasEnoughCredits;
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    };
+  }, [localPreviewUrl]);
 
   // Handle file upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,21 +70,42 @@ export function HiggsPromptBar({
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return objectUrl;
+    });
+    onReferenceFileChange(file);
+    setIsReferenceLoading(true);
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
       onReferenceImageChange(base64);
-      onReferenceFileChange(file);
+      setIsReferenceLoading(false);
       toast.success('Изображение загружено');
     };
-    reader.onerror = () => toast.error('Ошибка загрузки');
+    reader.onerror = () => {
+      setLocalPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      onReferenceFileChange(null);
+      setIsReferenceLoading(false);
+      toast.error('Ошибка загрузки');
+    };
     reader.readAsDataURL(file);
   };
 
   // Remove reference
   const handleRemoveReference = () => {
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     onReferenceImageChange(null);
     onReferenceFileChange(null);
+    setIsReferenceLoading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -145,9 +174,14 @@ export function HiggsPromptBar({
               className="hidden"
               disabled={isGenerating}
             />
-            {referenceImage ? (
+            {(localPreviewUrl || referenceImage) ? (
               <div className="higgs-prompt-bar-upload-preview">
-                <Image src={referenceImage} alt="Reference" fill className="object-cover" unoptimized />
+                <Image src={localPreviewUrl || referenceImage || ''} alt="Reference" fill className="object-cover" unoptimized />
+                {isReferenceLoading && (
+                  <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  </div>
+                )}
                 <button
                   onClick={handleRemoveReference}
                   className="higgs-prompt-bar-upload-remove"
@@ -163,7 +197,7 @@ export function HiggsPromptBar({
                 disabled={isGenerating}
                 title="Загрузить референс"
               >
-                <ImagePlus />
+                {isReferenceLoading ? <Loader2 className="animate-spin" /> : <ImagePlus />}
               </button>
             )}
           </div>

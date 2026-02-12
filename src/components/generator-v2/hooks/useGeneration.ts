@@ -136,9 +136,8 @@ export function useGeneration(options: UseGenerationOptions = {}) {
       }
 
       // Some upstreams can take a while to return task ids (especially for photo models under load).
-      // Do not fail the whole UX at 90s; keep 2 minutes for photo. Video stays at 30s because most
-      // providers return task ids quickly and long work happens async behind the job id.
-      const requestTimeoutMs = mode === 'video' ? 30_000 : 120_000;
+      // Keep 160s for photo submit path to reduce premature client-side timeouts.
+      const requestTimeoutMs = mode === 'video' ? 30_000 : 160_000;
       const response = await fetchWithTimeout(endpoint, {
         timeout: requestTimeoutMs,
         abortSignal: abortControllerRef.current.signal,

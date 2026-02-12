@@ -9,6 +9,7 @@ import { ensureProfileExists } from '@/lib/supabase/ensure-profile';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
 import { refundCredits } from '@/lib/credits/refund';
 import { getAudioDurationFromUrl } from '@/lib/audio/get-duration';
+import { calcPerSecondCredits } from '@/lib/pricing/videoPricing';
 
 export const maxDuration = 60; // 60 seconds timeout
 export const dynamic = 'force-dynamic';
@@ -16,9 +17,58 @@ export const dynamic = 'force-dynamic';
 // Маппинг model id → KIE API model
 const API_MODEL_MAP: Record<string, string> = {
   'kling-ai-avatar': 'kling/ai-avatar-standard',
+  'kling-ai-avatar-standard': 'kling/ai-avatar-standard',
+  'kling-ai-avatar-pro': 'kling/ai-avatar-v1-pro',
   'infinitalk-480p': 'infinitalk/from-audio',
   'infinitalk-720p': 'infinitalk/from-audio',
 };
+
+async function uploadDataUrlToStorage(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
+  dataOrUrl: string,
+  suffix: string
+): Promise<string> {
+  if (!dataOrUrl.startsWith('data:')) {
+    return dataOrUrl;
+  }
+
+  const match = dataOrUrl.match(/^data:(.+);base64,(.+)$/);
+  if (!match) {
+    throw new Error('Invalid data URL payload');
+  }
+
+  const mime = match[1];
+  const b64 = match[2];
+  const buffer = Buffer.from(b64, 'base64');
+
+  let ext = 'bin';
+  if (mime.includes('png')) ext = 'png';
+  else if (mime.includes('webp')) ext = 'webp';
+  else if (mime.includes('jpg') || mime.includes('jpeg')) ext = 'jpg';
+  else if (mime.includes('mp3') || mime.includes('mpeg')) ext = 'mp3';
+  else if (mime.includes('wav')) ext = 'wav';
+  else if (mime.includes('webm')) ext = 'webm';
+
+  const path = `${userId}/voice-inputs/${Date.now()}_${suffix}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from('generations')
+    .upload(path, buffer, { contentType: mime, upsert: true });
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  try {
+    const { data: signed } = await supabase.storage
+      .from('generations')
+      .createSignedUrl(path, 60 * 60 * 24 * 7);
+    if (signed?.signedUrl) return signed.signedUrl;
+  } catch {
+    // fallback below
+  }
+  const { data: pub } = supabase.storage.from('generations').getPublicUrl(path);
+  return pub.publicUrl;
+}
 
 export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
@@ -43,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Парсинг body
     const body = await request.json();
-    const {
+    let {
       model,
       imageUrl,
       audioUrl,
@@ -74,6 +124,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Backward compatibility alias
+    if (model === 'kling-ai-avatar') {
+      model = 'kling-ai-avatar-standard';
+    }
+
     // Проверить модель
     const modelInfo = getModelById(model);
     if (!modelInfo) {
@@ -91,7 +146,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Получить длительность аудио
+    imageUrl = await uploadDataUrlToStorage(supabase, userId, imageUrl, 'lipsync_image');
+    audioUrl = await uploadDataUrlToStorage(supabase, userId, audioUrl, 'lipsync_audio');
+
+    // Получить длительность аудио (server-side ffprobe, source of truth)
     let audioDuration: number | undefined;
     try {
       audioDuration = await getAudioDurationFromUrl(audioUrl);
@@ -101,27 +159,25 @@ export async function POST(request: NextRequest) {
       // Продолжаем без длительности, но для InfiniteTalk это может быть проблема
     }
 
-    // Валидация длительности для InfiniteTalk
-    if (model.includes('infinitalk')) {
-      if (!audioDuration) {
-        return NextResponse.json(
-          { error: 'AUDIO_DURATION_UNKNOWN', message: 'Не удалось определить длительность аудио' },
-          { status: 400 }
-        );
-      }
-
-      if (audioDuration > 15) {
-        return NextResponse.json(
-          {
-            error: 'AUDIO_TOO_LONG',
-            message: `InfiniteTalk поддерживает аудио до 15 секунд. Ваше аудио: ${audioDuration.toFixed(1)}с`,
-          },
-          { status: 400 }
-        );
-      }
+    if (!audioDuration || !Number.isFinite(audioDuration) || audioDuration <= 0) {
+      return NextResponse.json(
+        { error: 'AUDIO_DURATION_UNKNOWN', message: 'Не удалось определить длительность аудио' },
+        { status: 400 }
+      );
     }
 
-    // Определить resolution для InfiniteTalk
+    const billableAudioSeconds = Math.ceil(audioDuration);
+    if (billableAudioSeconds > 15) {
+      return NextResponse.json(
+        {
+          error: 'AUDIO_TOO_LONG',
+          message: `Модель поддерживает аудио до 15 секунд. Ваше аудио: ${billableAudioSeconds}с`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Определить resolution для InfiniteTalk (фиксировано моделью)
     let finalResolution: '480p' | '720p' | undefined;
     if (model === 'infinitalk-480p') {
       finalResolution = '480p';
@@ -129,14 +185,42 @@ export async function POST(request: NextRequest) {
       finalResolution = '720p';
     }
 
-    // Рассчитать стоимость
-    const sku = getSkuFromRequest(model, { audioDurationSec: audioDuration });
-    const creditCost = calculateTotalStars(sku, audioDuration);
+    if (model.startsWith('infinitalk')) {
+      if (!String(prompt || '').trim()) {
+        return NextResponse.json(
+          { error: 'PROMPT_REQUIRED', message: 'Для InfiniteTalk нужно добавить промпт' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const billing = calcPerSecondCredits({
+      modelId: model as any,
+      seconds: billableAudioSeconds,
+      minSeconds: 1,
+      maxSeconds: 15,
+    });
+    const sku = getSkuFromRequest(model, { audioDurationSec: billing.billableSeconds });
+    const creditCost = calculateTotalStars(sku, billing.billableSeconds);
+
+    console.log('[API] PROVIDER PAYLOAD AUDIT', {
+      modelId: model,
+      provider: 'kie_market',
+      apiModel,
+      resolution: finalResolution || null,
+      durationRawSec: Number(audioDuration.toFixed(3)),
+      durationBillableSec: billing.billableSeconds,
+      creditsRate: billing.creditsPerSecond,
+      credits: billing.credits,
+      stars: creditCost,
+      imageUrlSample: imageUrl.substring(0, 60),
+      audioUrlSample: audioUrl.substring(0, 60),
+    });
 
     console.log('[Lip Sync] Pricing:', {
       model,
       sku,
-      audioDuration,
+      audioDuration: billableAudioSeconds,
       creditCost,
     });
 
@@ -194,8 +278,12 @@ export async function POST(request: NextRequest) {
             : {
                 metadata: {
                   kie_key_scope: "video",
-                  prompt: prompt || null,
+                  prompt: String(prompt || '').trim() || null,
                   seed: seed || null,
+                  duration_raw_sec: Number(audioDuration.toFixed(3)),
+                  duration_billable_sec: billing.billableSeconds,
+                  credits_per_second: billing.creditsPerSecond,
+                  credits: billing.credits,
                 },
               }),
         })
@@ -346,7 +434,7 @@ export async function POST(request: NextRequest) {
         model: apiModel,
         imageUrl,
         audioUrl,
-        prompt,
+        prompt: String(prompt || '').trim() || undefined,
         resolution: finalResolution,
         seed,
         callbackUrl,

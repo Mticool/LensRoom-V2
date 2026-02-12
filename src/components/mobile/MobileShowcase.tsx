@@ -51,6 +51,8 @@ export function MobileShowcase() {
     ),
     ...VIDEO_MODELS.filter(m =>
       m.id === 'kling-ai-avatar' ||
+      m.id === 'kling-ai-avatar-standard' ||
+      m.id === 'kling-ai-avatar-pro' ||
       m.id === 'kling-motion-control'
     ),
   ].filter(m =>
@@ -63,48 +65,48 @@ export function MobileShowcase() {
       id: 'create-image',
       title: 'Создать фото',
       icon: ImageIcon,
-      color: 'from-emerald-500 to-teal-500',
+      color: 'from-[#8cf425] to-[#6bc41a]',
       path: '/create/studio?section=photo',
     },
     {
       id: 'create-video',
       title: 'Создать видео',
       icon: Play,
-      color: 'from-violet-500 to-purple-500',
+      color: 'from-blue-500 to-indigo-500',
       path: '/create/studio?section=video',
     },
     {
       id: 'library',
       title: 'Моя библиотека',
       icon: Star,
-      color: 'from-amber-500 to-orange-500',
+      color: 'from-purple-500 to-pink-500',
       path: '/library',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[#0F0F10] pb-20">
+    <div className="min-h-screen bg-[#0A0A0A] pb-20">
       {/* Offline Banner */}
       <OfflineBanner isOnline={isOnline} />
 
       {/* Шапка */}
-      <div className="sticky top-0 z-40 bg-[#0F0F10]/98 backdrop-blur-xl border-b border-[#27272A]">
+      <div className="sticky top-0 z-40 bg-[#0A0A0A]/98 backdrop-blur-xl border-b border-[rgba(255,255,255,0.08)]">
         <div className="px-4 pt-safe pb-3">
           {/* Лого и баланс */}
           <div className="flex items-center justify-between mb-3 pt-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00D9FF] to-[#0EA5E9] flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-xl bg-[#8cf425]/15 border border-[#8cf425]/25 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-[#8cf425]" />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-white">LensRoom</h1>
-                <p className="text-[10px] text-[#71717A]">AI Creative Studio</p>
+                <p className="text-[10px] text-white/40">AI Creative Studio</p>
               </div>
             </div>
 
             {isAuthenticated && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-                <Star className="w-3.5 h-3.5 text-amber-500" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8cf425]/10 border border-[#8cf425]/20">
+                <Star className="w-3.5 h-3.5 text-[#8cf425]" />
                 <span className="text-sm font-semibold text-white">
                   {credits.toLocaleString()}
                 </span>
@@ -114,7 +116,7 @@ export function MobileShowcase() {
 
           {/* Поиск */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <input
               type="text"
               placeholder="Поиск AI моделей..."
@@ -122,9 +124,9 @@ export function MobileShowcase() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="
                 w-full h-11 pl-10 pr-4 rounded-xl
-                bg-[#18181B] border border-[#27272A]
-                text-white placeholder:text-[#71717A]
-                focus:outline-none focus:border-[#00D9FF]
+                bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)]
+                text-white placeholder:text-white/40
+                focus:outline-none focus:border-[#8cf425]
                 transition-colors text-sm
               "
             />
@@ -138,7 +140,7 @@ export function MobileShowcase() {
           <>
             {/* Quick Actions */}
             <div className="px-4 mb-6">
-              <h2 className="text-sm font-semibold text-[#A1A1AA] mb-3 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-white/50 mb-3 uppercase tracking-wide">
                 Быстрый старт
               </h2>
               <div className="grid grid-cols-3 gap-2">
@@ -152,7 +154,7 @@ export function MobileShowcase() {
                       light();
                       router.push(action.path);
                     }}
-                    className="group relative overflow-hidden rounded-2xl p-3 bg-[#18181B] border border-[#27272A] hover:border-[#3F3F46] active:scale-95 transition-all"
+                    className="group relative overflow-hidden rounded-2xl p-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] active:scale-95 transition-all"
                   >
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-2`}>
                       <action.icon className="w-5 h-5 text-white" />
@@ -252,7 +254,7 @@ export function MobileShowcase() {
             <h3 className="text-lg font-semibold text-white mb-2">
               Ничего не найдено
             </h3>
-            <p className="text-sm text-[#71717A] text-center">
+            <p className="text-sm text-white/40 text-center">
               Попробуйте изменить поисковый запрос
             </p>
           </div>

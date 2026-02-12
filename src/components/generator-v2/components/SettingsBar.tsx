@@ -67,7 +67,7 @@ export function SettingsBar({
             value={aspectRatio}
             onChange={(e) => onAspectChange(e.target.value)}
             disabled={disabled}
-            className="px-3 py-1.5 bg-[#27272A] border border-[#3F3F46] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#f59e0b] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 bg-[#27272A] border border-[#3F3F46] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#8cf425] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {ASPECT_RATIOS.map((ar) => (
               <option key={ar.value} value={ar.value}>
@@ -84,7 +84,7 @@ export function SettingsBar({
             value={quality}
             onChange={(e) => onQualityChange(e.target.value)}
             disabled={disabled}
-            className="px-3 py-1.5 bg-[#27272A] border border-[#3F3F46] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#f59e0b] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 bg-[#27272A] border border-[#3F3F46] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#8cf425] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {QUALITIES.map((q) => (
               <option key={q.value} value={q.value}>

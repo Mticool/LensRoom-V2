@@ -41,7 +41,7 @@ export function PromptInput({
               onKeyDown={handleKeyDown}
               placeholder="Describe the scene you imagine..."
               disabled={disabled}
-              className="w-full h-24 px-4 py-3 bg-[#27272A] border border-[#3F3F46] rounded-lg text-white placeholder-[#71717A] resize-none focus:outline-none focus:ring-2 focus:ring-[#f59e0b] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-24 px-4 py-3 bg-[#27272A] border border-[#3F3F46] rounded-lg text-white placeholder-[#71717A] resize-none focus:outline-none focus:ring-2 focus:ring-[#8cf425] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <div className="flex items-center justify-between mt-2 text-xs text-[#71717A]">
               <span>Press Ctrl+Enter to generate</span>
@@ -53,7 +53,7 @@ export function PromptInput({
           <button
             onClick={onGenerate}
             disabled={!canGenerate}
-            className="px-6 py-3 h-24 bg-[#f59e0b] hover:bg-[#fbbf24] text-black font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#f59e0b] flex flex-col items-center justify-center gap-1 min-w-[120px]"
+            className="px-6 py-3 h-24 bg-[#8cf425] hover:bg-[#a3ff4d] text-black font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#8cf425] flex flex-col items-center justify-center gap-1 min-w-[120px]"
           >
             {isGenerating ? (
               <>

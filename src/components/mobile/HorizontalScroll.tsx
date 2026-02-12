@@ -33,7 +33,7 @@ export function HorizontalScroll({ title, icon, onViewAll, children }: Horizonta
         {onViewAll && (
           <button
             onClick={handleViewAll}
-            className="flex items-center gap-0.5 text-xs text-[#00D9FF] hover:text-[#22D3EE] transition-colors"
+            className="flex items-center gap-0.5 text-xs text-[#8cf425] hover:text-[#a0ff40] transition-colors"
           >
             Все
             <ChevronRight className="w-3.5 h-3.5" />

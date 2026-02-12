@@ -388,8 +388,12 @@ export function getModelIcon(modelId: string): React.FC<IconProps> {
     'wan': WanIcon,
     'bytedance-pro': BytedanceIcon,
     'kling-ai-avatar': KlingIcon,
+    'kling-ai-avatar-standard': KlingIcon,
+    'kling-ai-avatar-pro': KlingIcon,
     'kling-o1': KlingIcon,
+    'kling-o3-standard': KlingIcon,
     'kling-o1-edit': KlingIcon,
+    'wan-2.6': WanIcon,
   };
 
   return icons[modelId] || KlingIcon;

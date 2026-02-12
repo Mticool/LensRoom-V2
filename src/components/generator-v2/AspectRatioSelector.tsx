@@ -106,7 +106,7 @@ export function AspectRatioSelector({ value, onChange, disabled, options }: Aspe
                     <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-[#E5E5E7]'}`}>
                       {ratio}
                     </span>
-                    {isSelected && <Check className="w-4 h-4 text-[#f59e0b]" />}
+                    {isSelected && <Check className="w-4 h-4 text-[#8cf425]" />}
                   </button>
                 );
               })}

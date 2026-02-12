@@ -150,7 +150,7 @@ export const SettingsPanel = memo(function SettingsPanel({
 
   const showDuration = model.kind === "video" && !!effectiveDurations?.length && mode !== "storyboard";
   const showAudio = model.kind === "video" && !!model.supportsAudio && mode !== "storyboard" && !isWan; // Hide audio toggle for WAN (use sound presets instead)
-  const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v");
+  const showReference = !!model.supportsImageInput && (mode === "i2i" || mode === "i2v" || isMotionControl);
   const showV2vReference = mode === "v2v" && isWan;
   const showMotionControlVideo = isMotionControl;
 
@@ -416,13 +416,16 @@ export const SettingsPanel = memo(function SettingsPanel({
                   <Upload className="w-5 h-5 text-white/70" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-medium">
+                  <div className="text-sm font-medium truncate">
                     {motionReferenceVideo ? motionReferenceVideo.name : "Загрузить видео (3–30 сек)"}
                   </div>
                   <div className="text-xs text-[var(--muted)]">
                     {motionReferenceVideoDurationSec
                       ? `Длительность: ~${Math.round(motionReferenceVideoDurationSec)}с`
                       : "Нужно для Kling Motion Control"}
+                  </div>
+                  <div className="text-xs text-[var(--muted)] mt-1">
+                    Форматы: MP4/MOV/WEBM, до 100MB
                   </div>
                 </div>
               </div>

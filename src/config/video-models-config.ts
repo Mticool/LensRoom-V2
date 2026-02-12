@@ -254,7 +254,7 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         type: "buttons",
         options: [
           { value: "720p", label: "720p (6⭐/сек)" },
-          { value: "1080p", label: "1080p (8⭐/сек)" }
+          { value: "1080p", label: "1080p (9⭐/сек)" }
         ],
         default: "720p",
         required: true,

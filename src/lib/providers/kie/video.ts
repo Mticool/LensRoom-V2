@@ -10,7 +10,7 @@ import type { GenerateVideoRequest, GenerateVideoResponse } from '@/lib/api/kie-
 
 export type KieVideoBuildParams = {
   modelId: string;
-  mode: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'motion_control' | 'extend' | 'ref2v';
+  mode: 't2v' | 'i2v' | 'v2v' | 'v2v_edit' | 'start_end' | 'motion_control' | 'extend' | 'ref2v';
   prompt: string;
   durationSec: number;
   aspectRatio?: string;
@@ -93,7 +93,13 @@ export function buildKieVideoPayload(params: KieVideoBuildParams): GenerateVideo
   if (params.modelId === 'kling-motion-control') {
     payload.mode = 'motion_control';
     if (params.characterOrientation) payload.characterOrientation = params.characterOrientation;
-    if (params.cameraControl) payload.cameraControl = params.cameraControl;
+  }
+
+  // Kling O3 Edit: pass video and optional image
+  if (params.modelId === 'kling-o1-edit') {
+    payload.mode = 'v2v_edit' as any;
+    if (params.referenceVideoUrl) payload.videoUrl = params.referenceVideoUrl;
+    // Duration comes from durationSec
   }
 
   if (typeof params.cfgScale === 'number') payload.cfgScale = params.cfgScale;
@@ -201,13 +207,12 @@ export function mapRequestToKiePayload(
 
   // Motion Control: character orientation
   if (request.modelId === 'kling-motion-control') {
-    (payload as any).characterOrientation = 'video'; // Default to video orientation
+    if ((request as any).characterOrientation) {
+      (payload as any).characterOrientation = (request as any).characterOrientation;
+    }
   }
   if (typeof (request as any).cfgScale === 'number') {
     (payload as any).cfgScale = (request as any).cfgScale;
-  }
-  if ((request as any).cameraControl) {
-    (payload as any).cameraControl = (request as any).cameraControl;
   }
 
   return payload;

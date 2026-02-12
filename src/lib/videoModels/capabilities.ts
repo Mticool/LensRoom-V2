@@ -14,6 +14,53 @@ import { ModelCapability } from './schema';
  */
 
 export const VIDEO_MODELS: ModelCapability[] = [
+  // ===== KLING O1 STANDARD (FAL) =====
+  {
+    id: 'kling-o1',
+    label: 'Kling O1 Standard',
+    provider: 'fal',
+    description: 'Fal Kling O1 Standard (image/start-end/video-to-video reference)',
+    apiId: 'fal-ai/kling-video/o1/standard/image-to-video',
+    apiIdI2v: 'fal-ai/kling-video/o1/standard/image-to-video',
+    apiIdV2v: 'fal-ai/kling-video/o1/standard/video-to-video/reference',
+
+    supportedModes: ['i2v', 'start_end', 'v2v'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    supportedDurationsSec: [5, 10],
+    supportedQualities: undefined,
+
+    supportsSound: false,
+    audioSupport: 'none',
+    supportsReferenceImages: true,
+    supportsReferenceVideo: true,
+    supportsStartEndFrames: true,
+
+    constraints: undefined,
+    requiredInputsByMode: {
+      i2v: { required: ['prompt', 'inputImage'], optional: ['endImage'] },
+      start_end: { required: ['prompt', 'startImage'], optional: ['endImage'] },
+      v2v: { required: ['prompt', 'referenceVideo'], optional: ['inputImage'] },
+    },
+    fileConstraints: {
+      inputImage: {
+        formats: ['jpg', 'jpeg', 'png', 'webp'],
+        maxSizeMb: 10,
+      },
+      startImage: {
+        formats: ['jpg', 'jpeg', 'png', 'webp'],
+        maxSizeMb: 10,
+      },
+      endImage: {
+        formats: ['jpg', 'jpeg', 'png', 'webp'],
+        maxSizeMb: 10,
+      },
+      referenceVideo: {
+        formats: ['mp4', 'mov', 'webm'],
+        maxSizeMb: 100,
+      },
+    },
+  },
+
   // ===== VEO 3.1 FAST - Google =====
   {
     id: 'veo-3.1-fast',
@@ -68,6 +115,53 @@ export const VIDEO_MODELS: ModelCapability[] = [
       inputImage: {
         formats: ['jpg', 'jpeg', 'png', 'webp'],
         maxSizeMb: 10,
+      },
+    },
+  },
+
+  // ===== KLING O3 STANDARD (FAL) =====
+  {
+    id: 'kling-o3-standard',
+    label: 'Kling O3 Standard',
+    provider: 'fal',
+    description: 'Fal Kling O3 Standard (text/image/video-to-video reference) с поддержкой multi_prompt (multishot) и generate_audio',
+    apiId: 'fal-ai/kling-video/o3/standard/text-to-video',
+    apiIdI2v: 'fal-ai/kling-video/o3/standard/image-to-video',
+    apiIdV2v: 'fal-ai/kling-video/o3/standard/video-to-video/reference',
+
+    supportedModes: ['t2v', 'i2v', 'start_end', 'v2v'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    supportedDurationsSec: [3, 5, 8, 10, 12, 15],
+    supportedQualities: undefined,
+
+    supportsSound: true,
+    audioSupport: 'toggle',
+    supportsReferenceImages: true,
+    supportsReferenceVideo: true,
+    supportsStartEndFrames: true,
+    supportsNegativePrompt: true,
+    supportsMultiPrompt: true,
+    shotTypes: ['single', 'customize'],
+
+    constraints: undefined,
+    requiredInputsByMode: {
+      t2v: { required: ['prompt'], optional: ['multiPrompt', 'shotType'] },
+      i2v: { required: ['prompt', 'inputImage'], optional: ['endImage', 'multiPrompt', 'shotType'] },
+      start_end: { required: ['prompt', 'startImage'], optional: ['endImage', 'multiPrompt', 'shotType'] },
+      v2v: { required: ['prompt', 'referenceVideo'], optional: ['inputImage', 'multiPrompt', 'shotType'] },
+    },
+    fileConstraints: {
+      inputImage: {
+        formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'],
+        maxSizeMb: 10,
+      },
+      endImage: {
+        formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'],
+        maxSizeMb: 10,
+      },
+      referenceVideo: {
+        formats: ['mp4', 'mov', 'webm'],
+        maxSizeMb: 100,
       },
     },
   },
@@ -261,6 +355,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
     },
     supportedDurationsSec: [5, 10, 15, 20, 30],
     supportedQualities: ['720p', '1080p'],
+    durationSource: 'asset',
     
     durationRange: {
       min: 3,
@@ -280,7 +375,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
       },
     },
     requiredInputsByMode: {
-      motion_control: { required: ['prompt', 'inputImage', 'referenceVideo', 'characterOrientation', 'cameraControl', 'resolution'] },
+      motion_control: { required: ['prompt', 'inputImage', 'referenceVideo', 'characterOrientation', 'resolution'] },
     },
     fileConstraints: {
       inputImage: {
@@ -291,8 +386,8 @@ export const VIDEO_MODELS: ModelCapability[] = [
         aspectRatio: { min: 0.4, max: 2.5 },
       },
       referenceVideo: {
-        formats: ['mp4', 'mov', 'webm', 'mkv'],
-        maxSizeMb: 200,
+        formats: ['mp4', 'mov', 'webm'],
+        maxSizeMb: 100,
       },
     },
   },

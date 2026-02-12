@@ -8,7 +8,7 @@ export type Aspect = string;
 export type Duration = number | string;
 
 // Models to hide from UI (but keep in backend for historical generations)
-const HIDDEN_STUDIO_MODEL_KEYS = ['kling-ai-avatar'];
+const HIDDEN_STUDIO_MODEL_KEYS = ['kling-ai-avatar', 'kling-ai-avatar-standard', 'kling-ai-avatar-pro'];
 
 export interface StudioModel {
   // key == production model id (single source of truth)
@@ -111,6 +111,9 @@ function toStudioModel(model: ModelConfig): StudioModel {
     "sora-2": 50, // sora_2:clip = 50⭐
     "kling": 42, // Minimum price (Kling 2.1 standard 5s = 42⭐)
     "wan": 117, // Minimum price (WAN 2.6 720p 5s = 117⭐)
+    "wan-2.6": 117,
+    "kling-o1": 56,
+    "kling-o3-standard": 50,
   };
   const baseStars = computed > 0 ? computed : (baseStarsOverride[model.id] || 0);
 
@@ -119,11 +122,16 @@ function toStudioModel(model: ModelConfig): StudioModel {
     "veo-3.1": "Кинореал • fast по умолчанию",
     "kling": "Сильный универсал: динамика, эффектность",
     "wan": "Универсальная модель с выбором версии и разрешения",
+    "wan-2.6": "Универсальная модель с выбором версии и разрешения",
+    "kling-o1": "Fal O1 Standard • I2V/Start-End/V2V",
+    "kling-o3-standard": "Fal O3 Standard • T2V/I2V/V2V • Audio",
     "sora-2": "Стабильное i2v-видео для большинства задач",
     "sora-2-pro": "Премиум качество (i2v / start_end)",
     "topaz-image-upscale": "Апскейл (≤2K/4K/8K) • нужен референс",
     "recraft-remove-background": "Удаление фона (нужен референс)",
     "recraft-crisp-upscale": "Апскейл (нужен референс)",
+    "kling-motion-control": "Перенос движения • 720p/1080p • 6-9⭐/сек",
+    "kling-o1-edit": "O3 Standard • Редактирование видео промптом • 75-150⭐",
   };
   const subtitle =
     subtitleOverride[model.id] ||

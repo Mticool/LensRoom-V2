@@ -295,7 +295,7 @@ const GeneratorBottomSheetComponent = ({
                   style={{ touchAction: 'manipulation' }}
                   className={`w-full min-w-[120px] px-4 py-3.5 text-left text-sm flex items-center gap-3 rounded-xl transition-colors ${
                     opt === aspectRatio 
-                      ? 'bg-[#f59e0b] text-black font-semibold' 
+                      ? 'bg-[#8cf425] text-black font-semibold' 
                       : 'text-white active:bg-white/10 hover:bg-white/5'
                   }`}
                 >
@@ -332,7 +332,7 @@ const GeneratorBottomSheetComponent = ({
                   style={{ touchAction: 'manipulation' }}
                   className={`w-full min-w-[120px] px-4 py-3.5 text-left text-sm rounded-xl transition-colors ${
                     opt === quality 
-                      ? 'bg-[#f59e0b] text-black font-semibold' 
+                      ? 'bg-[#8cf425] text-black font-semibold' 
                       : 'text-white active:bg-white/10 hover:bg-white/5'
                   }`}
                 >
@@ -368,7 +368,7 @@ const GeneratorBottomSheetComponent = ({
                   style={{ touchAction: 'manipulation' }}
                   className={`w-12 h-12 text-base font-bold rounded-xl transition-colors ${
                     n === quantity 
-                      ? 'bg-[#f59e0b] text-black' 
+                      ? 'bg-[#8cf425] text-black' 
                       : 'text-white active:bg-white/10 hover:bg-white/5'
                   }`}
                 >
@@ -415,7 +415,7 @@ const GeneratorBottomSheetComponent = ({
                     style={{ touchAction: 'manipulation', pointerEvents: 'auto' }}
                     className={`w-full px-4 py-3.5 text-left text-sm transition-colors rounded-xl ${
                       isSelected
-                        ? 'bg-[#f59e0b] text-black font-semibold' 
+                        ? 'bg-[#8cf425] text-black font-semibold' 
                         : 'text-white active:bg-white/10 hover:bg-white/5'
                     }`}
                   >
@@ -601,7 +601,7 @@ const GeneratorBottomSheetComponent = ({
 
                   <div className="h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between px-3">
                     <span className="text-white/60 text-sm">Цена</span>
-                    <span className="text-sm font-semibold text-[#f59e0b]">{totalCost}⭐</span>
+                    <span className="text-sm font-semibold text-[#8cf425]">{totalCost}⭐</span>
                   </div>
                 </div>
 
@@ -674,7 +674,7 @@ const GeneratorBottomSheetComponent = ({
                 h-11 px-3 rounded-full flex items-center border transition-colors flex-shrink min-w-0 max-w-[210px]
                 ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}
                 ${modelMenuOpen
-                  ? 'bg-[#f59e0b] text-black border-transparent'
+                  ? 'bg-[#8cf425] text-black border-transparent'
                   : 'bg-white/10 text-white/80 border-white/10 hover:bg-white/15'
                 }
               `}
@@ -696,7 +696,7 @@ const GeneratorBottomSheetComponent = ({
             style={{ touchAction: 'manipulation' }}
             className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0 border
               ${showAdvanced
-                ? 'bg-[#f59e0b] text-black border-transparent' 
+                ? 'bg-[#8cf425] text-black border-transparent' 
                 : 'bg-white/10 text-white/60 border-white/10 hover:bg-white/15'
               }
               ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}`}
@@ -724,7 +724,7 @@ const GeneratorBottomSheetComponent = ({
                 style={{ touchAction: 'manipulation' }}
                 className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0 border
                   ${referenceImages.length > 0 
-                    ? 'bg-[#f59e0b] text-black border-transparent'
+                    ? 'bg-[#8cf425] text-black border-transparent'
                     : 'bg-white/10 text-white/60 border-white/10 hover:bg-white/15'
                   }
                   ${(isGenerating || isAddingRefs) ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'}`}
@@ -749,7 +749,7 @@ const GeneratorBottomSheetComponent = ({
               disabled={isGenerating}
               placeholder="Опишите изображение..."
               rows={1}
-              className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#f59e0b]/50 focus:ring-2 focus:ring-[#f59e0b]/20 transition-all disabled:opacity-50 leading-tight"
+              className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-2xl text-white text-sm placeholder:text-white/40 resize-none focus:outline-none focus:border-[#8cf425]/50 focus:ring-2 focus:ring-[#8cf425]/20 transition-all disabled:opacity-50 leading-tight"
               style={{ 
                 minHeight: '44px', 
                 maxHeight: '88px',
@@ -776,7 +776,7 @@ const GeneratorBottomSheetComponent = ({
               ${isGenerating ? 'bg-white/10 text-white/50 cursor-not-allowed' : ''}
               ${
                 !isGenerating && canGenerate
-                  ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/30'
+                  ? 'bg-[#8cf425] text-black shadow-lg shadow-[#8cf425]/30'
                   : !isGenerating && hasPrompt
                     ? 'bg-white/10 text-white/60 border border-white/15'
                     : 'bg-white/10 text-white/30 border border-white/10'

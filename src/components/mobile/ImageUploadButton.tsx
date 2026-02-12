@@ -81,18 +81,18 @@ export function ImageUploadButton({ onUpload }: ImageUploadButtonProps) {
         disabled={isCompressing}
         className="
           w-full p-6 rounded-2xl
-          bg-[#18181B] border-2 border-dashed border-[#27272A]
-          hover:border-[#00D9FF] hover:bg-[#00D9FF]/5
+          bg-[rgba(255,255,255,0.03)] border-2 border-dashed border-[rgba(255,255,255,0.12)]
+          hover:border-[#8cf425] hover:bg-[#8cf425]/5
           transition-all active:scale-[0.98]
           disabled:opacity-50 disabled:cursor-not-allowed
         "
       >
         <div className="flex flex-col items-center gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00D9FF]/20 to-[#0EA5E9]/10 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#8cf425]/10 border border-[#8cf425]/20 flex items-center justify-center">
             {isCompressing ? (
-              <div className="w-8 h-8 border-2 border-[#00D9FF]/30 border-t-[#00D9FF] rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-[#8cf425]/30 border-t-[#8cf425] rounded-full animate-spin" />
             ) : (
-              <ImagePlus className="w-8 h-8 text-[#00D9FF]" />
+              <ImagePlus className="w-8 h-8 text-[#8cf425]" />
             )}
           </div>
 
@@ -100,12 +100,12 @@ export function ImageUploadButton({ onUpload }: ImageUploadButtonProps) {
             <div className="text-base font-semibold text-white mb-1">
               {isCompressing ? 'Сжатие изображения...' : 'Загрузить изображение'}
             </div>
-            <div className="text-xs text-[#71717A]">
+            <div className="text-xs text-white/40">
               {isCompressing ? 'Подождите, идет оптимизация' : 'Нажмите для выбора или сделайте фото'}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
+          <div className="flex items-center gap-2 text-xs text-white/50">
             <Camera className="w-4 h-4" />
             <span>PNG, JPG, WebP до 10MB</span>
           </div>

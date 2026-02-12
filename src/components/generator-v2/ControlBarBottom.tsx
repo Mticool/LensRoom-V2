@@ -392,7 +392,7 @@ const ControlBarBottomComponent = ({
   return (
     <>
     <div
-      className="fixed bottom-2 left-1/2 -translate-x-1/2 z-50 sm:hidden bg-[#18181B]/95 backdrop-blur-lg border border-[#27272A] rounded-2xl shadow-xl"
+      className="fixed bottom-2 left-1/2 -translate-x-1/2 z-50 sm:hidden bg-[rgba(10,10,10,0.95)] backdrop-blur-xl border border-[rgba(255,255,255,0.08)] rounded-2xl shadow-xl"
       style={{ width: "min(calc(100% - 1rem), 56rem)" }}
     >
       <div className="px-3 py-3">
@@ -404,7 +404,7 @@ const ControlBarBottomComponent = ({
             className="flex items-center justify-between px-1 py-0.5 -mx-1 rounded-lg hover:bg-white/5 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#f59e0b]" />
+              <Sparkles className="w-3.5 h-3.5 text-[#8cf425]" />
               <span className="text-xs font-medium text-white/80">{displayName}</span>
               {showAspectRatio && (
                 <>
@@ -420,8 +420,8 @@ const ControlBarBottomComponent = ({
               )}
             </div>
             <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-[#f59e0b]" />
-              <span className="text-xs font-semibold text-[#f59e0b]">{estimatedCost}</span>
+              <Star className="w-3 h-3 text-[#8cf425]" />
+              <span className="text-xs font-semibold text-[#8cf425]">{estimatedCost}</span>
             </div>
           </button>
           
@@ -429,12 +429,12 @@ const ControlBarBottomComponent = ({
           <div className="flex items-end gap-3">
             {/* Mobile gallery zoom */}
             {showGalleryZoom && onGalleryZoomChange && (
-              <div className="flex items-center gap-0.5 py-1.5 px-1.5 bg-[#1E1E20] border border-[#3A3A3C] rounded-lg flex-shrink-0">
+              <div className="flex items-center gap-0.5 py-1.5 px-1.5 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-xl flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => onGalleryZoomChange(Math.max(0.5, (galleryZoom ?? 1) - 0.1))}
                   disabled={(galleryZoom ?? 1) <= 0.5}
-                  className="flex items-center justify-center w-7 h-7 rounded text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40"
+                  className="flex items-center justify-center w-7 h-7 rounded text-[#A1A1AA] hover:bg-[rgba(255,255,255,0.06)] hover:text-white disabled:opacity-40"
                   title="Уменьшить"
                 >
                   <Minus className="w-3.5 h-3.5" />
@@ -446,7 +446,7 @@ const ControlBarBottomComponent = ({
                   type="button"
                   onClick={() => onGalleryZoomChange(Math.min(1.5, (galleryZoom ?? 1) + 0.1))}
                   disabled={(galleryZoom ?? 1) >= 1.5}
-                  className="flex items-center justify-center w-7 h-7 rounded text-[#A1A1AA] hover:bg-[#2A2A2C] hover:text-white disabled:opacity-40"
+                  className="flex items-center justify-center w-7 h-7 rounded text-[#A1A1AA] hover:bg-[rgba(255,255,255,0.06)] hover:text-white disabled:opacity-40"
                   title="Увеличить"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -470,7 +470,7 @@ const ControlBarBottomComponent = ({
               onClick={() => setMobileSettingsOpen(true)}
               disabled={isGenerating}
               className={`
-                flex items-center justify-center w-12 h-12 rounded-xl bg-[#1E1E20] border border-[#3A3A3C] hover:bg-[#2A2A2C] transition-colors shrink-0
+                flex items-center justify-center w-12 h-12 rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.10)] hover:bg-[rgba(255,255,255,0.08)] transition-colors shrink-0
                 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}
               `}
               title="Настройки"
@@ -486,8 +486,8 @@ const ControlBarBottomComponent = ({
               className={`
                 flex items-center justify-center w-14 h-14 rounded-full font-bold transition-all shrink-0
                 ${canSubmit
-                  ? 'bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/30 hover:bg-[#fbbf24]'
-                  : 'bg-[#2C2C2E] text-[#6B6B6E] cursor-not-allowed'
+                  ? 'bg-[#8cf425] text-black shadow-[0_0_16px_-3px_rgba(140,244,37,0.5)] hover:bg-[#a0ff40]'
+                  : 'bg-[rgba(255,255,255,0.05)] text-[#6B6B6E] cursor-not-allowed'
                 }
               `}
             >
@@ -549,6 +549,7 @@ const ControlBarBottomComponent = ({
         referenceList={referenceList}
         onPickFiles={handleFileUpload}
         onRemoveAllRefs={handleRemoveReference}
+        onRemoveRefAt={handleRemoveReferenceAt}
         negativePrompt={negativePrompt}
         onNegativePromptChange={onNegativePromptChange}
         seed={seed}
@@ -568,14 +569,14 @@ const ControlBarBottomComponent = ({
         />
 
         {/* Sheet */}
-        <div className="absolute bottom-0 left-0 right-0 bg-[#18181B] border-t border-[#27272A] rounded-t-3xl max-h-[85vh] overflow-y-auto">
+        <div className="absolute bottom-0 left-0 right-0 bg-[#0A0A0A] border-t border-[rgba(255,255,255,0.08)] rounded-t-3xl max-h-[85vh] overflow-y-auto">
           {/* Handle */}
           <div className="flex justify-center pt-3 pb-2">
             <div className="w-10 h-1 rounded-full bg-white/20" />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-4 pb-4 border-b border-[#27272A]">
+          <div className="flex items-center justify-between px-4 pb-4 border-b border-[rgba(255,255,255,0.08)]">
             <h3 className="text-lg font-semibold text-white">Настройки</h3>
             <button
               type="button"
@@ -591,8 +592,8 @@ const ControlBarBottomComponent = ({
             {/* Model badge */}
             <div className="space-y-2">
               <div className="text-xs text-[#A1A1AA] uppercase tracking-wider">Модель</div>
-              <div className="flex items-center gap-2 px-4 py-3 bg-[#1E1E20] border border-[#3A3A3C] rounded-2xl">
-                <Sparkles className="w-4 h-4 text-[#f59e0b]" />
+              <div className="flex items-center gap-2 px-4 py-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-2xl">
+                <Sparkles className="w-4 h-4 text-[#8cf425]" />
                 <span className="text-base font-medium text-white">{displayName}</span>
               </div>
             </div>
@@ -611,8 +612,8 @@ const ControlBarBottomComponent = ({
                       className={`
                         h-10 px-4 rounded-xl border text-sm font-semibold transition-colors
                         ${aspectRatio === ar
-                          ? 'bg-[#f59e0b]/15 border-[#f59e0b]/30 text-[#f59e0b]'
-                          : 'bg-[#1E1E20] border-[#3A3A3C] text-[#A1A1AA] hover:bg-[#2A2A2C]'
+                          ? 'bg-[#8cf425]/15 border-[#8cf425]/40 text-[#8cf425]'
+                          : 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] text-white/60 hover:bg-[rgba(255,255,255,0.06)]'
                         }
                       `}
                     >
@@ -637,8 +638,8 @@ const ControlBarBottomComponent = ({
                       className={`
                         h-10 px-4 rounded-xl border text-sm font-semibold transition-colors
                         ${quality === q
-                          ? 'bg-[#f59e0b]/15 border-[#f59e0b]/30 text-[#f59e0b]'
-                          : 'bg-[#1E1E20] border-[#3A3A3C] text-[#A1A1AA] hover:bg-[#2A2A2C]'
+                          ? 'bg-[#8cf425]/15 border-[#8cf425]/40 text-[#8cf425]'
+                          : 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] text-white/60 hover:bg-[rgba(255,255,255,0.06)]'
                         }
                       `}
                     >
@@ -663,8 +664,8 @@ const ControlBarBottomComponent = ({
                       className={`
                         h-10 px-4 rounded-xl border text-sm font-semibold transition-colors
                         ${outputFormat === fmt
-                          ? 'bg-[#f59e0b]/15 border-[#f59e0b]/30 text-[#f59e0b]'
-                          : 'bg-[#1E1E20] border-[#3A3A3C] text-[#A1A1AA] hover:bg-[#2A2A2C]'
+                          ? 'bg-[#8cf425]/15 border-[#8cf425]/40 text-[#8cf425]'
+                          : 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] text-white/60 hover:bg-[rgba(255,255,255,0.06)]'
                         }
                       `}
                     >
@@ -684,7 +685,7 @@ const ControlBarBottomComponent = ({
                     type="button"
                     onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
                     disabled={isGenerating || isGrokImagine || quantity <= 1 || quantityMax <= 1}
-                    className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
+                    className="w-10 h-10 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] text-white font-bold hover:bg-[rgba(255,255,255,0.06)] disabled:opacity-50"
                   >
                     -
                   </button>
@@ -693,7 +694,7 @@ const ControlBarBottomComponent = ({
                     type="button"
                     onClick={() => onQuantityChange(Math.min(quantityMax, quantity + 1))}
                     disabled={isGenerating || isGrokImagine || quantity >= quantityMax || quantityMax <= 1}
-                    className="w-10 h-10 rounded-xl border border-[#3A3A3C] bg-[#1E1E20] text-white font-bold hover:bg-[#2A2A2C] disabled:opacity-50"
+                    className="w-10 h-10 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] text-white font-bold hover:bg-[rgba(255,255,255,0.06)] disabled:opacity-50"
                   >
                     +
                   </button>
@@ -722,8 +723,8 @@ const ControlBarBottomComponent = ({
                     className={`
                       flex items-center justify-center w-20 h-20 rounded-2xl border-2 border-dashed transition-colors cursor-pointer
                       ${hasAnyReferenceVisual 
-                        ? 'border-[#f59e0b] bg-[#f59e0b]/10' 
-                        : 'border-[#3A3A3C] bg-[#1E1E20] hover:bg-[#2A2A2C]'
+                        ? 'border-[#8cf425] bg-[#8cf425]/10' 
+                        : 'border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)]'
                       }
                       ${(isGenerating || isAddingRefs) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
                     `}
@@ -792,7 +793,7 @@ const ControlBarBottomComponent = ({
 
             {/* Advanced Settings */}
             {onNegativePromptChange && (
-              <div className="space-y-3 pt-4 border-t border-[#27272A]">
+              <div className="space-y-3 pt-4 border-t border-[rgba(255,255,255,0.08)]">
                 <div className="text-xs text-[#A1A1AA] uppercase tracking-wider">Дополнительно</div>
                 <div className="space-y-3">
                   <div>
@@ -802,7 +803,7 @@ const ControlBarBottomComponent = ({
                       onChange={(e) => onNegativePromptChange(e.target.value)}
                       disabled={isGenerating}
                       placeholder="Что исключить..."
-                      className="w-full min-h-[60px] px-3 py-2 rounded-xl bg-[#1E1E20] border border-[#3A3A3C] text-sm text-white placeholder:text-[#6B6B6E] focus:outline-none focus:border-[#f59e0b] resize-none"
+                      className="w-full min-h-[60px] px-3 py-2 rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#8cf425] resize-none"
                     />
                   </div>
                   {onSeedChange && (
@@ -814,7 +815,7 @@ const ControlBarBottomComponent = ({
                         onChange={(e) => onSeedChange(e.target.value ? Number(e.target.value) : null)}
                         disabled={isGenerating}
                         placeholder="Случайный"
-                        className="w-full h-10 px-3 rounded-xl bg-[#1E1E20] border border-[#3A3A3C] text-sm text-white placeholder:text-[#6B6B6E] focus:outline-none focus:border-[#f59e0b]"
+                        className="w-full h-10 px-3 rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#8cf425]"
                       />
                     </div>
                   )}
@@ -823,10 +824,10 @@ const ControlBarBottomComponent = ({
             )}
 
             {/* Cost summary */}
-            <div className="pt-4 border-t border-[#27272A]">
+            <div className="pt-4 border-t border-[rgba(255,255,255,0.08)]">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-[#A1A1AA]">Списать</div>
-                <div className="flex items-center gap-2 text-lg font-bold text-[#f59e0b]">
+                <div className="flex items-center gap-2 text-lg font-bold text-[#8cf425]">
                   <Star className="w-5 h-5" />
                   {estimatedCost}
                 </div>
@@ -837,7 +838,7 @@ const ControlBarBottomComponent = ({
             <button
               type="button"
               onClick={() => setMobileSettingsOpen(false)}
-              className="w-full h-14 rounded-2xl bg-[#f59e0b] text-black font-bold text-base hover:bg-[#fbbf24] transition-colors"
+              className="w-full h-14 rounded-2xl bg-[#8cf425] text-black font-bold text-base hover:bg-[#a0ff40] transition-colors"
             >
               Готово
             </button>

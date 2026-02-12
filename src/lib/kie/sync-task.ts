@@ -7,6 +7,8 @@ import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generatio
 import { generateImagePreview, generateVideoPoster, generateVideoAnimatedPreview } from "@/lib/previews";
 import { getSourceAssetUrl, validateAssetUrl } from "@/lib/previews/asset-url";
 import { refundGenerationCredits } from "@/lib/credits/refund";
+import { deductCredits } from "@/lib/credits/split-credits";
+import { calcMotionControlCredits, type MotionCharacterOrientation, type MotionControlResolution } from "@/lib/videoModels/motion-control";
 import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
 
 /**
@@ -852,7 +854,54 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
     }
 
     const isVideo = kind === "video";
-    
+    const generationMeta = ((generation as any).metadata || {}) as Record<string, any>;
+    const isDeferredMotionBilling =
+      isVideo &&
+      String(generation.model_id || '') === 'kling-motion-control' &&
+      generationMeta.deferred_billing === true;
+
+    let billingError: string | null = null;
+    let billedStars: number | null = null;
+    const nextMeta: Record<string, any> = { ...generationMeta };
+
+    if (isDeferredMotionBilling && !nextMeta.motion_billed) {
+      try {
+        const resolution = (String(nextMeta.motion_mode || '720p').toLowerCase() === '1080p' ? '1080p' : '720p') as MotionControlResolution;
+        const orientation =
+          (String(nextMeta.motion_orientation || 'image').toLowerCase() === 'video' ? 'video' : 'image') as MotionCharacterOrientation;
+        const motionSeconds = Number(nextMeta.motion_seconds || 0);
+        const billing = calcMotionControlCredits(motionSeconds, resolution, orientation);
+
+        const skipCredits = Boolean(nextMeta.skip_credits === true);
+        billedStars = billing.credits;
+        nextMeta.motion_billable_seconds = billing.billableSeconds;
+        nextMeta.motion_credits_per_second = billing.creditsPerSecond;
+        nextMeta.motion_billed = true;
+        nextMeta.motion_billed_at = new Date().toISOString();
+
+        if (!skipCredits && billedStars > 0) {
+          const deduction = await deductCredits(supabase as any, String(generation.user_id), billedStars);
+          if (!deduction.success) {
+            billingError = 'deferred_motion_billing_failed';
+            nextMeta.billing_error = true;
+            nextMeta.billing_error_message = billingError;
+          } else {
+            await supabase.from('credit_transactions').insert({
+              user_id: generation.user_id,
+              amount: -billedStars,
+              type: 'deduction',
+              description: `Motion Control: ${billing.billableSeconds}s x ${billing.creditsPerSecond} credits/sec`,
+              generation_id: generation.id,
+            });
+          }
+        }
+      } catch (err) {
+        billingError = err instanceof Error ? err.message : String(err);
+        nextMeta.billing_error = true;
+        nextMeta.billing_error_message = billingError;
+      }
+    }
+
     // Update with original_path and preview_status='none' for instant trigger
     await safeUpdateGeneration(supabase, generation.id, {
       status: "success",
@@ -862,6 +911,11 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
       preview_status: "none",      // NEW: ready for instant preview
       preview_url: isVideo ? null : assetUrl,
       thumbnail_url: isVideo ? null : assetUrl,
+      credits_used: billedStars ?? (generation as any).credits_used ?? null,
+      charged_stars: billedStars ?? (generation as any).charged_stars ?? null,
+      actual_stars_spent: billedStars ?? (generation as any).actual_stars_spent ?? null,
+      billing_error: billingError ? true : ((generation as any).billing_error || false),
+      metadata: nextMeta,
       error: null,
       updated_at: new Date().toISOString(),
     });

@@ -33,7 +33,7 @@ export async function GET() {
               width: '80px',
               height: '80px',
               borderRadius: '20px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #00D9FF 100%)',
+              background: 'linear-gradient(135deg, #8cf425 0%, #00D9FF 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -88,7 +88,7 @@ export async function GET() {
             <span>Nano Banana Pro</span>
             <span
               style={{
-                background: 'linear-gradient(135deg, #f59e0b 0%, #00D9FF 100%)',
+                background: 'linear-gradient(135deg, #8cf425 0%, #00D9FF 100%)',
                 backgroundClip: 'text',
                 color: 'transparent',
               }}
@@ -130,7 +130,7 @@ export async function GET() {
                 border: '1px solid rgba(205, 255, 0, 0.3)',
               }}
             >
-              <span style={{ fontSize: '28px', color: '#f59e0b', fontWeight: 600 }}>
+              <span style={{ fontSize: '28px', color: '#8cf425', fontWeight: 600 }}>
                 10+ AI моделей
               </span>
             </div>

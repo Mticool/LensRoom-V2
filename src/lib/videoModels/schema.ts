@@ -3,14 +3,20 @@ import { z } from 'zod';
 // ===== ENUMS =====
 
 export const ModelIdEnum = z.enum([
+  'kling-o1',
   'veo-3.1-fast',
   'kling-2.6',
+  'kling-o3-standard',
   'kling-2.5',
   'kling-2.1',
   'grok-video',
   'sora-2',
   'wan-2.6',
   'kling-motion-control',
+  'kling-ai-avatar-standard',
+  'kling-ai-avatar-pro',
+  'infinitalk-480p',
+  'infinitalk-720p',
 ]);
 export type ModelId = z.infer<typeof ModelIdEnum>;
 
@@ -27,6 +33,8 @@ export const InputKeyEnum = z.enum([
   'cameraControl',
   'characterOrientation',
   'resolution',
+  'multiPrompt',
+  'shotType',
 ]);
 export type InputKey = z.infer<typeof InputKeyEnum>;
 
@@ -144,6 +152,8 @@ export const ModelCapabilitySchema = z.object({
   styleOptions: z.array(z.string()).optional(),
   cameraMotionOptions: z.array(z.string()).optional(),
   soundPresets: z.array(z.string()).optional(),
+  supportsMultiPrompt: z.boolean().optional(),
+  shotTypes: z.array(z.enum(['single', 'customize'])).optional(),
   
   // Constraints
   constraints: ConstraintsByModeSchema,
@@ -152,6 +162,7 @@ export const ModelCapabilitySchema = z.object({
   
   // Duration config
   fixedDuration: z.number().optional(),
+  durationSource: z.enum(['manual', 'asset']).optional(),
   durationRange: z.object({
     min: z.number(),
     max: z.number(),
@@ -196,6 +207,7 @@ export const VideoGenerationRequestSchema = z.object({
   // Audio
   sound: z.boolean().optional(),
   soundPreset: z.string().optional(),
+  generateAudio: z.boolean().optional(),
   
   // Model-specific (with enum validation)
   style: GrokStyleEnum.optional(), // Grok Video styles
@@ -206,6 +218,16 @@ export const VideoGenerationRequestSchema = z.object({
   characterOrientation: z.enum(['image', 'video']).optional(),
   cfgScale: z.number().min(0).max(20).optional(),
   cameraControl: z.union([z.string(), z.record(z.string(), z.any())]).optional(),
+  multiPrompt: z.array(
+    z.union([
+      z.string().min(1),
+      z.object({
+        prompt: z.string().min(1),
+        duration: z.number().int().min(1).max(15),
+      }),
+    ])
+  ).max(4).optional(),
+  shotType: z.enum(['single', 'customize']).optional(),
   
   // Advanced
   seed: z.number().optional(),
@@ -260,18 +282,6 @@ export const VideoGenerationRequestSchema = z.object({
   {
     message: 'characterOrientation is required for motion_control mode',
     path: ['characterOrientation'],
-  }
-).refine(
-  (data) => {
-    // motion_control requires cameraControl
-    if (data.mode === 'motion_control' && !data.cameraControl) {
-      return false;
-    }
-    return true;
-  },
-  {
-    message: 'cameraControl is required for motion_control mode',
-    path: ['cameraControl'],
   }
 ).refine(
   (data) => {

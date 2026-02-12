@@ -73,7 +73,7 @@ export function ModeSelector({ value, onChange, disabled }: ModeSelectorProps) {
                 className={`
                   w-full px-3 py-2.5 text-left transition-colors flex items-center gap-2 justify-center
                   ${mode.value === value 
-                    ? 'bg-[#f59e0b]/10 text-[#f59e0b]' 
+                    ? 'bg-[#8cf425]/10 text-[#8cf425]' 
                     : 'text-white hover:bg-[#2A2A2C]'
                   }
                 `}

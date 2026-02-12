@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AudioStudio } from './AudioStudio';
+import { VoiceRecorder } from '@/components/voice/VoiceRecorder';
 import { useAuth } from '@/components/generator-v2/hooks/useAuth';
 import { LoginDialog } from '@/components/auth/login-dialog';
 
@@ -92,6 +93,7 @@ export function MusicAndVoiceStudio() {
   // For cover/add-vocals
   const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [audioSourceMode, setAudioSourceMode] = useState<'upload' | 'record'>('upload');
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // Thread/project
@@ -330,6 +332,11 @@ export function MusicAndVoiceStudio() {
       setUploading(false);
     }
   }, [isAuthenticated]);
+
+  const onRecordingComplete = useCallback((url: string) => {
+    setUploadedAudioUrl(url);
+    toast.success('Запись готова');
+  }, []);
 
   const presets = useMemo(
     () => [
@@ -598,32 +605,83 @@ export function MusicAndVoiceStudio() {
 
                   {(generationType === 'cover' || generationType === 'add-vocals') && (
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center justify-between gap-3 mb-3">
                         <div className="text-sm font-semibold text-[var(--text)]">Исходный аудио-файл</div>
-                        <button
-                          type="button"
-                          onClick={() => fileRef.current?.click()}
-                          disabled={uploading}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface2)] disabled:opacity-60"
-                        >
-                          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                          Загрузить
-                        </button>
-                        <input
-                          ref={fileRef}
-                          type="file"
-                          accept="audio/*"
-                          className="hidden"
-                          onChange={(e) => onPickFile(e.target.files?.[0] || null)}
-                        />
+                        <div className="inline-flex p-1 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+                          <button
+                            type="button"
+                            onClick={() => setAudioSourceMode('upload')}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-semibold transition",
+                              audioSourceMode === 'upload' ? "bg-[var(--gold)] text-black" : "text-[var(--muted)] hover:text-[var(--text)]"
+                            )}
+                          >
+                            <span className="inline-flex items-center gap-1.5">
+                              <Upload className="w-3.5 h-3.5" />
+                              Загрузить
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAudioSourceMode('record')}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-semibold transition",
+                              audioSourceMode === 'record' ? "bg-[var(--gold)] text-black" : "text-[var(--muted)] hover:text-[var(--text)]"
+                            )}
+                          >
+                            <span className="inline-flex items-center gap-1.5">
+                              <Mic className="w-3.5 h-3.5" />
+                              Записать
+                            </span>
+                          </button>
+                        </div>
                       </div>
+
+                      {audioSourceMode === 'upload' ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <button
+                            type="button"
+                            onClick={() => fileRef.current?.click()}
+                            disabled={uploading}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface2)] disabled:opacity-60"
+                          >
+                            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            Выбрать файл
+                          </button>
+                          <input
+                            ref={fileRef}
+                            type="file"
+                            accept="audio/*"
+                            className="hidden"
+                            onChange={(e) => onPickFile(e.target.files?.[0] || null)}
+                          />
+                          {uploadedAudioUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setUploadedAudioUrl('')}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                            >
+                              Очистить
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+                          <VoiceRecorder
+                            maxDuration={180}
+                            onRecordingComplete={onRecordingComplete}
+                            disabled={isGenerating || uploading}
+                          />
+                        </div>
+                      )}
+
                       {uploadedAudioUrl ? (
                         <div className="mt-3">
                           <audio controls src={uploadedAudioUrl} className="w-full" />
                         </div>
                       ) : (
                         <div className="mt-2 text-xs text-[var(--muted)]">
-                          Для Cover/Add Vocals нужен загруженный файл.
+                          Для Cover/Add Vocals нужен аудио-источник: загрузка файла или запись с микрофона.
                         </div>
                       )}
                     </div>

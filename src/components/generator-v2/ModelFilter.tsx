@@ -114,7 +114,7 @@ export function ModelFilter({
                       {model.name}
                     </span>
                     {isCurrent && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-[#f59e0b] text-black font-medium">
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-[#8cf425] text-black font-medium">
                         Текущая
                       </span>
                     )}

@@ -66,7 +66,7 @@ export interface VeoExtendRequest {
 }
 
 export interface LipSyncParams {
-  model: string; // API model: 'kling/ai-avatar-standard' or 'infinitalk/from-audio'
+  model: string; // API model: 'kling/ai-avatar-standard' | 'kling/ai-avatar-v1-pro' | 'infinitalk/from-audio'
   imageUrl: string; // URL изображения персонажа
   audioUrl: string; // URL аудио файла
   prompt?: string; // Описание эмоций/стиля (опционально)
@@ -209,7 +209,7 @@ export interface GenerateVideoRequest {
   duration?: number | string;
   aspectRatio?: string;
   sound?: boolean | string;
-  mode?: 't2v' | 'i2v' | 'v2v' | 'start_end' | 'storyboard' | 'motion_control' | 'ref2v' | 'extend';
+  mode?: 't2v' | 'i2v' | 'v2v' | 'v2v_edit' | 'start_end' | 'storyboard' | 'motion_control' | 'ref2v' | 'extend';
   resolution?: string; // For bytedance: 480p/720p/1080p; For motion control: 720p/1080p
   quality?: string; // For sora-pro: standard/high
   style?: string; // Grok Video style preset
@@ -1119,16 +1119,39 @@ export class KieAIClient {
       input.prompt = params.prompt;
     }
 
+    // === KLING O3 STANDARD VIDEO EDIT ===
+    if (params.model.includes('o3-standard-v2v-edit')) {
+      // Video URL (required)
+      if (params.videoUrl) {
+        input.video_url = params.videoUrl;
+      }
+      // Optional reference image(s)
+      if (params.imageUrl) {
+        input.image_urls = [params.imageUrl];
+      }
+      // Duration as string
+      if (params.duration) {
+        input.duration = String(params.duration);
+      }
+      // Keep audio flag
+      if ((params as any).keepAudio !== undefined) {
+        input.keep_audio = (params as any).keepAudio;
+      } else {
+        input.keep_audio = true; // default: keep original audio
+      }
+      console.log('[KIE O3 Edit] Request params:', {
+        has_video_url: !!params.videoUrl,
+        has_image_url: !!params.imageUrl,
+        duration: params.duration,
+        prompt: params.prompt?.substring(0, 50),
+      });
+    }
     // === KLING 2.6 MOTION CONTROL ===
     // Документация: https://kie.ai/kling-2.6-motion-control
-    if (params.model.includes('motion-control')) {
-      // input_urls: character image (required)
-      if (params.imageUrl) {
-        input.input_urls = [params.imageUrl];
-      }
-      // video_urls: reference video with motion (required, 3-30 seconds)
-      if (params.videoUrl) {
-        input.video_urls = [params.videoUrl];
+    else if (params.model.includes('motion-control')) {
+      // input_urls: [reference_image_url, motion_video_url]
+      if (params.imageUrl && params.videoUrl) {
+        input.input_urls = [params.imageUrl, params.videoUrl];
       }
       // mode: 720p (standard) or 1080p (pro)
       if (params.resolution === '1080p') {
@@ -1142,12 +1165,8 @@ export class KieAIClient {
       if (params.characterOrientation) {
         input.character_orientation = params.characterOrientation;
       }
-      if (params.cameraControl) {
-        input.camera_control = params.cameraControl;
-      }
       console.log('[KIE Motion Control] Request params:', {
-        input_urls: !!params.imageUrl,
-        video_urls: !!params.videoUrl,
+        input_urls: !!params.imageUrl && !!params.videoUrl,
         mode: input.mode,
         character_orientation: params.characterOrientation || 'image',
         prompt: params.prompt?.substring(0, 50),

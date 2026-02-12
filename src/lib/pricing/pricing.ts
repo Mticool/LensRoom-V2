@@ -11,6 +11,16 @@
  * 4. Store: sku, priceStars, pricingVersion in ledger + generation record
  */
 
+import {
+  MOTION_CONTROL_LIMITS,
+  calcMotionControlCredits,
+  clampMotionControlSeconds,
+  type MotionCharacterOrientation,
+  type MotionControlResolution,
+} from '@/lib/videoModels/motion-control';
+
+export type { MotionCharacterOrientation, MotionControlResolution } from '@/lib/videoModels/motion-control';
+
 export const PRICING_VERSION = "2026-02-06";
 
 // ============================================================================
@@ -69,7 +79,8 @@ export interface PriceOptions {
  * - wan_2_6:720p:5s
  * - veo_3_1_fast:clip
  * - kling_motion_control:720p:per_sec
- * - kling_ai_avatar:standard
+ * - kling_ai_avatar_standard:per_sec
+ * - kling_ai_avatar_pro:per_sec
  * - infinitalk_480p:per_sec
  * - infinitalk_720p:per_sec
  */
@@ -169,6 +180,20 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
     return `kling_2_6:${duration}s:${audioSuffix}`;
   }
 
+  // Kling O1 Standard
+  if (normalizedModelId === 'kling_o1') {
+    const duration = options.duration || 5;
+    return `kling_o1:${duration}s`;
+  }
+
+  // Kling O3 Standard (temporary parity pricing, feature-flagged rollout)
+  if (normalizedModelId === 'kling_o3_standard') {
+    const duration = options.duration || 5;
+    const hasAudio = options.audio === true;
+    const audioSuffix = hasAudio ? 'audio' : 'no_audio';
+    return `kling_o3_standard:${duration}s:${audioSuffix}`;
+  }
+
   // Kling 2.5
   if (normalizedModelId === 'kling_2_5' || 
       (normalizedModelId === 'kling' && options.modelVariant?.includes('2.5'))) {
@@ -200,9 +225,13 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
 
   // === LIP SYNC MODELS ===
 
-  // Kling AI Avatar (fixed price)
-  if (normalizedModelId === 'kling_ai_avatar') {
-    return 'kling_ai_avatar:standard';
+  // Kling AI Avatar (per-second pricing)
+  if (normalizedModelId === 'kling_ai_avatar' || normalizedModelId === 'kling_ai_avatar_standard') {
+    return 'kling_ai_avatar_standard:per_sec';
+  }
+
+  if (normalizedModelId === 'kling_ai_avatar_pro') {
+    return 'kling_ai_avatar_pro:per_sec';
   }
 
   // InfiniteTalk (per-second pricing) - duration from options.audioDurationSec
@@ -222,6 +251,12 @@ export function getSkuFromRequest(modelId: string, options: PricingOptions = {})
 
   if (normalizedModelId === 'wan_animate_replace') {
     return 'wan_animate_replace:per_sec';
+  }
+
+  // Kling O1 Edit (fixed pricing by duration)
+  if (normalizedModelId === 'kling_o1_edit') {
+    const duration = options.duration || 5;
+    return `kling_o1_edit:${duration}s`;
   }
 
   // Fallback: unknown model
@@ -270,6 +305,24 @@ const PRICE_TABLE: Record<string, number> = {
   'kling_2_5:5s': 36,
   'kling_2_5:10s': 72,
 
+  // KLING O3 STANDARD (TEMPORARY parity, calibrate after real-cost data)
+  'kling_o3_standard:3s:no_audio': 30,
+  'kling_o3_standard:3s:audio': 45,
+  'kling_o3_standard:5s:no_audio': 50,
+  'kling_o3_standard:5s:audio': 75,
+  'kling_o3_standard:8s:no_audio': 80,
+  'kling_o3_standard:8s:audio': 120,
+  'kling_o3_standard:10s:no_audio': 100,
+  'kling_o3_standard:10s:audio': 150,
+  'kling_o3_standard:12s:no_audio': 120,
+  'kling_o3_standard:12s:audio': 180,
+  'kling_o3_standard:15s:no_audio': 150,
+  'kling_o3_standard:15s:audio': 225,
+
+  // KLING O1 STANDARD
+  'kling_o1:5s': 56,
+  'kling_o1:10s': 112,
+
   // KLING 2.1 (TIER)
   'kling_2_1:standard:5s': 22,
   'kling_2_1:standard:10s': 43,
@@ -288,11 +341,14 @@ const PRICE_TABLE: Record<string, number> = {
 
   // KLING MOTION CONTROL (PER SECOND)
   'kling_motion_control:720p:per_sec': 6,
-  'kling_motion_control:1080p:per_sec': 8,
+  'kling_motion_control:1080p:per_sec': 9,
 
   // === LIP SYNC MODELS ===
   
-  // KLING AI AVATAR (FIXED)
+  // KLING AI AVATAR (PER SECOND)
+  'kling_ai_avatar_standard:per_sec': 8,
+  'kling_ai_avatar_pro:per_sec': 16,
+  // Legacy fixed SKU (kept for backward compatibility with historical rows)
   'kling_ai_avatar:standard': 50,
 
   // INFINITALK (PER SECOND)
@@ -302,6 +358,10 @@ const PRICE_TABLE: Record<string, number> = {
   // === WAN ANIMATE (PER SECOND) ===
   'wan_animate_move:per_sec': 6,     // Motion Transfer — 6⭐/сек
   'wan_animate_replace:per_sec': 8,  // Character Swap — 8⭐/сек
+
+  // === KLING O3 EDIT (FIXED PRICING BY DURATION) ===
+  'kling_o1_edit:5s': 75,
+  'kling_o1_edit:10s': 150,
 };
 
 /**
@@ -337,7 +397,7 @@ export function calculateTotalStars(sku: string, durationSec?: number): number {
   const basePrice = getPriceStars(sku);
   
   if (isPerSecondSku(sku)) {
-    const duration = durationSec || 5; // Default to 5s if not specified
+    const duration = Math.max(1, Math.ceil(Number(durationSec || 5))); // Default to 5s if not specified
     return basePrice * duration;
   }
   
@@ -453,16 +513,14 @@ export function calcStars(modelId: string, options: PriceOptions = {}): number {
 }
 
 // ============================================================================
-// MOTION CONTROL HELPERS (kept here to avoid split pricing sources)
+// MOTION CONTROL HELPERS
 // ============================================================================
 
-export type MotionControlResolution = '720p' | '1080p';
-
 export const MOTION_CONTROL_CONFIG = {
-  MIN_DURATION_SEC: 3,
-  MAX_DURATION_SEC: 30,
-  RATE_720P: 6,
-  RATE_1080P: 8,
+  MIN_DURATION_SEC: MOTION_CONTROL_LIMITS.minSeconds,
+  MAX_DURATION_SEC: MOTION_CONTROL_LIMITS.maxSeconds,
+  RATE_720P: MOTION_CONTROL_LIMITS.creditsPerSecond['720p'],
+  RATE_1080P: MOTION_CONTROL_LIMITS.creditsPerSecond['1080p'],
   ROUND_TO: 1,
 } as const;
 
@@ -506,15 +564,13 @@ export function validateMotionControlDuration(durationSec: number, autoTrim: boo
 export function calcMotionControlStars(
   durationSec: number,
   resolution: MotionControlResolution,
-  autoTrim: boolean
+  autoTrim: boolean,
+  orientation: MotionCharacterOrientation = 'video'
 ): number | null {
   const validation = validateMotionControlDuration(durationSec, autoTrim);
   if (!validation.valid) return null;
 
-  const effective = Number(validation.effectiveDuration || 0);
-  if (!Number.isFinite(effective) || effective <= 0) return null;
-
-  const rate = resolution === '1080p' ? MOTION_CONTROL_CONFIG.RATE_1080P : MOTION_CONTROL_CONFIG.RATE_720P;
-  const stars = effective * rate;
-  return Math.max(0, Math.round(stars));
+  const effective = clampMotionControlSeconds(Number(validation.effectiveDuration || 0), orientation);
+  const { credits } = calcMotionControlCredits(effective, resolution, orientation);
+  return Math.max(0, credits);
 }

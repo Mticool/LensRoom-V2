@@ -29,6 +29,8 @@ const modelIcons: Record<string, string> = {
   'topaz-image-upscale': '📐',
   'recraft-remove-background': '✂️',
   'kling-ai-avatar': '👤',
+  'kling-ai-avatar-standard': '👤',
+  'kling-ai-avatar-pro': '👤',
   'kling-motion-control': '🎭',
 };
 
@@ -87,8 +89,8 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
         onTouchEnd={() => setIsPressed(false)}
         className={`
           flex-shrink-0 w-40 h-48 rounded-2xl overflow-hidden
-          bg-gradient-to-br from-[#1F1F23] to-[#18181B]
-          border border-[#27272A] hover:border-[#3F3F46]
+          bg-[rgba(255,255,255,0.03)]
+          border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)]
           transition-all duration-200
           ${isPressed ? 'scale-95' : ''}
           active:scale-95
@@ -96,7 +98,7 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
         `}
       >
         {/* Верхняя часть с иконкой */}
-        <div className="h-24 flex items-center justify-center bg-gradient-to-br from-[#27272A]/50 to-transparent">
+        <div className="h-24 flex items-center justify-center bg-gradient-to-br from-[rgba(255,255,255,0.06)] to-transparent">
           <span className="text-5xl group-hover:scale-110 transition-transform duration-200">
             {icon}
           </span>
@@ -110,25 +112,25 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
           
           <div className="flex items-center gap-1 mt-1">
             {isPhoto ? (
-              <ImageIcon className="w-3 h-3 text-[#A1A1AA]" />
+              <ImageIcon className="w-3 h-3 text-white/50" />
             ) : (
-              <Video className="w-3 h-3 text-[#A1A1AA]" />
+              <Video className="w-3 h-3 text-white/50" />
             )}
-            <span className="text-[10px] text-[#71717A]">
+            <span className="text-[10px] text-white/40">
               {shortLabel || (isPhoto ? 'Фото' : 'Видео')}
             </span>
           </div>
           
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-yellow-500" />
+              <Star className="w-3 h-3 text-[#8cf425]" />
               <span className="text-xs font-medium text-white">
                 {minPrice}
               </span>
             </div>
             
             {model.featured && (
-              <span className="px-1.5 py-0.5 rounded bg-[#00D9FF]/10 text-[#00D9FF] text-[9px] font-medium">
+              <span className="px-1.5 py-0.5 rounded bg-[#8cf425]/10 text-[#8cf425] text-[9px] font-medium">
                 TOP
               </span>
             )}
@@ -146,7 +148,7 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
       onTouchEnd={() => setIsPressed(false)}
       className={`
         flex-shrink-0 w-28 h-36 rounded-xl overflow-hidden
-        bg-[#18181B] border border-[#27272A] hover:border-[#3F3F46]
+        bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)]
         transition-all duration-200
         ${isPressed ? 'scale-95' : ''}
         active:scale-95
@@ -154,7 +156,7 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
       `}
     >
       {/* Иконка */}
-      <div className="h-16 flex items-center justify-center bg-gradient-to-br from-[#27272A]/30 to-transparent">
+      <div className="h-16 flex items-center justify-center bg-gradient-to-br from-[rgba(255,255,255,0.05)] to-transparent">
         <span className="text-3xl group-hover:scale-110 transition-transform duration-200">
           {icon}
         </span>
@@ -167,14 +169,14 @@ export function ModelCard({ model, variant = 'compact' }: ModelCardProps) {
         </h3>
         
         <div className="flex items-center gap-1 mt-1">
-          <Star className="w-2.5 h-2.5 text-yellow-500" />
-          <span className="text-[10px] text-[#A1A1AA]">
+          <Star className="w-2.5 h-2.5 text-[#8cf425]" />
+          <span className="text-[10px] text-white/50">
             от {minPrice}
           </span>
         </div>
         
         {model.featured && (
-          <span className="inline-block mt-1 px-1 py-0.5 rounded bg-[#00D9FF]/10 text-[#00D9FF] text-[8px] font-medium">
+          <span className="inline-block mt-1 px-1 py-0.5 rounded bg-[#8cf425]/10 text-[#8cf425] text-[8px] font-medium">
             TOP
           </span>
         )}

@@ -3,10 +3,11 @@
    Минималистичный dark theme с lime акцентом
    ======================================== */
 
-/* CSS Variables */
-:root {
-  --higgs-primary: #f59e0b;
-  --higgs-primary-hover: #fbbf24;
+/* CSS Variables — scoped to Higgsfield components only */
+.higgs-container,
+.higgs-modal-backdrop {
+  --higgs-primary: #8cf425;
+  --higgs-primary-hover: #a0ff40;
   --higgs-primary-muted: rgba(205, 255, 0, 0.15);
   
   --higgs-bg: #0A0A0A;
@@ -461,6 +462,13 @@
   justify-content: center;
   transition: all var(--higgs-transition);
   z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.higgs-prompt-bar-upload-preview:hover .higgs-prompt-bar-upload-remove {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .higgs-prompt-bar-upload-remove:hover {
@@ -930,7 +938,7 @@
 
 .motion-control-section {
   position: relative;
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, rgba(0, 217, 255, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(140, 244, 37, 0.05) 0%, rgba(160, 255, 64, 0.05) 100%);
   border: 2px solid transparent;
   border-radius: var(--higgs-radius-xl);
   padding: 24px;
@@ -943,7 +951,7 @@
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #A855F7 0%, #00D9FF 100%);
+  background: linear-gradient(135deg, #8cf425 0%, #a0ff40 100%);
   z-index: -1;
   opacity: 0.4;
   transition: opacity 0.3s ease;
@@ -973,7 +981,7 @@
 .motion-control-title {
   font-size: 18px;
   font-weight: 700;
-  background: linear-gradient(135deg, #A855F7 0%, #00D9FF 100%);
+  background: linear-gradient(135deg, #8cf425 0%, #a0ff40 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -981,12 +989,12 @@
 
 .motion-control-badge {
   padding: 4px 10px;
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(0, 217, 255, 0.2));
-  border: 1px solid rgba(168, 85, 247, 0.3);
+  background: linear-gradient(135deg, rgba(140, 244, 37, 0.2), rgba(160, 255, 64, 0.2));
+  border: 1px solid rgba(140, 244, 37, 0.3);
   border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
-  color: #A855F7;
+  color: #8cf425;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1005,7 +1013,7 @@
 
 .motion-wave-icon {
   animation: motionWave 2s ease-in-out infinite;
-  color: #A855F7;
+  color: #8cf425;
 }
 
 /* Motion Control Upload Zones */
@@ -1032,13 +1040,13 @@
 }
 
 .motion-upload-zone:hover {
-  border-color: rgba(168, 85, 247, 0.5);
-  background: rgba(168, 85, 247, 0.05);
+  border-color: rgba(140, 244, 37, 0.5);
+  background: rgba(140, 244, 37, 0.05);
 }
 
 .motion-upload-zone.has-file {
   border-style: solid;
-  border-color: rgba(168, 85, 247, 0.5);
+  border-color: rgba(140, 244, 37, 0.5);
 }
 
 .motion-upload-zone::after {
@@ -1076,7 +1084,7 @@
 }
 
 .motion-upload-zone:hover .motion-upload-icon {
-  color: #A855F7;
+  color: #8cf425;
 }
 
 .motion-upload-label {
@@ -1122,7 +1130,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  background: linear-gradient(90deg, #A855F7, #00D9FF);
+  background: linear-gradient(90deg, #8cf425, #a0ff40);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1206,13 +1214,13 @@
 }
 
 .motion-resolution-btn:hover {
-  border-color: rgba(168, 85, 247, 0.5);
+  border-color: rgba(140, 244, 37, 0.5);
   color: var(--higgs-text);
 }
 
 .motion-resolution-btn.active {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(0, 217, 255, 0.15));
-  border-color: #A855F7;
+  background: linear-gradient(135deg, rgba(140, 244, 37, 0.15), rgba(160, 255, 64, 0.15));
+  border-color: #8cf425;
   color: var(--higgs-text);
 }
 

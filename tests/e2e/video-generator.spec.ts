@@ -29,16 +29,21 @@ test.describe('Video Generator UI', () => {
     await expect(page.getByRole('button', { name: '12s', exact: true })).toHaveCount(0);
   });
 
-  test('Motion Control requires motion/character inputs and camera_control', async ({ page }) => {
+  test('Motion Control shows only supported controls', async ({ page }) => {
     await page.goto('/create/studio?section=video&model=kling-motion-control');
 
     // Motion tab content
     await expect(page.getByText('Motion Video')).toBeVisible();
-    await expect(page.getByText('Your Character', { exact: true })).toBeVisible();
-    await page.getByText('Advanced Settings', { exact: true }).click();
-    await expect(page.getByText('camera_control (JSON)', { exact: true })).toBeVisible();
-    await expect(page.getByText('Image-driven')).toBeVisible();
-    await expect(page.getByText('Video-driven')).toBeVisible();
+    await expect(page.getByText('Character Image')).toBeVisible();
+    await expect(page.getByText('Character Orientation')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'image', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'video', exact: true })).toBeVisible();
+
+    // Must not show unsupported controls
+    await expect(page.getByText('Генерация звука', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('camera_control', { exact: false })).toHaveCount(0);
+    await expect(page.locator('button', { hasText: 'Длина' })).toHaveCount(0);
+    await expect(page.locator('button', { hasText: 'Формат' })).toHaveCount(0);
   });
 
   test('Kling 2.5 i2v requires start frame (UI)', async ({ page }) => {
@@ -47,9 +52,9 @@ test.describe('Video Generator UI', () => {
     await page.getByRole('button', { name: 'Изображение', exact: true }).click();
 
     await expect(page.getByText('Первый кадр', { exact: true })).toBeVisible();
-    await expect(page.getByText('Обязателен', { exact: true })).toBeVisible();
+    await expect(page.getByText('Обязателен', { exact: false })).toBeVisible();
     await expect(page.getByText('Последний кадр', { exact: true })).toBeVisible();
-    await expect(page.getByText('Опционально', { exact: true })).toBeVisible();
+    await expect(page.getByText('Опционально', { exact: false })).toBeVisible();
   });
 
   test('WAN 2.6 shows 5/10/15s and resolution options', async ({ page }) => {
@@ -82,9 +87,10 @@ test.describe('Video Generator UI', () => {
 
   test('Motion Control shows orientation limits text', async ({ page }) => {
     await page.goto('/create/studio?section=video&model=kling-motion-control');
-    await expect(page.getByText('Лимит длительности: 10с')).toBeVisible();
-    await page.getByRole('button', { name: 'Video-driven', exact: true }).click();
-    await expect(page.getByText('Лимит длительности: 30с')).toBeVisible();
+    await expect(page.getByText('Limit: 10s')).toBeVisible();
+    await expect(page.getByText('Длина берётся из референс-видео.')).toBeVisible();
+    await page.getByRole('button', { name: 'video', exact: true }).click();
+    await expect(page.getByText('Limit: 30s')).toBeVisible();
   });
 
   test('Grok Video duration selection updates to 10s', async ({ page }) => {
@@ -115,43 +121,86 @@ test.describe('Video Generator UI', () => {
     await page.locator('button', { hasText: 'Создать' }).last().click();
   });
 
-  test('Generate request payload for Motion Control includes required fields (mocked API)', async ({ page }) => {
-    await page.route('**/api/generate/video', async (route) => {
-      const body = route.request().postDataJSON() as any;
-      expect(body.model).toBe('kling-motion-control');
-      expect(body.mode).toBe('motion_control');
-      expect(body.characterOrientation).toBeTruthy();
-      expect(body.cameraControl).toBeTruthy();
-      expect(body.referenceVideo).toBeTruthy();
-      expect(body.referenceImage).toBeTruthy();
+  test('Switching away from Motion Control hides motion-specific controls', async ({ page }) => {
+    await page.goto('/create/studio?section=video&model=kling-motion-control');
+    await expect(page.getByText('Motion Video')).toBeVisible();
+
+    // Simulate model switch via URL (same flow user gets from top model switcher)
+    await page.goto('/create/studio?section=video&model=veo-3.1-fast');
+
+    await expect(page.getByText('Motion Video')).toHaveCount(0);
+    await expect(page.getByText('Character Image')).toHaveCount(0);
+    await expect(page.getByText('Character Orientation')).toHaveCount(0);
+  });
+
+  test('Mobile: Motion Control stacks upload cards in one column', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    await page.goto('/create/studio?section=video&model=kling-motion-control');
+
+    const labels = page.locator('label').filter({ hasText: /Motion Video|Character Image/ });
+    await expect(labels).toHaveCount(2);
+
+    const first = await labels.nth(0).boundingBox();
+    const second = await labels.nth(1).boundingBox();
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect((second?.y || 0) > (first?.y || 0)).toBeTruthy();
+
+    await context.close();
+  });
+
+  test('Mobile: Motion Control sends uploaded URLs, not data URLs', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+
+    await page.route('**/api/upload/voice-assets', async (route) => {
+      const body = route.request().postData() || '';
+      const isVideo = body.includes('name="type"\r\n\r\nvideo');
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, jobId: 'mock-job', status: 'queued', creditCost: 1 }),
+        body: JSON.stringify({
+          url: isVideo
+            ? 'https://cdn.example.com/motion.mp4'
+            : 'https://cdn.example.com/character.jpg',
+        }),
       });
     });
 
-    await page.goto('/create/studio?section=video&model=kling-motion-control');
+    await page.route('**/api/generate/video', async (route) => {
+      const body = route.request().postDataJSON() as any;
+      expect(body.model).toBe('kling-motion-control');
+      expect(typeof body.referenceImage).toBe('string');
+      expect(typeof body.referenceVideo).toBe('string');
+      expect(body.referenceImage.startsWith('data:')).toBe(false);
+      expect(body.referenceVideo.startsWith('data:')).toBe(false);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, jobId: 'motion-job', status: 'queued', creditCost: 1 }),
+      });
+    });
 
-    // Upload fake files to satisfy UI checks
-    const videoInput = page.locator('input[type="file"][accept="video/*"]').first();
-    await videoInput.setInputFiles({
+    const tinyPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7n7WQAAAAASUVORK5CYII=',
+      'base64'
+    );
+    const tinyMp4 = Buffer.from('AAAAIGZ0eXBpc29tAAAAAGlzb20', 'base64');
+
+    await page.goto('/create/studio?section=video&model=kling-motion-control');
+    await page.locator('input[type="file"][accept="video/*"]').setInputFiles({
       name: 'motion.mp4',
       mimeType: 'video/mp4',
-      buffer: Buffer.from('fake'),
+      buffer: tinyMp4,
     });
-
-    const imageInput = page.locator('input[type="file"][accept="image/*"]').first();
-    await imageInput.setInputFiles({
+    await page.locator('input[type="file"][accept="image/*"]').last().setInputFiles({
       name: 'character.png',
       mimeType: 'image/png',
-      buffer: Buffer.from('fake'),
+      buffer: tinyPng,
     });
+    await page.locator('button:has-text("Списать")').click();
 
-    // Open advanced settings and set camera_control
-    await page.getByText('Advanced Settings', { exact: true }).click();
-    await page.getByPlaceholder('{"key":"value"}').fill('{"pan":"left"}');
-
-    await page.locator('button', { hasText: 'Создать' }).last().click();
+    await context.close();
   });
 });

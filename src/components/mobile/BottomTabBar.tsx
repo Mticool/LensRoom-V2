@@ -34,7 +34,7 @@ export function BottomTabBar() {
   const activeTab = getActiveTab();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0F0F10]/98 backdrop-blur-xl border-t border-[#27272A]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0A0A0A]/98 backdrop-blur-xl border-t border-[rgba(255,255,255,0.08)]">
       <div
         className="flex items-center justify-around px-2"
         style={{
@@ -52,14 +52,14 @@ export function BottomTabBar() {
               onClick={() => router.push(tab.path)}
               className={`flex flex-col items-center justify-center flex-1 h-16 py-2 transition-all duration-200 active:scale-95 ${
                 isActive
-                  ? 'text-[#00D9FF]'
-                  : 'text-[#71717A] active:text-[#A1A1AA]'
+                  ? 'text-[#8cf425]'
+                  : 'text-white/40 active:text-white/60'
               }`}
             >
               <div className={`relative ${isActive ? 'scale-110' : ''} transition-transform duration-200`}>
                 <Icon className="w-5 h-5" />
                 {isActive && (
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#00D9FF]" />
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#8cf425]" />
                 )}
               </div>
               <span className={`text-[10px] mt-1 font-medium ${isActive ? 'opacity-100' : 'opacity-70'}`}>

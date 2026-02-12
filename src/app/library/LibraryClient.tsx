@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { 
   Loader2, ExternalLink, X, Download, RefreshCw, Heart, Repeat, 
   Edit3, Upload, Home, Lightbulb, Image, Video,
-  Sparkles, Grid3X3, LayoutGrid, FolderOpen
+  Sparkles, Grid3X3, LayoutGrid, FolderOpen, ArrowLeft, Search, Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,6 +18,7 @@ import { getModelById } from "@/config/models";
 import { NoGenerationsEmpty } from "@/components/ui/empty-state";
 import { GenerationGridSkeleton } from "@/components/ui/skeleton";
 import { LoginDialog } from "@/components/auth/login-dialog";
+import { cn } from "@/lib/utils";
 import {
   type LibraryItem,
   type UiStatus,
@@ -455,14 +456,62 @@ export function LibraryClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pt-20 pb-16">
-      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="min-h-screen bg-[var(--bg)] pt-20 pb-28 lg:pb-16">
+      <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-8 relative">
+        <div className="lg:hidden absolute inset-0 pointer-events-none opacity-30">
+          <div className="absolute top-[-8%] left-[-18%] w-[64%] h-[28%] bg-[#8cf425]/10 rounded-full blur-[60px]" />
+          <div className="absolute bottom-[12%] right-[-22%] w-[65%] h-[32%] bg-blue-700/15 rounded-full blur-[70px]" />
+        </div>
+
+        {/* Mobile Header */}
+        <div className="lg:hidden relative z-10 mb-5">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center text-white/75"
+              aria-label="Назад"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h1 className="text-base font-semibold tracking-wide text-white/90">Мои работы</h1>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center text-white/75 disabled:opacity-50"
+              aria-label="Поиск и обновление"
+            >
+              {refreshing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            </button>
+          </div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(12,14,18,0.88))] backdrop-blur-xl p-1.5">
+            <div className="grid grid-cols-3 gap-1">
+              {[
+                { id: 'all', label: 'Все' },
+                { id: 'video', label: 'Видео' },
+                { id: 'photo', label: 'Фото' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setFilter(f.id as typeof filter)}
+                  className={cn(
+                    'h-9 rounded-xl text-sm font-medium transition-colors',
+                    filter === f.id ? 'bg-[#8cf425] text-black' : 'text-white/70'
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
         
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-8 hidden lg:block"
         >
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
             <div>
@@ -585,8 +634,8 @@ export function LibraryClient() {
               animate={{ opacity: 1 }}
               className={`grid gap-3 ${
                 gridSize === 'small'
-                  ? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7'
-                  : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
+                  ? 'grid-cols-2 lg:grid-cols-6 xl:grid-cols-7'
+                  : 'grid-cols-2 lg:grid-cols-5'
               }`}
             >
               {grid.map(({ item, st, isVideo, progress }, i) => {
@@ -602,7 +651,7 @@ export function LibraryClient() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.02 }}
-                    className="group rounded-xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden hover:border-[var(--gold)]/30 transition-all"
+                    className="group rounded-[18px] lg:rounded-xl bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(12,14,18,0.88))] lg:bg-[var(--surface)] border border-white/10 lg:border-[var(--border)] overflow-hidden shadow-[0_0_26px_-18px_rgba(140,244,37,0.45)] lg:shadow-none lg:hover:border-[var(--gold)]/30 transition-all"
                     onClick={() => {
                       if (!hasContent) return;
                       setSelected(item);
@@ -669,7 +718,7 @@ export function LibraryClient() {
                         className={`absolute top-2 right-2 p-1.5 rounded-lg transition-all ${
                           isFav
                             ? 'bg-rose-500 text-white'
-                            : 'bg-black/50 text-white/70 opacity-0 group-hover:opacity-100'
+                            : 'bg-black/50 text-white/70 opacity-100 lg:opacity-0 lg:group-hover:opacity-100'
                         }`}
                       >
                         <Heart className={`w-3 h-3 ${isFav ? 'fill-current' : ''}`} />
@@ -677,7 +726,7 @@ export function LibraryClient() {
 
                       {/* Hover overlay */}
                       {hasContent && (
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex items-center justify-center gap-2">
                           <button
                             onClick={(e) => { e.stopPropagation(); setSelected(item); setSelectedIndex(0); setOpen(true); }}
                             className="p-2 rounded-lg bg-white text-black hover:bg-white/90"
@@ -717,8 +766,8 @@ export function LibraryClient() {
 
                     {/* Info */}
                     <div className="p-2">
-                      <p className="text-xs font-medium text-[var(--text)] truncate">{item.model_name || "—"}</p>
-                      <p className="text-[10px] text-[var(--muted)] truncate mt-0.5">{item.prompt || ""}</p>
+                      <p className="text-xs font-medium text-white lg:text-[var(--text)] truncate">{item.model_name || "—"}</p>
+                      <p className="text-[10px] text-white/45 lg:text-[var(--muted)] truncate mt-0.5">{item.prompt || ""}</p>
                     </div>
                   </motion.div>
                 );
@@ -742,6 +791,16 @@ export function LibraryClient() {
             )}
           </>
         )}
+      </div>
+
+      <div className="lg:hidden fixed left-4 right-4 z-40" style={{ bottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <Button
+          onClick={() => navigateWithFallback(router, '/create/studio?section=video')}
+          className="w-full h-12 rounded-2xl bg-[#8cf425] text-black hover:bg-[#9aff3f] font-semibold shadow-[0_12px_35px_-20px_rgba(140,244,37,0.95)]"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Создать
+        </Button>
       </div>
 
       {/* Viewer Modal */}

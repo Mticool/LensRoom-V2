@@ -1,14 +1,12 @@
 @import "tailwindcss";
 
-/* ===== FREEPIK-STYLE THEME TOKENS ===== */
-/* 
- * Palette inspired by ru.freepik.com
- * - Font: Inter (clean, modern, highly readable)
- * - Dark theme: deep slate-gray backgrounds, NOT pure black
- * - Light theme: clean whites and soft grays
- * - Accent: cyan/teal (#00D9FF) + violet (#7C3AED) gradient
- * - Radius: modern rounded corners (12-16px)
- * - Shadows: soft, layered for depth
+/* ===== LENSROOM DESIGN SYSTEM ===== */
+/*
+ * Desktop: Lime (#8cf425) accent, slate-gray backgrounds (#0D1117)
+ * Mobile (<768px): Lime (#8cf425) accent, pure black (#0A0A0A), Space Grotesk
+ * Light theme: Lime (#B8E600) accent, white backgrounds
+ * Font: Inter (desktop), Space Grotesk (mobile headings)
+ * Radius: 12-16px, Shadows: soft layered
  */
 
 :root {
@@ -27,8 +25,8 @@
   /* Borders - subtle but visible */
   --border: rgba(240, 246, 252, 0.10);
   --border-hover: rgba(240, 246, 252, 0.18);
-  --border-strong: rgba(245, 158, 11, 0.35);
-  
+  --border-strong: rgba(140, 244, 37, 0.35);
+
   /* Text - high contrast for readability */
   --text: #F0F6FC;            /* Primary text - off-white */
   --text2: #E6EDF3;           /* Secondary text */
@@ -39,8 +37,8 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 60px rgba(245, 158, 11, 0.15);
-  
+  --shadow-glow: 0 0 60px rgba(140, 244, 37, 0.15);
+
   /* Border radius - modern rounded */
   --radius-xs: 6px;
   --radius-sm: 10px;
@@ -48,45 +46,45 @@
   --radius-lg: 18px;
   --radius-xl: 24px;
   --radius-2xl: 32px;
-  
+
   /* Drag and drop zone */
-  --drag-over-border: rgba(245, 158, 11, 0.5);
-  --drag-over-bg: rgba(245, 158, 11, 0.05);
-  
+  --drag-over-border: rgba(140, 244, 37, 0.5);
+  --drag-over-bg: rgba(140, 244, 37, 0.05);
+
   /* Glass effect */
   --glass-bg: rgba(13, 17, 23, 0.85);
-  
-  /* ========== ACCENT COLORS (Amber/Gold style) ========== */
-  /* Primary: Amber/Orange-gold */
-  --accent-primary: #f59e0b;
-  --accent-primary-hover: #fbbf24;
-  --accent-primary-muted: #d97706;
-  --accent-primary-dim: rgba(245, 158, 11, 0.70);
-  
+
+  /* ========== DESKTOP ACCENT COLORS (Lime) ========== */
+  /* Primary: Lime green */
+  --accent-primary: #8cf425;
+  --accent-primary-hover: #a3ff4d;
+  --accent-primary-muted: #6bbf1a;
+  --accent-primary-dim: rgba(140, 244, 37, 0.70);
+
   /* Secondary: Cyan for variety */
   --accent-secondary: #00D9FF;
   --accent-secondary-hover: #33E1FF;
-  
+
   /* Tertiary: Violet */
   --accent-tertiary: #8b5cf6;
-  
-  /* Gradient - amber-dominant */
-  --accent-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  --accent-gradient-vibrant: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #d97706 100%);
-  --accent-gradient-glow: linear-gradient(135deg, #f59e0b 0%, #8b5cf6 100%);
-  --accent-subtle: rgba(245, 158, 11, 0.12);
+
+  /* Gradient - lime-dominant */
+  --accent-gradient: linear-gradient(135deg, #8cf425 0%, #6bbf1a 100%);
+  --accent-gradient-vibrant: linear-gradient(135deg, #8cf425 0%, #a3ff4d 50%, #6bbf1a 100%);
+  --accent-gradient-glow: linear-gradient(135deg, #8cf425 0%, #8b5cf6 100%);
+  --accent-subtle: rgba(140, 244, 37, 0.12);
   
   /* Legacy support */
   --gold: var(--accent-primary);
   --gold-hover: var(--accent-primary-hover);
   
-  /* ========== BUTTON COLORS (Higgsfield lime) ========== */
+  /* ========== BUTTON COLORS (inherits accent) ========== */
   --btn-primary-bg: var(--accent-primary);
   --btn-primary-bg-hover: var(--accent-primary-hover);
   --btn-primary-text: #0D1117;
-  --btn-secondary-bg: rgba(245, 158, 11, 0.08);
+  --btn-secondary-bg: rgba(140, 244, 37, 0.08);
   --btn-secondary-text: var(--accent-primary);
-  --btn-secondary-border: rgba(245, 158, 11, 0.20);
+  --btn-secondary-border: rgba(140, 244, 37, 0.20);
   
   /* ========== SEMANTIC COLORS ========== */
   --success: #2EA043;
@@ -118,33 +116,33 @@ html[data-theme="dark"] {
   
   --border: rgba(240, 246, 252, 0.10);
   --border-hover: rgba(240, 246, 252, 0.18);
-  --border-strong: rgba(245, 158, 11, 0.35);
-  
+  --border-strong: rgba(140, 244, 37, 0.35);
+
   --text: #F0F6FC;
   --text2: #E6EDF3;
   --muted: #8B949E;
   --muted-light: #B1BAC4;
-  
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 60px rgba(245, 158, 11, 0.15);
-  
+  --shadow-glow: 0 0 60px rgba(140, 244, 37, 0.15);
+
   --glass-bg: rgba(13, 17, 23, 0.85);
-  
-  --accent-primary: #f59e0b;
-  --accent-primary-hover: #fbbf24;
+
+  --accent-primary: #8cf425;
+  --accent-primary-hover: #a3ff4d;
   --accent-secondary: #00D9FF;
   --accent-tertiary: #8b5cf6;
-  --accent-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  --accent-subtle: rgba(245, 158, 11, 0.12);
-  
+  --accent-gradient: linear-gradient(135deg, #8cf425 0%, #6bbf1a 100%);
+  --accent-subtle: rgba(140, 244, 37, 0.12);
+
   --gold: var(--accent-primary);
   --gold-hover: var(--accent-primary-hover);
-  
+
   --btn-primary-bg: var(--accent-primary);
   --btn-primary-text: #0D1117;
-  --btn-secondary-bg: rgba(245, 158, 11, 0.08);
+  --btn-secondary-bg: rgba(140, 244, 37, 0.08);
   --btn-secondary-text: var(--accent-primary);
   
   color-scheme: dark;
@@ -181,9 +179,9 @@ html[data-theme="light"] {
   
   --glass-bg: rgba(255, 255, 255, 0.92);
   
-  /* Accent colors - Higgsfield lime (slightly darker for light bg) */
+  /* Accent colors - Lime green (adjusted for light bg) */
   --accent-primary: #B8E600;
-  --accent-primary-hover: #f59e0b;
+  --accent-primary-hover: #D4FF00;
   --accent-secondary: #00B4D8;
   --accent-tertiary: #0891B2;
   --accent-gradient: linear-gradient(135deg, #B8E600 0%, #8FB800 100%);
@@ -212,7 +210,7 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 
-/* ========== TAILWIND THEME TOKENS (Higgsfield cyan) ========== */
+/* ========== TAILWIND THEME TOKENS (Desktop) ========== */
 @theme {
   /* Background colors - aligned with dark tokens */
   --color-bg-primary: #0D1117;
@@ -225,15 +223,10 @@ html[data-theme="light"] {
   --color-text-secondary: #E6EDF3;
   --color-text-tertiary: #8B949E;
   
-  /* Brand accent - Higgsfield lime */
-  --color-gold: #f59e0b;
-  --color-gold-hover: #fbbf24;
-  --color-gold-muted: #d97706;
-  
-  /* Lime palette */
-  --color-lime-400: #fbbf24;
-  --color-lime-500: #f59e0b;
-  --color-lime-600: #d97706;
+  /* Brand accent - Lime (desktop) */
+  --color-gold: #8cf425;
+  --color-gold-hover: #a3ff4d;
+  --color-gold-muted: #6bbf1a;
   
   /* Cyan palette (secondary) */
   --color-cyan-400: #22D3EE;
@@ -275,7 +268,7 @@ body {
   color: var(--text);
   max-width: 100%;
   overflow-x: hidden;
-  /* Subtle Freepik-like depth (no heavy noise, just a soft gradient wash) */
+  /* Subtle ambient depth gradient */
   background-image:
     radial-gradient(900px 500px at 15% 10%, rgba(0, 217, 255, 0.10), transparent 55%),
     radial-gradient(900px 500px at 85% 20%, rgba(124, 58, 237, 0.10), transparent 55%),
@@ -409,12 +402,12 @@ html.tg-webview body {
 }
 
 ::selection {
-  background-color: rgba(0, 217, 255, 0.3); /* Freepik cyan */
+  background-color: rgba(0, 217, 255, 0.3); /* Selection highlight */
   color: var(--text);
 }
 
 ::-moz-selection {
-  background-color: rgba(0, 217, 255, 0.3); /* Freepik cyan */
+  background-color: rgba(0, 217, 255, 0.3); /* Selection highlight */
   color: var(--text);
 }
 
@@ -498,7 +491,7 @@ html.tg-webview body {
   transition: transform 0.3s ease, opacity 0.2s ease;
 }
 
-/* ===== FREEPIK PIKASO STYLE BUTTONS ===== */
+/* ===== BUTTON ANIMATIONS ===== */
 
 /* Smooth button base */
 .btn-smooth {
@@ -719,12 +712,168 @@ html.tg-webview body {
   
   /* Drag and drop zone styles */
   .drag-drop-zone.drag-over {
-    border-color: rgba(245, 158, 11, 0.5) !important;
-    background-color: rgba(245, 158, 11, 0.05) !important;
+    border-color: rgba(140, 244, 37, 0.5) !important;
+    background-color: rgba(140, 244, 37, 0.05) !important;
   }
-  
+
   .drag-drop-zone.drag-over > div {
-    color: rgba(245, 158, 11, 0.8) !important;
+    color: rgba(140, 244, 37, 0.8) !important;
+  }
+}
+
+/* ========== MOBILE REDESIGN THEME (Lime-Green Accent) ========== */
+/* Scoped to mobile only (<768px). Desktop remains amber/gold. */
+@media (max-width: 767px) {
+  :root {
+    /* Background: Pure black with dark surface */
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --surface2: #1A1A1A;
+    --surface3: #222222;
+    --surface-glass: rgba(20, 20, 20, 0.90);
+
+    /* Borders: glass-morphism style */
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.15);
+    --border-strong: rgba(140, 244, 37, 0.35);
+
+    /* Text */
+    --text: #FFFFFF;
+    --text2: #E0E0E0;
+    --muted: #8B8B8B;
+    --muted-light: #A0A0A0;
+
+    /* Shadows: Neon glow */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 20px -5px rgba(140, 244, 37, 0.5);
+
+    /* Border radius: Larger, rounder */
+    --radius-xs: 8px;
+    --radius-sm: 12px;
+    --radius: 16px;
+    --radius-lg: 24px;
+    --radius-xl: 32px;
+    --radius-2xl: 40px;
+
+    /* Primary accent: Lime green */
+    --accent-primary: #8cf425;
+    --accent-primary-hover: #a0ff40;
+    --accent-primary-muted: #6bc41a;
+    --accent-primary-dim: rgba(140, 244, 37, 0.70);
+    --accent-secondary: #00D9FF;
+    --accent-tertiary: #8b5cf6;
+
+    /* Gradient */
+    --accent-gradient: linear-gradient(135deg, #8cf425 0%, #6bc41a 100%);
+    --accent-gradient-vibrant: linear-gradient(135deg, #8cf425 0%, #a0ff40 50%, #6bc41a 100%);
+    --accent-subtle: rgba(140, 244, 37, 0.12);
+
+    /* Legacy */
+    --gold: #8cf425;
+    --gold-hover: #a0ff40;
+
+    /* Buttons */
+    --btn-primary-bg: #8cf425;
+    --btn-primary-bg-hover: #a0ff40;
+    --btn-primary-text: #0A0A0A;
+    --btn-secondary-bg: rgba(140, 244, 37, 0.08);
+    --btn-secondary-text: #8cf425;
+    --btn-secondary-border: rgba(140, 244, 37, 0.20);
+
+    /* Glass morphism */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+
+    /* Drag and drop */
+    --drag-over-border: rgba(140, 244, 37, 0.5);
+    --drag-over-bg: rgba(140, 244, 37, 0.05);
+
+    /* Typography: Space Grotesk for latin, Inter fallback for cyrillic */
+    --font-display: 'Space Grotesk', var(--font-space-grotesk), Inter, -apple-system, sans-serif;
+  }
+
+  /* Override body background for mobile */
+  body {
+    background-color: #0A0A0A;
+    background-image: none;
+  }
+
+  /* Decorative ambient gradient blurs */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -20%;
+    left: -15%;
+    width: 60%;
+    height: 50%;
+    background: radial-gradient(circle, rgba(140, 244, 37, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -20%;
+    right: -15%;
+    width: 60%;
+    height: 50%;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Apply Space Grotesk for headings on mobile (latin chars) */
+  h1, h2, h3, .mobile-display-font {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Glass panel utility for mobile */
+  .glass-panel-mobile {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Neon glow shadow utility */
+  .shadow-neon {
+    box-shadow: 0 0 20px -5px rgba(140, 244, 37, 0.5);
+  }
+
+  .shadow-neon-hover:hover {
+    box-shadow: 0 0 30px -5px rgba(140, 244, 37, 0.7);
+  }
+
+  /* Override drag-drop zone for mobile lime theme */
+  .drag-drop-zone.drag-over {
+    border-color: rgba(140, 244, 37, 0.5) !important;
+    background-color: rgba(140, 244, 37, 0.05) !important;
+  }
+
+  .drag-drop-zone.drag-over > div {
+    color: rgba(140, 244, 37, 0.8) !important;
+  }
+
+  /* Text selection highlight — lime on mobile */
+  ::selection {
+    background-color: rgba(140, 244, 37, 0.3);
+  }
+  ::-moz-selection {
+    background-color: rgba(140, 244, 37, 0.3);
+  }
+}
+
+/* Backdrop blur fallback for reduced-motion / low-power devices */
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .glass-panel-mobile {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(10, 10, 10, 0.95);
   }
 }
 
@@ -785,7 +934,7 @@ div.higgs-grid,
 .higgs-gallery-item:hover {
   transform: scale(1.02) translateZ(0);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
-  border-color: rgba(204, 255, 0, 0.25);
+  border-color: rgba(140, 244, 37, 0.25);
 }
 
 .higgs-gallery-item[data-aspect="1:1"] { aspect-ratio: 1 / 1; }

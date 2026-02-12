@@ -99,7 +99,7 @@ export function ModelSelector({ value, onChange, disabled, direction = 'up' }: M
                 className={`
                   w-full px-3 py-3 text-left transition-colors flex items-start gap-3 border-b border-[#2A2A2C] last:border-0
                   ${model.id === value 
-                    ? 'bg-[#f59e0b]/10 text-[#f59e0b]' 
+                    ? 'bg-[#8cf425]/10 text-[#8cf425]' 
                     : 'text-white hover:bg-[#2A2A2C]'
                   }
                 `}
@@ -108,7 +108,7 @@ export function ModelSelector({ value, onChange, disabled, direction = 'up' }: M
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="text-sm font-medium truncate">{model.name}</span>
-                    <span className="text-xs font-semibold text-[#f59e0b] flex items-center gap-0.5">
+                    <span className="text-xs font-semibold text-[#8cf425] flex items-center gap-0.5">
                       {pricingLabel}
                     </span>
                   </div>

@@ -29,10 +29,10 @@ export function AdvancedSettingsCollapse({
   };
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-4 rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.03)] backdrop-blur-xl p-3">
       {/* Negative Prompt */}
       <div className="space-y-1">
-        <label className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
+        <label className="text-[10px] font-semibold text-white/45 uppercase tracking-[0.18em]">
           Negative Prompt
         </label>
         <textarea
@@ -42,9 +42,9 @@ export function AdvancedSettingsCollapse({
           placeholder="Что исключить..."
           className={`
             w-full px-2.5 py-1.5 rounded-lg resize-none
-            text-[11px] text-white/80 placeholder:text-white/25
-            bg-white/5 border-none outline-none
-            focus:outline-none focus:ring-0 focus:bg-white/8
+            text-[11px] text-white/85 placeholder:text-white/25
+            bg-black/35 border border-white/10 outline-none
+            focus:outline-none focus:ring-1 focus:ring-[#8cf425]/40 focus:border-[#8cf425]/40
             transition-colors
             ${disabled ? 'opacity-40 cursor-not-allowed' : ''}
           `}
@@ -56,7 +56,7 @@ export function AdvancedSettingsCollapse({
         {/* Seed */}
         {onSeedChange !== undefined && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-white/40 uppercase tracking-wider flex items-center gap-1">
+            <label className="text-[10px] font-semibold text-white/45 uppercase tracking-[0.18em] flex items-center gap-1">
               <Hash className="w-3 h-3" />
               Seed
             </label>
@@ -72,9 +72,9 @@ export function AdvancedSettingsCollapse({
                 placeholder="Random"
                 className={`
                   flex-1 px-2.5 py-1.5 rounded-lg
-                  text-[11px] text-white/80 placeholder:text-white/25
-                  bg-white/5 border-none outline-none
-                  focus:outline-none focus:ring-0 focus:bg-white/8
+                  text-[11px] text-white/85 placeholder:text-white/25
+                  bg-black/35 border border-white/10 outline-none
+                  focus:outline-none focus:ring-1 focus:ring-[#8cf425]/40 focus:border-[#8cf425]/40
                   transition-colors
                   ${disabled ? 'opacity-40 cursor-not-allowed' : ''}
                 `}
@@ -85,8 +85,8 @@ export function AdvancedSettingsCollapse({
                 className={`
                   px-2 py-1.5 rounded-lg transition-colors
                   ${disabled
-                    ? 'bg-white/3 text-white/20 cursor-not-allowed'
-                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80'
+                    ? 'bg-white/3 text-white/20 cursor-not-allowed border border-white/10'
+                    : 'bg-white/5 text-white/60 hover:bg-[#8cf425]/20 hover:text-[#8cf425] border border-white/10 hover:border-[#8cf425]/35'
                   }
                 `}
                 title="Random seed"
@@ -100,7 +100,7 @@ export function AdvancedSettingsCollapse({
         {/* Steps */}
         {onStepsChange !== undefined && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
+            <label className="text-[10px] font-semibold text-white/45 uppercase tracking-[0.18em]">
               Steps
             </label>
             <input
@@ -117,9 +117,9 @@ export function AdvancedSettingsCollapse({
               max={100}
               className={`
                 w-full px-2.5 py-1.5 rounded-lg
-                text-[11px] text-white/80 placeholder:text-white/25
-                bg-white/5 border-none outline-none
-                focus:outline-none focus:ring-0 focus:bg-white/8
+                text-[11px] text-white/85 placeholder:text-white/25
+                bg-black/35 border border-white/10 outline-none
+                focus:outline-none focus:ring-1 focus:ring-[#8cf425]/40 focus:border-[#8cf425]/40
                 transition-colors
                 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}
               `}
@@ -128,7 +128,7 @@ export function AdvancedSettingsCollapse({
         )}
       </div>
 
-      <p className="text-[10px] text-white/25 leading-relaxed">
+      <p className="text-[10px] text-white/28 leading-relaxed">
         Negative prompt исключает нежелательные элементы, seed даёт повторяемый результат
       </p>
     </div>

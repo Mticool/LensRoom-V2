@@ -1550,7 +1550,7 @@ export function StudioWorkspaces({ fillViewport }: { fillViewport?: boolean } = 
                   <button type="button" onClick={handleViewerToggleFavorite} className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm">
                     <Heart className={`w-4 h-4 ${viewerImage?.id && isFavoriteId(viewerImage.id) ? "text-rose-400" : "text-white"}`} /> В избранное
                   </button>
-                  <button type="button" onClick={handleViewerRecreate} className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-[#f59e0b] text-black font-semibold text-sm hover:bg-[#fbbf24] col-span-2">
+                  <button type="button" onClick={handleViewerRecreate} className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-[#8cf425] text-black font-semibold text-sm hover:bg-[#a3ff4d] col-span-2">
                     <RotateCcw className="w-4 h-4" /> Пересоздать заново
                   </button>
                   <button type="button" onClick={handleViewerUseAsReference} disabled={!supportsI2i} className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm col-span-2 disabled:opacity-50">

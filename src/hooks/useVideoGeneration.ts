@@ -215,8 +215,8 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
           requestBody.referenceImage = params.characterImage;
           if (params.characterOrientation) requestBody.characterOrientation = params.characterOrientation;
           if (params.videoDuration != null) requestBody.videoDuration = params.videoDuration;
+          if (params.motionSeconds != null) requestBody.motionSeconds = params.motionSeconds;
           if (params.quality) requestBody.resolution = params.quality;
-          if (params.cameraControl) requestBody.cameraControl = params.cameraControl;
         }
         if (params.cfgScale !== undefined) {
           requestBody.cfgScale = params.cfgScale;
@@ -297,6 +297,15 @@ export function useVideoGeneration(options: UseVideoGenerationOptions = {}): Use
 
         if (params.soundPreset && params.soundPreset.trim()) {
           requestBody.soundPreset = params.soundPreset;
+        }
+        if (params.multiPrompt && params.multiPrompt.length > 0) {
+          requestBody.multiPrompt = params.multiPrompt;
+        }
+        if (params.shotType) {
+          requestBody.shotType = params.shotType;
+        }
+        if (typeof params.generateAudio === 'boolean') {
+          requestBody.generateAudio = params.generateAudio;
         }
 
         // Call API

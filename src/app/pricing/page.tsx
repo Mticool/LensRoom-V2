@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { 
-  Star, Loader2, Check, ChevronDown, ChevronRight,
-  Zap, Crown, Rocket, Shield, Clock, Sparkles
+  Star, Loader2, Check, ChevronRight,
+  Zap, Crown, Rocket, Shield, Clock, Sparkles, ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
+import { useCreditsStore } from '@/stores/credits-store';
 import { 
   SUBSCRIPTION_TIERS, 
   COMPARISON_TABLE,
@@ -21,13 +23,24 @@ import { toast } from 'sonner';
 import { LoginDialog } from '@/components/auth/login-dialog';
 
 export default function PricingPage() {
+  const router = useRouter();
   const { user } = useAuth();
+  const { balance, fetchBalance } = useCreditsStore();
   const [loading, setLoading] = useState<string | null>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [activePlanIndex, setActivePlanIndex] = useState(1);
-  const [mobileAccordion, setMobileAccordion] = useState<string | null>(null);
-  const sliderRef = useRef<HTMLDivElement>(null);
   const comparisonRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
+
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push('/create/studio?section=video');
+  };
 
   const scrollToComparison = () => {
     comparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -70,177 +83,112 @@ export default function PricingPage() {
     }
   };
 
-  const scrollToPlan = (index: number) => {
-    if (sliderRef.current) {
-      const planWidth = sliderRef.current.scrollWidth / SUBSCRIPTION_TIERS.length;
-      sliderRef.current.scrollTo({ left: planWidth * index, behavior: 'smooth' });
-      setActivePlanIndex(index);
-    }
-  };
-
   const planIcons = { start: Zap, pro: Crown, max: Rocket };
   const planColors = {
     start: 'from-zinc-500/20 to-zinc-800/10',
-    pro: 'from-amber-500/20 to-amber-900/10',
+    pro: 'from-lime-500/20 to-lime-900/10',
     max: 'from-violet-500/20 to-violet-900/10',
   };
 
   return (
     <div className="min-h-screen bg-[#09090B]">
-      {/* Hero */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent" />
-        
-        <div className="container mx-auto px-4 pt-20 pb-10 relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
-              Выберите тариф
-            </h1>
-            <p className="text-lg text-zinc-400 max-w-xl mx-auto">
-              Все нейросети. Одна подписка. Прозрачные цены.
+      {/* Mobile redesign */}
+      <div className="lg:hidden relative overflow-hidden px-4 pt-4 pb-8">
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[36%] bg-[#8cf425]/15 rounded-full blur-[70px]" />
+          <div className="absolute bottom-[-16%] right-[-12%] w-[72%] h-[42%] bg-blue-700/15 rounded-full blur-[90px]" />
+        </div>
+
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="h-9 w-9 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center text-white/75"
+              aria-label="Назад"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <p className="text-[11px] tracking-[0.22em] uppercase text-white/55">Balance</p>
+            <div className="px-3 py-1 rounded-full border border-[#8cf425]/30 bg-[#8cf425]/10 text-[#c6ff85] text-sm font-semibold">
+              {balance}⭐
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))] backdrop-blur-xl p-5 mb-4">
+            <h1 className="text-2xl font-semibold text-white leading-tight">Подписка LensRoom</h1>
+            <p className="text-sm text-white/60 mt-2">
+              Выбери тариф и получай ⭐ каждый месяц без изменения текущей логики оплаты.
             </p>
-          </motion.div>
-
-          {/* Trust */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="flex flex-wrap justify-center gap-6 mb-10 text-sm text-zinc-500"
-          >
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              <span>Возврат 14 дней</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>Отмена в любой момент</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              <span>Обновления каждую неделю</span>
-            </div>
-          </motion.div>
-
-          {/* Mobile dots */}
-          <div className="flex lg:hidden justify-center gap-2 mb-4">
-            {SUBSCRIPTION_TIERS.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => scrollToPlan(index)}
-                className={cn(
-                  "w-2 h-2 rounded-full transition-all",
-                  activePlanIndex === index ? "bg-white w-6" : "bg-zinc-700"
-                )}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Plans */}
-      <div className="container mx-auto px-4 pb-16">
-        {/* Mobile Slider */}
-        <div
-          ref={sliderRef}
-          className="lg:hidden flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4"
-          style={{ scrollbarWidth: 'none' }}
-          onScroll={(e) => {
-            const target = e.target as HTMLDivElement;
-            const index = Math.round(target.scrollLeft / (target.scrollWidth / SUBSCRIPTION_TIERS.length));
-            setActivePlanIndex(index);
-          }}
-        >
-          {SUBSCRIPTION_TIERS.map((plan, index) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              index={index}
-              loading={loading}
-              onPurchase={handlePurchase}
-              planIcons={planIcons}
-              planColors={planColors}
-              isMobile={true}
-              onCompare={scrollToComparison}
-            />
-          ))}
-        </div>
-
-        {/* Desktop Grid */}
-        <div className="hidden lg:grid grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {SUBSCRIPTION_TIERS.map((plan, index) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              index={index}
-              loading={loading}
-              onPurchase={handlePurchase}
-              planIcons={planIcons}
-              planColors={planColors}
-              isMobile={false}
-              onCompare={scrollToComparison}
-            />
-          ))}
-        </div>
-
-        {/* Footnotes under plans */}
-        <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
-          <p className="text-zinc-400 font-medium">Дисклеймер «Бесплатно*»</p>
-          {PRICING_FOOTNOTES.map((note, i) => (
-            <p key={i}>{note}</p>
-          ))}
-        </div>
-      </div>
-
-      {/* Comparison Table */}
-      <div ref={comparisonRef} className="border-t border-zinc-800/50 bg-zinc-900/30">
-        <div className="container mx-auto px-4 py-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-10"
-          >
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-              Сравнение тарифов
-            </h2>
-            <p className="text-zinc-400">Полный список возможностей</p>
-          </motion.div>
-
-          {/* Desktop Table */}
-          <div className="hidden md:block max-w-4xl mx-auto">
-            <ComparisonTableDesktop rows={COMPARISON_TABLE} />
           </div>
 
-          {/* Mobile Accordion */}
-          <div className="md:hidden space-y-2">
-            <MobileAccordion
-              title="Общее"
-              rows={COMPARISON_TABLE.filter(r => r.category === 'general')}
-              isOpen={mobileAccordion === 'general'}
-              onToggle={() => setMobileAccordion(mobileAccordion === 'general' ? null : 'general')}
-            />
-            <MobileAccordion
-              title="Видео модели"
-              rows={COMPARISON_TABLE.filter(r => r.category === 'video')}
-              isOpen={mobileAccordion === 'video'}
-              onToggle={() => setMobileAccordion(mobileAccordion === 'video' ? null : 'video')}
-            />
-            <MobileAccordion
-              title="Фото модели"
-              rows={COMPARISON_TABLE.filter(r => r.category === 'image')}
-              isOpen={mobileAccordion === 'image'}
-              onToggle={() => setMobileAccordion(mobileAccordion === 'image' ? null : 'image')}
-            />
+          <div className="space-y-3">
+            {SUBSCRIPTION_TIERS.map((plan) => {
+              const Icon = planIcons[plan.id as keyof typeof planIcons] || Zap;
+              const isLoading = loading === plan.id;
+              const isPopular = !!plan.popular;
+
+              return (
+                <div
+                  key={plan.id}
+                  className={cn(
+                    'rounded-[22px] border p-4 backdrop-blur-xl',
+                    isPopular
+                      ? 'border-[#8cf425]/45 bg-[linear-gradient(145deg,rgba(29,52,14,0.55),rgba(10,12,14,0.9))]'
+                      : 'border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(12,14,18,0.88))]'
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        'h-9 w-9 rounded-full flex items-center justify-center',
+                        isPopular ? 'bg-[#8cf425]/20 text-[#baff66]' : 'bg-white/10 text-white/70'
+                      )}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold tracking-wide">{plan.name}</div>
+                        <div className="text-xs text-white/50">+{plan.stars.toLocaleString()}⭐ / мес</div>
+                      </div>
+                    </div>
+                    {isPopular ? (
+                      <span className="px-2 py-1 rounded-full text-[10px] uppercase tracking-wider bg-[#8cf425]/20 text-[#baff66]">
+                        Popular
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-end gap-1 mt-3">
+                    <span className="text-3xl font-semibold text-white">{formatPrice(plan.price)}</span>
+                    <span className="text-sm text-white/55 mb-1">₽ / месяц</span>
+                  </div>
+
+                  <ul className="mt-3 space-y-1.5">
+                    {plan.highlights.slice(0, 3).map((item) => (
+                      <li key={item} className="text-xs text-white/70 flex items-start gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#8cf425] mt-0.5 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    onClick={() => handlePurchase(plan.id)}
+                    disabled={isLoading}
+                    className={cn(
+                      'mt-4 w-full h-11 rounded-xl font-semibold',
+                      isPopular ? 'bg-[#8cf425] text-black hover:bg-[#9aff3f]' : 'bg-white text-black hover:bg-white/90'
+                    )}
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Купить ${plan.name}`}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Footnotes under table */}
-          <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
-            <p className="text-zinc-400 font-medium">Дисклеймер «Бесплатно*»</p>
+          <div className="mt-4 text-[11px] text-white/45 space-y-1">
+            <p className="text-white/60 font-medium">Примечание</p>
             {PRICING_FOOTNOTES.map((note, i) => (
               <p key={i}>{note}</p>
             ))}
@@ -248,8 +196,102 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* FAQ */}
-      <FAQ />
+      {/* Desktop layout */}
+      <div className="hidden lg:block">
+        {/* Hero */}
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent" />
+          
+          <div className="container mx-auto px-4 pt-20 pb-10 relative">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-8"
+            >
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
+                Выберите тариф
+              </h1>
+              <p className="text-lg text-zinc-400 max-w-xl mx-auto">
+                Все нейросети. Одна подписка. Прозрачные цены.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="flex flex-wrap justify-center gap-6 mb-10 text-sm text-zinc-500"
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                <span>Возврат 14 дней</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span>Отмена в любой момент</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Обновления каждую неделю</span>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 pb-16">
+          <div className="grid grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {SUBSCRIPTION_TIERS.map((plan, index) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                index={index}
+                loading={loading}
+                onPurchase={handlePurchase}
+                planIcons={planIcons}
+                planColors={planColors}
+                isMobile={false}
+                onCompare={scrollToComparison}
+              />
+            ))}
+          </div>
+
+          <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
+            <p className="text-zinc-400 font-medium">Дисклеймер «Бесплатно*»</p>
+            {PRICING_FOOTNOTES.map((note, i) => (
+              <p key={i}>{note}</p>
+            ))}
+          </div>
+        </div>
+
+        <div ref={comparisonRef} className="border-t border-zinc-800/50 bg-zinc-900/30">
+          <div className="container mx-auto px-4 py-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-10"
+            >
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                Сравнение тарифов
+              </h2>
+              <p className="text-zinc-400">Полный список возможностей</p>
+            </motion.div>
+
+            <div className="max-w-4xl mx-auto">
+              <ComparisonTableDesktop rows={COMPARISON_TABLE} />
+            </div>
+
+            <div className="max-w-3xl mx-auto mt-8 text-xs text-zinc-500 space-y-1">
+              <p className="text-zinc-400 font-medium">Дисклеймер «Бесплатно*»</p>
+              {PRICING_FOOTNOTES.map((note, i) => (
+                <p key={i}>{note}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <FAQ />
+      </div>
 
       <LoginDialog isOpen={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
 
@@ -291,12 +333,12 @@ function PlanCard({ plan, index, loading, onPurchase, planIcons, planColors, isM
           "bg-gradient-to-b border",
           gradient,
           isPopular 
-            ? "border-amber-500/50 shadow-lg shadow-amber-500/10" 
+            ? "border-lime-500/50 shadow-lg shadow-lime-500/10" 
             : "border-zinc-800"
         )}
       >
         {isPopular && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-amber-500 text-black text-xs font-bold rounded-full">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-lime-500 text-black text-xs font-bold rounded-full">
             Популярный
           </div>
         )}
@@ -304,9 +346,9 @@ function PlanCard({ plan, index, loading, onPurchase, planIcons, planColors, isM
         <div className={cn("text-center mb-5", isPopular && "pt-2")}>
           <div className={cn(
             "w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3",
-            isPopular ? "bg-amber-500/20" : "bg-zinc-800"
+            isPopular ? "bg-lime-500/20" : "bg-zinc-800"
           )}>
-            <Icon className={cn("w-6 h-6", isPopular ? "text-amber-400" : "text-zinc-400")} />
+            <Icon className={cn("w-6 h-6", isPopular ? "text-lime-400" : "text-zinc-400")} />
           </div>
           
           <h3 className="font-bold text-white text-2xl mb-1">{plan.name}</h3>
@@ -317,7 +359,7 @@ function PlanCard({ plan, index, loading, onPurchase, planIcons, planColors, isM
           </div>
           
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 border border-zinc-700/50">
-            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+            <Star className="w-4 h-4 text-lime-400 fill-lime-400" />
             <span className="text-sm font-semibold text-white">+{plan.stars.toLocaleString()}⭐ / мес</span>
           </div>
         </div>
@@ -338,7 +380,7 @@ function PlanCard({ plan, index, loading, onPurchase, planIcons, planColors, isM
             className={cn(
               "w-full font-semibold h-11",
               isPopular
-                ? 'bg-amber-500 text-black hover:bg-amber-400'
+                ? 'bg-lime-500 text-black hover:bg-lime-400'
                 : 'bg-white text-black hover:bg-zinc-200'
             )}
             onClick={() => onPurchase(plan.id)}
@@ -373,7 +415,7 @@ function ComparisonTableDesktop({ rows }: { rows: ComparisonRow[] }) {
       <div className="grid grid-cols-4 bg-zinc-900/80">
         <div className="p-4 text-sm font-medium text-zinc-400"></div>
         <div className="p-4 text-center text-sm font-bold text-zinc-300">START</div>
-        <div className="p-4 text-center text-sm font-bold text-amber-400 bg-amber-500/5">PRO</div>
+        <div className="p-4 text-center text-sm font-bold text-lime-400 bg-lime-500/5">PRO</div>
         <div className="p-4 text-center text-sm font-bold text-violet-400">MAX</div>
       </div>
 
@@ -405,7 +447,7 @@ function TableCell({ value, highlight }: { value: string; highlight?: boolean })
   return (
     <div className={cn(
       "p-3 text-center text-sm",
-      highlight && "bg-amber-500/5"
+      highlight && "bg-lime-500/5"
     )}>
       {isCheck ? (
         <Check className="w-4 h-4 text-emerald-400 mx-auto" />
@@ -414,93 +456,12 @@ function TableCell({ value, highlight }: { value: string; highlight?: boolean })
       ) : (
         <span className={cn(
           value.includes('Бесплатно') ? "text-emerald-400 font-medium" : 
-          value.includes('⭐') ? "text-amber-400 font-medium" : "text-zinc-300"
+          value.includes('⭐') ? "text-lime-400 font-medium" : "text-zinc-300"
         )}>
           {value}
         </span>
       )}
     </div>
-  );
-}
-
-// Mobile Accordion
-function MobileAccordion({ 
-  title, 
-  rows, 
-  isOpen, 
-  onToggle 
-}: { 
-  title: string; 
-  rows: ComparisonRow[]; 
-  isOpen: boolean; 
-  onToggle: () => void;
-}) {
-  return (
-    <div className="rounded-xl border border-zinc-800 overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full p-4 flex items-center justify-between bg-zinc-900/50 hover:bg-zinc-800/50"
-      >
-        <span className="font-medium text-white">{title}</span>
-        <ChevronDown className={cn("w-5 h-5 text-zinc-400 transition-transform", isOpen && "rotate-180")} />
-      </button>
-      
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[400px]">
-                <thead>
-                  <tr className="border-t border-zinc-800">
-                    <th className="p-2 text-left text-xs text-zinc-500 font-normal"></th>
-                    <th className="p-2 text-center text-xs text-zinc-400 font-medium">START</th>
-                    <th className="p-2 text-center text-xs text-amber-400 font-medium bg-amber-500/5">PRO</th>
-                    <th className="p-2 text-center text-xs text-violet-400 font-medium">MAX</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, i) => (
-                    <tr key={i} className="border-t border-zinc-800/50">
-                      <td className="p-2 text-xs text-zinc-300">{row.label}</td>
-                      <MobileTableCell value={row.start} />
-                      <MobileTableCell value={row.pro} highlight />
-                      <MobileTableCell value={row.max} />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function MobileTableCell({ value, highlight }: { value: string; highlight?: boolean }) {
-  const isCheck = value === '✓';
-  const isDash = value === '—';
-  
-  return (
-    <td className={cn("p-2 text-center text-xs", highlight && "bg-amber-500/5")}>
-      {isCheck ? (
-        <Check className="w-3.5 h-3.5 text-emerald-400 mx-auto" />
-      ) : isDash ? (
-        <span className="text-zinc-600">—</span>
-      ) : (
-        <span className={cn(
-          value.includes('Бесплатно') ? "text-emerald-400" : 
-          value.includes('⭐') ? "text-amber-400" : "text-zinc-300"
-        )}>
-          {value}
-        </span>
-      )}
-    </td>
   );
 }
 

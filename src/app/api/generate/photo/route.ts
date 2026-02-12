@@ -29,6 +29,8 @@ import { CircuitOpenError } from "@/lib/server/circuit-breaker";
 // Some providers (and large outputs) can be slow to return/download.
 // Keep this above the historical 30s default to avoid user-facing timeouts.
 const PHOTO_UPSTREAM_DOWNLOAD_TIMEOUT_MS = 120_000;
+// Allow longer server execution time for photo generation submit path.
+export const maxDuration = 160; // seconds
 
 function mimeTypesFromFormats(formats?: Array<'jpeg' | 'png' | 'webp'>): string[] | null {
   if (!formats || formats.length === 0) return null;
@@ -1584,14 +1586,15 @@ export async function POST(request: NextRequest) {
 
     // Handle KIE providers
     let kieClient: any;
+    let activeKieSlot: number | null = null;
     try {
       // Use the same key slot used for the generation row (if available).
       const slotFromMeta =
         (generation as any)?.metadata && typeof (generation as any).metadata === "object"
           ? Number((generation as any).metadata.kie_key_slot)
           : NaN;
-      const slot = Number.isFinite(slotFromMeta) ? slotFromMeta : null;
-      kieClient = getKieClient({ scope: "photo", slot });
+      activeKieSlot = Number.isFinite(slotFromMeta) ? slotFromMeta : null;
+      kieClient = getKieClient({ scope: "photo", slot: activeKieSlot });
     } catch (e) {
       return integrationNotConfigured("kie", [
         "KIE_API_KEY",
@@ -1684,7 +1687,56 @@ export async function POST(request: NextRequest) {
         message: kieError?.message,
         code: kieError?.code,
         errorCode: kieError?.errorCode,
+        slot: activeKieSlot,
       });
+
+      // Retry permission-denied tasks on other KIE photo pool keys.
+      // This mitigates mixed entitlements across keys in KIE_API_KEY_PHOTO_POOL.
+      if (isPermission) {
+        const poolRaw = String(process.env.KIE_API_KEY_PHOTO_POOL || "").trim();
+        const poolSize = poolRaw ? poolRaw.split(/[\s,]+/).filter(Boolean).length : 0;
+        if (poolSize > 1) {
+          const tried = new Set<number>();
+          if (activeKieSlot != null && activeKieSlot >= 0) tried.add(activeKieSlot);
+          for (let slot = 0; slot < poolSize; slot++) {
+            if (tried.has(slot)) continue;
+            try {
+              const retryClient = getKieClient({ scope: "photo", slot });
+              const retryResponse = await retryClient.generateImage(payload);
+              kieClient = retryClient;
+              response = retryResponse;
+              activeKieSlot = slot;
+              console.warn("[API] KIE permission recovered via alternate key slot", {
+                modelId: effectiveModelId,
+                recoveredSlot: slot,
+              });
+
+              // Keep polling/sync on the same key that created task_id.
+              if (generation?.id && generation?.metadata && typeof generation.metadata === "object") {
+                try {
+                  const nextMetadata = { ...(generation as any).metadata, kie_key_scope: "photo", kie_key_slot: slot };
+                  await supabase.from("generations").update({ metadata: nextMetadata }).eq("id", generation.id);
+                  generation = { ...generation, metadata: nextMetadata };
+                } catch (metaErr) {
+                  console.warn("[API] Failed to persist recovered KIE key slot:", metaErr);
+                }
+              }
+              break;
+            } catch (retryErr: any) {
+              const retryMsg = String(retryErr?.message || "");
+              console.warn("[API] KIE retry slot failed", {
+                slot,
+                message: retryMsg,
+              });
+            }
+          }
+        }
+      }
+
+      // If retry on alternate slots succeeded, continue normal success flow.
+      if (response?.id && response?.status) {
+        // no-op
+      } else {
 
       // Pragmatic fallback: if KIE denies by permission for Nano Banana / Nano Banana Pro,
       // try LaoZhang (if configured) instead of hard-failing. This keeps UX stable when
@@ -1876,10 +1928,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (isPermission) {
+        const deniedModelLabel = String(baseTitle || modelInfo.name || effectiveModelId || "выбранной модели");
         return NextResponse.json(
           {
             error:
-              "Upstream отказал по правам (permission). Проверьте, что ваш ключ KIE имеет доступ к модели и включён биллинг/план для Nano Banana Pro.",
+              `Upstream отказал по правам (permission) для модели "${deniedModelLabel}". Проверьте, что ваш ключ KIE имеет доступ к этой модели и включён биллинг/подписка у провайдера.`,
             details: errMsg,
             errorCode: "UPSTREAM_PERMISSION",
           },
@@ -1899,6 +1952,7 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ error: errMsg, errorCode: "UPSTREAM_ERROR" }, { status: 500 });
+      }
     }
 
     // Attach task_id to DB record so callbacks / sync can find it reliably

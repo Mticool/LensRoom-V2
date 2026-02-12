@@ -39,7 +39,7 @@ export type PhotoQuality =
   | 'c_60cred'
   | 'c_72cred';
 export type VideoQuality = '720p' | '1080p' | '480p' | '580p' | 'fast' | 'quality' | 'standard' | 'high';
-export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference' | 'v2v' | 'style_transfer' | 'motion_control' | 'extend';
+export type VideoMode = 't2v' | 'i2v' | 'start_end' | 'storyboard' | 'reference' | 'v2v' | 'v2v_edit' | 'style_transfer' | 'motion_control' | 'extend';
 export type PhotoMode = 't2i' | 'i2i';
 
 // === NEW TYPES FOR EXTENDED MODEL CAPABILITIES ===
@@ -201,10 +201,21 @@ export interface VideoModelConfig {
   // Short label for sidebar (e.g., "8s • Ultra", "5/10s • Audio")
   shortLabel?: string;
   // Model tag for UI badges (e.g., "PRO", "FAST", "NEW", "ULTRA", "AVATAR", "HD")
-  modelTag?: 'PRO' | 'FAST' | 'NEW' | 'ULTRA' | 'TOP' | 'CORE' | 'AVATAR' | 'HD' | 'MOTION' | 'SWAP';
+  modelTag?: 'PRO' | 'FAST' | 'NEW' | 'ULTRA' | 'TOP' | 'CORE' | 'AVATAR' | 'HD' | 'MOTION' | 'SWAP' | 'EDIT';
 }
 
 export type ModelConfig = PhotoModelConfig | VideoModelConfig;
+
+function isKlingO3StandardEnabled(): boolean {
+  const values = [
+    process.env.NEXT_PUBLIC_ENABLE_KLING_O3_STANDARD,
+    process.env.ENABLE_KLING_O3_STANDARD,
+  ];
+  return values.some((value) => {
+    const v = String(value || "").trim().toLowerCase();
+    return v === "1" || v === "true" || v === "yes" || v === "on";
+  });
+}
 
 // ===== PHOTO MODELS =====
 // All photo models use kie_market provider: POST /api/v1/jobs/createTask
@@ -339,8 +350,13 @@ export const PHOTO_MODELS: PhotoModelConfig[] = [
     featured: true,
     speed: 'medium',
     quality: 'ultra',
-    // Seedream 4.5 in this app is T2I only. Edits/references require a separate KIE "edit" model.
-    supportsI2i: false,
+    // Support both modes in one model:
+    // - t2i -> seedream/4.5-text-to-image
+    // - i2i -> seedream/4.5-edit (mapped in image capabilities)
+    supportsI2i: true,
+    maxInputImages: 1,
+    maxInputImageSizeMb: 10,
+    inputImageFormats: ['jpeg', 'png', 'webp'],
     pricing: {
       basic: 6,
       high: 6,
@@ -654,6 +670,70 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     modelTag: 'CORE',
   },
 
+  // === 4.1. KLING O3 STANDARD (FAL) ===
+  {
+    id: 'kling-o1',
+    name: 'Kling O1 Standard',
+    apiId: 'fal-ai/kling-video/o1/standard/image-to-video',
+    apiIdI2v: 'fal-ai/kling-video/o1/standard/image-to-video',
+    apiIdV2v: 'fal-ai/kling-video/o1/standard/video-to-video/reference',
+    type: 'video',
+    provider: 'fal',
+    description: 'Kling O1 Standard — image/start-end/video-to-video (reference) на Fal.ai.',
+    rank: 40,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: true,
+    supportsAudio: false,
+    supportsFirstLastFrame: true,
+    pricing: {
+      '5': 56,
+      '10': 112,
+    },
+    modes: ['i2v', 'start_end', 'v2v'],
+    durationOptions: [5, 10],
+    aspectRatios: ['16:9', '9:16', '1:1'],
+    shortLabel: 'I2V • Start/End • V2V',
+    modelTag: 'PRO',
+  },
+
+  // === 4.2. KLING O3 STANDARD (FAL) ===
+  ...(isKlingO3StandardEnabled()
+    ? [{
+        id: 'kling-o3-standard',
+        name: 'Kling O3 Standard',
+        apiId: 'fal-ai/kling-video/o3/standard/text-to-video',
+        apiIdI2v: 'fal-ai/kling-video/o3/standard/image-to-video',
+        apiIdV2v: 'fal-ai/kling-video/o3/standard/video-to-video/reference',
+        type: 'video' as const,
+        provider: 'fal' as const,
+        description: 'Kling O3 Standard — text/image/video-to-video (reference) на Fal.ai с поддержкой multishot (multi_prompt) и генерации звука.',
+        rank: 41,
+        featured: true,
+        speed: 'medium' as const,
+        quality: 'high' as const,
+        supportsI2v: true,
+        supportsAudio: true,
+        supportsAudioGeneration: true,
+        supportsFirstLastFrame: true,
+        supportsNegativePrompt: true,
+        pricing: {
+          '3': { no_audio: 30, audio: 45 },
+          '5': { no_audio: 50, audio: 75 },
+          '8': { no_audio: 80, audio: 120 },
+          '10': { no_audio: 100, audio: 150 },
+          '12': { no_audio: 120, audio: 180 },
+          '15': { no_audio: 150, audio: 225 },
+        },
+        modes: ['t2v' as VideoMode, 'i2v' as VideoMode, 'start_end' as VideoMode, 'v2v' as VideoMode],
+        durationOptions: [3, 5, 8, 10, 12, 15],
+        aspectRatios: ['16:9', '9:16', '1:1'],
+        shortLabel: 'T2V • I2V • V2V • Audio',
+        modelTag: 'NEW' as const,
+      }]
+    : []),
+
   // === 5. KLING 2.6 MOTION CONTROL - Separate Section ===
   {
     id: 'kling-motion-control',
@@ -670,12 +750,12 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsAudio: false,
     pricing: {
       '720p': { per_second: 6 },
-      '1080p': { per_second: 8 },
+      '1080p': { per_second: 9 },
     },
     modes: ['motion_control'], // motion control mode
     durationOptions: [], // Based on input video length (3-30s)
     resolutionOptions: ['720p', '1080p'],
-    aspectRatios: ['16:9', '9:16', '1:1'],
+    aspectRatios: ['source'],
     shortLabel: 'Motion Transfer',
     modelTag: 'CORE',
   },
@@ -769,26 +849,56 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
   // === LIP SYNC MODELS (Kling AI Avatar + InfiniteTalk) ===
   
   {
-    id: 'kling-ai-avatar',
-    name: 'Kling AI Avatar',
+    id: 'kling-ai-avatar-standard',
+    name: 'Kling AI Avatar Standard',
     apiId: 'kling/ai-avatar-standard',
     type: 'video',
     provider: 'kie_market',
-    description: 'Высокое качество синхронизации губ с контролем эмоций через промпт. Фиксированная цена за видео.',
+    description: 'Kling AI Avatar Standard (720p). Персонализированная синхронизация губ. До 15 секунд.',
     rank: 90,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: false,
+    supportsAudio: false,
+    pricing: {
+      // 8 credits/sec (720p), rounded up per second
+      '1': 8,
+      '5': 40,
+      '10': 80,
+      '15': 120,
+    },
+    modes: ['lipsync' as any],
+    durationOptions: [15],
+    aspectRatios: [],
+    shortLabel: '720p • 8⭐/сек',
+    modelTag: 'AVATAR',
+  },
+
+  {
+    id: 'kling-ai-avatar-pro',
+    name: 'Kling AI Avatar Pro',
+    apiId: 'kling/ai-avatar-v1-pro',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Kling AI Avatar Pro (1080p). Премиум синхронизация губ. До 15 секунд.',
+    rank: 91,
     featured: true,
     speed: 'medium',
     quality: 'ultra',
     supportsI2v: false,
     supportsAudio: false,
     pricing: {
-      // Fixed price: 50 stars per generation
-      '0': 50,
+      // 16 credits/sec (1080p), rounded up per second
+      '1': 16,
+      '5': 80,
+      '10': 160,
+      '15': 240,
     },
     modes: ['lipsync' as any],
-    durationOptions: [],
+    durationOptions: [15],
     aspectRatios: [],
-    shortLabel: 'Lip Sync • Emotions',
+    shortLabel: '1080p • 16⭐/сек',
     modelTag: 'AVATAR',
   },
 
@@ -799,7 +909,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     type: 'video',
     provider: 'kie_market',
     description: 'Быстрая генерация говорящих видео с хорошей точностью синхронизации. Поддержка пения. До 15 секунд аудио.',
-    rank: 91,
+    rank: 92,
     featured: true,
     speed: 'fast',
     quality: 'standard',
@@ -828,7 +938,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     type: 'video',
     provider: 'kie_market',
     description: 'HD качество с максимальной точностью синхронизации губ. Поддержка пения. До 15 секунд аудио.',
-    rank: 92,
+    rank: 93,
     featured: true,
     speed: 'medium',
     quality: 'high',
@@ -908,6 +1018,32 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     shortLabel: 'Character Swap • 8⭐/сек',
     modelTag: 'SWAP',
   },
+
+  // === KLING O3 VIDEO EDIT ===
+  {
+    id: 'kling-o1-edit', // kept for backward compatibility (route + UI references)
+    name: 'Kling O3 Edit',
+    apiId: 'kling/o3-standard-v2v-edit',
+    type: 'video',
+    provider: 'kie_market',
+    description: 'Kling O3 Standard Video Edit — редактирование видео промптом: замена персонажа, смена окружения, рестайл. До 4 референс-фото.',
+    rank: 95,
+    featured: true,
+    speed: 'medium',
+    quality: 'high',
+    supportsI2v: false,
+    supportsAudio: true,
+    pricing: {
+      '5': 75,
+      '10': 150,
+    },
+    modes: ['v2v_edit'],
+    durationOptions: [5, 10],
+    resolutionOptions: ['720p'],
+    aspectRatios: [],
+    shortLabel: 'Video Edit • промпт + фото',
+    modelTag: 'EDIT',
+  },
 ];
 
 // ===== ALL MODELS =====
@@ -946,6 +1082,9 @@ export function getModelById(id: string): ModelConfig | undefined {
   }
   if (id === 'ideogram-character-a' || id === 'ideogram-character-b' || id === 'ideogram-character-c') {
     id = 'ideogram-character';
+  }
+  if (id === 'kling-ai-avatar') {
+    id = 'kling-ai-avatar-standard';
   }
   return ALL_MODELS.find(m => m.id === id);
 }

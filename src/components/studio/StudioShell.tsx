@@ -9,16 +9,19 @@ export function StudioShell({
   sidebar,
   children,
   mobileModelSelector,
+  hideMobileTopBar,
 }: {
   sidebar: ReactNode;
   children: ReactNode;
   mobileModelSelector?: ReactNode;
+  hideMobileTopBar?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <div className="studio-theme min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      {/* Mobile top bar */}
+      {/* Mobile top bar — hidden when hideMobileTopBar is true (e.g. Motion Control) */}
+      {!hideMobileTopBar && (
       <div className="lg:hidden sticky top-16 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur">
         <div className="px-4 py-3">
           {/* Mobile model selector - replaces "Studio" text */}
@@ -43,8 +46,9 @@ export function StudioShell({
           )}
         </div>
       </div>
+      )}
 
-      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
+      <div className={`mx-auto w-full max-w-[1400px] lg:px-8 lg:py-6 ${hideMobileTopBar ? 'px-0 py-0' : 'px-4 sm:px-6 py-6'}`}>
         <div className="grid lg:grid-cols-[320px_1fr] gap-6">
           <aside className="hidden lg:block">{sidebar}</aside>
           <section className="min-w-0">{children}</section>

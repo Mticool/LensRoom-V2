@@ -48,7 +48,7 @@ function getSpeedIcon(speed: string) {
     case 'fast':
       return <Zap className="w-3 h-3 text-emerald-500" />;
     case 'slow':
-      return <Star className="w-3 h-3 text-amber-500" />;
+      return <Star className="w-3 h-3 text-[#8cf425]" />;
     default:
       return <Sparkles className="w-3 h-3 text-blue-500" />;
   }
@@ -79,19 +79,19 @@ export function ModelSelectorSheet({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-50 bg-[#0F0F10] rounded-t-3xl border-t border-[#27272A] max-h-[90vh] flex flex-col"
+            className="fixed inset-x-0 bottom-0 z-50 bg-[#0A0A0A] rounded-t-3xl border-t border-[rgba(255,255,255,0.08)] max-h-[90vh] flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-4 border-b border-[#27272A]">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[rgba(255,255,255,0.08)]">
               <div>
                 <h2 className="text-lg font-semibold text-white">Выбрать модель</h2>
-                <p className="text-xs text-[#71717A] mt-0.5">
+                <p className="text-xs text-white/40 mt-0.5">
                   {PHOTO_MODELS.length} доступных моделей
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="w-9 h-9 rounded-xl bg-[#18181B] border border-[#27272A] flex items-center justify-center active:scale-95 transition-transform"
+                className="w-9 h-9 rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] flex items-center justify-center active:scale-95 transition-transform"
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -112,14 +112,14 @@ export function ModelSelectorSheet({
                       className={`
                         w-full p-4 rounded-2xl transition-all active:scale-[0.98]
                         ${isSelected
-                          ? 'bg-gradient-to-br from-[#00D9FF]/20 to-[#0EA5E9]/10 border-2 border-[#00D9FF]'
-                          : 'bg-[#18181B] border border-[#27272A] hover:border-[#3F3F46]'
+                          ? 'bg-[#8cf425]/10 border-2 border-[#8cf425]'
+                          : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)]'
                         }
                       `}
                     >
                       <div className="flex items-start gap-3">
                         {/* Icon */}
-                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-[#27272A] to-[#18181B] flex items-center justify-center text-2xl">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[rgba(255,255,255,0.05)] flex items-center justify-center text-2xl">
                           {icon}
                         </div>
 
@@ -130,13 +130,13 @@ export function ModelSelectorSheet({
                               {model.name}
                             </h3>
                             {model.featured && (
-                              <span className="px-1.5 py-0.5 rounded bg-[#00D9FF]/10 text-[#00D9FF] text-[9px] font-medium">
+                              <span className="px-1.5 py-0.5 rounded bg-[#8cf425]/10 text-[#8cf425] text-[9px] font-medium">
                                 TOP
                               </span>
                             )}
                           </div>
 
-                          <p className="text-xs text-[#A1A1AA] leading-relaxed mb-2">
+                          <p className="text-xs text-white/50 leading-relaxed mb-2">
                             {model.shortDescription || model.description.slice(0, 80) + '...'}
                           </p>
 
@@ -144,18 +144,18 @@ export function ModelSelectorSheet({
                             {/* Speed */}
                             <div className="flex items-center gap-1">
                               {getSpeedIcon(model.speed)}
-                              <span className="text-[#71717A] capitalize">{model.speed}</span>
+                              <span className="text-white/40 capitalize">{model.speed}</span>
                             </div>
 
                             {/* Quality */}
                             <div className="flex items-center gap-1">
-                              <Star className="w-3 h-3 text-amber-500" />
-                              <span className="text-[#71717A] capitalize">{model.quality}</span>
+                              <Star className="w-3 h-3 text-[#8cf425]" />
+                              <span className="text-white/40 capitalize">{model.quality}</span>
                             </div>
 
                             {/* Price */}
                             <div className="flex items-center gap-1 ml-auto">
-                              <span className="text-[#71717A]">от</span>
+                              <span className="text-white/40">от</span>
                               <span className="font-semibold text-white">{minPrice}⭐</span>
                             </div>
                           </div>
@@ -163,7 +163,7 @@ export function ModelSelectorSheet({
 
                         {/* Selected Check */}
                         {isSelected && (
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[#00D9FF] flex items-center justify-center">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[#8cf425] flex items-center justify-center">
                             <Check className="w-4 h-4 text-black" />
                           </div>
                         )}

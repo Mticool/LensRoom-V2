@@ -41,6 +41,14 @@ rsync -avz --delete \
   -e "ssh -F ${SSH_CONFIG}" \
   --exclude 'node_modules' \
   --exclude '.next/cache' \
+  --exclude '.next/dev' \
+  --exclude '.next/dev/**' \
+  --exclude '.next/types' \
+  --exclude '.next/types/**' \
+  --exclude '.next/trace' \
+  --exclude '.next/trace-build' \
+  --exclude '.next/diagnostics' \
+  --exclude '.next/diagnostics/**' \
   --exclude '.github' \
   --exclude 'docs/internal' \
   --exclude 'docs/_supabase_backups' \

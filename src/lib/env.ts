@@ -53,7 +53,13 @@ export const env = {
     const s = v.toLowerCase();
     return s === "1" || s === "true" || s === "yes" || s === "on";
   },
-};
 
+  isKlingO3StandardEnabled(): boolean {
+    return (
+      env.bool("ENABLE_KLING_O3_STANDARD") ||
+      env.bool("NEXT_PUBLIC_ENABLE_KLING_O3_STANDARD")
+    );
+  },
+};
 
 

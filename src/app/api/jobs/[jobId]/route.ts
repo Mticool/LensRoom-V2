@@ -31,12 +31,24 @@ export async function GET(
       );
     }
 
+    const supabase = getSupabaseAdmin();
+    const { data: providerProbe } = await supabase
+      .from("generations")
+      .select("model_id")
+      .eq("task_id", jobId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const probedModelId = providerProbe?.model_id ? String(providerProbe.model_id) : "";
+    const probedModel = probedModelId ? (getModelById(probedModelId) as any) : null;
+    const inferredProvider = String(probedModel?.provider || "").toLowerCase() || undefined;
+    const effectiveProvider = provider || inferredProvider;
+
     // Heuristic: LaoZhang video IDs often look like "foaicmpl-<uuid>".
     // If we see such an ID, try LaoZhang directly even if DB hasn't recorded task_id yet.
     // Note: we still prefer returning our stable download proxy URL when we can find a generation row.
-    if (!provider && /^foaicmpl-/i.test(jobId)) {
+    if (!effectiveProvider && /^foaicmpl-/i.test(jobId)) {
       try {
-        const supabase = getSupabaseAdmin();
         const { data: gen } = await supabase
           .from("generations")
           .select("id,status")
@@ -99,8 +111,8 @@ export async function GET(
       }
     }
 
-    // === FAL PROVIDER (Kling O1) ===
-    if (provider === 'fal') {
+    // === FAL PROVIDER (Kling video models, e.g. O1/O3) ===
+    if (effectiveProvider === 'fal') {
       try {
         const supabase = getSupabaseAdmin();
         const { data: dbGen } = await supabase
@@ -111,7 +123,7 @@ export async function GET(
 
         const falClient = getFalClient();
         const falStatus = await JOB_SF.run(`fal:status:${jobId}`, async () =>
-          falClient.queryKlingO1I2VStatus(jobId)
+          falClient.queryKlingVideoStatus(jobId)
         );
         
         if (falStatus.status === 'COMPLETED') {
@@ -277,8 +289,6 @@ export async function GET(
 
     // === KIE PROVIDER ===
     // First check if we have the result in DB (from webhook or previous sync)
-    const supabase = getSupabaseAdmin();
-
     // Schema-compatible selection: some prod DBs may not have optional columns (metadata/original_path/etc).
     const fieldsLegacy = "id,user_id,model_id,task_id,status,result_url,result_urls,error,type,updated_at,credits_used";
     const fieldsV2 = `${fieldsLegacy},metadata`;
@@ -299,7 +309,7 @@ export async function GET(
     // === LAOZHANG PROVIDER (Veo/Sora via laozhang.ai) ===
     const modelId = dbGen?.model_id ? String((dbGen as any).model_id) : "";
     const modelInfo = modelId ? (getModelById(modelId) as any) : null;
-    const isLaoZhang = provider === "laozhang" || String(modelInfo?.provider || "").toLowerCase() === "laozhang";
+    const isLaoZhang = effectiveProvider === "laozhang" || String(modelInfo?.provider || "").toLowerCase() === "laozhang";
     if (isLaoZhang) {
       try {
         const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
@@ -540,7 +550,7 @@ export async function GET(
               progress: 25,
               results: [],
               kind: (dbGen as any).type || kind,
-              provider: provider || null,
+              provider: effectiveProvider || null,
             });
           }
         } catch {
@@ -592,7 +602,7 @@ export async function GET(
     let status: any;
 
     try {
-      if (kind === "video" || provider === "kie_veo") {
+      if (kind === "video" || effectiveProvider === "kie_veo") {
         status = await JOB_SF.run(`kie:status:${jobId}:${provider || "video"}`, async () =>
           kieClient.getVideoGenerationStatus(jobId, provider)
         );
@@ -636,7 +646,7 @@ export async function GET(
           progress: 50,
           results: [],
           kind: kind || null,
-          provider: provider || null,
+          provider: effectiveProvider || null,
         });
       }
       throw kieErr;
@@ -667,7 +677,7 @@ export async function GET(
       outputs: status.outputs, // Keep for backward compatibility
       error: status.error,
       kind: kind || null,
-      provider: provider || null,
+      provider: effectiveProvider || null,
     });
   } catch (error: any) {
     console.error("[API] Job status error:", {

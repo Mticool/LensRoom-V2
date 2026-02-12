@@ -150,30 +150,30 @@ function ImageGeneratorContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F0F10] pb-20">
+    <div className="min-h-screen bg-[#0A0A0A] pb-20">
       {/* Offline Banner */}
       <OfflineBanner isOnline={isOnline} />
 
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#0F0F10]/98 backdrop-blur-xl border-b border-[#27272A]">
+      <div className="sticky top-0 z-40 bg-[#0A0A0A]/98 backdrop-blur-xl border-b border-[rgba(255,255,255,0.08)]">
         <div className="flex items-center justify-between px-4 py-3 pt-safe">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="w-9 h-9 rounded-xl bg-[#18181B] border border-[#27272A] flex items-center justify-center active:scale-95 transition-transform"
+              className="w-9 h-9 rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] flex items-center justify-center active:scale-95 transition-transform"
             >
               <X className="w-5 h-5 text-white" />
             </button>
 
             <div>
               <h1 className="text-base font-semibold text-white">Создать фото</h1>
-              <p className="text-xs text-[#71717A]">AI Image Generator</p>
+              <p className="text-xs text-white/40">AI Image Generator</p>
             </div>
           </div>
 
           {isAuthenticated && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-              <Star className="w-3.5 h-3.5 text-amber-500" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8cf425]/10 border border-[#8cf425]/20">
+              <Star className="w-3.5 h-3.5 text-[#8cf425]" />
               <span className="text-sm font-semibold text-white">
                 {credits.toLocaleString()}
               </span>
@@ -187,38 +187,38 @@ function ImageGeneratorContent() {
         {/* Model Selector */}
         <button
           onClick={() => setShowModelSelector(true)}
-          className="w-full p-4 rounded-2xl bg-[#18181B] border border-[#27272A] active:scale-[0.98] transition-transform"
+          className="w-full p-4 rounded-2xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] active:scale-[0.98] transition-transform"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#27272A] to-[#18181B] flex items-center justify-center text-2xl">
+              <div className="w-12 h-12 rounded-xl bg-[rgba(255,255,255,0.03)] flex items-center justify-center text-2xl">
                 {modelIcon}
               </div>
               <div className="text-left">
-                <div className="text-sm font-medium text-[#A1A1AA] mb-0.5">Модель</div>
+                <div className="text-sm font-medium text-white/50 mb-0.5">Модель</div>
                 <div className="text-base font-semibold text-white flex items-center gap-2">
                   {selectedModel.name}
                   {selectedModel.featured && (
-                    <span className="px-1.5 py-0.5 rounded bg-[#00D9FF]/10 text-[#00D9FF] text-[9px] font-medium">
+                    <span className="px-1.5 py-0.5 rounded bg-[#8cf425]/10 text-[#8cf425] text-[9px] font-medium">
                       TOP
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <ChevronDown className="w-5 h-5 text-[#71717A]" />
+            <ChevronDown className="w-5 h-5 text-white/40" />
           </div>
         </button>
 
         {/* Style Preview - Show uploaded image or placeholder */}
-        <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-gradient-to-br from-[#27272A] to-[#18181B] border border-[#27272A]">
+        <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)]">
           {uploadedImage ? (
             <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="text-5xl mb-2">{modelIcon}</div>
-                <div className="text-lg font-bold text-yellow-400 uppercase tracking-wider">
+                <div className="text-lg font-bold text-[#8cf425] uppercase tracking-wider">
                   {selectedModel.name}
                 </div>
               </div>
@@ -248,9 +248,9 @@ function ImageGeneratorContent() {
             placeholder="Опишите, что вы хотите создать..."
             className="
               w-full h-32 px-4 py-3 rounded-2xl
-              bg-[#18181B] border border-[#27272A]
-              text-white placeholder:text-[#71717A]
-              focus:outline-none focus:border-[#00D9FF]
+              bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)]
+              text-white placeholder:text-white/40
+              focus:outline-none focus:border-[#8cf425]
               resize-none text-sm
             "
           />
@@ -271,8 +271,8 @@ function ImageGeneratorContent() {
                   px-4 py-2 rounded-xl text-sm font-medium
                   transition-all active:scale-95
                   ${selectedAspectRatio === ratio
-                    ? 'bg-[#00D9FF] text-black'
-                    : 'bg-[#18181B] border border-[#27272A] text-white'
+                    ? 'bg-[#8cf425] text-black'
+                    : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] text-white'
                   }
                 `}
               >
@@ -300,8 +300,8 @@ function ImageGeneratorContent() {
                       px-4 py-2 rounded-xl text-sm font-medium
                       transition-all active:scale-95 flex items-center gap-1.5
                       ${selectedQuality === quality
-                        ? 'bg-[#00D9FF] text-black'
-                        : 'bg-[#18181B] border border-[#27272A] text-white'
+                        ? 'bg-[#8cf425] text-black'
+                        : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] text-white'
                       }
                     `}
                   >
@@ -315,7 +315,7 @@ function ImageGeneratorContent() {
         )}
 
         {/* Generation Counter */}
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-[#18181B] border border-[#27272A]">
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)]">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -325,7 +325,7 @@ function ImageGeneratorContent() {
                 }
               }}
               disabled={generationCount <= 1}
-              className="w-8 h-8 rounded-lg bg-[#27272A] flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-transform"
+              className="w-8 h-8 rounded-lg bg-[rgba(255,255,255,0.06)] flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-transform"
             >
               −
             </button>
@@ -333,7 +333,7 @@ function ImageGeneratorContent() {
               <div className="text-xl font-bold text-white">
                 {generationCount}/{maxGenerations}
               </div>
-              <div className="text-xs text-[#71717A]">Количество</div>
+              <div className="text-xs text-white/40">Количество</div>
             </div>
             <button
               onClick={() => {
@@ -343,14 +343,14 @@ function ImageGeneratorContent() {
                 }
               }}
               disabled={generationCount >= maxGenerations}
-              className="w-8 h-8 rounded-lg bg-[#27272A] flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-transform"
+              className="w-8 h-8 rounded-lg bg-[rgba(255,255,255,0.06)] flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-transform"
             >
               +
             </button>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <Star className="w-4 h-4 text-amber-500" />
+            <Star className="w-4 h-4 text-[#8cf425]" />
             <span className="text-lg font-bold text-white">
               {currentPrice * generationCount}
             </span>
@@ -359,7 +359,7 @@ function ImageGeneratorContent() {
       </div>
 
       {/* Generate Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe bg-gradient-to-t from-[#0F0F10] via-[#0F0F10] to-transparent">
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A] to-transparent">
         <button
           onClick={handleGenerate}
           disabled={isGenerating || (!prompt.trim() && !uploadedImage)}
@@ -368,8 +368,8 @@ function ImageGeneratorContent() {
             flex items-center justify-center gap-2
             transition-all active:scale-[0.98]
             ${isGenerating || (!prompt.trim() && !uploadedImage)
-              ? 'bg-[#27272A] text-[#71717A] cursor-not-allowed'
-              : 'bg-gradient-to-r from-[#00D9FF] to-[#0EA5E9] text-black'
+              ? 'bg-[rgba(255,255,255,0.06)] text-white/40 cursor-not-allowed'
+              : 'bg-[#8cf425] text-black shadow-[0_0_20px_-5px_rgba(140,244,37,0.5)]'
             }
           `}
         >
@@ -401,10 +401,10 @@ function ImageGeneratorContent() {
 export function ImageGenerator() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0F0F10] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#00D9FF]/20 border-t-[#00D9FF] rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-[#71717A]">Загрузка...</p>
+          <div className="w-12 h-12 border-4 border-[#8cf425]/20 border-t-[#8cf425] rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white/40">Загрузка...</p>
         </div>
       </div>
     }>

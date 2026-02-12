@@ -52,7 +52,7 @@ export function UpscaleImagePreview({
           {isProcessing && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
               <div className="flex flex-col items-center gap-4">
-                <Loader2 className="w-12 h-12 text-[#f59e0b] animate-spin" />
+                <Loader2 className="w-12 h-12 text-[#8cf425] animate-spin" />
                 <span className="text-white font-medium">Обработка изображения...</span>
               </div>
             </div>
@@ -81,7 +81,7 @@ export function UpscaleImagePreview({
 
         {/* Result label */}
         {hasResult && (
-          <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-[#f59e0b]/90 text-black text-sm font-semibold">
+          <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-[#8cf425]/90 text-black text-sm font-semibold">
             Готово
           </div>
         )}
@@ -92,7 +92,7 @@ export function UpscaleImagePreview({
             {onDownload && (
               <button
                 onClick={onDownload}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#f59e0b] text-black font-medium hover:bg-[#fbbf24] transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8cf425] text-black font-medium hover:bg-[#a3ff4d] transition-colors"
               >
                 <Download className="w-4 h-4" />
                 <span>Скачать</span>

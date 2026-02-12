@@ -19,7 +19,7 @@ describe('Video Model Capabilities', () => {
     });
 
     it('should have valid provider for each model', () => {
-      const validProviders = ['kie', 'laozhang'];
+      const validProviders = ['kie', 'laozhang', 'fal'];
       VIDEO_MODELS.forEach(model => {
         expect(validProviders).toContain(model.provider);
       });
@@ -145,6 +145,22 @@ describe('Video Model Capabilities', () => {
         });
       });
     });
+
+    describe('Fal provider models', () => {
+      const falModels = VIDEO_MODELS.filter(m => m.provider === 'fal');
+
+      it('should include Kling O1 and Kling O3 Standard', () => {
+        const modelIds = falModels.map(m => m.id).sort();
+        expect(modelIds).toEqual(['kling-o1', 'kling-o3-standard']);
+      });
+
+      it('should expose valid apiId', () => {
+        falModels.forEach(model => {
+          expect(model.apiId).toBeTruthy();
+          expect(typeof model.apiId).toBe('string');
+        });
+      });
+    });
   });
 
   describe('Feature flags consistency', () => {
@@ -214,6 +230,26 @@ describe('Video Model Capabilities', () => {
       expect(kling?.supportsStartEndFrames).toBe(false);
       expect(kling?.supportedModes).not.toContain('start_end');
       expect(kling?.supportsSound).toBe(true);
+    });
+
+    it('Kling O3 Standard should support t2v/i2v/start_end/v2v with multishot', () => {
+      const klingO3 = getModelCapability('kling-o3-standard');
+      expect(klingO3).toBeDefined();
+      expect(klingO3?.provider).toBe('fal');
+      expect(klingO3?.supportedModes).toEqual(['t2v', 'i2v', 'start_end', 'v2v']);
+      expect(klingO3?.supportedDurationsSec).toEqual([3, 5, 8, 10, 12, 15]);
+      expect(klingO3?.supportsMultiPrompt).toBe(true);
+      expect(klingO3?.shotTypes).toEqual(['single', 'customize']);
+    });
+
+    it('Kling O1 Standard should support i2v/start_end/v2v', () => {
+      const klingO1 = getModelCapability('kling-o1');
+      expect(klingO1).toBeDefined();
+      expect(klingO1?.provider).toBe('fal');
+      expect(klingO1?.supportedModes).toEqual(['i2v', 'start_end', 'v2v']);
+      expect(klingO1?.supportedDurationsSec).toEqual([5, 10]);
+      expect(klingO1?.supportsStartEndFrames).toBe(true);
+      expect(klingO1?.supportsReferenceVideo).toBe(true);
     });
 
     it('Kling 2.1 should use quality tiers (standard/pro/master)', () => {

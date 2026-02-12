@@ -111,5 +111,6 @@ test.describe('Mobile Primary Row', () => {
     expect(url.searchParams.get('section')).toBe('motion');
     expect(url.searchParams.get('model')).toBe('kling-motion-control');
     expect(url.searchParams.get('project')).toBe('p1');
+    await expect(page.getByText('Референс видео не выбран')).toBeVisible();
   });
 });

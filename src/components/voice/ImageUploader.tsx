@@ -9,12 +9,14 @@ interface ImageUploaderProps {
   onImageUploaded: (url: string) => void;
   maxSize?: number; // в байтах
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export function ImageUploader({ 
   onImageUploaded, 
   maxSize = 10485760, // 10MB
-  disabled = false 
+  disabled = false,
+  compact = false,
 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -104,21 +106,25 @@ export function ImageUploader({
   }, [onImageUploaded]);
 
   return (
-    <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] shadow-[0_20px_60px_rgba(0,0,0,0.12)] p-5 sm:p-7">
-      <div className="flex items-start justify-between gap-3 mb-5">
+    <div className={cn("rounded-3xl border border-[#242b37] bg-[#141821] shadow-[0_20px_60px_rgba(0,0,0,0.24)]", compact ? "p-4" : "p-5 sm:p-7")}>
+      <div className={cn("flex items-start justify-between gap-3", compact ? "mb-3" : "mb-5")}>
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-blue-500/10 border border-blue-500/15 flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-blue-400" />
+            <div className={cn("flex items-center justify-center rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold)]/10", compact ? "h-9 w-9" : "h-11 w-11")}>
+              <ImageIcon className={cn("text-[var(--gold)]", compact ? "h-4 w-4" : "h-5 w-5")} />
             </div>
             <div className="min-w-0">
-              <div className="text-lg font-semibold text-[var(--text)]">Фото персонажа</div>
-              <div className="text-sm text-[var(--muted)]">Чем четче лицо, тем лучше синхронизация</div>
+              <div className={cn("font-semibold text-[#f4f6f8]", compact ? "text-sm" : "text-lg")}>Фото</div>
+              <div className={cn("text-[#9ea8b8]", compact ? "text-xs" : "text-sm")}>Чем четче лицо, тем лучше</div>
             </div>
           </div>
         </div>
-        <div className="shrink-0 text-xs text-[var(--muted)]">До 10MB</div>
+        <div className="shrink-0 text-xs text-[#9ea8b8]">До 10MB</div>
       </div>
+
+      {compact && (
+        <div className="mb-3 h-[52px] rounded-2xl border border-[#2a3341] bg-[#0f1219]" />
+      )}
       
       <div
         onDrop={handleDrop}
@@ -126,15 +132,15 @@ export function ImageUploader({
         onDragLeave={() => setIsDragOver(false)}
         onDragOver={(e) => e.preventDefault()}
         className={cn(
-          "relative rounded-2xl border border-dashed transition-all overflow-hidden",
-          preview ? "border-[var(--border)]" : "border-[var(--border)] hover:border-[var(--gold)]/45",
+          "relative overflow-hidden rounded-2xl border border-dashed transition-all",
+          preview ? "border-[#2a3341]" : "border-[#2a3341] hover:border-[var(--gold)]/45",
           isDragOver && "border-[var(--drag-over-border)] bg-[var(--drag-over-bg)]",
           disabled && "opacity-50 cursor-not-allowed",
           !disabled && !preview && "cursor-pointer"
         )}
       >
         {preview ? (
-          <div className="relative aspect-video bg-black/50">
+          <div className={cn("relative bg-black/50", compact ? "aspect-[4/5]" : "aspect-video")}>
             <img
               src={preview}
               alt="Preview"
@@ -154,7 +160,8 @@ export function ImageUploader({
           <label
             htmlFor="image-upload"
             className={cn(
-              "flex flex-col items-center justify-center py-10 px-6 text-center",
+              "flex flex-col items-center justify-center px-4 text-center",
+              compact ? "py-6" : "py-10",
               !disabled && "cursor-pointer"
             )}
           >
@@ -169,18 +176,18 @@ export function ImageUploader({
             
             {uploading ? (
               <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 border-4 border-[var(--gold)]/25 border-t-[var(--gold)] rounded-full animate-spin" />
-                <p className="text-sm text-[var(--muted)]">Загрузка...</p>
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--gold)]/25 border-t-[var(--gold)]" />
+                <p className="text-sm text-[#9ea8b8]">Загрузка...</p>
               </div>
             ) : (
               <>
-                <div className="w-14 h-14 rounded-2xl bg-[var(--surface2)] border border-[var(--border)] flex items-center justify-center mb-4">
-                  <Upload className="w-6 h-6 text-[var(--gold)]" />
+                <div className={cn("flex items-center justify-center rounded-2xl border border-[#2a3341] bg-[#10141d]", compact ? "h-10 w-10 mb-3" : "h-14 w-14 mb-4")}>
+                  <Upload className={cn("text-[var(--gold)]", compact ? "h-4 w-4" : "h-6 w-6")} />
                 </div>
-                <p className="text-sm font-semibold text-[var(--text)] mb-1">
-                  Перетащите изображение или нажмите для выбора
+                <p className={cn("mb-1 font-semibold text-[#f4f6f8]", compact ? "text-xs" : "text-sm")}>
+                  Нажмите или перетащите
                 </p>
-                <p className="text-xs text-[var(--muted)]">
+                <p className={cn("text-[#9ea8b8]", compact ? "text-[10px]" : "text-xs")}>
                   JPG, PNG, WEBP
                 </p>
               </>
@@ -190,7 +197,7 @@ export function ImageUploader({
       </div>
 
       {error && (
-        <p className="mt-3 text-sm text-[var(--error)]">{error}</p>
+        <p className="mt-3 text-sm text-red-400">{error}</p>
       )}
     </div>
   );

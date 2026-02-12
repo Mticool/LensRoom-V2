@@ -84,7 +84,7 @@ const ImageGalleryMasonryComponent = ({
   const cardClassName = useMemo(() =>
     layout === "grid" || layout === "feed"
       ? "higgs-gallery-item group"
-      : "relative group rounded-none overflow-hidden bg-[#27272A] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl",
+      : "relative group rounded-none overflow-hidden bg-[rgba(255,255,255,0.06)] cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-2xl",
     [layout]
   );
 
@@ -186,66 +186,17 @@ const ImageGalleryMasonryComponent = ({
     try {
       const isDemo = String(image.id || "").startsWith("demo-");
       const normalizedId = normalizeGenerationId(image.id);
-      // Always use proxy=1 to avoid CORS issues and work without VPN
       const primaryUrl = !isDemo && normalizedId
         ? `/api/generations/${encodeURIComponent(normalizedId)}/download?kind=original&proxy=1&download=1`
         : `/api/media/proxy?url=${encodeURIComponent(image.url)}&download=1&filename=${encodeURIComponent(`lensroom-${image.id}`)}`;
-      
-      const fallbackProxyUrl = `/api/media/proxy?url=${encodeURIComponent(image.url)}&download=1&filename=${encodeURIComponent(`lensroom-${image.id}`)}`;
-
-      console.log('[Download] Fetching:', primaryUrl);
-      let response = await fetch(primaryUrl, { credentials: "include" });
-      if (!response.ok) {
-        // Fallback: for public/non-owned cards (e.g. inspiration) or missing session cookies,
-        // try a tightly-scoped server-side proxy to avoid opening a new tab.
-        console.warn('[Download] Primary failed:', response.status, response.statusText);
-        response = await fetch(fallbackProxyUrl, { credentials: "include" });
-      }
-      if (!response.ok) {
-        console.error('[Download] Failed:', response.status, response.statusText);
-        // Last resort: let browser handle download endpoint directly (same-tab).
-        const a = document.createElement("a");
-        a.href = primaryUrl;
-        a.download = "";
-        a.style.display = "none";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        throw new Error("download_failed");
-      }
-
-      const blob = await response.blob();
-      const mime = String(blob.type || "").toLowerCase();
-      const preferred = String(image.settings?.outputFormat || "").toLowerCase();
-      const ext =
-        mime.includes("png") ? "png" :
-        mime.includes("webp") ? "webp" :
-        mime.includes("jpeg") || mime.includes("jpg") ? "jpg" :
-        preferred === "webp" ? "webp" :
-        preferred === "jpg" ? "jpg" :
-        "png";
-      // Create download link with proper MIME type
-      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `lensroom-${image.id}.${ext}`;
+      a.href = primaryUrl;
+      a.download = "";
       a.style.display = 'none';
-
-      // For mobile browsers - trigger download with timeout
       document.body.appendChild(a);
-
-      // Use setTimeout to ensure DOM is ready and download works on mobile
-      setTimeout(() => {
-        a.click();
-
-        // Clean up after download
-        setTimeout(() => {
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        }, 100);
-      }, 0);
-
-      toast.success('Изображение скачано');
+      a.click();
+      document.body.removeChild(a);
+      toast.success('Скачивание началось');
     } catch (error) {
       console.error('[Download] Error:', error);
       toast.error('Ошибка при скачивании');
@@ -306,7 +257,7 @@ const ImageGalleryMasonryComponent = ({
     return Array.from({ length: 4 }).map((_, i) => (
       <div
         key={`skeleton-${i}`}
-        className="higgs-gallery-item overflow-hidden bg-[#27272A] animate-pulse border border-white/[0.08]"
+        className="higgs-gallery-item overflow-hidden bg-[rgba(255,255,255,0.06)] animate-pulse border border-white/[0.08]"
       >
         <div className="absolute inset-0 flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
@@ -329,12 +280,12 @@ const ImageGalleryMasonryComponent = ({
               "max-w-none",
               // Desktop: keep a tighter, centered empty state.
               "md:max-w-[280px] md:mx-auto",
-              isUploadTool ? "border-2 border-[#f59e0b]/30" : "border border-white/[0.08]"
+              isUploadTool ? "border-2 border-[#8cf425]/30" : "border border-white/[0.08]"
             )}
           >
             {isUploadTool ? (
               <div className="absolute inset-0 bg-[#1C1C1E] flex items-center justify-center">
-                <ImagePlus className="w-16 h-16 text-[#f59e0b]" strokeWidth={2} />
+                <ImagePlus className="w-16 h-16 text-[#8cf425]" strokeWidth={2} />
               </div>
             ) : (
               <OptimizedImage
@@ -433,14 +384,14 @@ const ImageGalleryMasonryComponent = ({
                   <div data-image-wrap className="absolute inset-0 w-full h-full overflow-hidden">
                     {image.status === 'pending' ? (
                       <>
-                        <div className="absolute inset-0 bg-[#27272A] animate-pulse" />
+                        <div className="absolute inset-0 bg-[rgba(255,255,255,0.06)] animate-pulse" />
                         <div className="absolute inset-0 flex items-center justify-center">
                           <Loader2 className="w-8 h-8 text-[#A1A1AA] animate-spin" />
                         </div>
                       </>
                     ) : image.status === 'failed' || image.status === 'error' || !image.url ? (
                       <>
-                        <div className="absolute inset-0 bg-[#27272A]" />
+                        <div className="absolute inset-0 bg-[rgba(255,255,255,0.06)]" />
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
                           <AlertCircle className="w-8 h-8 text-red-400/60" />
                           <span className="text-xs text-[#A1A1AA] text-center">Ошибка генерации</span>
@@ -464,7 +415,7 @@ const ImageGalleryMasonryComponent = ({
                   )}
               
               {isDemo && (
-                <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#f59e0b] text-black text-xs font-medium z-10">
+                <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#8cf425] text-black text-xs font-medium z-10">
                   Пример
                 </div>
               )}
@@ -570,7 +521,7 @@ const ImageGalleryMasonryComponent = ({
                     {/* Show skeleton loader for pending images */}
                     {image.status === 'pending' ? (
                       <div
-                        className="w-full bg-[#27272A] animate-pulse"
+                        className="w-full bg-[rgba(255,255,255,0.06)] animate-pulse"
                         style={getAspectRatioStyle(image.settings?.size)}
                       >
                         <div className="w-full h-full flex items-center justify-center">
@@ -579,7 +530,7 @@ const ImageGalleryMasonryComponent = ({
                       </div>
                     ) : image.status === 'failed' || image.status === 'error' || !image.url ? (
                       <div
-                        className="w-full bg-[#27272A] flex flex-col items-center justify-center gap-2 p-4"
+                        className="w-full bg-[rgba(255,255,255,0.06)] flex flex-col items-center justify-center gap-2 p-4"
                         style={{ ...getAspectRatioStyle(image.settings?.size), minHeight: '120px' }}
                       >
                         <AlertCircle className="w-8 h-8 text-red-400/60" />
@@ -597,7 +548,7 @@ const ImageGalleryMasonryComponent = ({
 
                   {/* Demo Badge */}
                   {isDemo && (
-                    <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#f59e0b] text-black text-xs font-medium">
+                    <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-[#8cf425] text-black text-xs font-medium">
                       Пример
                     </div>
                   )}

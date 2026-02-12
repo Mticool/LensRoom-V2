@@ -39,7 +39,7 @@ function StudioContent() {
 
   return (
     <div
-      className={`bg-[var(--bg)] ${section === "photo" ? "flex flex-col pt-0" : "min-h-screen pt-24"}`}
+      className={`bg-[var(--bg)] ${section === "photo" ? "flex flex-col pt-0" : section === "motion" ? "min-h-screen pt-0" : "min-h-screen pt-24"}`}
       style={section === "photo" ? { height: "calc(100dvh - var(--app-header-h))" } : undefined}
     >
       {/* Model selector removed from top-left — available in bottom bar instead */}

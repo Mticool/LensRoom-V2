@@ -43,7 +43,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--gold)] to-cyan-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--gold)] to-emerald-600 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-[var(--btn-primary-text)]" />
               </div>
               <span className="font-bold text-[var(--text)]">LensRoom</span>

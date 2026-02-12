@@ -74,6 +74,7 @@ interface WanPromptPanelDesktopProps {
   referenceList: string[];
   onPickFiles: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveAllRefs: () => void;
+  onRemoveRefAt?: (idx: number) => void;
 
   negativePrompt?: string;
   onNegativePromptChange?: (v: string) => void;
@@ -211,11 +212,66 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
 
             {/* Top row: collapsed prompt hint + controls */}
             <div className="flex items-center gap-1 shrink-0" style={{ height: isExpanded ? 34 : 48 }}>
-              {/* Collapsed: prompt hint text. Expanded: spacer */}
-              <div
-                className="flex-1 min-w-0 cursor-text select-none"
-                onClick={() => setIsExpanded(true)}
-              >
+              <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                {props.supportsI2i && (
+                  <label
+                    htmlFor={uploadInputId}
+                    className={[
+                      'shrink-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors',
+                      'hover:bg-white/10',
+                      props.isAddingRefs ? 'bg-white/10' : '',
+                      props.isGenerating || props.isAddingRefs ? 'opacity-40 cursor-not-allowed pointer-events-none' : '',
+                    ].join(' ')}
+                    title={props.isAddingRefs ? 'Загрузка референса...' : 'Добавить изображение'}
+                  >
+                    {props.isAddingRefs ? (
+                      <Loader2 className="w-4 h-4 text-white/70 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-4 h-4 text-white/55" />
+                    )}
+                  </label>
+                )}
+
+                {(props.pendingRefPreviews.length > 0 || props.referenceList.length > 0) && (
+                  <div className="shrink-0 flex items-center gap-1 max-w-[220px] overflow-x-auto pr-1">
+                    {props.pendingRefPreviews.map((src, idx) => (
+                      <div key={`pending-top-${idx}`} className="relative w-7 h-7 rounded-md overflow-hidden bg-white/5 border border-white/10 shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt="Reference pending" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin text-white/90" />
+                        </div>
+                      </div>
+                    ))}
+
+                    {props.referenceList.map((src, idx) => (
+                      <div key={`ref-top-${idx}`} className="group relative w-7 h-7 rounded-md overflow-hidden bg-white/5 border border-white/10 shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt={`Reference ${idx + 1}`} className="w-full h-full object-cover" />
+                        {!props.isGenerating && !props.isAddingRefs && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (props.onRemoveRefAt) props.onRemoveRefAt(idx);
+                              else props.onRemoveAllRefs();
+                            }}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/75 border border-white/15 text-white/80 hover:text-white hover:bg-black/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Удалить референс"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Collapsed: prompt hint text. Expanded: spacer */}
+                <div
+                  className="flex-1 min-w-0 cursor-text select-none"
+                  onClick={() => setIsExpanded(true)}
+                >
                 <span
                   className={[
                     'truncate block text-sm pl-2',
@@ -226,40 +282,10 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
                 >
                   {props.prompt.trim() || props.promptPlaceholder}
                 </span>
+                </div>
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
-                {/* Reference thumbnails (expanded only, inline in controls) */}
-                {isExpanded && (props.pendingRefPreviews.length > 0 || props.referenceList.length > 0) && (
-                  <div className="flex items-center gap-1">
-                    {[...props.pendingRefPreviews, ...props.referenceList].slice(0, 4).map((src, idx) => {
-                      const pending = idx < props.pendingRefPreviews.length;
-                      return (
-                        <div key={`${src}-${idx}`} className="relative w-7 h-7 rounded-lg overflow-hidden bg-white/5">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={src} alt="Reference" className="w-full h-full object-cover" />
-                          {pending && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                              <Loader2 className="w-3 h-3 animate-spin text-white/90" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {props.hasAnyReference && (
-                      <button
-                        type="button"
-                        onClick={props.onRemoveAllRefs}
-                        disabled={props.isGenerating || props.isAddingRefs}
-                        className="w-7 h-7 rounded-lg bg-red-500/10 text-red-300 flex items-center justify-center hover:bg-red-500/20 transition-colors"
-                        title="Удалить все"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
                 {/* Model pill */}
                 <DropdownMenu.Root open={modelsOpen} onOpenChange={setModelsOpen} modal={false}>
                     <DropdownMenu.Trigger asChild>
@@ -306,7 +332,7 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
                                     className="w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-start gap-3"
                                   >
                                     <div className="w-5 h-5 mt-0.5 flex items-center justify-center">
-                                      {selected ? <Star className="w-4 h-4 text-[#f59e0b]" /> : null}
+                                      {selected ? <Star className="w-4 h-4 text-[#8cf425]" /> : null}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="text-sm font-semibold text-white truncate">{m.name}</div>
@@ -563,21 +589,6 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
               {/* Prompt row (expanded only) */}
               {isExpanded && (
                 <div className="flex items-end gap-2 flex-1 min-h-0 mt-1">
-                  {/* Upload icon — to the left of textarea */}
-                  {props.supportsI2i && (
-                    <label
-                      htmlFor={uploadInputId}
-                      className={[
-                        'shrink-0 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-colors',
-                        'hover:bg-white/10',
-                        props.isGenerating || props.isAddingRefs ? 'opacity-40 cursor-not-allowed pointer-events-none' : '',
-                      ].join(' ')}
-                      title="Добавить изображение"
-                    >
-                      <ImagePlus className="w-4 h-4 text-white/50" />
-                    </label>
-                  )}
-
                   {/* Textarea (no wrapper, no border — seamless) */}
                   <div className="flex-1 min-w-0">
                     <WanPromptTextarea

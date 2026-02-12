@@ -1,8 +1,8 @@
 /**
- * Fal.ai Client for Kling O1 + ElevenLabs
+ * Fal.ai Client for Kling Video + ElevenLabs
  *
  * APIs:
- * - Video: fal-ai/kling-video/o1/...
+ * - Video: fal-ai/kling-video/o1/..., fal-ai/kling-video/o3/...
  * - Audio: fal-ai/elevenlabs/tts/eleven-v3, fal-ai/elevenlabs/voice-cloning
  */
 
@@ -67,6 +67,65 @@ export interface FalKlingO1I2VRequest {
   image_url?: string; // legacy alias for start_image_url
   duration?: '5' | '10'; // 5 сек ($0.56) или 10 сек ($1.12)
   aspect_ratio?: '16:9' | '9:16' | '1:1'; // Default: 16:9
+}
+
+export interface FalKlingO1V2VReferenceRequest {
+  prompt: string;
+  video_url: string;
+  image_url?: string;
+  duration?: '5' | '10';
+  aspect_ratio?: '16:9' | '9:16' | '1:1';
+}
+
+// ===== IMAGE-TO-VIDEO (O3 Standard) TYPES =====
+// Документация: https://fal.ai/models/fal-ai/kling-video/o3/standard/image-to-video
+export interface FalKlingO3MultiPromptElement {
+  prompt: string;
+  duration: number;
+}
+
+export interface FalKlingO3I2VRequest {
+  prompt: string;
+  image_url: string;
+  end_image_url?: string;
+  duration?: '3' | '5' | '8' | '10' | '12' | '15';
+  aspect_ratio?: '16:9' | '9:16' | '1:1';
+  generate_audio?: boolean;
+  negative_prompt?: string;
+  multi_prompt?: FalKlingO3MultiPromptElement[];
+  shot_type?: 'single' | 'customize';
+}
+
+export interface FalKlingO3T2VRequest {
+  prompt: string;
+  duration?: '3' | '5' | '8' | '10' | '12' | '15';
+  aspect_ratio?: '16:9' | '9:16' | '1:1';
+  generate_audio?: boolean;
+  negative_prompt?: string;
+  multi_prompt?: FalKlingO3MultiPromptElement[];
+  shot_type?: 'single' | 'customize';
+}
+
+export interface FalKlingO3V2VRequest {
+  prompt: string;
+  video_url: string;
+  image_url?: string;
+  duration?: '3' | '5' | '8' | '10' | '12' | '15';
+  aspect_ratio?: '16:9' | '9:16' | '1:1';
+  generate_audio?: boolean;
+  negative_prompt?: string;
+  multi_prompt?: FalKlingO3MultiPromptElement[];
+  shot_type?: 'single' | 'customize';
+}
+
+export interface FalKlingO3EditRequest {
+  prompt: string;
+  video_url: string;
+  image_urls?: string[];
+  elements?: FalKlingO1Element[];
+  keep_audio?: boolean;
+  duration?: '3' | '5' | '8' | '10' | '12' | '15';
+  aspect_ratio?: '16:9' | '9:16' | '1:1';
 }
 
 export interface FalKlingO1Response {
@@ -177,11 +236,265 @@ export class FalAIClient {
   }
 
   /**
+   * Submit Kling O1 Video-to-Video Reference (Standard Mode) job
+   */
+  async submitKlingO1VideoToVideoReference(
+    params: FalKlingO1V2VReferenceRequest
+  ): Promise<{ request_id: string; status_url: string }> {
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o1/standard/video-to-video/reference`;
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+        timeout: 60000,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData: any;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new FalAPIError(
+          errorData.message || errorData.detail || `Fal.ai API error: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+
+      const data = await response.json();
+      if (!data.request_id) {
+        throw new FalAPIError('Invalid response: missing request_id', response.status, data);
+      }
+
+      console.log('[Fal.ai] Kling O1 V2V reference job submitted:', data.request_id);
+      return data;
+    } catch (error) {
+      if (error instanceof FalAPIError) throw error;
+      throw new FalAPIError(
+        `Failed to submit Kling O1 V2V reference job: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
    * Query Kling O1 I2V job status
    * Note: FAL uses a shared endpoint for all kling-video requests
    */
   async queryKlingO1I2VStatus(requestId: string): Promise<FalJobStatus> {
-    // FAL uses shared endpoint without the /o1/image-to-video part
+    return this.queryKlingVideoStatus(requestId);
+  }
+
+  /**
+   * Submit Kling O3 Standard Image-to-Video job
+   * Docs: https://fal.ai/models/fal-ai/kling-video/o3/standard/image-to-video
+   */
+  async submitKlingO3StandardImageToVideo(
+    params: FalKlingO3I2VRequest
+  ): Promise<{ request_id: string; status_url: string }> {
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o3/standard/image-to-video`;
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+        timeout: 60000,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData: any;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new FalAPIError(
+          errorData.message || errorData.detail || `Fal.ai API error: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+
+      const data = await response.json();
+      if (!data.request_id) {
+        throw new FalAPIError('Invalid response: missing request_id', response.status, data);
+      }
+
+      console.log('[Fal.ai] Kling O3 Standard I2V job submitted:', data.request_id);
+      return data;
+    } catch (error) {
+      if (error instanceof FalAPIError) throw error;
+      throw new FalAPIError(
+        `Failed to submit Kling O3 Standard I2V job: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Submit Kling O3 Standard Text-to-Video job
+   * Docs: https://fal.ai/models/fal-ai/kling-video/o3/standard/text-to-video
+   */
+  async submitKlingO3StandardTextToVideo(
+    params: FalKlingO3T2VRequest
+  ): Promise<{ request_id: string; status_url: string }> {
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o3/standard/text-to-video`;
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+        timeout: 60000,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData: any;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new FalAPIError(
+          errorData.message || errorData.detail || `Fal.ai API error: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+
+      const data = await response.json();
+      if (!data.request_id) {
+        throw new FalAPIError('Invalid response: missing request_id', response.status, data);
+      }
+
+      console.log('[Fal.ai] Kling O3 Standard T2V job submitted:', data.request_id);
+      return data;
+    } catch (error) {
+      if (error instanceof FalAPIError) throw error;
+      throw new FalAPIError(
+        `Failed to submit Kling O3 Standard T2V job: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Submit Kling O3 Standard Video-to-Video (Reference) job
+   * Docs: https://fal.ai/models/fal-ai/kling-video/o3/standard/video-to-video/reference
+   */
+  async submitKlingO3StandardVideoToVideoReference(
+    params: FalKlingO3V2VRequest
+  ): Promise<{ request_id: string; status_url: string }> {
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o3/standard/video-to-video/reference`;
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+        timeout: 60000,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData: any;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new FalAPIError(
+          errorData.message || errorData.detail || `Fal.ai API error: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+
+      const data = await response.json();
+      if (!data.request_id) {
+        throw new FalAPIError('Invalid response: missing request_id', response.status, data);
+      }
+
+      console.log('[Fal.ai] Kling O3 Standard V2V job submitted:', data.request_id);
+      return data;
+    } catch (error) {
+      if (error instanceof FalAPIError) throw error;
+      throw new FalAPIError(
+        `Failed to submit Kling O3 Standard V2V job: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Submit a video edit job to fal.ai O3 Standard queue (V2V Edit)
+   */
+  async submitKlingO3StandardVideoToVideoEdit(
+    params: FalKlingO3EditRequest
+  ): Promise<{ request_id: string; status_url: string }> {
+    const endpoint = `${this.baseUrl}/fal-ai/kling-video/o3/standard/video-to-video/edit`;
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+        timeout: 60000,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData: any;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new FalAPIError(
+          errorData.message || errorData.detail || `Fal.ai API error: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+
+      const data = await response.json();
+      if (!data.request_id) {
+        throw new FalAPIError('Invalid response: missing request_id', response.status, data);
+      }
+
+      console.log('[Fal.ai] Kling O3 Standard V2V Edit job submitted:', data.request_id);
+      return data;
+    } catch (error) {
+      if (error instanceof FalAPIError) throw error;
+      throw new FalAPIError(
+        `Failed to submit Kling O3 Standard V2V Edit job: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Query kling-video job status (shared for O1/O3)
+   */
+  async queryKlingVideoStatus(requestId: string): Promise<FalJobStatus> {
     const endpoint = `${this.baseUrl}/fal-ai/kling-video/requests/${requestId}/status`;
 
     try {
@@ -195,16 +508,14 @@ export class FalAIClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new FalAPIError(`Failed to query I2V job status: ${response.status}`, response.status, errorText);
+        throw new FalAPIError(`Failed to query Kling video job status: ${response.status}`, response.status, errorText);
       }
 
       const data = await response.json();
       return data as FalJobStatus;
     } catch (error) {
       if (error instanceof FalAPIError) throw error;
-      throw new FalAPIError(
-        `Failed to query I2V job status: ${error instanceof Error ? error.message : String(error)}`
-      );
+      throw new FalAPIError(`Failed to query Kling video job status: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

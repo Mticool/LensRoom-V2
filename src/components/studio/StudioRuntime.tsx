@@ -17,6 +17,7 @@ import { invalidateCached } from "@/lib/client/generations-cache";
 import { usePreferencesStore } from "@/stores/preferences-store";
 import { useHistory } from "@/components/generator-v2/hooks/useHistory";
 import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
+import { uploadAsset } from "@/lib/client/upload-assets";
 
 import type { Aspect, Duration, Mode, Quality } from "@/config/studioModels";
 import { getStudioModelByKey, STUDIO_PHOTO_MODELS, STUDIO_VIDEO_MODELS } from "@/config/studioModels";
@@ -25,6 +26,8 @@ import { PHOTO_VARIANT_MODELS, type ParamKey } from "@/config/photoVariantRegist
 import { StudioShell } from "@/components/studio/StudioShell";
 import { ModelSidebar, MobileModelSelector } from "@/components/studio/ModelSidebar";
 import { PhotoModelSidebar, MobilePhotoModelSelector } from "@/components/studio/PhotoModelSidebar";
+import { MotionControlStudio } from "@/components/studio/MotionControlStudio";
+import { MOTION_MODEL_IDS } from "@/components/studio/MotionModelSelector";
 
 type RuntimeStatus = "idle" | "queued" | "generating" | "success" | "failed";
 
@@ -102,6 +105,8 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+const PHOTO_GENERATE_REQUEST_TIMEOUT_MS = 160_000;
+
 export function StudioRuntime({
   defaultKind,
   variant = "video",
@@ -131,8 +136,8 @@ export function StudioRuntime({
 
   const videoModels = useMemo(() => {
     if (variant === "motion") {
-      // Motion section: only Motion Control for now.
-      return STUDIO_VIDEO_MODELS.filter((m) => m.key === "kling-motion-control");
+      // Motion section: Motion Control + WAN Animate + Grok Video
+      return STUDIO_VIDEO_MODELS.filter((m) => MOTION_MODEL_IDS.includes(m.key));
     }
     return STUDIO_VIDEO_MODELS;
   }, [variant]);
@@ -172,6 +177,9 @@ export function StudioRuntime({
   const [resolution, setResolution] = useState<string>(""); // For models with resolution selection (e.g., WAN)
   const [soundPreset, setSoundPreset] = useState<string>(""); // WAN sound presets
   const [referenceVideoUrl, setReferenceVideoUrl] = useState<string>(""); // V2V reference video URL
+  const [o3ShotMode, setO3ShotMode] = useState<"single" | "multi">("single");
+  const [o3MultiShotPrompts, setO3MultiShotPrompts] = useState<string[]>(["", ""]);
+  const [o3MultiShotDurations, setO3MultiShotDurations] = useState<number[]>([2, 2]);
 
   const [prompt, setPrompt] = useState<string>("");
   const [negativePrompt, setNegativePrompt] = useState<string>("");
@@ -182,6 +190,7 @@ export function StudioRuntime({
   const [lastFrame, setLastFrame] = useState<File | null>(null);
   const [motionReferenceVideo, setMotionReferenceVideo] = useState<File | null>(null);
   const [motionReferenceVideoDurationSec, setMotionReferenceVideoDurationSec] = useState<number | null>(null);
+  const [characterOrientation, setCharacterOrientation] = useState<'video' | 'image'>('image');
 
   // Runtime output state
   const [status, setStatus] = useState<RuntimeStatus>("idle");
@@ -372,7 +381,7 @@ export function StudioRuntime({
       setOutputFormat("png");
     }
 
-    setAudio(!!studioModel.supportsAudio);
+    setAudio(studioModel.key === "kling-o3-standard" ? false : !!studioModel.supportsAudio);
     
     // Reset modelVariant and resolution when model changes (for unified models like Kling/WAN)
     const model = getModelById(studioModel.key);
@@ -401,6 +410,11 @@ export function StudioRuntime({
     setResultUrls([]);
     setSoundPreset("");
     setReferenceVideoUrl("");
+    if (studioModel.key !== "kling-o3-standard") {
+      setO3ShotMode("single");
+      setO3MultiShotPrompts(["", ""]);
+      setO3MultiShotDurations([2, 2]);
+    }
   }, [studioModel?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derive duration for Motion Control reference video
@@ -426,9 +440,9 @@ export function StudioRuntime({
 
   // Auto-correct settings when WAN variant changes
   useEffect(() => {
-    if (studioModel?.key !== 'wan' || !modelVariant) return;
+    if (studioModel?.key !== 'wan-2.6' || !modelVariant) return;
     
-    const model = getModelById('wan') as VideoModelConfig | undefined;
+    const model = getModelById('wan-2.6') as VideoModelConfig | undefined;
     const variant = model?.modelVariants?.find(v => v.id === modelVariant);
     if (!variant) return;
     
@@ -462,8 +476,14 @@ export function StudioRuntime({
   const needsReference = !!studioModel?.supportsImageInput && (mode === "i2i" || mode === "i2v");
   const needsStartEnd = mode === "start_end";
   const isStoryboard = mode === "storyboard";
-  const needsV2vReference = mode === "v2v" && studioModel?.key === 'wan';
-  const needsMotionControlVideo = mode === "i2v" && studioModel?.key === "kling-motion-control";
+  const needsV2vReference = mode === "v2v" && studioModel?.key === 'wan-2.6';
+  const isMotionControlModel = studioModel?.key === "kling-motion-control";
+  const isMotionSectionModel = MOTION_MODEL_IDS.includes(studioModel?.key || "");
+  const isWanAnimate = studioModel?.key === "wan-animate-move" || studioModel?.key === "wan-animate-replace";
+  const isGrokVideo = studioModel?.key === "grok-video";
+  const isKlingO1Edit = studioModel?.key === "kling-o1-edit";
+  const needsMotionControlVideo = isMotionControlModel || isWanAnimate;
+  const isKlingO3 = studioModel?.key === "kling-o3-standard";
 
   const canGenerate = useMemo(() => {
     if (!modelInfo) return false;
@@ -471,14 +491,39 @@ export function StudioRuntime({
     if (needsReference && !referenceImage) return false;
     if (needsStartEnd && (!firstFrame || !lastFrame)) return false;
     if (needsV2vReference && !referenceVideoUrl?.trim()) return false;
-    if (needsMotionControlVideo && (!motionReferenceVideo || !motionReferenceVideoDurationSec)) return false;
-    if (needsMotionControlVideo && motionReferenceVideoDurationSec) {
-      const v = validateMotionControlDuration(motionReferenceVideoDurationSec, true);
-      if (!v.valid) return false;
+
+    // Motion section models: kling-motion-control, wan-animate-move, wan-animate-replace
+    if (isMotionControlModel || isWanAnimate) {
+      if (!referenceImage) return false;
+      if (!motionReferenceVideo) return false;
+      // Wait for duration extraction before allowing generate
+      if (motionReferenceVideo && motionReferenceVideoDurationSec === null) return false;
+      if (isMotionControlModel && motionReferenceVideoDurationSec) {
+        const v = validateMotionControlDuration(motionReferenceVideoDurationSec, true);
+        if (!v.valid) return false;
+      }
+      return true; // prompt is optional
     }
+
+    // Grok Video: needs prompt or reference image
+    if (isGrokVideo) {
+      return prompt.trim().length > 0 || !!referenceImage;
+    }
+
+    // Kling O1 Edit: needs video + prompt (image is optional)
+    if (isKlingO1Edit) {
+      if (!motionReferenceVideo) return false;
+      if (motionReferenceVideo && motionReferenceVideoDurationSec === null) return false;
+      return prompt.trim().length > 0;
+    }
+
     if (isStoryboard) return scenes.some((s) => s.trim().length > 0);
+    if (isKlingO3 && o3ShotMode === "multi") {
+      const hasAnyShot = o3MultiShotPrompts.some((s) => s.trim().length > 0);
+      if (!hasAnyShot) return false;
+    }
     return prompt.trim().length > 0;
-  }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, needsV2vReference, referenceVideoUrl, needsMotionControlVideo, motionReferenceVideo, motionReferenceVideoDurationSec, isStoryboard, scenes, prompt]);
+  }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, needsV2vReference, referenceVideoUrl, isMotionControlModel, isWanAnimate, isGrokVideo, isKlingO1Edit, needsMotionControlVideo, motionReferenceVideo, motionReferenceVideoDurationSec, isStoryboard, isKlingO3, o3ShotMode, o3MultiShotPrompts, scenes, prompt]);
 
   const price = useMemo(() => {
     if (!modelInfo) return { stars: 0, credits: 0 };
@@ -515,13 +560,34 @@ export function StudioRuntime({
       return { stars, credits: stars };
     }
 
+    // WAN Animate: per-second pricing based on reference video duration
+    if (v.id === "wan-animate-move" || v.id === "wan-animate-replace") {
+      const d = motionReferenceVideoDurationSec || 0;
+      if (d <= 0) return { stars: 0, credits: 0 };
+      const perSec = v.id === "wan-animate-move" ? 6 : 8;
+      const stars = Math.ceil(d) * perSec;
+      return { stars, credits: stars };
+    }
+
+    // Grok Video: fixed pricing by selected duration (stored in quality state)
+    if (v.id === "grok-video") {
+      const grokDuration = Number(quality) || 6;
+      return computePrice(v.id, { duration: grokDuration, variants: 1 });
+    }
+
+    // Kling O3 Edit: fixed pricing by selected duration (stored in quality state)
+    if (v.id === "kling-o1-edit") {
+      const editDuration = Number(quality) || 5;
+      return computePrice(v.id, { duration: editDuration, variants: 1 });
+    }
+
     return computePrice(v.id, {
       mode: mode as any,
       duration: duration as any,
       // bytedance uses resolutionOptions; computePrice expects videoQuality to key into pricing
       videoQuality: String(quality || "") as any,
       resolution: effectiveResolution as any, // For WAN per-second pricing
-      audio: v.supportsAudio ? (v.id === "wan" ? !!soundPreset : audio) : false,
+      audio: v.supportsAudio ? (v.id === "wan-2.6" ? !!soundPreset : audio) : false,
       modelVariant: modelVariant || undefined,
       variants: 1,
     });
@@ -807,7 +873,7 @@ export function StudioRuntime({
         }
 
         const res = await fetchWithTimeout("/api/generate/photo", {
-          timeout: 30_000,
+          timeout: PHOTO_GENERATE_REQUEST_TIMEOUT_MS,
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -897,23 +963,58 @@ export function StudioRuntime({
         quality: isResolution ? undefined : String(quality || ""),
         resolution: effectiveResolution || undefined, // For WAN per-second pricing
         audio: v.supportsAudio ? audio : undefined,
+        generateAudio: v.id === "kling-o3-standard" ? audio : undefined,
         soundPreset: soundPreset || undefined, // WAN sound presets
         threadId,
       };
 
-      if (mode === "i2v") {
+      if (v.id === "kling-motion-control") {
+        if (!referenceImage) throw new Error("referenceImage is required for Motion Control");
+        if (!motionReferenceVideo) throw new Error("referenceVideo is required for Motion Control");
+        // Motion Control mobile-safe transport: upload assets first and send URLs.
+        payload.referenceImage = await uploadAsset(referenceImage, "image");
+        payload.referenceVideo = await uploadAsset(motionReferenceVideo, "video");
+        payload.videoDuration = motionReferenceVideoDurationSec || undefined;
+        payload.motionSeconds = motionReferenceVideoDurationSec || undefined;
+        payload.characterOrientation = characterOrientation;
+      } else if (v.id === "wan-animate-move") {
+        if (!referenceImage) throw new Error("referenceImage is required for WAN Animate Move");
+        if (!motionReferenceVideo) throw new Error("referenceVideo is required for WAN Animate Move");
+        payload.mode = 'animate';
+        payload.referenceImage = await uploadAsset(referenceImage, "image");
+        payload.referenceVideo = await uploadAsset(motionReferenceVideo, "video");
+        payload.videoDuration = motionReferenceVideoDurationSec || undefined;
+        payload.duration = motionReferenceVideoDurationSec || undefined; // per-second billing
+      } else if (v.id === "wan-animate-replace") {
+        if (!referenceImage) throw new Error("referenceImage is required for WAN Animate Replace");
+        if (!motionReferenceVideo) throw new Error("referenceVideo is required for WAN Animate Replace");
+        payload.mode = 'animate';
+        payload.referenceImage = await uploadAsset(referenceImage, "image");
+        payload.referenceVideo = await uploadAsset(motionReferenceVideo, "video");
+        payload.videoDuration = motionReferenceVideoDurationSec || undefined;
+        payload.duration = motionReferenceVideoDurationSec || undefined; // per-second billing
+      } else if (v.id === "grok-video") {
+        // Grok Video: optional reference image for style transfer
+        if (referenceImage) {
+          payload.referenceImage = await fileToDataUrl(referenceImage);
+          payload.mode = 'i2v';
+        } else {
+          payload.mode = 't2v';
+        }
+        payload.duration = Number(quality) || 6; // quality state holds selected duration (6 or 10)
+      } else if (v.id === "kling-o1-edit") {
+        // Kling O1 Edit: video + prompt + optional reference image
+        if (!motionReferenceVideo) throw new Error("Video is required for Kling O1 Edit");
+        payload.videoUrl = await uploadAsset(motionReferenceVideo, "video");
+        payload.mode = 'v2v_edit';
+        payload.duration = Number(quality) || 5; // quality state holds selected duration for edit models
+        if (referenceImage) {
+          payload.startImage = await fileToDataUrl(referenceImage);
+        }
+        payload.keepAudio = true;
+      } else if (mode === "i2v") {
         if (!referenceImage) throw new Error("referenceImage is required for i2v");
         payload.referenceImage = await fileToDataUrl(referenceImage);
-
-        // Kling Motion Control requires an additional reference video with motions
-        if (v.id === "kling-motion-control") {
-          if (!motionReferenceVideo) throw new Error("referenceVideo is required for Motion Control");
-          payload.referenceVideo = await fileToDataUrl(motionReferenceVideo);
-          payload.videoDuration = motionReferenceVideoDurationSec || undefined;
-          payload.autoTrim = true;
-          payload.characterOrientation = 'image';
-          payload.cameraControl = {};
-        }
       }
 
       if (mode === "start_end") {
@@ -926,6 +1027,30 @@ export function StudioRuntime({
         if (!referenceVideoUrl?.trim()) throw new Error("referenceVideoUrl is required for v2v");
         payload.videoUrl = referenceVideoUrl.trim();
       }
+
+      if (v.id === "kling-o3-standard") {
+        if (o3ShotMode === "multi") {
+          const nonEmptyShots = o3MultiShotPrompts
+            .map((s, idx) => ({
+              prompt: s.trim(),
+              duration: Math.max(1, Math.min(15, Number(o3MultiShotDurations[idx] || 2))),
+            }))
+            .filter((shot) => shot.prompt.length > 0)
+            .slice(0, 4);
+          payload.multiPrompt = nonEmptyShots;
+          payload.shotType = "customize";
+        } else {
+          payload.shotType = "single";
+        }
+      }
+
+      console.log("[StudioRuntime] Motion submit audit", {
+        selectedModel: v.id,
+        hasCharacterImage: typeof payload.referenceImage === "string" && payload.referenceImage.length > 0,
+        hasMotionVideo: typeof payload.referenceVideo === "string" && payload.referenceVideo.length > 0,
+        motionSeconds: payload.motionSeconds ?? payload.videoDuration ?? null,
+        resolution: payload.resolution ?? payload.quality ?? null,
+      });
 
       const res = await fetchWithTimeout("/api/generate/video", {
         // Video job submission should be fast, but protect UI from hanging connections.
@@ -1020,6 +1145,9 @@ export function StudioRuntime({
     modelVariant,
     resolution,
     soundPreset,
+    o3ShotMode,
+    o3MultiShotPrompts,
+    o3MultiShotDurations,
     referenceVideoUrl,
     outputFormat,
     referenceImage,
@@ -1030,6 +1158,7 @@ export function StudioRuntime({
     scenes,
     audio,
     isStoryboard,
+    characterOrientation,
     startPollingJob,
   ]);
 
@@ -1153,6 +1282,101 @@ export function StudioRuntime({
     return activeMobileVideo ? favorites.has(activeMobileVideo.id) : false;
   }, [activeMobileVideo, favorites]);
 
+  // Motion section: show dedicated MotionControlStudio on mobile, StudioShell on desktop
+  if (isMotionSectionModel) {
+    return (
+      <>
+        {/* Mobile: full-page Motion Control Studio */}
+        <div className="lg:hidden">
+          <MotionControlStudio
+            selectedModelId={selectedModelId}
+            onModelSelect={setSelectedModelId}
+            referenceImage={referenceImage}
+            onReferenceImageChange={setReferenceImage}
+            motionReferenceVideo={motionReferenceVideo}
+            onMotionReferenceVideoChange={setMotionReferenceVideo}
+            motionReferenceVideoDurationSec={motionReferenceVideoDurationSec}
+            quality={quality as string}
+            onQualityChange={(q) => setQuality(q as any)}
+            characterOrientation={characterOrientation}
+            onCharacterOrientationChange={setCharacterOrientation}
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            estimatedStars={price.stars}
+            isGenerating={isStarting || status === 'generating' || status === 'queued'}
+            canGenerate={canGenerate && !isStarting}
+            onGenerate={handleGenerate}
+            resultUrls={resultUrls}
+            activeRunIndex={activeRunIndex}
+            onPrev={mobilePrev}
+            onNext={mobileNext}
+            onDownload={handleDownload}
+          />
+        </div>
+        {/* Desktop: standard StudioShell layout */}
+        <div className="hidden lg:block">
+          <StudioShell
+            sidebar={
+              <ModelSidebar models={models} selectedKey={selectedModelId} onSelect={(key) => setSelectedModelId(key)} />
+            }
+          >
+            <div className="flex flex-col min-h-screen">
+              <MobileVideoViewer
+                video={activeMobileVideo}
+                index={activeRunIndex}
+                total={resultUrls.length}
+                onPrev={mobilePrev}
+                onNext={mobileNext}
+                onDownload={handleDownload}
+                onToggleFavorite={toggleFavorite}
+                isFavorite={isFavorite}
+              />
+              <VideoGeneratorBottomSheet
+                modelId={selectedModelId}
+                modelName={modelInfo?.name || studioModel?.key || ''}
+                estimatedCost={price.stars}
+                prompt={prompt}
+                onPromptChange={setPrompt}
+                mode={mode as string}
+                onModeChange={(m) => setMode(m as any)}
+                availableModes={studioModel?.modes || ['t2v']}
+                duration={duration as number}
+                onDurationChange={(d) => setDuration(d as any)}
+                durationOptions={studioModel?.kind === "video" && studioModel.durationOptions ? (studioModel.durationOptions as number[]) : [5, 10]}
+                quality={quality as string}
+                onQualityChange={(q) => setQuality(q as any)}
+                qualityOptions={studioModel?.qualityTiers || []}
+                aspectRatio={String(aspect || "")}
+                onAspectRatioChange={(v) => setAspect(v as any)}
+                aspectRatioOptions={studioModel?.aspectRatios || []}
+                referenceImage={referenceImage}
+                onReferenceImageChange={setReferenceImage}
+                motionReferenceVideo={motionReferenceVideo}
+                onMotionReferenceVideoChange={setMotionReferenceVideo}
+                motionReferenceVideoDurationSec={motionReferenceVideoDurationSec}
+                negativePrompt={negativePrompt}
+                onNegativePromptChange={setNegativePrompt}
+                supportsAudioToggle={false}
+                audioEnabled={audio}
+                onAudioEnabledChange={setAudio}
+                supportsMultiShot={false}
+                shotMode={o3ShotMode}
+                onShotModeChange={setO3ShotMode}
+                multiShotPrompts={o3MultiShotPrompts}
+                onMultiShotPromptsChange={setO3MultiShotPrompts}
+                multiShotDurations={o3MultiShotDurations}
+                onMultiShotDurationsChange={setO3MultiShotDurations}
+                isGenerating={isStarting || status === 'generating' || status === 'queued'}
+                canGenerate={canGenerate && !isStarting}
+                onGenerate={handleGenerate}
+              />
+            </div>
+          </StudioShell>
+        </div>
+      </>
+    );
+  }
+
   return (
     <StudioShell
       sidebar={
@@ -1223,8 +1447,21 @@ export function StudioRuntime({
           aspectRatioOptions={studioModel?.aspectRatios || []}
           referenceImage={referenceImage}
           onReferenceImageChange={setReferenceImage}
+          motionReferenceVideo={motionReferenceVideo}
+          onMotionReferenceVideoChange={setMotionReferenceVideo}
+          motionReferenceVideoDurationSec={motionReferenceVideoDurationSec}
           negativePrompt={negativePrompt}
           onNegativePromptChange={setNegativePrompt}
+          supportsAudioToggle={studioModel?.key === "kling-o3-standard"}
+          audioEnabled={audio}
+          onAudioEnabledChange={setAudio}
+          supportsMultiShot={studioModel?.key === "kling-o3-standard"}
+          shotMode={o3ShotMode}
+          onShotModeChange={setO3ShotMode}
+          multiShotPrompts={o3MultiShotPrompts}
+          onMultiShotPromptsChange={setO3MultiShotPrompts}
+          multiShotDurations={o3MultiShotDurations}
+          onMultiShotDurationsChange={setO3MultiShotDurations}
           isGenerating={isStarting || status === 'generating' || status === 'queued'}
           canGenerate={canGenerate && !isStarting}
           onGenerate={handleGenerate}

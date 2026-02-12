@@ -6,6 +6,11 @@ export type VideoQuality = '720p' | '1080p' | '4K' | 'standard' | 'pro' | 'maste
 export type VideoStatus = 'idle' | 'queued' | 'processing' | 'success' | 'error';
 export type TabType = 'video' | 'motion' | 'edit' | 'music';
 
+export interface KlingO3Shot {
+  prompt: string;
+  duration: number;
+}
+
 export interface VideoGenerationParams {
   prompt: string;
   mode: VideoMode;
@@ -36,6 +41,7 @@ export interface VideoGenerationParams {
   characterImage?: string | null;
   characterOrientation?: 'image' | 'video';
   videoDuration?: number;
+  motionSeconds?: number;
 
   // Video Edit mode (Kling O1 Edit)
   editVideo?: string | null;
@@ -54,6 +60,9 @@ export interface VideoGenerationParams {
   modelVariant?: string;
   resolution?: string; // e.g., "1080p_multi" for WAN
   soundPreset?: string; // WAN sound presets
+  multiPrompt?: Array<string | KlingO3Shot>; // Kling O3 multishot prompts
+  shotType?: 'single' | 'customize'; // Kling O3 shot type
+  generateAudio?: boolean; // Kling O3 audio toggle
 }
 
 export interface VideoGenerationState {

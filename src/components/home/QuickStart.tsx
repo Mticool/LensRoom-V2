@@ -33,7 +33,7 @@ const QUICK_TEMPLATES = [
     title: 'Фэнтези',
     prompt: 'magical forest with glowing mushrooms, ethereal fairy lights, mystical atmosphere, fantasy art style, highly detailed',
     emoji: '✨',
-    color: '#fbbf24',
+    color: '#a0ff40',
   },
   {
     id: 'product',

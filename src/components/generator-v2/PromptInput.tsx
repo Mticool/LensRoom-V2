@@ -61,7 +61,7 @@ export function PromptInput({
         className={cn(
           "w-full px-4 py-3 pr-10 rounded-lg resize-none overflow-hidden",
           "bg-[#1a1a1a] text-white placeholder:text-gray-500",
-          "border border-[#2a2a2a] focus:border-[#f59e0b] focus:outline-none",
+          "border border-[#2a2a2a] focus:border-[#8cf425] focus:outline-none",
           "transition-colors duration-200 transition-[height] duration-150 ease-out",
           "min-h-[44px] max-h-[120px]",
           disabled && "opacity-50 cursor-not-allowed"
