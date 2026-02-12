@@ -106,7 +106,7 @@ function MiniUploader({
   onRemove,
   inputId,
   videoDuration,
-  accentClass = 'border-violet-500/40',
+  accentClass = 'border-[var(--gold)]/40',
 }: MiniUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -140,7 +140,7 @@ function MiniUploader({
         preview
           ? 'border-solid border-[var(--border)]'
           : isDragOver
-            ? `${accentClass} bg-violet-500/5`
+            ? `${accentClass} bg-[var(--gold)]/5`
             : 'border-[var(--border)] hover:border-[var(--border-hover)]',
         disabled && 'opacity-50 pointer-events-none',
       )}
@@ -492,7 +492,7 @@ export function AnimateSection() {
                 label="Видео"
                 sublabel="MP4 до 30с"
                 accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
-                icon={<Film className="w-5 h-5 text-violet-400" />}
+                icon={<Film className="w-5 h-5 text-[var(--gold)]" />}
                 preview={videoPreview}
                 uploading={videoUploading}
                 disabled={generating}
@@ -500,7 +500,7 @@ export function AnimateSection() {
                 onRemove={handleVideoRemove}
                 inputId="animate-video-upload"
                 videoDuration={videoDuration}
-                accentClass="border-violet-500/40"
+                accentClass="border-[var(--gold)]/40"
               />
               <MiniUploader
                 type="image"
@@ -673,8 +673,8 @@ export function AnimateSection() {
             {/* Title */}
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/15 flex items-center justify-center">
-                  <Film className="w-6 h-6 text-violet-400" />
+                <div className="w-12 h-12 rounded-2xl bg-[var(--gold)]/10 border border-[var(--gold)]/15 flex items-center justify-center">
+                  <Film className="w-6 h-6 text-[var(--gold)]" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-[var(--text)]">
@@ -693,8 +693,8 @@ export function AnimateSection() {
             {/* How it works steps */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="flex items-start gap-3 p-4 rounded-2xl bg-[var(--bg)] border border-[var(--border)]">
-                <div className="w-8 h-8 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Film className="w-4 h-4 text-violet-400" />
+                <div className="w-8 h-8 rounded-xl bg-[var(--gold)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Film className="w-4 h-4 text-[var(--gold)]" />
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-[var(--text)] mb-0.5">1. Видео</div>
@@ -729,8 +729,8 @@ export function AnimateSection() {
 
             {/* Tips / Info */}
             <div className="mt-auto">
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-violet-500/5 border border-violet-500/10">
-                <Info className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-[var(--gold)]/5 border border-[var(--gold)]/10">
+                <Info className="w-4 h-4 text-[var(--gold)] shrink-0 mt-0.5" />
                 <div className="text-xs text-[var(--muted)] leading-relaxed">
                   <span className="font-semibold text-[var(--text)]">Совет:</span>{' '}
                   {animateMode === 'move'

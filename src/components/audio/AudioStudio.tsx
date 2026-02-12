@@ -520,8 +520,8 @@ export function AudioStudio() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="p-2.5 rounded-2xl bg-pink-500/10 border border-pink-500/15">
-              <Music className="w-6 h-6 text-pink-500" />
+            <div className="p-2.5 rounded-2xl bg-[var(--gold)]/10 border border-[var(--gold)]/15">
+              <Music className="w-6 h-6 text-[var(--gold)]" />
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)]">
               Музыка и голос
@@ -535,9 +535,14 @@ export function AudioStudio() {
         <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-6">
           <div className="space-y-6">
             <div className="p-5 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border)] shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
-              <div className="mb-5">
-                <h3 className="text-lg sm:text-xl font-semibold text-[var(--text)]">Клонируй голос</h3>
-                <p className="mt-1 text-sm text-[var(--muted)]">Загрузи образец голоса или запиши прямо здесь</p>
+              <div className="mb-5 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[var(--gold)]/10 border border-[var(--gold)]/15 flex items-center justify-center shrink-0">
+                  <Mic className="w-5 h-5 text-[var(--gold)]" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-[var(--text)]">Клонируй голос</h3>
+                  <p className="text-sm text-[var(--muted)]">Загрузи образец или запиши прямо здесь</p>
+                </div>
               </div>
 
               <div className="grid gap-4">
@@ -658,10 +663,15 @@ export function AudioStudio() {
                   <label className="block text-sm font-medium text-[var(--text)] mb-3">Выберите голос</label>
                   
                   {clonedVoices.length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-[var(--bg)] border border-[var(--border)] text-center">
-                      <Volume2 className="w-8 h-8 mx-auto mb-2 text-[var(--muted)]" />
-                      <p className="text-sm text-[var(--muted)]">
-                        Нажмите «Добавить готовые» чтобы получить голоса
+                    <div className="p-6 rounded-2xl bg-[var(--bg)] border border-dashed border-[var(--border)] text-center">
+                      <div className="w-12 h-12 mx-auto rounded-xl bg-[var(--gold)]/10 border border-[var(--gold)]/15 flex items-center justify-center mb-3">
+                        <Volume2 className="w-6 h-6 text-[var(--gold)]" />
+                      </div>
+                      <p className="text-sm font-medium text-[var(--text)] mb-1">
+                        Голоса не найдены
+                      </p>
+                      <p className="text-xs text-[var(--muted)]">
+                        Нажмите «Готовые голоса» или клонируйте свой
                       </p>
                     </div>
                   ) : (
@@ -670,10 +680,10 @@ export function AudioStudio() {
                         <div
                           key={voice.id}
                           className={cn(
-                            "relative p-3 rounded-xl border cursor-pointer transition-all group",
+                            "relative p-3.5 rounded-2xl border cursor-pointer transition-all group",
                             selectedVoice === voice.id
-                              ? "bg-[var(--gold)]/10 border-[var(--gold)] ring-1 ring-[var(--gold)]"
-                              : "bg-[var(--bg)] border-[var(--border)] hover:border-[var(--gold)]/50"
+                              ? "bg-[var(--gold)]/8 border-[var(--gold)]/40 ring-1 ring-[var(--gold)]/30 shadow-[0_0_20px_-5px_rgba(140,244,37,0.2)]"
+                              : "bg-[var(--bg)] border-[var(--border)] hover:border-[var(--gold)]/20 hover:bg-[var(--surface2)]"
                           )}
                           onClick={() => setSelectedVoice(voice.id)}
                         >
@@ -772,15 +782,24 @@ export function AudioStudio() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--muted)] mb-1">Формат</label>
-                    <select
-                      value={outputFormat}
-                      onChange={(e) => setOutputFormat(e.target.value as 'mp3' | 'wav')}
-                      className="w-full px-3 py-2 text-xs rounded-lg border bg-[var(--bg)] text-[var(--text)]"
-                    >
-                      <option value="mp3">MP3</option>
-                      <option value="wav">WAV</option>
-                    </select>
+                    <label className="block text-xs text-[var(--muted)] mb-1.5">Формат</label>
+                    <div className="flex gap-1.5 p-1 rounded-lg bg-[var(--bg)] border border-[var(--border)]">
+                      {(['mp3', 'wav'] as const).map((fmt) => (
+                        <button
+                          key={fmt}
+                          type="button"
+                          onClick={() => setOutputFormat(fmt)}
+                          className={cn(
+                            'flex-1 py-1.5 rounded-md text-xs font-semibold uppercase transition-all',
+                            outputFormat === fmt
+                              ? 'bg-[var(--gold)] text-black'
+                              : 'text-[var(--muted)] hover:text-[var(--text)]'
+                          )}
+                        >
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <button

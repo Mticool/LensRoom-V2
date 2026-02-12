@@ -13,7 +13,10 @@ import {
   RefreshCw,
   ExternalLink,
   PlayCircle,
+  ChevronDown,
+  Scissors,
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { AudioStudio } from './AudioStudio';
 import { VoiceRecorder } from '@/components/voice/VoiceRecorder';
@@ -84,6 +87,7 @@ export function MusicAndVoiceStudio() {
   const [vocalGender, setVocalGender] = useState<'not_specified' | 'male' | 'female'>('not_specified');
   const [styleWeight, setStyleWeight] = useState<number>(55);
   const [weirdness, setWeirdness] = useState<number>(20);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Advanced ops inputs (best-effort, user-supplied).
   const [audioId, setAudioId] = useState('');
@@ -340,12 +344,12 @@ export function MusicAndVoiceStudio() {
 
   const presets = useMemo(
     () => [
-      { label: 'Phonk', v: 'phonk, aggressive, 90 bpm, distorted 808' },
-      { label: 'Lo-fi', v: 'lofi hip hop, chill, warm vinyl, 80 bpm' },
-      { label: 'House', v: 'house, club, four-on-the-floor, 124 bpm' },
-      { label: 'Synthwave', v: 'synthwave, retro, neon, 100 bpm' },
-      { label: 'Cinematic', v: 'cinematic, orchestral, trailer, epic' },
-      { label: 'Pop', v: 'pop, catchy, modern, radio' },
+      { label: 'Phonk', v: 'phonk, aggressive, 90 bpm, distorted 808', emoji: '🔥', color: 'bg-red-500/8 border-red-500/20 hover:bg-red-500/15' },
+      { label: 'Lo-fi', v: 'lofi hip hop, chill, warm vinyl, 80 bpm', emoji: '🎧', color: 'bg-amber-500/8 border-amber-500/20 hover:bg-amber-500/15' },
+      { label: 'House', v: 'house, club, four-on-the-floor, 124 bpm', emoji: '🪩', color: 'bg-purple-500/8 border-purple-500/20 hover:bg-purple-500/15' },
+      { label: 'Synthwave', v: 'synthwave, retro, neon, 100 bpm', emoji: '🌆', color: 'bg-cyan-500/8 border-cyan-500/20 hover:bg-cyan-500/15' },
+      { label: 'Cinematic', v: 'cinematic, orchestral, trailer, epic', emoji: '🎬', color: 'bg-blue-500/8 border-blue-500/20 hover:bg-blue-500/15' },
+      { label: 'Pop', v: 'pop, catchy, modern, radio', emoji: '🎤', color: 'bg-pink-500/8 border-pink-500/20 hover:bg-pink-500/15' },
     ],
     []
   );
@@ -353,15 +357,15 @@ export function MusicAndVoiceStudio() {
   return (
     <div className="min-h-screen bg-[var(--bg)] relative overflow-hidden">
       {/* Background glow */}
-      <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[620px] h-[620px] rounded-full bg-pink-500/10 blur-[160px]" />
-      <div className="pointer-events-none absolute top-40 -left-32 w-[520px] h-[520px] rounded-full bg-[var(--gold)]/12 blur-[160px]" />
-      <div className="pointer-events-none absolute bottom-10 -right-28 w-[520px] h-[520px] rounded-full bg-violet-500/10 blur-[160px]" />
+      <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[620px] h-[620px] rounded-full bg-[var(--gold)]/8 blur-[180px]" />
+      <div className="pointer-events-none absolute top-40 -left-32 w-[520px] h-[520px] rounded-full bg-[var(--accent-secondary)]/6 blur-[160px]" />
+      <div className="pointer-events-none absolute bottom-10 -right-28 w-[520px] h-[520px] rounded-full bg-[var(--gold)]/5 blur-[160px]" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-10">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="p-2.5 rounded-2xl bg-pink-500/10 border border-pink-500/15">
-              <Music className="w-6 h-6 text-pink-500" />
+            <div className="p-2.5 rounded-2xl bg-[var(--gold)]/10 border border-[var(--gold)]/15">
+              <Music className="w-6 h-6 text-[var(--gold)]" />
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text)]">
               Музыка
@@ -434,52 +438,95 @@ export function MusicAndVoiceStudio() {
                 </div>
 
                 <div className="grid gap-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-[var(--muted)] mb-1">Режим</label>
-                      <select
-                        value={generationType}
-                        onChange={(e) => setGenerationType(e.target.value as GenerationType)}
-                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]"
-                      >
-                        <option value="generate">Generate (новый трек)</option>
-                        <option value="extend">Extend (продолжить)</option>
-                        <option value="cover">Cover (кавер)</option>
-                        <option value="add-vocals">Add Vocals (добавить вокал)</option>
-                        <option value="separate">Separate (разделить дорожки)</option>
-                      </select>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-2">Режим</label>
+                    <div className="flex gap-1.5 p-1 rounded-xl bg-[var(--bg)] border border-[var(--border)] overflow-x-auto">
+                      {([
+                        { value: 'generate' as const, label: 'Новый трек', icon: <Sparkles className="w-3.5 h-3.5" /> },
+                        { value: 'extend' as const, label: 'Продолжить', icon: <RefreshCw className="w-3.5 h-3.5" /> },
+                        { value: 'cover' as const, label: 'Кавер', icon: <Music className="w-3.5 h-3.5" /> },
+                        { value: 'add-vocals' as const, label: 'Вокал', icon: <Mic className="w-3.5 h-3.5" /> },
+                        { value: 'separate' as const, label: 'Разделить', icon: <Scissors className="w-3.5 h-3.5" /> },
+                      ] as const).map((mode) => (
+                        <button
+                          key={mode.value}
+                          type="button"
+                          onClick={() => setGenerationType(mode.value)}
+                          className={cn(
+                            'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
+                            generationType === mode.value
+                              ? 'bg-[var(--gold)] text-black shadow-sm'
+                              : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]'
+                          )}
+                        >
+                          {mode.icon}
+                          {mode.label}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <label className="block text-xs text-[var(--muted)] mb-1">Suno модель</label>
-                      <select
-                        value={sunoModel}
-                        onChange={(e) => setSunoModel(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]"
-                      >
-                        <option value="V4_5PLUS">V4.5 Plus</option>
-                        <option value="V4_0">V4.0</option>
-                        <option value="V3_5">V3.5</option>
-                      </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-2">Модель</label>
+                    <div className="flex gap-1.5 p-1 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
+                      {([
+                        { value: 'V4_5PLUS' as const, label: 'V4.5+', badge: 'NEW' },
+                        { value: 'V4_0' as const, label: 'V4.0', badge: undefined },
+                        { value: 'V3_5' as const, label: 'V3.5', badge: undefined },
+                      ] as const).map((m) => (
+                        <button
+                          key={m.value}
+                          type="button"
+                          onClick={() => setSunoModel(m.value)}
+                          className={cn(
+                            'flex-1 py-2 rounded-lg text-xs font-semibold transition-all relative',
+                            sunoModel === m.value
+                              ? 'bg-[var(--gold)] text-black shadow-sm'
+                              : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]'
+                          )}
+                        >
+                          {m.label}
+                          {m.badge && sunoModel !== m.value && (
+                            <span className="absolute -top-1.5 -right-1 px-1.5 py-0.5 text-[9px] font-bold bg-[var(--gold)] text-black rounded-full leading-none">
+                              {m.badge}
+                            </span>
+                          )}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="flex items-center gap-2 text-sm text-[var(--text)]">
-                      <input
-                        type="checkbox"
-                        checked={customMode}
-                        onChange={(e) => setCustomMode(e.target.checked)}
-                      />
-                      Custom Mode (lyrics)
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-[var(--text)]">
-                      <input
-                        type="checkbox"
-                        checked={instrumental}
-                        onChange={(e) => setInstrumental(e.target.checked)}
-                      />
-                      Instrumental
-                    </label>
+                    {([
+                      { label: 'Custom Mode', sublabel: 'Свой текст', checked: customMode, toggle: () => setCustomMode(!customMode) },
+                      { label: 'Instrumental', sublabel: 'Без вокала', checked: instrumental, toggle: () => setInstrumental(!instrumental) },
+                    ] as const).map((t) => (
+                      <button
+                        key={t.label}
+                        type="button"
+                        onClick={t.toggle}
+                        className={cn(
+                          'flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-all text-left',
+                          t.checked
+                            ? 'bg-[var(--gold)]/8 border-[var(--gold)]/30'
+                            : 'bg-[var(--bg)] border-[var(--border)] hover:border-[var(--border-hover)]'
+                        )}
+                      >
+                        <div>
+                          <div className="text-sm font-medium text-[var(--text)]">{t.label}</div>
+                          <div className="text-[11px] text-[var(--muted)]">{t.sublabel}</div>
+                        </div>
+                        <div className={cn(
+                          'w-10 h-6 rounded-full p-0.5 transition-colors shrink-0',
+                          t.checked ? 'bg-[var(--gold)]' : 'bg-[var(--surface3,var(--surface2))]'
+                        )}>
+                          <div className={cn(
+                            'w-5 h-5 rounded-full bg-white shadow-md transition-transform',
+                            t.checked ? 'translate-x-4' : 'translate-x-0'
+                          )} />
+                        </div>
+                      </button>
+                    ))}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -509,8 +556,12 @@ export function MusicAndVoiceStudio() {
                         key={p.label}
                         type="button"
                         onClick={() => setStyle((prev) => (prev ? `${prev}, ${p.v}` : p.v))}
-                        className="px-3 py-1.5 rounded-full text-xs font-semibold border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--surface2)]"
+                        className={cn(
+                          'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95',
+                          p.color
+                        )}
                       >
+                        <span className="mr-1">{p.emoji}</span>
                         {p.label}
                       </button>
                     ))}
@@ -544,19 +595,31 @@ export function MusicAndVoiceStudio() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-[var(--muted)] mb-1">Vocal gender</label>
-                      <select
-                        value={vocalGender}
-                        onChange={(e) => setVocalGender(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]"
-                      >
-                        <option value="not_specified">Any</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                      </select>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-2">Голос</label>
+                      <div className="flex gap-1.5 p-1 rounded-xl bg-[var(--bg)] border border-[var(--border)]">
+                        {([
+                          { value: 'not_specified' as const, label: 'Любой' },
+                          { value: 'male' as const, label: '♂ Муж' },
+                          { value: 'female' as const, label: '♀ Жен' },
+                        ] as const).map((g) => (
+                          <button
+                            key={g.value}
+                            type="button"
+                            onClick={() => setVocalGender(g.value)}
+                            className={cn(
+                              'flex-1 py-2 rounded-lg text-xs font-semibold transition-all',
+                              vocalGender === g.value
+                                ? 'bg-[var(--gold)] text-black shadow-sm'
+                                : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]'
+                            )}
+                          >
+                            {g.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-[var(--muted)] mb-1">Negative tags</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-2">Negative tags</label>
                       <input
                         value={negativeTags}
                         onChange={(e) => setNegativeTags(e.target.value)}
@@ -566,41 +629,37 @@ export function MusicAndVoiceStudio() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4">
-                    <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-[var(--text)]">
-                      <Settings2 className="w-4 h-4 text-[var(--muted)]" />
-                      Тонкая настройка
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <div className="flex items-center justify-between text-xs text-[var(--muted)] mb-1">
-                          <span>Style weight</span>
-                          <span>{styleWeight}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={styleWeight}
-                          onChange={(e) => setStyleWeight(parseInt(e.target.value, 10))}
-                          className="w-full"
-                        />
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg)] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setAdvancedOpen(!advancedOpen)}
+                      className="flex w-full items-center justify-between p-4"
+                    >
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                        <Settings2 className="w-4 h-4 text-[var(--gold)]" />
+                        Тонкая настройка
                       </div>
-                      <div>
-                        <div className="flex items-center justify-between text-xs text-[var(--muted)] mb-1">
-                          <span>Weirdness</span>
-                          <span>{weirdness}%</span>
+                      <ChevronDown className={cn('w-4 h-4 text-[var(--muted)] transition-transform', advancedOpen && 'rotate-180')} />
+                    </button>
+
+                    {advancedOpen && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 pb-4 pt-0 border-t border-[var(--border)]">
+                        <div className="pt-4">
+                          <div className="flex items-center justify-between text-xs text-[var(--muted)] mb-3">
+                            <span>Style weight</span>
+                            <span className="px-2 py-0.5 rounded-md bg-[var(--gold)]/10 text-[var(--gold)] font-semibold">{styleWeight}%</span>
+                          </div>
+                          <Slider value={[styleWeight]} onValueChange={([v]: number[]) => setStyleWeight(v)} min={0} max={100} step={1} />
                         </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={weirdness}
-                          onChange={(e) => setWeirdness(parseInt(e.target.value, 10))}
-                          className="w-full"
-                        />
+                        <div className="pt-4">
+                          <div className="flex items-center justify-between text-xs text-[var(--muted)] mb-3">
+                            <span>Weirdness</span>
+                            <span className="px-2 py-0.5 rounded-md bg-[var(--gold)]/10 text-[var(--gold)] font-semibold">{weirdness}%</span>
+                          </div>
+                          <Slider value={[weirdness]} onValueChange={([v]: number[]) => setWeirdness(v)} min={0} max={100} step={1} />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {(generationType === 'cover' || generationType === 'add-vocals') && (
