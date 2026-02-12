@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { toast } from 'sonner';
 import {
@@ -12,6 +12,7 @@ import {
   Sparkles,
   Star,
   X,
+  ZoomIn,
 } from 'lucide-react';
 
 import { PHOTO_MODELS } from '@/config/models';
@@ -116,6 +117,8 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [aspectOpen, setAspectOpen] = useState(false);
+  const [hoveredRefIdx, setHoveredRefIdx] = useState<number | null>(null);
+  const [removingIdx, setRemovingIdx] = useState<number | null>(null);
 
   const charCount = useMemo(() => Math.min(1000, (props.prompt || '').length), [props.prompt]);
   const showGlow = useMemo(
@@ -123,10 +126,21 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
     [props.canSubmit, props.prompt],
   );
 
+  const hasRefs = props.pendingRefPreviews.length > 0 || props.referenceList.length > 0;
+  const totalRefCount = props.referenceList.length + props.pendingRefPreviews.length;
+
   const aspectRatios = useMemo(
     () => props.aspectRatioOptions || ['1:1', '16:9', '9:16', '4:3', '3:4'],
     [props.aspectRatioOptions],
   );
+
+  // Height: base 52 collapsed, expand more when refs present
+  const panelHeight = useMemo(() => {
+    if (!isExpanded) return 52;
+    return hasRefs ? 140 : 96;
+  }, [isExpanded, hasRefs]);
+
+  const outerHeight = useMemo(() => panelHeight + 16, [panelHeight]);
 
   // Escape collapses.
   useEffect(() => {
@@ -135,7 +149,7 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
         setSettingsOpen(false);
         setModelsOpen(false);
         setAspectOpen(false);
-        setIsExpanded(false); // collapse panel on Esc (Wan-like feel)
+        setIsExpanded(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -156,7 +170,6 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
       const t = e.target as Node | null;
       if (!t) return;
       if (panelRef.current?.contains(t)) return;
-      // Radix dropdowns render in portals; treat them as "inside" while open.
       if (modelsOpen || settingsOpen || aspectOpen) return;
       collapse();
     };
@@ -174,12 +187,51 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
     else if (props.needsPrompt && props.prompt.trim().length === 0) toast.error('Введите промпт');
   };
 
+  const handleRemoveRef = useCallback((idx: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRemovingIdx(idx);
+    setTimeout(() => {
+      if (props.onRemoveRefAt) props.onRemoveRefAt(idx);
+      else props.onRemoveAllRefs();
+      setRemovingIdx(null);
+    }, 200);
+  }, [props.onRemoveRefAt, props.onRemoveAllRefs]);
+
   return (
     <>
+      {/* Hover preview tooltip */}
+      {hoveredRefIdx !== null && props.referenceList[hoveredRefIdx] && (
+        <div
+          className="fixed z-[200] pointer-events-none"
+          style={{
+            bottom: outerHeight + 8,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            animation: 'refPreviewIn 0.2s cubic-bezier(0.16,1,0.3,1)',
+          }}
+        >
+          <div
+            className="rounded-2xl overflow-hidden border border-white/15 shadow-2xl"
+            style={{
+              background: 'rgba(20,20,24,0.95)',
+              backdropFilter: 'blur(24px)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08)',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={props.referenceList[hoveredRefIdx]}
+              alt={`Reference ${hoveredRefIdx + 1} preview`}
+              className="block max-w-[240px] max-h-[240px] object-contain"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Outer wrapper: fixed, full-width, pointer-events:none so clicks pass through to gallery */}
       <div
         className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none flex justify-center pb-3"
-        style={{ height: isExpanded ? 110 : 68 }}
+        style={{ height: outerHeight }}
       >
         {/* Floating glass pill (wan.video style) */}
         <div
@@ -187,13 +239,13 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
           data-expanded={isExpanded ? 'true' : 'false'}
           className="pointer-events-auto w-full max-w-[820px] mx-4 overflow-hidden"
           style={{
-            height: isExpanded ? 96 : 52,
+            height: panelHeight,
             borderRadius: isExpanded ? 22 : 26,
             background: 'radial-gradient(50% 50%, rgba(38,38,44,0.65) 0%, rgba(32,32,38,0.6) 100%)',
             backdropFilter: 'blur(32px) saturate(1.2)',
             WebkitBackdropFilter: 'blur(32px) saturate(1.2)',
             boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.35)',
-            transition: 'height 0.3s cubic-bezier(0.34,1.56,0.64,1), border-radius 0.3s ease',
+            transition: 'height 0.35s cubic-bezier(0.34,1.56,0.64,1), border-radius 0.3s ease',
           }}
           onFocusCapture={() => setIsExpanded(true)}
           onMouseDown={() => setIsExpanded(true)}
@@ -210,16 +262,101 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
               disabled={!props.supportsI2i || props.isGenerating || props.isAddingRefs}
             />
 
+            {/* ===== REFERENCE STRIP (expanded, above prompt) ===== */}
+            {isExpanded && hasRefs && (
+              <div
+                className="shrink-0 flex items-center gap-1.5 px-1 pt-1 pb-0.5"
+                style={{ animation: 'refStripSlideIn 0.3s cubic-bezier(0.16,1,0.3,1)' }}
+              >
+                {/* Upload more button */}
+                {props.supportsI2i && totalRefCount < props.maxReferenceImages && (
+                  <label
+                    htmlFor={uploadInputId}
+                    className={[
+                      'shrink-0 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer',
+                      'border-2 border-dashed border-white/15 hover:border-[#8cf425]/50 hover:bg-[#8cf425]/5',
+                      'transition-all duration-200',
+                      props.isGenerating || props.isAddingRefs ? 'opacity-30 cursor-not-allowed pointer-events-none' : '',
+                    ].join(' ')}
+                    title="Добавить ещё"
+                  >
+                    <Plus className="w-4 h-4 text-white/40" />
+                  </label>
+                )}
+
+                {/* Pending uploads */}
+                {props.pendingRefPreviews.map((src, idx) => (
+                  <div
+                    key={`pending-strip-${idx}`}
+                    className="relative w-10 h-10 rounded-xl overflow-hidden bg-white/5 border border-white/10 shrink-0"
+                    style={{ animation: 'refThumbIn 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="Загрузка..." className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin text-white/90" />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Uploaded references */}
+                {props.referenceList.map((src, idx) => (
+                  <div
+                    key={`ref-strip-${idx}`}
+                    className={[
+                      'group relative w-10 h-10 rounded-xl overflow-hidden shrink-0 cursor-pointer',
+                      'border-2 transition-all duration-200',
+                      hoveredRefIdx === idx ? 'border-[#8cf425] scale-105' : 'border-white/15 hover:border-white/30',
+                      removingIdx === idx ? 'scale-0 opacity-0' : '',
+                    ].join(' ')}
+                    style={{
+                      animation: removingIdx === idx ? undefined : 'refThumbIn 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+                      transition: 'transform 0.2s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s ease, border-color 0.2s ease',
+                    }}
+                    onMouseEnter={() => setHoveredRefIdx(idx)}
+                    onMouseLeave={() => setHoveredRefIdx(null)}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={`Референс ${idx + 1}`} className="w-full h-full object-cover" />
+                    {/* Hover overlay with zoom icon */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <ZoomIn className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-80 transition-opacity" />
+                    </div>
+                    {/* Delete button */}
+                    {!props.isGenerating && !props.isAddingRefs && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveRef(idx, e)}
+                        className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-black/80 border border-white/20 text-white/80 hover:text-white hover:bg-red-600/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150"
+                        title="Удалить"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {/* Counter badge */}
+                {props.maxReferenceImages > 1 && (
+                  <span className="text-[10px] text-white/30 font-medium tabular-nums pl-0.5">
+                    {totalRefCount}/{props.maxReferenceImages}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Top row: collapsed prompt hint + controls */}
             <div className="flex items-center gap-1 shrink-0" style={{ height: isExpanded ? 34 : 48 }}>
               <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                {/* Upload button (always visible when supports i2i) */}
                 {props.supportsI2i && (
                   <label
                     htmlFor={uploadInputId}
                     className={[
-                      'shrink-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors',
+                      'shrink-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200',
                       'hover:bg-white/10',
                       props.isAddingRefs ? 'bg-white/10' : '',
+                      hasRefs && !isExpanded ? 'bg-[#8cf425]/10' : '',
                       props.isGenerating || props.isAddingRefs ? 'opacity-40 cursor-not-allowed pointer-events-none' : '',
                     ].join(' ')}
                     title={props.isAddingRefs ? 'Загрузка референса...' : 'Добавить изображение'}
@@ -227,43 +364,59 @@ export function WanPromptPanelDesktop(props: WanPromptPanelDesktopProps) {
                     {props.isAddingRefs ? (
                       <Loader2 className="w-4 h-4 text-white/70 animate-spin" />
                     ) : (
-                      <ImagePlus className="w-4 h-4 text-white/55" />
+                      <ImagePlus className={`w-4 h-4 transition-colors ${hasRefs ? 'text-[#8cf425]/70' : 'text-white/55'}`} />
                     )}
                   </label>
                 )}
 
-                {(props.pendingRefPreviews.length > 0 || props.referenceList.length > 0) && (
-                  <div className="shrink-0 flex items-center gap-1 max-w-[220px] overflow-x-auto pr-1">
+                {/* Collapsed: compact thumbnails inline */}
+                {!isExpanded && hasRefs && (
+                  <div className="shrink-0 flex items-center gap-1 pr-1">
                     {props.pendingRefPreviews.map((src, idx) => (
-                      <div key={`pending-top-${idx}`} className="relative w-7 h-7 rounded-md overflow-hidden bg-white/5 border border-white/10 shrink-0">
+                      <div
+                        key={`pending-top-${idx}`}
+                        className="relative w-8 h-8 rounded-lg overflow-hidden bg-white/5 border border-white/10 shrink-0"
+                        style={{ animation: 'refThumbIn 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={src} alt="Reference pending" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <Loader2 className="w-2.5 h-2.5 animate-spin text-white/90" />
+                          <Loader2 className="w-3 h-3 animate-spin text-white/90" />
                         </div>
                       </div>
                     ))}
 
                     {props.referenceList.map((src, idx) => (
-                      <div key={`ref-top-${idx}`} className="group relative w-7 h-7 rounded-md overflow-hidden bg-white/5 border border-white/10 shrink-0">
+                      <div
+                        key={`ref-top-${idx}`}
+                        className={[
+                          'group relative w-8 h-8 rounded-lg overflow-hidden shrink-0',
+                          'border-2 border-[#8cf425]/30 hover:border-[#8cf425]/60',
+                          'transition-all duration-200',
+                        ].join(' ')}
+                        style={{ animation: 'refThumbIn 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={src} alt={`Reference ${idx + 1}`} className="w-full h-full object-cover" />
                         {!props.isGenerating && !props.isAddingRefs && (
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (props.onRemoveRefAt) props.onRemoveRefAt(idx);
-                              else props.onRemoveAllRefs();
-                            }}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/75 border border-white/15 text-white/80 hover:text-white hover:bg-black/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Удалить референс"
+                            onClick={(e) => handleRemoveRef(idx, e)}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/80 border border-white/20 text-white/80 hover:text-white hover:bg-red-600/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150"
+                            title="Удалить"
                           >
                             <X className="w-2.5 h-2.5" />
                           </button>
                         )}
                       </div>
                     ))}
+
+                    {/* Collapsed counter */}
+                    {props.maxReferenceImages > 1 && totalRefCount > 0 && (
+                      <span className="text-[9px] text-[#8cf425]/50 font-semibold tabular-nums">
+                        {totalRefCount}
+                      </span>
+                    )}
                   </div>
                 )}
 

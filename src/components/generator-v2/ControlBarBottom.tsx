@@ -759,7 +759,11 @@ const ControlBarBottomComponent = ({
                 {!isToolModel && maxReferenceImages > 1 && (hasAnyReferenceVisual) && (
                   <div className="flex gap-2 flex-wrap">
                     {pendingRefPreviews.map((src, idx) => (
-                      <div key={`pending-${idx}`} className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10 opacity-80">
+                      <div
+                        key={`pending-${idx}`}
+                        className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 opacity-80"
+                        style={{ animation: 'refThumbIn 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+                      >
                         <img src={src} alt={`Pending Ref ${idx + 1}`} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
                           <Loader2 className="w-4 h-4 animate-spin text-white/90" />
@@ -767,13 +771,17 @@ const ControlBarBottomComponent = ({
                       </div>
                     ))}
                     {referenceList.map((src, idx) => (
-                      <div key={`${idx}`} className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10">
+                      <div
+                        key={`${idx}`}
+                        className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-[#8cf425]/30"
+                        style={{ animation: 'refThumbIn 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+                      >
                         <img src={src} alt={`Ref ${idx + 1}`} className="w-full h-full object-cover" />
                         {!isGenerating && !isAddingRefs && (
                           <button
                             type="button"
                             onClick={() => handleRemoveReferenceAt(idx)}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center"
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 hover:bg-red-600/90 flex items-center justify-center transition-colors"
                             title="Удалить"
                           >
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -783,7 +791,7 @@ const ControlBarBottomComponent = ({
                         )}
                       </div>
                     ))}
-                    <div className="self-center text-xs text-white/40">
+                    <div className="self-center text-xs text-white/40 font-medium">
                       {(referenceList.length + pendingRefPreviews.length)}/{maxReferenceImages}
                     </div>
                   </div>

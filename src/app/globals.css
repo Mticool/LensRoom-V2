@@ -995,3 +995,37 @@ div.higgs-grid,
 .wan-send-glow {
   animation: wanButtonGlow 1500ms ease-in-out infinite;
 }
+
+/* === Reference thumbnail animations === */
+@keyframes refThumbIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes refStripSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes refPreviewIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.9) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) translateY(0);
+  }
+}
