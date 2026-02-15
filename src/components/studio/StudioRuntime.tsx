@@ -525,6 +525,22 @@ export function StudioRuntime({
     return prompt.trim().length > 0;
   }, [modelInfo, kind, selectedVariant, needsReference, referenceImage, needsStartEnd, firstFrame, lastFrame, needsV2vReference, referenceVideoUrl, isMotionControlModel, isWanAnimate, isGrokVideo, isKlingO1Edit, needsMotionControlVideo, motionReferenceVideo, motionReferenceVideoDurationSec, isStoryboard, isKlingO3, o3ShotMode, o3MultiShotPrompts, scenes, prompt]);
 
+  // Validation error for motion video (shown in UI)
+  const motionVideoValidationError = useMemo(() => {
+    if (!isMotionSectionModel) return null;
+    if (!motionReferenceVideo) return null;
+    // Duration still loading
+    if (motionReferenceVideoDurationSec === null) return 'Определяем длительность видео...';
+    const d = motionReferenceVideoDurationSec;
+    if (!Number.isFinite(d) || d <= 0) return 'Не удалось определить длительность видео';
+    if (d < 3) return `Видео слишком короткое (${Math.round(d)}с). Мин. 3 сек`;
+    if (isMotionControlModel && characterOrientation === 'image' && d > 10) {
+      return `Видео слишком длинное для режима Image (${Math.round(d)}с). Макс. 10 сек`;
+    }
+    if (d > 30) return `Видео слишком длинное (${Math.round(d)}с). Макс. 30 сек`;
+    return null;
+  }, [isMotionSectionModel, isMotionControlModel, motionReferenceVideo, motionReferenceVideoDurationSec, characterOrientation]);
+
   const price = useMemo(() => {
     if (!modelInfo) return { stars: 0, credits: 0 };
 
@@ -971,6 +987,10 @@ export function StudioRuntime({
       if (v.id === "kling-motion-control") {
         if (!referenceImage) throw new Error("referenceImage is required for Motion Control");
         if (!motionReferenceVideo) throw new Error("referenceVideo is required for Motion Control");
+        payload.mode = 'motion_control';
+        payload.aspectRatio = 'source';
+        // Ensure resolution is always set (server requires it)
+        payload.resolution = effectiveResolution || String(quality || '720p');
         // Motion Control mobile-safe transport: upload assets first and send URLs.
         payload.referenceImage = await uploadAsset(referenceImage, "image");
         payload.referenceVideo = await uploadAsset(motionReferenceVideo, "video");
@@ -1053,8 +1073,8 @@ export function StudioRuntime({
       });
 
       const res = await fetchWithTimeout("/api/generate/video", {
-        // Video job submission should be fast, but protect UI from hanging connections.
-        timeout: 45_000,
+        // Video job submission — increased to 2 min for motion control (FFprobe duration extraction can be slow)
+        timeout: 120_000,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1066,7 +1086,28 @@ export function StudioRuntime({
           const tech = process.env.NODE_ENV !== "production" ? ` (${data?.hint || data?.error || "missing env"})` : "";
           throw new Error(base + tech);
         }
-        throw new Error(data?.error || "Video generation failed");
+        // Use user-friendly messages based on errorCode from server
+        const errorCode = data?.errorCode;
+        const errorCodeMessages: Record<string, string> = {
+          CIRCUIT_OPEN: "Сервис временно перегружен. Подождите 1-2 минуты.",
+          UPSTREAM_TIMEOUT: "Сервис не ответил вовремя. Попробуйте ещё раз.",
+          UPSTREAM_RATE_LIMIT: "Слишком много запросов. Подождите.",
+          UPSTREAM_UNAVAILABLE: "Сервис генерации временно недоступен.",
+          NETWORK_ERROR: "Ошибка сети. Попробуйте ещё раз.",
+        };
+        if (errorCode && errorCodeMessages[errorCode]) {
+          throw new Error(errorCodeMessages[errorCode]);
+        }
+        // Build human-readable error from server response
+        let errMsg = data?.message || data?.error || "Video generation failed";
+        if (data?.details && Array.isArray(data.details)) {
+          const detailMsgs = data.details
+            .map((d: any) => typeof d === 'string' ? d : d?.message)
+            .filter(Boolean)
+            .slice(0, 3);
+          if (detailMsgs.length) errMsg = detailMsgs.join('; ');
+        }
+        throw new Error(errMsg);
       }
 
       const jobId = String(data.jobId);
@@ -1306,6 +1347,7 @@ export function StudioRuntime({
             isGenerating={isStarting || status === 'generating' || status === 'queued'}
             canGenerate={canGenerate && !isStarting}
             onGenerate={handleGenerate}
+            videoValidationError={motionVideoValidationError}
             resultUrls={resultUrls}
             activeRunIndex={activeRunIndex}
             onPrev={mobilePrev}

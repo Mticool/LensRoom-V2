@@ -132,21 +132,43 @@ export function VideoGeneratorBottomSheet({
       if (!files || !files.length) return;
       const file = files[0];
       if (!file) return;
-      
-      if (!String(file.type || "").startsWith("image/")) {
-        toast.error("Выберите изображение");
+
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Неподдерживаемый формат. Используйте JPG, PNG или WebP");
         return;
       }
-      
+
       const maxBytes = 10 * 1024 * 1024; // 10MB
       if (file.size > maxBytes) {
-        toast.error("Макс. размер: 10МБ");
+        toast.error(`Изображение слишком большое (${Math.round(file.size / 1024 / 1024)} МБ). Макс. 10 МБ`);
         return;
       }
-      
+
+      // Check image dimensions (min 300x300 for motion control)
+      if (isMotionControl) {
+        try {
+          const dimError = await new Promise<string | null>((resolve) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+              URL.revokeObjectURL(url);
+              if (img.naturalWidth < 300 || img.naturalHeight < 300) {
+                resolve(`Изображение слишком маленькое (${img.naturalWidth}×${img.naturalHeight}). Мин. 300×300 px`);
+              } else {
+                resolve(null);
+              }
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+            img.src = url;
+          });
+          if (dimError) { toast.error(dimError); return; }
+        } catch {}
+      }
+
       onReferenceImageChange(file);
     },
-    [onReferenceImageChange]
+    [onReferenceImageChange, isMotionControl]
   );
 
   const handleRemoveRef = useCallback(

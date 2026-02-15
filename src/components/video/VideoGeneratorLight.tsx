@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Play, Download } from 'lucide-react';
+import { Play, Download, AlertCircle } from 'lucide-react';
 import { VideoGeneratorHiru } from './VideoGeneratorHiru';
 import { useVideoGeneration } from '@/hooks/useVideoGeneration';
 import { toast } from 'sonner';
@@ -30,9 +30,20 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [generationHistory, setGenerationHistory] = useState<HistoryItem[]>([]);
   const [currentRatio, setCurrentRatio] = useState<AspectRatio>('16:9');
-  
+  const [videoLoadError, setVideoLoadError] = useState(false);
+  const [selectedPosterUrl, setSelectedPosterUrl] = useState<string | null>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const { balance, fetchBalance } = useCreditsStore();
+
+  const normalizePlayableUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    const value = String(url);
+    if (/https?:\/\/api\.laozhang\.ai\/v1\/videos\/[^/]+\/content/i.test(value)) {
+      return `/api/media/proxy?url=${encodeURIComponent(value)}`;
+    }
+    return value;
+  };
 
   // Load history on mount
   useEffect(() => {
@@ -60,7 +71,7 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
           const url = extractVideoUrl(g);
           if (!url) return null;
           return {
-            url,
+            url: normalizePlayableUrl(url) || url,
             posterUrl: extractPosterUrl(g),
             id: g.id ? String(g.id) : null,
           };
@@ -75,8 +86,11 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
 
   const { generate, isGenerating, progress, status, cancel } = useVideoGeneration({
     onSuccess: (url) => {
-      console.log('[VideoGeneratorLight] Generation success, URL:', url);
-      setVideoUrl(url);
+      const safeUrl = normalizePlayableUrl(url) || url;
+      console.log('[VideoGeneratorLight] Generation success, URL:', safeUrl);
+      setVideoLoadError(false);
+      setSelectedPosterUrl(null);
+      setVideoUrl(safeUrl);
       try {
         window.dispatchEvent(new Event('generations:refresh'));
       } catch {}
@@ -249,7 +263,7 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
   const getMaxWidth = () => {
     switch (currentRatio) {
       case '9:16':
-        return 'max-w-sm max-h-[70vh]'; // ~384px ширина + ограничение по высоте для вертикального видео
+        return 'max-w-[22rem]'; // ~352px ширина, высота ~625px через aspect ratio
       case '1:1':
         return 'max-w-xl'; // ~576px для квадрата
       case '4:3':
@@ -311,7 +325,11 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
                 {generationHistory.slice(0, 6).map((item, i) => (
                   <button
                     key={item.id || i}
-                    onClick={() => setVideoUrl(item.url)}
+                    onClick={() => {
+                      setVideoLoadError(false);
+                      setSelectedPosterUrl(item.posterUrl || null);
+                      setVideoUrl(item.url);
+                    }}
                     className="relative aspect-video bg-black/50 rounded-xl border border-white/10 overflow-hidden"
                   >
                     {item.posterUrl ? (
@@ -351,7 +369,7 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
             {/* Video Player */}
             <div className="flex justify-center">
               <div className={`w-full ${getMaxWidth()}`}>
-                <div className={`bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm ${currentRatio === '9:16' ? 'max-h-[70vh]' : ''}`}>
+                <div className="bg-[#1A1A1C] rounded-2xl border border-white/10 overflow-hidden shadow-sm">
                   {isGenerating ? (
                     <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
                       <div className="text-center">
@@ -365,19 +383,51 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
                     </div>
                   ) : videoUrl ? (
                     <div className="relative">
-                      <video
-                        ref={videoRef}
-                        src={videoUrl}
-                        controls
-                        className={`w-full bg-black ${currentRatio === '9:16' ? 'max-h-[70vh] object-contain' : ''}`}
-                      />
-                      <button
-                        onClick={handleDownload}
-                        className="absolute top-4 right-4 px-4 py-2 bg-[#8cf425] text-black text-sm font-medium rounded-lg shadow-lg hover:bg-[#d97706] transition-colors flex items-center gap-2"
-                      >
-                        <Download className="w-4 h-4" />
-                        Скачать
-                      </button>
+                      {videoLoadError ? (
+                        <div className={`${getAspectClass()} bg-black/50 flex items-center justify-center`}>
+                          <div className="text-center px-6">
+                            {selectedPosterUrl ? (
+                              <img
+                                src={selectedPosterUrl}
+                                alt="Заставка видео"
+                                className="mx-auto mb-4 max-h-48 rounded-lg border border-white/10"
+                              />
+                            ) : null}
+                            <div className="w-16 h-16 mx-auto bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                              <AlertCircle className="w-8 h-8 text-red-400" />
+                            </div>
+                            <p className="text-gray-300 text-sm mb-2">Не удалось загрузить видео</p>
+                            <p className="text-gray-500 text-xs mb-4">Ссылка могла устареть. Заставка сохранена в “Мои работы”.</p>
+                            <button
+                              onClick={handleDownload}
+                              className="px-4 py-2 bg-[#8cf425] text-black text-sm font-medium rounded-lg hover:bg-[#d97706] transition-colors inline-flex items-center gap-2"
+                            >
+                              <Download className="w-4 h-4" />
+                              Попробовать скачать
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <video
+                            ref={videoRef}
+                            src={videoUrl}
+                            controls
+                            className="w-full max-h-[65vh] bg-black object-contain mx-auto"
+                            onError={() => {
+                              console.error('[VideoPlayer] Failed to load video:', videoUrl);
+                              setVideoLoadError(true);
+                            }}
+                          />
+                          <button
+                            onClick={handleDownload}
+                            className="absolute top-4 right-4 px-4 py-2 bg-[#8cf425] text-black text-sm font-medium rounded-lg shadow-lg hover:bg-[#d97706] transition-colors flex items-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            Скачать
+                          </button>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div className={`relative ${getAspectClass()} bg-black/50 flex items-center justify-center`}>
@@ -401,7 +451,11 @@ export function VideoGeneratorLight({ onGenerate, initialModel }: VideoGenerator
                   {generationHistory.map((item, i) => (
                     <button
                       key={item.id || i}
-                      onClick={() => setVideoUrl(item.url)}
+                      onClick={() => {
+                        setVideoLoadError(false);
+                        setSelectedPosterUrl(item.posterUrl || null);
+                        setVideoUrl(item.url);
+                      }}
                       className="relative aspect-video bg-black/50 rounded-lg border border-white/10 overflow-hidden hover:border-[#8cf425] transition-colors group"
                     >
                       {item.posterUrl ? (

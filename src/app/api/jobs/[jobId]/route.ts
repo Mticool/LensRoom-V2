@@ -44,18 +44,20 @@ export async function GET(
     const inferredProvider = String(probedModel?.provider || "").toLowerCase() || undefined;
     const effectiveProvider = provider || inferredProvider;
 
-    // Heuristic: LaoZhang video IDs often look like "foaicmpl-<uuid>".
+    // Heuristic: LaoZhang video IDs look like "foaicmpl-<uuid>" or "video_<uuid>".
     // If we see such an ID, try LaoZhang directly even if DB hasn't recorded task_id yet.
     // Note: we still prefer returning our stable download proxy URL when we can find a generation row.
-    if (!effectiveProvider && /^foaicmpl-/i.test(jobId)) {
+    if (!effectiveProvider && /^(foaicmpl-|video_)/i.test(jobId)) {
+      let genRow: any = null;
       try {
         const { data: gen } = await supabase
           .from("generations")
-          .select("id,status")
+          .select("id,status,user_id,created_at")
           .eq("task_id", jobId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
+        genRow = gen;
 
         const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
         const lz = getLaoZhangClient();
@@ -63,8 +65,57 @@ export async function GET(
         const status = String(task.status || "processing").toLowerCase();
 
         if (status === "completed") {
-          const stable = gen?.id
-            ? `/api/generations/${encodeURIComponent(String(gen.id))}/download?kind=original&proxy=1`
+          // Download and store video in Supabase Storage (prevents expirable URL issues)
+          if (genRow?.id && genRow?.user_id && String(genRow.status || "").toLowerCase() !== "success") {
+            try {
+              let videoResponse = await lz.fetchVideoContent(jobId);
+              if (videoResponse.ok) {
+                let ct = videoResponse.headers.get("content-type") || "video/mp4";
+                if (ct.toLowerCase().includes("application/json")) {
+                  const j = await videoResponse.json().catch(() => null);
+                  const u = j?.url || j?.video_url || j?.videoUrl;
+                  if (typeof u === "string" && u.startsWith("http")) {
+                    videoResponse = await fetchWithTimeout(u, { timeout: 90_000 });
+                    ct = videoResponse.headers.get("content-type") || "video/mp4";
+                  }
+                }
+                if (videoResponse.ok) {
+                  const buf = Buffer.from(await videoResponse.arrayBuffer());
+                  const ext = ct.includes("webm") ? "webm" : "mp4";
+                  const sp = `${genRow.user_id}/laozhang_${jobId}.${ext}`;
+                  const { error: upErr } = await supabase.storage
+                    .from("generations")
+                    .upload(sp, buf, { contentType: ext === "webm" ? "video/webm" : "video/mp4", upsert: true });
+                  if (!upErr) {
+                    const { data: pub } = supabase.storage.from("generations").getPublicUrl(sp);
+                    await supabase.from("generations").update({
+                      status: "success",
+                      asset_url: pub.publicUrl,
+                      result_url: pub.publicUrl,
+                      result_urls: [pub.publicUrl],
+                      original_path: sp,
+                      updated_at: new Date().toISOString(),
+                    }).eq("id", genRow.id);
+                    console.log("[API] Heuristic LaoZhang video stored:", sp);
+                  }
+                }
+              }
+            } catch (storeErr) {
+              console.error("[API] Heuristic LaoZhang store failed:", storeErr);
+              // Fallback: save upstream URL for proxy
+              const upstreamUrl = `https://api.laozhang.ai/v1/videos/${encodeURIComponent(jobId)}/content`;
+              await supabase.from("generations").update({
+                status: "success",
+                asset_url: upstreamUrl,
+                result_url: upstreamUrl,
+                result_urls: [upstreamUrl],
+                updated_at: new Date().toISOString(),
+              }).eq("id", genRow.id).catch(() => {});
+            }
+          }
+
+          const stable = genRow?.id
+            ? `/api/generations/${encodeURIComponent(String(genRow.id))}/download?kind=original&proxy=1`
             : null;
           return NextResponse.json({
             success: true,
@@ -98,6 +149,24 @@ export async function GET(
           provider: "laozhang",
         });
       } catch (e: any) {
+        const errBody = typeof e?.body === "string" ? e.body : "";
+        const httpStatus = typeof e?.status === "number" ? e.status : null;
+        // task_not_exist: upstream can't find the task yet.
+        // For newly created tasks, this is a race condition — keep polling for up to 2 minutes.
+        if (httpStatus === 400 && errBody.includes("task_not_exist")) {
+          const ageMs = genRow?.id ? Date.now() - new Date(String(genRow?.created_at || 0)).getTime() : Infinity;
+          if (ageMs < 120_000) {
+            return NextResponse.json({
+              success: true, jobId, status: "processing", progress: 5,
+              results: [], kind: "video", provider: "laozhang",
+            });
+          }
+          return NextResponse.json({
+            success: false, jobId, status: "failed",
+            error: "Task not found — generation may have failed to start",
+            kind: "video", provider: "laozhang",
+          });
+        }
         // If LaoZhang is temporarily unavailable, keep polling.
         return NextResponse.json({
           success: true,
@@ -290,7 +359,7 @@ export async function GET(
     // === KIE PROVIDER ===
     // First check if we have the result in DB (from webhook or previous sync)
     // Schema-compatible selection: some prod DBs may not have optional columns (metadata/original_path/etc).
-    const fieldsLegacy = "id,user_id,model_id,task_id,status,result_url,result_urls,error,type,updated_at,credits_used";
+    const fieldsLegacy = "id,user_id,model_id,task_id,status,result_url,result_urls,error,type,created_at,updated_at,credits_used";
     const fieldsV2 = `${fieldsLegacy},metadata`;
     const fieldsV3 = `${fieldsV2},original_path`;
 
@@ -301,7 +370,10 @@ export async function GET(
         dbGen = r.data;
         break;
       }
-      if (String((r.error as any)?.code || "") === "PGRST204") continue;
+      const errCode = String((r.error as any)?.code || "");
+      const errMsg = String((r.error as any)?.message || "");
+      // Missing column errors: retry with smaller field set.
+      if (errCode === "PGRST204" || errCode === "42703" || /does not exist/i.test(errMsg)) continue;
       // Any other error: break and proceed with dbGen=null (we'll fail gracefully below).
       break;
     }
@@ -335,27 +407,66 @@ export async function GET(
         const status = String(task.status || "processing").toLowerCase();
 
         if (status === "completed") {
-          // Option 1: DO NOT store the video in our storage.
-          // LaoZhang /videos/:id/content requires auth and may return raw mp4 bytes (not JSON).
-          // We persist task_id and point the UI at our download proxy.
-          if (dbGen?.id) {
+          // Download video from LaoZhang and store in Supabase Storage (same as FAL provider).
+          // LaoZhang /videos/:id/content requires auth and URLs may expire — persisting to our
+          // own storage guarantees the video remains available for playback and "My Works".
+          const upstreamContentUrl = `https://api.laozhang.ai/v1/videos/${encodeURIComponent(jobId)}/content`;
+          let finalUrl: string | null = upstreamContentUrl;
+          let storagePath: string | null = null;
+
+          if (dbGen?.id && (dbGen as any)?.user_id) {
             try {
-              const upstreamContentUrl = `https://api.laozhang.ai/v1/videos/${encodeURIComponent(jobId)}/content`;
+              // Fetch video content from LaoZhang (may return raw bytes or JSON {url})
+              let videoResponse = await lz.fetchVideoContent(jobId);
+              if (!videoResponse.ok) {
+                console.error("[API] LaoZhang content fetch failed:", videoResponse.status);
+                throw new Error(`LaoZhang content fetch failed: ${videoResponse.status}`);
+              }
+
+              let contentType = videoResponse.headers.get("content-type") || "video/mp4";
+
+              // Some LaoZhang deployments return JSON { url } from /content — resolve to actual video
+              if (contentType.toLowerCase().includes("application/json")) {
+                const j = await videoResponse.json().catch(() => null);
+                const u = j?.url || j?.video_url || j?.videoUrl;
+                if (typeof u === "string" && u.startsWith("http")) {
+                  videoResponse = await fetchWithTimeout(u, { timeout: 90_000 });
+                  if (!videoResponse.ok) throw new Error(`Nested video fetch failed: ${videoResponse.status}`);
+                  contentType = videoResponse.headers.get("content-type") || "video/mp4";
+                }
+              }
+
+              const arrayBuf = await videoResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuf);
+              const ext = contentType.includes("webm") ? "webm" : "mp4";
+              const ct = ext === "webm" ? "video/webm" : "video/mp4";
+              storagePath = `${(dbGen as any).user_id}/laozhang_${jobId}.${ext}`;
+
+              const { error: uploadError } = await supabase.storage
+                .from("generations")
+                .upload(storagePath, buffer, { contentType: ct, upsert: true });
+              if (uploadError) throw uploadError;
+
+              const { data: pub } = supabase.storage.from("generations").getPublicUrl(storagePath);
+              finalUrl = pub.publicUrl;
+              console.log("[API] LaoZhang video stored in Supabase Storage:", storagePath);
+            } catch (storeErr) {
+              console.error("[API] Failed to store LaoZhang video, falling back to content URL proxy:", storeErr);
+              // Fallback: keep using upstream content URL via our proxy
+              finalUrl = upstreamContentUrl;
+              storagePath = null;
+            }
+
+            try {
               await supabase
                 .from("generations")
                 .update({
                   status: "success",
-                  // Store an auth-required URL for audit/debug only; clients must use our proxy.
-                  asset_url: upstreamContentUrl,
-                  result_url: upstreamContentUrl,
-                  result_urls: [upstreamContentUrl],
-                  preview_status: "none",
+                  asset_url: finalUrl,
+                  result_url: finalUrl,
+                  result_urls: [finalUrl],
+                  ...(storagePath ? { original_path: storagePath } : {}),
                   updated_at: new Date().toISOString(),
-                  metadata: {
-                    ...((dbGen as any)?.metadata || {}),
-                    provider: "laozhang",
-                    provider_task_id: jobId,
-                  },
                 })
                 .eq("id", dbGen.id);
             } catch (e) {
@@ -442,6 +553,25 @@ export async function GET(
       } catch (e: any) {
         console.error("[API] LaoZhang status error:", e);
         const httpStatus = typeof e?.status === "number" ? e.status : null;
+        const errBody = typeof e?.body === "string" ? e.body : "";
+
+        // task_not_exist: upstream can't find the task yet.
+        // For recently created tasks this is a race condition — keep polling for up to 2 min.
+        if (httpStatus === 400 && errBody.includes("task_not_exist")) {
+          const createdAt = (dbGen as any)?.created_at;
+          const ageMs = createdAt ? Date.now() - new Date(String(createdAt)).getTime() : Infinity;
+          if (ageMs < 120_000) {
+            return NextResponse.json({
+              success: true, jobId, status: "processing", progress: 5,
+              results: [], kind: "video", provider: "laozhang",
+            });
+          }
+          return NextResponse.json(
+            { success: false, jobId, status: "failed", error: "Task not found — generation may have failed to start", kind: "video", provider: "laozhang" },
+            { status: 200 }
+          );
+        }
+
         // Polling should be resilient: transient errors shouldn't kill the job on the client.
         if (e instanceof FetchTimeoutError || httpStatus === 404 || httpStatus === 429 || (httpStatus != null && httpStatus >= 500)) {
           return NextResponse.json({

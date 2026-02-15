@@ -1154,7 +1154,7 @@ export class LaoZhangClient {
     prompt: string;
     imageUrls?: string[];
   }): Promise<LaoZhangVideoTaskResponse> {
-    const imageUrls = (params.imageUrls || []).filter(Boolean).slice(0, 2); // docs: supports 1-2 images
+    const imageUrls = (params.imageUrls || []).filter(Boolean).slice(0, 5);
 
     console.log(
       "[Video API Async] Create task:",
@@ -1237,6 +1237,10 @@ export class LaoZhangClient {
     });
 
     const responseText = await response.text();
+    console.log(
+      "[Video API Async] Create task response:",
+      JSON.stringify({ status: response.status, body: responseText.substring(0, 500) })
+    );
     if (!response.ok) {
       let errorMessage = response.statusText;
       try {

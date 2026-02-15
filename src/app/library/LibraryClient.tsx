@@ -661,25 +661,13 @@ export function LibraryClient() {
                   >
                     <div className="relative aspect-square bg-black/20">
                       {canDisplay ? (
-                        // For videos without poster, use video element to show first frame
-                        isVideo && !item.posterUrl && !item.previewUrl ? (
-                          <video
-                            src={displayUrl || undefined}
-                            muted
-                            playsInline
-                            preload="metadata"
-                            className="w-full h-full object-cover"
-                            onError={() => setImageError(prev => new Set([...prev, item.id]))}
-                          />
-                        ) : (
-                          <img
-                            src={displayUrl}
-                            alt=""
-                            loading="lazy"
-                            className="w-full h-full object-cover"
-                            onError={() => setImageError(prev => new Set([...prev, item.id]))}
-                          />
-                        )
+                        <img
+                          src={displayUrl}
+                          alt=""
+                          loading="lazy"
+                          className="w-full h-full object-cover"
+                          onError={() => setImageError(prev => new Set([...prev, item.id]))}
+                        />
                       ) : st === "generating" || st === "queued" ? (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[var(--gold)]/10 to-violet-500/10 p-3">
                           <Loader2 className="w-6 h-6 animate-spin text-[var(--gold)] mb-2" />

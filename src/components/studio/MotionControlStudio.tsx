@@ -137,6 +137,10 @@ export interface MotionControlStudioProps {
   canGenerate: boolean;
   onGenerate: () => void;
 
+  // Validation
+  videoValidationError?: string | null;
+  imageValidationError?: string | null;
+
   // Result
   resultUrls: string[];
   activeRunIndex: number;
@@ -169,6 +173,8 @@ export function MotionControlStudio(props: MotionControlStudioProps) {
     onPrev,
     onNext,
     onDownload,
+    videoValidationError,
+    imageValidationError,
   } = props;
 
   const [qualityOpen, setQualityOpen] = useState(false);
@@ -281,6 +287,7 @@ export function MotionControlStudio(props: MotionControlStudioProps) {
             subtitle={zoneConfig.left.subtitle}
             durationSec={zoneConfig.left.type === 'video' ? motionReferenceVideoDurationSec : undefined}
             disabled={isGenerating}
+            validationError={zoneConfig.left.type === 'video' ? videoValidationError : imageValidationError}
           />
           {zoneConfig.right && (
             <MotionUploadZone
@@ -291,6 +298,7 @@ export function MotionControlStudio(props: MotionControlStudioProps) {
               subtitle={zoneConfig.right.subtitle}
               durationSec={zoneConfig.right.type === 'video' ? motionReferenceVideoDurationSec : undefined}
               disabled={isGenerating}
+              validationError={zoneConfig.right.type === 'video' ? videoValidationError : imageValidationError}
             />
           )}
         </div>

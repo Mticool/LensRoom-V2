@@ -25,7 +25,9 @@ export function extractVideoUrl(gen: any): string | null {
   });
 
   // Prefer our stable download proxy for expirable URLs when possible.
-  if (isDone && id && hasExpirableUrl) {
+  // For video playback always prefer same-origin proxy URL for completed generations.
+  // This avoids expired/provider-protected links and normalizes browser behavior.
+  if (isDone && id) {
     return `/api/generations/${encodeURIComponent(id)}/download?kind=original&proxy=1`;
   }
 

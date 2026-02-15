@@ -4,12 +4,18 @@ import { notifyGenerationStatus } from "@/lib/telegram/notify";
 import { getKieClient, type KieKeyScope } from "@/lib/api/kie-client";
 import { getModelById } from "@/config/models";
 import { trackFirstGenerationEvent } from "@/lib/referrals/track-first-generation";
-import { generateImagePreview, generateVideoPoster, generateVideoAnimatedPreview } from "@/lib/previews";
+import { generateImagePreview, generateVideoPoster, generateVideoAnimatedPreview, generateVideoPosterFromLocalFile } from "@/lib/previews";
 import { getSourceAssetUrl, validateAssetUrl } from "@/lib/previews/asset-url";
 import { refundGenerationCredits } from "@/lib/credits/refund";
 import { deductCredits } from "@/lib/credits/split-credits";
 import { calcMotionControlCredits, type MotionCharacterOrientation, type MotionControlResolution } from "@/lib/videoModels/motion-control";
 import { fetchWithTimeout, FetchTimeoutError } from "@/lib/api/fetch-with-timeout";
+import { writeFile } from "fs/promises";
+import { createWriteStream } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+import { pipeline } from "stream/promises";
+import { Readable } from "stream";
 
 /**
  * INSTANT PREVIEWS VERSION
@@ -206,6 +212,16 @@ function extractStoragePath(url: string): string | null {
   return match ? match[1] : null;
 }
 
+function isLaoZhangContentUrl(url: string): boolean {
+  const v = String(url || "");
+  return /https?:\/\/api\.laozhang\.ai\/v1\/videos\/[^/]+\/content/i.test(v);
+}
+
+function isLegacyLaoZhangModelId(modelId: string | null | undefined): boolean {
+  const id = String(modelId || "").toLowerCase();
+  return id.startsWith("veo-3.1") || id.startsWith("sora-2");
+}
+
 /**
  * Generate preview/poster for a generation (non-blocking, marks status)
  * IDEMPOTENT: Skip if preview_path/poster_path already exists
@@ -216,6 +232,9 @@ async function generatePreviewAsync(params: {
   userId: string;
   type: "photo" | "video";
   sourceUrl: string;
+  modelId?: string | null;
+  taskId?: string | null;
+  metadata?: Record<string, any> | null;
 }): Promise<void> {
   const previewsEnabled = env.optional("PREVIEWS_ENABLED");
   if (previewsEnabled === "0" || previewsEnabled === "false") {
@@ -223,7 +242,7 @@ async function generatePreviewAsync(params: {
     return;
   }
 
-  const { supabase, generationId, userId, type, sourceUrl } = params;
+  const { supabase, generationId, userId, type, sourceUrl, modelId, taskId, metadata } = params;
 
   // Check if already has preview (idempotent)
   const { data: existing } = await supabase
@@ -268,6 +287,67 @@ async function generatePreviewAsync(params: {
 
       console.log(`[Preview] Ready generationId=${generationId} type=photo path=${path}`);
     } else if (type === "video") {
+      const metaProvider = typeof metadata === "object" ? String(metadata?.provider || "").toLowerCase() : "";
+      const modelInfo = modelId ? (getModelById(String(modelId)) as any) : null;
+      const provider = String(modelInfo?.provider || "").toLowerCase();
+      const idTask = String(taskId || "");
+      const isLaoZhang =
+        metaProvider === "laozhang" ||
+        provider === "laozhang" ||
+        isLegacyLaoZhangModelId(modelId) ||
+        idTask.startsWith("foaicmpl-");
+
+      // LaoZhang source URLs can require authenticated content fetch.
+      // Generate poster from downloaded bytes to avoid 401 on direct URL.
+      if (isLaoZhang && idTask) {
+        const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
+        const lz = getLaoZhangClient();
+        const upstream = await lz.fetchVideoContent(idTask);
+        if (!upstream.ok) {
+          const t = await upstream.text().catch(() => "");
+          throw new Error(`LaoZhang content fetch failed: ${upstream.status} ${t.slice(0, 200)}`);
+        }
+
+        const ct = (upstream.headers.get("content-type") || "").toLowerCase();
+        let posterResult: { path: string; publicUrl: string };
+        if (ct.includes("application/json")) {
+          const j = await upstream.json().catch(() => null);
+          const u = j?.url || j?.video_url || j?.videoUrl;
+          if (typeof u === "string" && u.startsWith("http")) {
+            posterResult = await generateVideoPoster({
+              videoUrl: u,
+              userId,
+              generationId,
+              supabase,
+            });
+          } else {
+            throw new Error("LaoZhang content JSON has no url");
+          }
+        } else {
+          const tempVideo = join(tmpdir(), `poster_video_${generationId}_${Date.now()}.mp4`);
+          if (upstream.body) {
+            await pipeline(Readable.fromWeb(upstream.body as any), createWriteStream(tempVideo));
+          } else {
+            const ab = await upstream.arrayBuffer();
+            await writeFile(tempVideo, Buffer.from(ab));
+          }
+          posterResult = await generateVideoPosterFromLocalFile({
+            videoPath: tempVideo,
+            userId,
+            generationId,
+            supabase,
+          });
+        }
+
+        await safeUpdateGeneration(supabase, generationId, {
+          poster_path: posterResult.path,
+          preview_path: null,
+          preview_status: "ready",
+        });
+        console.log(`[Preview] Ready generationId=${generationId} type=video poster=${posterResult.path} animated=skipped_laozhang`);
+        return;
+      }
+
       // Generate both poster (static) and animated preview
       const posterPromise = generateVideoPoster({
         videoUrl: sourceUrl,
@@ -317,7 +397,17 @@ async function downloadAndStoreAsset(params: {
   const { supabase, generationId, userId, kind, sourceUrl } = params;
 
   // Use timeout to avoid hanging requests which can tie up the Node worker.
-  const downloadResponse = await fetchWithTimeout(sourceUrl, { timeout: 90_000 });
+  let downloadResponse = await fetchWithTimeout(sourceUrl, { timeout: 90_000 });
+  if (!downloadResponse.ok && isLaoZhangContentUrl(sourceUrl)) {
+    const laoKey = env.optional("LAOZHANG_API_KEY");
+    if (laoKey) {
+      console.log("[KIE sync-task] retry download with LaoZhang auth", { generationId, sourceUrl });
+      downloadResponse = await fetchWithTimeout(sourceUrl, {
+        timeout: 90_000,
+        headers: { Authorization: `Bearer ${laoKey}` },
+      });
+    }
+  }
   if (!downloadResponse.ok) throw new Error(`Download failed: ${downloadResponse.status}`);
 
   const buffer = await downloadResponse.arrayBuffer();
@@ -422,6 +512,9 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
             userId: generation.user_id,
             type: isVideo ? "video" : "photo",
             sourceUrl: sourceAssetUrl,
+            modelId: generation.model_id || null,
+            taskId: generation.task_id || null,
+            metadata: (generation.metadata as any) || null,
           }).catch((err) => {
             console.error(`[Preview] ❌ Failed for ${generation.id}:`, err);
           });
@@ -517,6 +610,9 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
           userId: generation.user_id,
           type: "video",
           sourceUrl: assetUrl || sourceUrl,
+          modelId: generation.model_id || null,
+          taskId: generation.task_id || null,
+          metadata: (generation.metadata as any) || null,
         }).catch((err) => {
           console.error("[Sync] Video poster generation failed:", err);
         });
@@ -929,6 +1025,9 @@ export async function syncKieTaskToDb(params: { supabase: SupabaseClient; taskId
         userId: generation.user_id,
         type: genType,
         sourceUrl: assetUrl || urls[0],
+        modelId: generation.model_id || null,
+        taskId: generation.task_id || null,
+        metadata: (generation.metadata as any) || null,
       }).catch((err) => {
         console.error(`[Sync] ${genType} preview generation failed:`, err);
       });

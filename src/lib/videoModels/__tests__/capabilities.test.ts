@@ -219,7 +219,7 @@ describe('Video Model Capabilities', () => {
       expect(veo?.supportedModes).toContain('i2v');
       expect(veo?.supportedModes).toContain('start_end');
       expect(veo?.supportedModes).toContain('extend');
-      expect(veo?.supportedDurationsSec).toEqual([4, 6, 8]);
+      expect(veo?.supportedDurationsSec).toEqual([8]);
       expect(veo?.supportsReferenceImages).toBe(true);
       expect(veo?.supportsStartEndFrames).toBe(true);
     });

@@ -72,6 +72,23 @@ export class CircuitBreaker {
     this.states.set(key, next);
   }
 
+  /** Delete state for one key (closes the circuit). */
+  resetKey(key: string) {
+    this.states.delete(key);
+  }
+
+  /** Clear all circuit states. */
+  resetAll() {
+    this.states.clear();
+  }
+
+  /** Return a snapshot of all circuit states for diagnostics. */
+  getAllStates(): Record<string, CircuitState> {
+    const out: Record<string, CircuitState> = {};
+    for (const [k, v] of this.states) out[k] = { ...v };
+    return out;
+  }
+
   /**
    * Executes `fn` if circuit is closed; if open, throws CircuitOpenError.
    * The caller decides which errors should count as "failure" by calling

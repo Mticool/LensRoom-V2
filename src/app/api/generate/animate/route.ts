@@ -9,7 +9,7 @@ import { ensureProfileExists } from '@/lib/supabase/ensure-profile';
 import { getCreditBalance, deductCredits } from '@/lib/credits/split-credits';
 import { refundCredits } from '@/lib/credits/refund';
 
-export const maxDuration = 60; // 60 seconds timeout
+export const maxDuration = 300; // 5 minutes timeout (video generation can be slow)
 export const dynamic = 'force-dynamic';
 
 // Маппинг model id → KIE API model

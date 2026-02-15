@@ -23,6 +23,8 @@ function isPrivateOrLocalHost(hostname: string): boolean {
 const ALLOWED_HOSTS = new Set([
   // Temporary CDN used by some providers. Chrome can block these via ORB when fetched cross-origin.
   'tempfile.aiquickdraw.com',
+  // LaoZhang video content endpoint (requires server-side Authorization).
+  'api.laozhang.ai',
 ]);
 
 function getSupabaseHost(): string | null {
@@ -80,8 +82,18 @@ export async function GET(req: NextRequest) {
     ALLOWED_HOSTS.has(host) ||
     (supabaseHost ? isAllowedSupabaseObjectUrl(target, supabaseHost) : false);
   if (!hostAllowed) return NextResponse.json({ error: 'Host not allowed' }, { status: 400 });
+  if (host === 'api.laozhang.ai' && !/^\/v1\/videos\/[^/]+\/content$/i.test(target.pathname)) {
+    return NextResponse.json({ error: 'LaoZhang path not allowed' }, { status: 400 });
+  }
 
   try {
+    const extraHeaders: Record<string, string> = {};
+    if (host === 'api.laozhang.ai') {
+      const key = process.env.LAOZHANG_API_KEY || '';
+      if (!key) return NextResponse.json({ error: 'LaoZhang key missing' }, { status: 500 });
+      extraHeaders.Authorization = `Bearer ${key}`;
+    }
+
     const upstream = await fetchWithTimeout(target.toString(), {
       // Downloads (especially videos) can exceed 20s on slow networks.
       // Keep a higher ceiling, but this endpoint is allowlisted to prevent abuse.
@@ -90,6 +102,7 @@ export async function GET(req: NextRequest) {
       headers: {
         'User-Agent': 'LensRoom/1.0 (public-media-proxy)',
         Accept: 'image/*,video/*,*/*;q=0.5',
+        ...extraHeaders,
       },
     });
 

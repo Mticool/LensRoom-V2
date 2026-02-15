@@ -71,7 +71,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
 
     supportedModes: ['t2v', 'i2v', 'start_end', 'extend'],
     supportedAspectRatios: ['auto', '16:9', '9:16'],
-    supportedDurationsSec: [4, 6, 8],
+    supportedDurationsSec: [8],
     supportedQualities: ['720p', '1080p'],
 
     supportsSound: false,
@@ -375,7 +375,7 @@ export const VIDEO_MODELS: ModelCapability[] = [
       },
     },
     requiredInputsByMode: {
-      motion_control: { required: ['prompt', 'inputImage', 'referenceVideo', 'characterOrientation', 'resolution'] },
+      motion_control: { required: ['inputImage', 'referenceVideo', 'characterOrientation', 'resolution'] },
     },
     fileConstraints: {
       inputImage: {

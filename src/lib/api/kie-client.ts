@@ -343,6 +343,13 @@ export class KieAIClient {
       body: parsedBody,
     });
 
+    // Log circuit breaker state before attempting the request
+    const circuitState = PROVIDER_CIRCUITS.isOpen(circuitKey);
+    if (circuitState) {
+      const remainMs = circuitState.openUntilMs - Date.now();
+      console.warn(`[KIE API] ⚠ Circuit OPEN for key ${circuitKey}, remaining ${Math.round(remainMs / 1000)}s, failures: ${circuitState.failures}`);
+    }
+
     let response: Response;
     try {
       response = await PROVIDER_CIRCUITS.run(circuitKey, async () =>

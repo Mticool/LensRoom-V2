@@ -45,7 +45,7 @@ export type PhotoMode = 't2i' | 'i2i';
 // === NEW TYPES FOR EXTENDED MODEL CAPABILITIES ===
 
 // Grok Video styles
-export type GrokVideoStyle = 'realistic' | 'fantasy' | 'sci-fi' | 'cinematic' | 'anime' | 'cartoon';
+export type GrokVideoStyle = 'normal' | 'fun' | 'spicy';
 
 // Camera motion options for WAN 2.6
 export type CameraMotion = 'static' | 'pan_left' | 'pan_right' | 'tilt_up' | 'tilt_down' | 'zoom_in' | 'zoom_out' | 'orbit' | 'follow';
@@ -170,7 +170,7 @@ export interface VideoModelConfig {
   supportsAudioGeneration?: boolean;  // Veo, Grok: native audio generation
 
   // Grok Video specific
-  styleOptions?: GrokVideoStyle[];
+  styleOptions?: string[];
 
   // WAN 2.6 specific
   cameraMotionOptions?: CameraMotion[];
@@ -778,14 +778,14 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     supportsFirstLastFrame: false, // Grok uses simple I2V, not start/end frames
     supportsStyleTransfer: true,
     supportsAudioGeneration: true,
-    styleOptions: ['realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'],
+    styleOptions: ['normal', 'fun', 'spicy'],
     pricing: {
       '6': 17,
       '10': 26,
     },
-    modes: ['t2v', 'i2v', 'style_transfer'],
+    modes: ['t2v', 'i2v'],
     durationOptions: [6, 10],
-    aspectRatios: ['9:16', '1:1', '3:2', '2:3'],
+    aspectRatios: ['1:1', '2:3', '3:2'],
     shortLabel: '6/10s • Audio • Styles',
     modelTag: 'NEW',
   },
@@ -810,7 +810,7 @@ export const VIDEO_MODELS: VideoModelConfig[] = [
     },
     modes: ['t2v', 'i2v'],
     durationOptions: [10, 15],
-    aspectRatios: ['portrait', 'landscape'],
+    aspectRatios: ['16:9', '9:16', 'portrait', 'landscape'],
     shortLabel: '10-15s • T2V/I2V',
     modelTag: 'PRO',
   },

@@ -48,11 +48,9 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Длительность (с)",
         type: "buttons",
         options: [
-          { value: 4, label: "4с" },
-          { value: 6, label: "6с" },
           { value: 8, label: "8с" }
         ],
-        default: 6,
+        default: 8,
         required: true,
         order: 2
       },
@@ -284,7 +282,6 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         options: [
           { value: "text_to_video", label: "Text → Video" },
           { value: "image_to_video", label: "Image → Video" },
-          { value: "style_transfer", label: "Style Transfer" }
         ],
         default: "text_to_video",
         required: true,
@@ -305,14 +302,11 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Стиль",
         type: "select",
         options: [
-          { value: "realistic", label: "Реалистичный" },
-          { value: "fantasy", label: "Фэнтези" },
-          { value: "sci-fi", label: "Sci-Fi" },
-          { value: "cinematic", label: "Кинематографичный" },
-          { value: "anime", label: "Аниме" },
-          { value: "cartoon", label: "Мультфильм" }
+          { value: "normal", label: "Normal" },
+          { value: "fun", label: "Fun" },
+          { value: "spicy", label: "Spicy" }
         ],
-        default: "realistic",
+        default: "normal",
         optional: true,
         order: 3
       },
@@ -320,12 +314,11 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Соотношение",
         type: "buttons",
         options: [
-          { value: "9:16", label: "9:16" },
           { value: "1:1", label: "1:1" },
-          { value: "3:2", label: "3:2" },
-          { value: "2:3", label: "2:3" }
+          { value: "2:3", label: "2:3" },
+          { value: "3:2", label: "3:2" }
         ],
-        default: "9:16",
+        default: "1:1",
         optional: true,
         order: 4
       }
@@ -362,10 +355,10 @@ export const VIDEO_MODELS_CONFIG: Record<string, VideoModelConfig> = {
         label: "Ориентация",
         type: "buttons",
         options: [
-          { value: "portrait", label: "Portrait (9:16)" },
-          { value: "landscape", label: "Landscape (16:9)" }
+          { value: "16:9", label: "Landscape (16:9)" },
+          { value: "9:16", label: "Portrait (9:16)" }
         ],
-        default: "landscape",
+        default: "16:9",
         required: true,
         order: 3
       },

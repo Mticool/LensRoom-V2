@@ -10,6 +10,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
+import sharp from "sharp";
 
 function getExpectedSecret(): string {
   return (
@@ -34,6 +35,54 @@ function buildPublicGenerationsUrl(storagePath: string): string | null {
   if (!base) return null;
   // storagePath is inside the `generations` bucket (e.g. "userId/foo.png")
   return `${base.replace(/\/$/, "")}/storage/v1/object/public/generations/${storagePath}`;
+}
+
+function isLaoZhangContentUrl(url: string): boolean {
+  const v = String(url || "");
+  return /https?:\/\/api\.laozhang\.ai\/v1\/videos\/[^/]+\/content/i.test(v);
+}
+
+function isLegacyLaoZhangModelId(modelId: string): boolean {
+  const id = String(modelId || "").toLowerCase();
+  return id.startsWith("veo-3.1") || id.startsWith("sora-2");
+}
+
+async function createVideoFallbackPoster(params: {
+  supabase: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+  generationId: string;
+}) {
+  const { supabase, userId, generationId } = params;
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="576" viewBox="0 0 1024 576">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="576" fill="url(#bg)"/>
+  <circle cx="512" cy="250" r="66" fill="#334155"/>
+  <polygon points="490,215 490,285 548,250" fill="#f8fafc"/>
+  <text x="512" y="355" text-anchor="middle" fill="#e2e8f0" font-size="36" font-family="Arial, sans-serif">Video</text>
+  <text x="512" y="395" text-anchor="middle" fill="#94a3b8" font-size="22" font-family="Arial, sans-serif">Preview unavailable</text>
+</svg>`;
+
+  const posterBuffer = await sharp(Buffer.from(svg))
+    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+
+  const posterPath = `${userId}/posters/${generationId}_poster_fallback.webp`;
+  const { error } = await supabase.storage
+    .from("generations")
+    .upload(posterPath, posterBuffer, {
+      contentType: "image/webp",
+      upsert: true,
+      cacheControl: "public, max-age=31536000, immutable",
+    });
+  if (error) throw new Error(`Fallback poster upload failed: ${error.message}`);
+  return posterPath;
 }
 
 /**
@@ -131,8 +180,13 @@ export async function POST(req: NextRequest) {
     const metaProvider = typeof meta === "object" ? String(meta?.provider || "").toLowerCase() : "";
     const modelId = gen.model_id ? String(gen.model_id) : "";
     const modelInfo = modelId ? (getModelById(modelId) as any) : null;
-    const isLaoZhang = metaProvider === "laozhang" || String(modelInfo?.provider || "").toLowerCase() === "laozhang";
     const taskId = gen.task_id ? String(gen.task_id) : "";
+    const isLaoZhang =
+      metaProvider === "laozhang" ||
+      String(modelInfo?.provider || "").toLowerCase() === "laozhang" ||
+      isLegacyLaoZhangModelId(modelId) ||
+      taskId.startsWith("foaicmpl-") ||
+      isLaoZhangContentUrl(String(sourceUrl || ""));
     if (isLaoZhang && taskId) {
       try {
         const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
@@ -190,7 +244,10 @@ export async function POST(req: NextRequest) {
     const metaProvider = typeof meta === "object" ? String(meta?.provider || "").toLowerCase() : "";
     const modelId = gen.model_id ? String(gen.model_id) : "";
     const modelInfo = modelId ? (getModelById(modelId) as any) : null;
-    const isLaoZhang = metaProvider === "laozhang" || String(modelInfo?.provider || "").toLowerCase() === "laozhang";
+    const isLaoZhang =
+      metaProvider === "laozhang" ||
+      String(modelInfo?.provider || "").toLowerCase() === "laozhang" ||
+      isLegacyLaoZhangModelId(modelId);
     const taskId = gen.task_id ? String(gen.task_id) : "";
 
     let res: { path: string; publicUrl: string };
@@ -234,12 +291,38 @@ export async function POST(req: NextRequest) {
         });
       }
     } else {
-      res = await generateVideoPoster({
-        videoUrl: sourceUrl,
-        userId: String(gen.user_id),
-        generationId,
-        supabase,
-      });
+      try {
+        res = await generateVideoPoster({
+          videoUrl: sourceUrl,
+          userId: String(gen.user_id),
+          generationId,
+          supabase,
+        });
+      } catch (posterErr) {
+        // Fallback: some LaoZhang /content URLs require Authorization.
+        if (!isLaoZhangContentUrl(sourceUrl)) throw posterErr;
+        const laoKey = env.optional("LAOZHANG_API_KEY");
+        if (!laoKey) throw posterErr;
+
+        const upstream = await fetch(sourceUrl, {
+          headers: { Authorization: `Bearer ${laoKey}` },
+        });
+        if (!upstream.ok) throw posterErr;
+
+        const tempVideo = join(tmpdir(), `poster_video_${generationId}_${Date.now()}.mp4`);
+        if (upstream.body) {
+          await pipeline(Readable.fromWeb(upstream.body as any), createWriteStream(tempVideo));
+        } else {
+          const ab = await upstream.arrayBuffer();
+          await writeFile(tempVideo, Buffer.from(ab));
+        }
+        res = await generateVideoPosterFromLocalFile({
+          videoPath: tempVideo,
+          userId: String(gen.user_id),
+          generationId,
+          supabase,
+        });
+      }
     }
     await supabase
       .from("generations")
@@ -252,6 +335,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, type, poster_path: res.path });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (type === "video") {
+      try {
+        const fallbackPath = await createVideoFallbackPoster({
+          supabase,
+          userId: String(gen.user_id),
+          generationId,
+        });
+        await supabase
+          .from("generations")
+          .update({
+            preview_status: "ready",
+            poster_path: fallbackPath,
+            // Keep original error context but don't block library render.
+            error: `Poster fallback used: ${msg.slice(0, 300)}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", generationId);
+        return NextResponse.json({ ok: true, type, poster_path: fallbackPath, fallback: true });
+      } catch (fallbackErr) {
+        console.error("[Previews Process] Fallback poster failed:", fallbackErr);
+      }
+    }
     await supabase
       .from("generations")
       .update({

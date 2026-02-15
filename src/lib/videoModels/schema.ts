@@ -67,9 +67,9 @@ export type AudioSupport = z.infer<typeof AudioSupportEnum>;
 export const ProviderEnum = z.enum(['kie', 'laozhang', 'openai', 'fal', 'genaipro']);
 export type Provider = z.infer<typeof ProviderEnum>;
 
-// Grok Video styles
+// Grok Video styles (normal, fun, spicy — API-supported presets)
 export const GrokStyleEnum = z.enum([
-  'realistic', 'fantasy', 'sci-fi', 'cinematic', 'anime', 'cartoon'
+  'normal', 'fun', 'spicy'
 ]);
 export type GrokStyle = z.infer<typeof GrokStyleEnum>;
 
@@ -184,7 +184,7 @@ export const VideoGenerationRequestSchema = z.object({
   // Core params
   modelId: ModelIdEnum,
   mode: ModeEnum,
-  prompt: z.string().min(1, 'Prompt is required'),
+  prompt: z.string().optional().default(''),
   negativePrompt: z.string().optional(),
   
   // Format options

@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       shots, // For storyboard mode
       characterOrientation, // For motion control: 'image' (max 10s) or 'video' (max 30s)
       // NEW: Extended model capabilities
-      style, // Grok Video: 'realistic' | 'fantasy' | 'sci-fi' | 'cinematic' | 'anime' | 'cartoon'
+      style, // Grok Video: 'normal' | 'fun' | 'spicy'
       cameraMotion, // WAN 2.6: 'static' | 'pan_left' | 'pan_right' | 'tilt_up' | 'tilt_down' | 'zoom_in' | 'zoom_out' | 'orbit' | 'follow'
       stylePreset, // WAN 2.6: 'realistic' | 'anime' | 'cinematic' | 'artistic' | 'vintage' | 'neon'
       motionStrength, // WAN 2.6: 0-100
@@ -1178,7 +1178,7 @@ export async function POST(request: NextRequest) {
     if (referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0) {
       const validReferenceImages = referenceImages.filter(img => img && typeof img === 'string' && img.trim() !== '');
       if (validReferenceImages.length > 0) {
-        const maxRefs = 2;
+        const maxRefs = 3;
         const imagesToUpload = validReferenceImages.slice(0, maxRefs);
         referenceImageUrls = [];
         const allDataUrls = imagesToUpload.every((img) => img.startsWith('data:'));
@@ -1234,6 +1234,24 @@ export async function POST(request: NextRequest) {
           { error: 'Reference video is required for Motion Control' },
           { status: 400 }
         );
+      }
+
+      // Verify uploaded URLs are accessible before sending to KIE
+      for (const [label, url] of [['character image', imageUrl], ['motion video', videoUrl]] as const) {
+        if (url) {
+          try {
+            const headRes = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+            if (!headRes.ok) {
+              console.error(`[API] Motion Control ${label} URL not accessible:`, { url: url.substring(0, 80), status: headRes.status });
+              return NextResponse.json(
+                { error: `Не удалось проверить загруженный файл (${label}). Попробуйте загрузить заново.`, errorCode: 'FILE_NOT_ACCESSIBLE' },
+                { status: 400 }
+              );
+            }
+          } catch (e) {
+            console.warn(`[API] Motion Control ${label} URL HEAD check failed (non-fatal):`, e);
+          }
+        }
       }
     }
 
@@ -1465,67 +1483,21 @@ export async function POST(request: NextRequest) {
             ? endImage
             : endImageUrlForVideo;
 
-        // Sync path: multi-reference (-fl) via chat/completions (feature parity).
-        if (hasRefs) {
-          const videoGenResponse = await withRetry(
-            'laozhang_sync_submit',
-            () => videoClient.generateVideo({
-              model: videoModelId,
-              prompt: fullPrompt,
-              startImageUrl: startForLaoZhang,
-              endImageUrl: endForLaoZhang,
-              referenceImages: refsForLaoZhang,
-            }),
-          );
-
-          if (!videoGenResponse.videoUrl) {
-            throw new Error('Video generation returned no URL. Please try again.');
-          }
-
-          // Save provider URL as result immediately (avoid download+upload here).
-          await updateGenerationWithRetry(
-            supabase,
-            generation?.id,
-            {
-              status: 'success',
-              result_url: videoGenResponse.videoUrl,
-              result_urls: [videoGenResponse.videoUrl],
-              metadata: {
-                ...(generation?.metadata || {}),
-                provider: 'laozhang',
-                provider_task_id: videoGenResponse.id,
-                provider_model: videoModelId,
-              },
-              updated_at: new Date().toISOString(),
-            },
-            'video_success_laozhang_sync'
-          );
-
-          const stable =
-            generation?.id
-              ? `/api/generations/${encodeURIComponent(String(generation.id))}/download?kind=original&proxy=1`
-              : videoGenResponse.videoUrl;
-
-          return NextResponse.json({
-            success: true,
-            jobId: generation?.id,
-            status: 'completed',
-            generationId: generation?.id,
-            kind: 'video',
-            creditCost: creditCost,
-            resultUrl: stable,
-            videoUrl: stable,
-            results: stable ? [{ url: stable }] : [],
-          });
-        }
-
-        // Async path: text-to-video OR 1-2 reference frames (prevents proxy 504s).
-        // For Veo "First/Last Frame" LaoZhang expects a -fl model (e.g. veo-3.1-fast-fl).
-        const imageUrlsForAsync = [startForLaoZhang, endForLaoZhang].filter(Boolean) as string[];
+        // Async path: text-to-video, reference frames, or multi-reference images.
+        // For start/end frames, LaoZhang async endpoint needs -fl model suffix.
+        // For reference images (i2v), the async endpoint uses input_reference form fields
+        // with the BASE model (no -fl suffix) — -fl is a chat/completions convention only.
+        const frameUrls = [startForLaoZhang, endForLaoZhang].filter(Boolean) as string[];
+        const refUrls = hasRefs ? (refsForLaoZhang as string[]) : [];
+        const imageUrlsForAsync = [...frameUrls, ...refUrls].filter(Boolean) as string[];
         const asyncModelId = (() => {
+          // No images: use model as-is (text-to-video)
           if (!imageUrlsForAsync.length) return videoModelId;
+          // Reference images only (i2v): use base model WITHOUT -fl suffix.
+          // The -fl suffix is for chat/completions; async /v1/videos uses input_reference form fields.
+          if (refUrls.length > 0 && frameUrls.length === 0) return videoModelId;
+          // Start/end frames: need -fl suffix for async endpoint
           if (videoModelId.includes("-fl")) return videoModelId;
-          // Keep it simple: map fast/landscape to -fast-fl, otherwise to -fl.
           const isLandscape = videoModelId.includes("landscape");
           const isFast = videoModelId.includes("fast");
           if (isLandscape && isFast) return "veo-3.1-landscape-fast-fl";
@@ -1618,7 +1590,10 @@ export async function POST(request: NextRequest) {
     }
 
     // === FAL.ai PROVIDER ===
-    if (modelInfo.provider === 'fal') {
+    if (response) {
+      // LaoZhang already produced a response — skip FAL/KIE providers entirely.
+      console.log('[API] Skipping FAL/KIE — response already set by LaoZhang, taskId:', response.id);
+    } else if (modelInfo.provider === 'fal') {
       console.log('[API] Using FAL.ai provider for model:', model);
       try {
         console.log('[API] FAL_KEY exists:', !!process.env.FAL_KEY);
@@ -1959,7 +1934,67 @@ export async function POST(request: NextRequest) {
         } else {
           // Любая другая ошибка провайдера: не должна "класть" сайт и не должна оставлять генерацию висеть в queued.
           await markFailedAndRefund("kie_generate_error");
-          throw error;
+
+          // Classify error and return a differentiated response instead of re-throwing
+          const isCircuit = error instanceof CircuitOpenError;
+          const isTimeout = error instanceof FetchTimeoutError;
+          const isRateLimited = typeof (error as any)?.status === "number" && Number((error as any).status) === 429;
+          const kieStatus = typeof (error as any)?.status === "number" ? Number((error as any).status) : 0;
+          const isServerError = kieStatus >= 500;
+          const isNetworkErr = /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(errorMessage);
+
+          console.error('[API] KIE provider error:', {
+            model,
+            errorName: error?.name,
+            errorMessage,
+            errorStatus: kieStatus || undefined,
+            isCircuitOpen: isCircuit,
+            isTimeout,
+            isRateLimited,
+            isServerError,
+            isNetworkErr,
+            resolution,
+            characterOrientation,
+          });
+
+          let userError: string;
+          let errorCode: string;
+          let httpStatus: number;
+
+          if (isCircuit) {
+            userError = "Сервис временно перегружен. Подождите 1-2 минуты и повторите.";
+            errorCode = "CIRCUIT_OPEN";
+            httpStatus = 503;
+          } else if (isTimeout) {
+            userError = "Превышено время ожидания от сервиса генерации.";
+            errorCode = "UPSTREAM_TIMEOUT";
+            httpStatus = 504;
+          } else if (isRateLimited) {
+            userError = "Слишком много запросов. Подождите и попробуйте снова.";
+            errorCode = "UPSTREAM_RATE_LIMIT";
+            httpStatus = 429;
+          } else if (isServerError) {
+            userError = "Сервис генерации временно недоступен. Попробуйте позже.";
+            errorCode = "UPSTREAM_UNAVAILABLE";
+            httpStatus = 503;
+          } else if (isNetworkErr) {
+            userError = "Ошибка сети при подключении к сервису генерации.";
+            errorCode = "NETWORK_ERROR";
+            httpStatus = 502;
+          } else {
+            userError = errorMessage || "Ошибка генерации видео";
+            errorCode = "INTERNAL_ERROR";
+            httpStatus = 500;
+          }
+
+          return NextResponse.json(
+            {
+              error: userError,
+              details: errorMessage !== userError ? errorMessage : undefined,
+              errorCode,
+            },
+            { status: httpStatus }
+          );
         }
       }
     } // Close else block for KIE provider
@@ -2001,7 +2036,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const finalResp = {
       success: true,
       jobId: response.id,
       status: response.status,
@@ -2011,24 +2046,56 @@ export async function POST(request: NextRequest) {
       kind: "video",
       warning: promptWarning,
       usedFallback: usedFallback,
-    });
+    };
+    console.log("[API] Returning generate/video response:", JSON.stringify({ jobId: finalResp.jobId, status: finalResp.status, provider: (response as any)?.provider }));
+    return NextResponse.json(finalResp);
   } catch (error) {
-    console.error('[API] Video generation error:', error);
+    console.error('[API] Video generation error (outer catch):', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     const isTimeout = error instanceof FetchTimeoutError;
+    const isCircuit = error instanceof CircuitOpenError;
     const isRateLimited = typeof (error as any)?.status === "number" && Number((error as any).status) === 429;
-    const isTransient =
-      isRateLimited ||
-      error instanceof CircuitOpenError ||
-      /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(String(message)) ||
-      (typeof (error as any)?.status === "number" && Number((error as any).status) >= 500);
+    const kieStatus = typeof (error as any)?.status === "number" ? Number((error as any).status) : 0;
+    const isServerError = kieStatus >= 500;
+    const isNetworkErr = /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(String(message));
+
+    let userError: string;
+    let errorCode: string;
+    let httpStatus: number;
+
+    if (isCircuit) {
+      userError = "Сервис временно перегружен. Подождите 1-2 минуты и повторите.";
+      errorCode = "CIRCUIT_OPEN";
+      httpStatus = 503;
+    } else if (isTimeout) {
+      userError = "Превышено время ожидания от сервиса генерации.";
+      errorCode = "UPSTREAM_TIMEOUT";
+      httpStatus = 504;
+    } else if (isRateLimited) {
+      userError = "Слишком много запросов. Подождите и попробуйте снова.";
+      errorCode = "UPSTREAM_RATE_LIMIT";
+      httpStatus = 429;
+    } else if (isServerError) {
+      userError = "Сервис генерации временно недоступен. Попробуйте позже.";
+      errorCode = "UPSTREAM_UNAVAILABLE";
+      httpStatus = 503;
+    } else if (isNetworkErr) {
+      userError = "Ошибка сети при подключении к сервису генерации.";
+      errorCode = "NETWORK_ERROR";
+      httpStatus = 502;
+    } else {
+      userError = message;
+      errorCode = "INTERNAL_ERROR";
+      httpStatus = 500;
+    }
+
     return NextResponse.json(
       {
-        error: isTimeout || isTransient ? "Сервис генерации временно недоступен. Попробуйте позже." : message,
-        details: isTimeout || isTransient ? message : undefined,
-        errorCode: isTimeout ? "UPSTREAM_TIMEOUT" : isRateLimited ? "UPSTREAM_RATE_LIMIT" : isTransient ? "UPSTREAM_UNAVAILABLE" : "INTERNAL_ERROR",
+        error: userError,
+        details: message !== userError ? message : undefined,
+        errorCode,
       },
-      { status: isTimeout ? 504 : isTransient ? 503 : 500 }
+      { status: httpStatus }
     );
   }
 }

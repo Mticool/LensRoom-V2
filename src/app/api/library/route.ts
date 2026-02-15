@@ -252,9 +252,20 @@ export async function GET(request: NextRequest) {
           originalUrl = gen.asset_url;
         }
 
+        const stableDownloadUrl =
+          gen.id && String(gen.status || "").toLowerCase() === "success"
+            ? `/api/generations/${encodeURIComponent(String(gen.id))}/download?kind=original&proxy=1`
+            : null;
+
         // Final fallback: stable authenticated download endpoint (avoids "empty" success cards)
-        if (!originalUrl && gen.id && String(gen.status || "").toLowerCase() === "success") {
-          originalUrl = `/api/generations/${encodeURIComponent(String(gen.id))}/download?kind=original&proxy=1`;
+        if (!originalUrl && stableDownloadUrl) {
+          originalUrl = stableDownloadUrl;
+        }
+
+        // Videos are rendered in browser <video>. For provider-protected URLs (e.g. LaoZhang),
+        // direct links can return 401/404 in client context. Force same-origin proxy URL.
+        if (isVideo && stableDownloadUrl) {
+          originalUrl = stableDownloadUrl;
         }
 
         // --- PREVIEW URL ---

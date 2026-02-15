@@ -25,8 +25,9 @@ interface GenerationPatchInput {
 // Keep API payload small (faster TTFB + less JSON parse on client).
 // Only include fields used by Library/Studio UI.
 const GENERATIONS_SELECT =
-  // NOTE: some older DB schemas don't have `results` column.
-  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,aspect_ratio,params,credits_used,task_id,thread_id,asset_url,preview_url,thumbnail_url,preview_path,poster_path,preview_status,result_urls,error,is_favorite,created_at,updated_at";
+  // NOTE: some older DB schemas may not have all columns (params, metadata, thread_id, etc).
+  // The query will retry with SELECT * if this fails (see buildQuery fallback below).
+  "id,user_id,type,status,model_id,model_name,prompt,negative_prompt,aspect_ratio,credits_used,task_id,asset_url,result_url,preview_url,thumbnail_url,result_urls,original_path,preview_path,poster_path,error,is_favorite,created_at,updated_at";
 
 // GET - Fetch user's generations (history)
 export async function GET(request: NextRequest) {
@@ -84,12 +85,16 @@ export async function GET(request: NextRequest) {
     if (error) {
       const msg = String((error as any)?.message || error);
       const code = String((error as any)?.code || "");
+      console.warn("[Generations API] Select error:", { code, msg: msg.substring(0, 120) });
       const isMissingColumn =
-        code === "42703" || /column .* does not exist/i.test(msg) || /does not exist/i.test(msg);
+        code === "42703" || code === "PGRST204" ||
+        /column .* does not exist/i.test(msg) || /does not exist/i.test(msg) ||
+        /could not find/i.test(msg);
 
       if (isMissingColumn) {
         // Best-effort backwards compatibility:
         // - If thread_id column doesn't exist yet, drop thread filter.
+        console.log("[Generations API] Retrying with SELECT *");
         ({ data, error } = await buildQuery("*", { ignoreThreadFilter: true }));
       }
     }
@@ -154,6 +159,10 @@ export async function GET(request: NextRequest) {
     // Studio history expects a thumbnail URL for videos; without it the UI shows black frames.
     const generations = (data || []).map((g: any) => {
       const out: any = { ...g };
+      const id = String(out.id || "");
+      const status = String(out.status || "").toLowerCase();
+      const isVideo = String(out.type || "").toLowerCase() === "video";
+      const isDone = status === "success" || status === "completed";
 
       try {
         if (!out.preview_url && out.preview_path) {
@@ -171,6 +180,20 @@ export async function GET(request: NextRequest) {
         }
       } catch {
         // ignore
+      }
+
+      // Server-side safeguard:
+      // always return stable same-origin playback URL for completed videos.
+      // This avoids stale direct provider links (e.g. LaoZhang /content) in old client bundles.
+      if (id && isVideo && isDone) {
+        const stable = `/api/generations/${encodeURIComponent(id)}/download?kind=original&proxy=1`;
+        out.asset_url = stable;
+        out.result_url = stable;
+        out.result_urls = [stable];
+        // If preview is missing, use poster as grid fallback
+        if (!out.preview_url && out.poster_url) {
+          out.preview_url = out.poster_url;
+        }
       }
 
       return out;

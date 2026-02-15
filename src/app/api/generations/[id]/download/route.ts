@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getSourceAssetUrl } from '@/lib/previews/asset-url';
 import { getAuthUserId, getSession } from '@/lib/telegram/auth';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/api/fetch-with-timeout';
@@ -8,6 +9,41 @@ import { getModelById } from "@/config/models";
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+function isLegacyLaoZhangModelId(modelId: string): boolean {
+  const id = String(modelId || "").toLowerCase();
+  return id.startsWith("veo-3.1") || id.startsWith("sora-2");
+}
+
+function isLaoZhangContentUrl(url: string): boolean {
+  return /https?:\/\/api\.laozhang\.ai\/v1\/videos\/[^/]+\/content/i.test(String(url || ""));
+}
+
+function normalizeContentType(params: {
+  contentType: string;
+  generationType: string;
+  kind: string;
+  fallbackExt?: string;
+}): string {
+  const raw = String(params.contentType || "").toLowerCase();
+  if (raw && raw !== "application/octet-stream") return raw;
+
+  const kind = String(params.kind || "").toLowerCase();
+  const genType = String(params.generationType || "").toLowerCase();
+  const ext = String(params.fallbackExt || "").toLowerCase();
+
+  if (kind === "preview" || kind === "poster") return "image/webp";
+  if (genType === "video") {
+    if (ext === "webm") return "video/webm";
+    return "video/mp4";
+  }
+  if (genType === "photo" || genType === "image") {
+    if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+    if (ext === "png") return "image/png";
+    return "image/webp";
+  }
+  return "application/octet-stream";
+}
 
 /**
  * OPTIONS /api/generations/[id]/download
@@ -80,11 +116,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Use admin client for DB reads (RLS blocks user-scoped client for Telegram-auth users).
+    // Auth is enforced via userId check above + ownership check below.
+    const adminDb = getSupabaseAdmin();
+
     // Fetch generation (schema-compatible: older prod DB may not have optional columns).
+    // IMPORTANT: model_id and task_id are required for LaoZhang download proxy.
+    // metadata column may not exist in DB — keep it only in V3+ attempts.
     const legacyBaseFields =
-      'id, user_id, type, status, asset_url, result_url, result_urls, thumbnail_url, preview_path, poster_path';
+      'id, user_id, type, status, asset_url, result_url, result_urls, thumbnail_url, preview_path, poster_path, model_id, task_id';
     const baseFieldsV2 = `${legacyBaseFields}, original_path`;
-    const baseFieldsV3 = `${baseFieldsV2}, model_id, task_id, metadata`;
+    const baseFieldsV3 = `${baseFieldsV2}, metadata`;
+    // output/result/data columns may not exist in DB; kept as extra attempt only.
     const extraFieldsV3 = `${baseFieldsV3}, output, result, data`;
 
     let generation: any = null;
@@ -92,19 +135,24 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const selectAttempts = [extraFieldsV3, baseFieldsV3, baseFieldsV2, legacyBaseFields];
     for (const fields of selectAttempts) {
-      const r = await supabase.from('generations').select(fields).eq('id', generationId).single();
+      const r = await adminDb.from('generations').select(fields).eq('id', generationId).single();
       generation = r.data;
       fetchError = r.error;
       if (!fetchError) break;
       // If schema mismatch (missing column), try the next, smaller selection.
-      if (String((fetchError as any)?.code || '') === 'PGRST204') continue;
+      const errCode = String((fetchError as any)?.code || '');
+      const errMsg = String((fetchError as any)?.message || '');
+      if (errCode === 'PGRST204' || errCode === '42703' || /does not exist/i.test(errMsg)) continue;
       // If the row doesn't exist or any other error, don't loop forever.
       break;
     }
 
     if (fetchError || !generation) {
+      console.error('[Download] Generation not found:', generationId, 'fetchError:', fetchError);
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 });
     }
+
+    console.log('[Download] Found generation:', generationId, 'model_id:', generation.model_id, 'task_id:', generation.task_id, 'status:', generation.status);
 
     // Verify ownership
     if (generation.user_id !== userId) {
@@ -181,25 +229,67 @@ export async function GET(request: NextRequest, context: RouteContext) {
           : "";
       const modelId = typeof (generation as any)?.model_id === "string" ? String((generation as any).model_id) : "";
       const modelInfo = modelId ? (getModelById(modelId) as any) : null;
-      const isLaoZhang = metaProvider === "laozhang" || String(modelInfo?.provider || "").toLowerCase() === "laozhang";
+      const isLaoZhang =
+        metaProvider === "laozhang" ||
+        String(modelInfo?.provider || "").toLowerCase() === "laozhang" ||
+        isLegacyLaoZhangModelId(modelId);
+
+      console.log('[Download] proxy mode:', { isLaoZhang, kind, modelId, metaProvider, taskId: (generation as any)?.task_id });
 
       // LaoZhang videos: /v1/videos/:id/content requires auth and may return raw mp4 bytes.
       // Serve it through our proxy using the server-side LAOZHANG_API_KEY.
-      if (isLaoZhang && kind === "original") {
+      // Skip this if we already have the video in Supabase Storage (original_path set).
+      if (isLaoZhang && kind === "original" && !storagePath) {
         const taskId = typeof (generation as any)?.task_id === "string" ? String((generation as any).task_id) : "";
         if (!taskId) {
           return NextResponse.json({ error: "Missing task_id for LaoZhang generation" }, { status: 404 });
         }
-        const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
-        const lz = getLaoZhangClient();
-        const upstream = await lz.fetchVideoContent(taskId);
+
+        // Legacy sync-path generations have chatcmpl- task_ids that don't work with /v1/videos/:id/content.
+        // Fall back to result_urls stored in DB (may be expired CDN URLs — best-effort).
+        const isSyncLegacy = taskId.startsWith("chatcmpl-");
+
+        let upstream: Response | null = null;
+
+        if (isSyncLegacy) {
+          const resultUrl =
+            (Array.isArray((generation as any)?.result_urls) && (generation as any).result_urls[0]) ||
+            (typeof (generation as any)?.result_url === "string" && (generation as any).result_url) ||
+            null;
+          if (resultUrl) {
+            console.log("[Download] chatcmpl- task_id, using result_url directly:", String(resultUrl).substring(0, 80));
+            upstream = await fetch(resultUrl);
+          }
+        }
+
+        if (!upstream) {
+          const { getLaoZhangClient } = await import("@/lib/api/laozhang-client");
+          const lz = getLaoZhangClient();
+          upstream = await lz.fetchVideoContent(taskId);
+        }
+
         if (!upstream.ok) {
           const t = await upstream.text().catch(() => "");
           console.error("[Download] LaoZhang content fetch failed:", upstream.status, t.slice(0, 200));
           return NextResponse.json({ error: "Failed to fetch upstream video" }, { status: 502 });
         }
 
-        const contentType = upstream.headers.get("content-type") || "video/mp4";
+        let contentType = upstream.headers.get("content-type") || "video/mp4";
+        // Some LaoZhang deployments return JSON { url } from /content.
+        // Resolve and stream the actual media so <video> can play in browser.
+        if (contentType.toLowerCase().includes("application/json")) {
+          const j = await upstream.json().catch(() => null);
+          const u = j?.url || j?.video_url || j?.videoUrl;
+          if (typeof u === "string" && u.startsWith("http")) {
+            upstream = await fetchWithTimeout(u, { timeout: 90_000 });
+            if (!upstream.ok) {
+              const t = await upstream.text().catch(() => "");
+              console.error("[Download] LaoZhang nested media fetch failed:", upstream.status, t.slice(0, 200));
+              return NextResponse.json({ error: "Failed to fetch nested video url" }, { status: 502 });
+            }
+            contentType = upstream.headers.get("content-type") || "video/mp4";
+          }
+        }
         const disposition = forceDownload
           ? `attachment; filename="lensroom_${generationId.substring(0, 8)}_${kind}.mp4"`
           : "inline";
@@ -228,7 +318,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         if (storagePath.startsWith(`${bucket}/`)) {
           storagePath = storagePath.slice(bucket.length + 1);
         }
-        const { data: signedData, error: signedError } = await supabase.storage
+        const { data: signedData, error: signedError } = await adminDb.storage
           .from(bucket)
           .createSignedUrl(storagePath, 300);
 
@@ -243,26 +333,36 @@ export async function GET(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: 'Asset URL not found' }, { status: 404 });
       }
 
-      const fetchUpstream = (url: string) => fetchWithTimeout(url, { timeout: 90_000 });
+      const fetchUpstream = (url: string, headers?: Record<string, string>) =>
+        fetchWithTimeout(url, { timeout: 90_000, headers });
 
-      let upstream = await fetchUpstream(finalUrl);
+      let upstream: Response;
+      if (isLaoZhangContentUrl(finalUrl)) {
+        const laoKey = process.env.LAOZHANG_API_KEY || "";
+        upstream = await fetchUpstream(
+          finalUrl,
+          laoKey ? { Authorization: `Bearer ${laoKey}` } : undefined
+        );
+      } else {
+        upstream = await fetchUpstream(finalUrl);
+      }
       if (!upstream.ok) {
         console.error(`[Download] Upstream fetch failed: ${upstream.status} ${upstream.statusText}`);
         return NextResponse.json({ error: 'Failed to fetch asset' }, { status: 502 });
       }
 
-      const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+      const upstreamContentType = upstream.headers.get('content-type') || 'application/octet-stream';
       const arrayBuffer = await upstream.arrayBuffer();
 
       // Determine file extension based on content type and generation type
       let extension = 'bin';
-      if (contentType.includes('video')) {
+      if (upstreamContentType.includes('video')) {
         extension = 'mp4';
-      } else if (contentType.includes('image/webp')) {
+      } else if (upstreamContentType.includes('image/webp')) {
         extension = 'webp';
-      } else if (contentType.includes('image/png')) {
+      } else if (upstreamContentType.includes('image/png')) {
         extension = 'png';
-      } else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) {
+      } else if (upstreamContentType.includes('image/jpeg') || upstreamContentType.includes('image/jpg')) {
         extension = 'jpg';
       } else if (generation.type === 'video') {
         extension = 'mp4';
@@ -272,6 +372,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
       // Generate filename
       const filename = `lensroom_${generationId.substring(0, 8)}_${kind}.${extension}`;
+      const contentType = normalizeContentType({
+        contentType: upstreamContentType,
+        generationType: String(generation.type || ""),
+        kind,
+        fallbackExt: extension,
+      });
 
       // Content-Disposition: attachment forces download, inline allows browser to display
       const disposition = forceDownload ? `attachment; filename="${filename}"` : 'inline';
@@ -304,7 +410,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (storagePath.startsWith(`${bucket}/`)) {
       storagePath = storagePath.slice(bucket.length + 1);
     }
-    const { data: signedData, error: signedError } = await supabase.storage
+    const { data: signedData, error: signedError } = await adminDb.storage
       .from(bucket)
       .createSignedUrl(storagePath, 300); // 5 minutes expiry
 

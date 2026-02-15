@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { refundCredits } from '@/lib/credits/refund';
+import { syncKieTaskToDb } from '@/lib/kie/sync-task';
 
 /**
  * CRON: Cleanup stuck generations and refund credits
@@ -22,6 +23,12 @@ const TIMEOUT_THRESHOLDS: Record<string, number> = {
   generating: 120,  // 2 hours for generating
 };
 
+// VEO-specific anti-stuck policy:
+// 1) Re-check provider status relatively early
+// 2) Only hard-fail after extended timeout
+const VEO_SYNC_RECHECK_MINUTES = 15;
+const VEO_HARD_TIMEOUT_MINUTES = 90;
+
 export async function GET(request: NextRequest) {
   // Verify cron secret
   const authHeader = request.headers.get('authorization');
@@ -42,7 +49,118 @@ export async function GET(request: NextRequest) {
       status: string;
       creditsRefunded: number;
       action: 'cleaned' | 'error';
+    } | {
+      id: string;
+      userId: string;
+      modelId: string;
+      status: string;
+      creditsRefunded: number;
+      action: 'synced';
     }> = [];
+
+    // Pass 1: aggressively re-sync potentially stuck VEO generations before timing out.
+    try {
+      const recheckCutoff = new Date(now.getTime() - VEO_SYNC_RECHECK_MINUTES * 60 * 1000).toISOString();
+      const { data: veoCandidates, error: veoFetchError } = await supabase
+        .from('generations')
+        .select('id, user_id, model_id, task_id, credits_used, status, created_at')
+        .like('model_id', 'veo-3.1%')
+        .in('status', ['queued', 'processing', 'generating'])
+        .not('task_id', 'is', null)
+        .lt('created_at', recheckCutoff)
+        .limit(200);
+
+      if (veoFetchError) {
+        console.error('[Cleanup] Error fetching VEO recheck candidates:', veoFetchError);
+      } else if (veoCandidates && veoCandidates.length > 0) {
+        console.log(`[Cleanup] VEO recheck candidates: ${veoCandidates.length}`);
+        for (const generation of veoCandidates) {
+          try {
+            const taskId = String(generation.task_id || '').trim();
+            if (!taskId) continue;
+
+            const syncRes = await syncKieTaskToDb({ supabase, taskId });
+            if (syncRes.ok && (syncRes.status === 'success' || syncRes.status === 'failed')) {
+              results.push({
+                id: generation.id,
+                userId: generation.user_id,
+                modelId: generation.model_id,
+                status: syncRes.status,
+                creditsRefunded: 0,
+                action: 'synced',
+              });
+              continue;
+            }
+
+            // Hard-timeout VEO generations that still don't transition after a long time.
+            const createdMs = new Date(generation.created_at).getTime();
+            const ageMinutes = Math.floor((now.getTime() - createdMs) / (60 * 1000));
+            if (ageMinutes < VEO_HARD_TIMEOUT_MINUTES) continue;
+
+            const { error: updateError } = await supabase
+              .from('generations')
+              .update({
+                status: 'failed',
+                error: `Timeout: VEO task stuck for over ${VEO_HARD_TIMEOUT_MINUTES} minutes`,
+                updated_at: now.toISOString(),
+              })
+              .eq('id', generation.id)
+              .in('status', ['queued', 'processing', 'generating']);
+
+            if (updateError) {
+              console.error(`[Cleanup] Error hard-failing VEO generation ${generation.id}:`, updateError);
+              results.push({
+                id: generation.id,
+                userId: generation.user_id,
+                modelId: generation.model_id,
+                status: String(generation.status),
+                creditsRefunded: 0,
+                action: 'error',
+              });
+              continue;
+            }
+
+            const creditsToRefund = generation.credits_used || 0;
+            if (creditsToRefund > 0) {
+              await refundCredits(
+                supabase,
+                generation.user_id,
+                generation.id,
+                creditsToRefund,
+                'stuck_veo_cleanup',
+                {
+                  original_status: generation.status,
+                  timeout_minutes: VEO_HARD_TIMEOUT_MINUTES,
+                  model_id: generation.model_id,
+                  task_id: generation.task_id,
+                }
+              );
+            }
+
+            results.push({
+              id: generation.id,
+              userId: generation.user_id,
+              modelId: generation.model_id,
+              status: String(generation.status),
+              creditsRefunded: creditsToRefund,
+              action: 'cleaned',
+            });
+          } catch (error) {
+            console.error(`[Cleanup] VEO recheck error for generation ${generation.id}:`, error);
+            results.push({
+              id: generation.id,
+              userId: generation.user_id,
+              modelId: generation.model_id,
+              status: String(generation.status),
+              creditsRefunded: 0,
+              action: 'error',
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Cleanup] Unexpected VEO recheck pass error:', err);
+    }
 
     // Process each status type
     for (const [status, timeoutMinutes] of Object.entries(TIMEOUT_THRESHOLDS)) {
@@ -134,15 +252,17 @@ export async function GET(request: NextRequest) {
     }
 
     const totalCleaned = results.filter(r => r.action === 'cleaned').length;
+    const totalSynced = results.filter(r => r.action === 'synced').length;
     const totalRefunded = results.reduce((sum, r) => sum + r.creditsRefunded, 0);
     const totalErrors = results.filter(r => r.action === 'error').length;
 
-    console.log(`[Cleanup] Completed: ${totalCleaned} cleaned, ${totalRefunded} credits refunded, ${totalErrors} errors`);
+    console.log(`[Cleanup] Completed: ${totalSynced} synced, ${totalCleaned} cleaned, ${totalRefunded} credits refunded, ${totalErrors} errors`);
 
     return NextResponse.json({
       success: true,
       timestamp: now.toISOString(),
       summary: {
+        totalSynced,
         totalCleaned,
         totalRefunded,
         totalErrors,
